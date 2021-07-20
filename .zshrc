@@ -1,6 +1,9 @@
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
-
+export PATH=/usr/local/apache-maven-3.8.1/bin:$PATH
+export JAVA_HOME=/usr/lib/jvm/jdk-11.0.11+9
+export PATH=$PATH:$JAVA_HOME/bin
+export PATH=$HOME/equo-framework-master/eclipse:$PATH
 # Path to your oh-my-zsh installation.
 export ZSH="/home/guido/.oh-my-zsh"
 
@@ -134,5 +137,8 @@ zstyle ":anyframe:selector:" use fzf
 alias ll='exa -lF --group-directories-first --git --icons --color-scale'
 alias la='ll -hHigmuSa'
 alias lt='ll --tree --level=2'
-alias gg="git log --all --graph --decorate --oneline"
 alias v=nvim
+alias f=fzf
+alias equo-build='git clean -dfx && ./gradlew clean && ./gradlew assemble && ./gradlew test && ./gradlew testOSGi'
+alias rm="rm -i"
+alias gaa="git status --short | sed -E 's/[ ]+/ /g;s/^ //g' | cut -d' ' -f2 | grep -vE '.(classpath|project)' | xargs --replace=_ git add _"
