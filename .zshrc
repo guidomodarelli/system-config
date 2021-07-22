@@ -141,4 +141,3 @@ alias v=nvim
 alias f=fzf
 alias equo-build='git clean -dfx && ./gradlew clean && ./gradlew assemble && ./gradlew test && ./gradlew testOSGi'
 alias rm="rm -i"
-alias gaa='git status --short | sed -E "s/[ ]+/ /g;s/^ //g" | cut -d" " -f2 | grep -vE ".(classpath|project)" | xargs --replace=_ git add _'
