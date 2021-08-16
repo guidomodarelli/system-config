@@ -1,3 +1,5 @@
+autoload -Uz compinit
+compinit
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 export PATH=/usr/local/apache-maven-3.8.1/bin:$PATH
@@ -144,3 +146,5 @@ alias equo-build='./gradlew clean && ./gradlew assemble && ./gradlew test && ./g
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+alias k=kubectl
+complete -F __start_kubectl k
