@@ -15,7 +15,7 @@ alias k=kubectl
 # ┌──────────────────────────────────────────────────────────────────────────────┐
 # │ exa                                                                          │
 # └──────────────────────────────────────────────────────────────────────────────┘
-alias exa='exa --group-directories-first --icons --color-scale --git-ignore'
+alias exa='exa --group-directories-first --icons --color-scale'
 alias ll='exa -lF'
 alias la='ll -hHigmuSa'
 alias llt='ll -T'

@@ -22,7 +22,7 @@ export GOBIN=$GOPATH/bin
 export GOROOT=$LOCAL/go
 
 # ----------------------------- Path to JAVA_HOME ---------------------------- #
-export JAVA_HOME=$LIB/jvm/java-8-openjdk-amd64
+export JAVA_HOME=$LIB/jvm/java-11-openjdk-amd64
 
 # -------------------------------- Path to NVM ------------------------------- #
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] \
