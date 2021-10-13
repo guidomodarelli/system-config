@@ -58,8 +58,7 @@ export PATH=$PATH:$newPath
 # │ ZSH configuration                                                            │
 # └──────────────────────────────────────────────────────────────────────────────┘
 # ------------------------------ zsh-completions ----------------------------- #
-autoload -Uz compinit
-compinit
+autoload -U compinit && compinit
 
 # ------------------------------- ZSH vaiables ------------------------------- #
 ZSH_CUSTOM=$HOME/dotfiles
@@ -71,6 +70,17 @@ ZSH_THEME="robbyrussell"
 source ~/.antigenrc
 source $ZSH_CUSTOM/aliases.zsh
 source $ZSH/oh-my-zsh.sh
+
+# ┌──────────────────────────────────────────────────────────────────────────────┐
+# │ Completions                                                                  │
+# └──────────────────────────────────────────────────────────────────────────────┘
+source $ZSH/completions/et.zsh
+
+_comps=(
+'et' '_et'
+)
+
+autoload -Uz _et
 
 # -------------------------------- Equo files -------------------------------- #
 ZSH_EQUO=$ZSH_CUSTOM/equo
@@ -110,3 +120,6 @@ zstyle ":anyframe:selector:" use fzf
 # ------------------------------- This load nvm ------------------------------ #
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
+
+typeset -g ZSH_SYSTEM_CLIPBOARD_TMUX_SUPPORT='true'
+typeset -g ZSH_SYSTEM_CLIPBOARD_SELECTION='CLIPBOARD'
