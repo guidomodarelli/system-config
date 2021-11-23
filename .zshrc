@@ -58,7 +58,9 @@ export PATH=$PATH:$newPath
 # │ ZSH configuration                                                            │
 # └──────────────────────────────────────────────────────────────────────────────┘
 # ------------------------------ zsh-completions ----------------------------- #
-autoload -U compinit && compinit
+autoload -U compinit 
+
+compinit
 
 # ------------------------------- ZSH vaiables ------------------------------- #
 ZSH_CUSTOM=$HOME/dotfiles
@@ -75,12 +77,10 @@ source $ZSH/oh-my-zsh.sh
 # │ Completions                                                                  │
 # └──────────────────────────────────────────────────────────────────────────────┘
 source $ZSH/completions/et.zsh
+source $ZSH/completions/kubectl.zsh
 
-_comps=(
-'et' '_et'
-)
-
-autoload -Uz _et
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
+fpath=(/usr/local/share/zsh-completions $fpath)
 
 # -------------------------------- Equo files -------------------------------- #
 ZSH_EQUO=$ZSH_CUSTOM/equo
