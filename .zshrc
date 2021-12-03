@@ -100,6 +100,7 @@ plugins=(
 	npm
 	gradle
 	nvm
+	fd
 )
 
 # ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -120,6 +121,3 @@ zstyle ":anyframe:selector:" use fzf
 # ------------------------------- This load nvm ------------------------------ #
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-
-typeset -g ZSH_SYSTEM_CLIPBOARD_TMUX_SUPPORT='true'
-typeset -g ZSH_SYSTEM_CLIPBOARD_SELECTION='CLIPBOARD'

@@ -11,6 +11,7 @@
 alias v=vim
 alias f=fzf
 alias k=kubectl
+alias b=batcat
 
 # ┌──────────────────────────────────────────────────────────────────────────────┐
 # │ exa                                                                          │
