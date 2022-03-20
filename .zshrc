@@ -22,7 +22,7 @@ export GOBIN=$GOPATH/bin
 export GOROOT=$LOCAL/go
 
 # ----------------------------- Path to JAVA_HOME ---------------------------- #
-export JAVA_HOME=$LIB/jvm/java-11-openjdk-amd64
+export JAVA_HOME=$(dirname $(dirname $(readlink /etc/alternatives/java)))
 
 # -------------------------------- Path to NVM ------------------------------- #
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] \
@@ -38,7 +38,7 @@ paths=(
 	$JAVA_HOME/bin
 	$GOROOT/bin
 	$GOBIN
-	$HOME/equo-framework-master/eclipse
+	$HOME/eclipse-workspaces/equo-sdk-master/eclipse
 )
 
 newPath=$(echo ${paths[@]} | sed 's/ /:/g')
@@ -64,7 +64,7 @@ compinit
 
 # ------------------------------- ZSH vaiables ------------------------------- #
 ZSH_CUSTOM=$HOME/dotfiles
-ZSH_THEME="robbyrussell"
+ZSH_THEME="intheloop"
 
 # ┌──────────────────────────────────────────────────────────────────────────────┐
 # │ Source files                                                                 │
@@ -121,3 +121,8 @@ zstyle ":anyframe:selector:" use fzf
 # ------------------------------- This load nvm ------------------------------ #
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
+
+# Generated for envman. Do not edit.
+[ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
+
+eval "$(zoxide init zsh)"
