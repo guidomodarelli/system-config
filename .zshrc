@@ -12,6 +12,8 @@ LIB=$USR/lib
 # ┌──────────────────────────────────────────────────────────────────────────────┐
 # │ VARIABLES                                                                    │
 # └──────────────────────────────────────────────────────────────────────────────┘
+export DENO_INSTALL="/home/guido/.deno"
+export PATH="$DENO_INSTALL/bin:$PATH"
 
 # ----------------------------- Path to oh-my-zsh ---------------------------- #
 export ZSH="$HOME/.oh-my-zsh"
@@ -126,3 +128,11 @@ zstyle ":anyframe:selector:" use fzf
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
 
 eval "$(zoxide init zsh)"
+
+export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/home/guido/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/home/guido/Downloads/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/home/guido/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/guido/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
