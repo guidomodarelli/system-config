@@ -41,6 +41,7 @@ paths=(
 	$GOROOT/bin
 	$GOBIN
 	$HOME/eclipse-workspaces/equo-sdk-master/eclipse
+	$LOCAL/android-studio/bin
 )
 
 newPath=$(echo ${paths[@]} | sed 's/ /:/g')
@@ -136,3 +137,6 @@ if [ -f '/home/guido/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/home/g
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/home/guido/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/guido/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
+ 
+alias luamake=/home/guido/.config/lsp/lua-language-server/3rd/luamake/luamake
+export PATH="${HOME}/.config/lsp/lua-language-server/bin:${PATH}"

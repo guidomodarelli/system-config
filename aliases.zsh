@@ -8,7 +8,7 @@
 # ┌──────────────────────────────────────────────────────────────────────────────┐
 # │ General                                                                      │
 # └──────────────────────────────────────────────────────────────────────────────┘
-alias v=vim
+alias v=nvim
 alias f=fzf
 alias k=kubectl
 alias b=batcat
@@ -17,8 +17,8 @@ alias b=batcat
 # │ exa                                                                          │
 # └──────────────────────────────────────────────────────────────────────────────┘
 alias exa='exa --group-directories-first --icons --color-scale'
-alias ll='exa -lF'
-alias la='ll -hHigmuSa'
+alias ll='exa -lFhg --no-time --no-filesize'
+alias la='ll -a'
 alias llt='ll -T'
 alias llt3='llt -L3'
 alias lt='exa -T'
