@@ -140,3 +140,6 @@ if [ -f '/home/guido/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/
  
 alias luamake=/home/guido/.config/lsp/lua-language-server/3rd/luamake/luamake
 export PATH="${HOME}/.config/lsp/lua-language-server/bin:${PATH}"
+
+export VISUAL=nvim;
+export EDITOR=nvim;
