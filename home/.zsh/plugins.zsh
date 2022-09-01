@@ -1,13 +1,16 @@
-ZSH_HOME=$HOME/.zsh
-ZSH_THEME="intheloop"
-
-source $ZSH_HOME/init.zsh
-source $ZSH/oh-my-zsh.sh
-
 # ┌──────────────────────────────────────────────────────────────────────────────┐
-# │ ZSH configuration                                                            │
+# │ Plugins                                                                      │
 # └──────────────────────────────────────────────────────────────────────────────┘
-# ------------------------------ zsh-completions ----------------------------- #
-autoload -U compinit
-compinit
-
+# Standard plugins can be found in $ZSH/plugins/
+# Custom plugins may be added to $ZSH_CUSTOM/plugins/
+plugins=(
+	git
+	docker
+	docker-compose
+	node
+	npm
+	gradle
+	nvm
+	fd
+	z
+)

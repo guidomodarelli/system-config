@@ -8,8 +8,5 @@ alias b=batcat
 alias exa='exa --group-directories-first --icons --color-scale'
 alias ll='exa -lFhg --no-time --no-filesize'
 alias la='ll -a'
-alias llt='ll -T'
-alias llt3='llt -L3'
 alias lt='exa -T'
-alias lt3='lt -L=3'
 
