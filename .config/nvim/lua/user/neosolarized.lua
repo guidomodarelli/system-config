@@ -1,3 +1,3 @@
 require('neosolarized').setup({
-	comment_italics = true,
+  comment_italics = true,
 })
