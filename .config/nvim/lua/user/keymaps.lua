@@ -5,17 +5,18 @@ end
 
 vim.g.mapleader = ','
 
-keymap('n', '<leader>w', ':w<cr>')
-keymap('n', '<leader>d', ':NvimTreeToggle<cr>')
+keymap('n', '<leader>w', ':w<CR>')
+keymap('n', '<leader>ws', ':w<CR> :source %<CR>')
+keymap('n', '<leader>d', ':NvimTreeToggle<CR>')
 
 -- Terminal
-keymap('n', '<leader>tv', ':botright vnew <Bar> :terminal<cr>')
-keymap('n', '<leader>th', ':botright new <Bar> :terminal<cr>')
+keymap('n', '<leader>tv', ':botright vnew <Bar> :terminal<CR>')
+keymap('n', '<leader>th', ':botright new <Bar> :terminal<CR>')
 keymap('t', '<Esc>', '<C-\\><C-n>')
 
 -- Telescope
-keymap('n', '<leader>f', ':Telescope find_files hidden=true <cr>')
-keymap('n', '<leader>s', ':Telescope live_grep<cr>')
+keymap('n', '<leader>f', ':Telescope find_files hidden=true <CR>')
+keymap('n', '<leader>s', ':Telescope live_grep<CR>')
 
 -- Switched of panels
 keymap('n', '<C-j>', '<C-W>j')

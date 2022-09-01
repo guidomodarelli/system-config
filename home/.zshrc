@@ -1,8 +1,6 @@
 ZSH_HOME=$HOME/.zsh
 ZSH_THEME="intheloop"
-
-source $ZSH_HOME/init.zsh
-source $ZSH/oh-my-zsh.sh
+ZSH="$HOME/.oh-my-zsh"
 
 # ┌──────────────────────────────────────────────────────────────────────────────┐
 # │ ZSH configuration                                                            │
@@ -10,4 +8,7 @@ source $ZSH/oh-my-zsh.sh
 # ------------------------------ zsh-completions ----------------------------- #
 autoload -U compinit
 compinit
+
+source $ZSH/oh-my-zsh.sh
+source $ZSH_HOME/init.zsh
 

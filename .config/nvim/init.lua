@@ -5,6 +5,7 @@ require 'user.nvim-tree'
 require 'user.treesitter'
 require 'user.telescope'
 require 'user.lualine'
+require 'user.neosolarized'
 
 require 'user.cmp'
 require 'user.settings'
@@ -97,5 +98,11 @@ packer.startup(function(use)
 	use {
 		"nvim-pack/nvim-spectre",
 		"nvim-lua/plenary.nvim"
+	}
+	use {
+		"svrana/neosolarized.nvim",
+		requires = {
+			"tjdevries/colorbuddy.nvim"
+		}
 	}
 end)
