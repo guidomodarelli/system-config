@@ -7,6 +7,10 @@ local keymaps = require("user.keymaps")
 
 mason.setup()
 
+lspconfig.volar.setup {
+	on_attach = keymaps.on_attach,
+}
+
 lspconfig.tsserver.setup {
 	on_attach = keymaps.on_attach,
 }

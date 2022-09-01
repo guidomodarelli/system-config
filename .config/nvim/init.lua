@@ -10,6 +10,7 @@ require 'user.bufferline'
 require 'user.colorizer'
 require 'user.gitsigns'
 require 'user.ts-autotag'
+require 'user.which-key'
 
 require 'user.cmp'
 require 'user.settings'
@@ -109,4 +110,16 @@ packer.startup(function(use)
 		}
 	}
 	use "norcalli/nvim-colorizer.lua"
+	use({
+		"glepnir/lspsaga.nvim",
+		branch = "main",
+		config = function()
+			local saga = require("lspsaga")
+
+			saga.init_lsp_saga({
+				-- your configuration
+			})
+		end,
+	})
+	use "folke/which-key.nvim"
 end)
