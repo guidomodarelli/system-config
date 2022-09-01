@@ -1,66 +1,62 @@
 local icons = require("user.icons")
 
-local colors = {
-  blue   = '#80a0ff',
-  cyan   = '#79dac8',
-  black  = '#080808',
-  white  = '#c6c6c6',
-  red    = '#ff5189',
-  violet = '#d183e8',
-  grey   = '#303030',
-}
-
-local bubbles_theme = {
-  normal = {
-    a = { fg = colors.black, bg = colors.violet },
-    b = { fg = colors.white, bg = colors.grey },
-    c = { fg = colors.black, bg = colors.black },
-  },
-
-  insert = { a = { fg = colors.black, bg = colors.blue } },
-  visual = { a = { fg = colors.black, bg = colors.cyan } },
-  replace = { a = { fg = colors.black, bg = colors.red } },
-
-  inactive = {
-    a = { fg = colors.white, bg = colors.black },
-    b = { fg = colors.white, bg = colors.black },
-    c = { fg = colors.black, bg = colors.black },
-  },
-}
-
 require('lualine').setup {
   options = {
-    theme = bubbles_theme,
-    component_separators = icons.separator.ThinRightSeparator,
+    icons_enabled = true,
+    theme = 'solarized_dark',
+    component_separators = {
+      left = icons.separator.ThinRightSeparator,
+      right = icons.separator.ThinLeftSeparator,
+    },
     section_separators = {
       left = icons.blocks.Diagonal.LowerLeft,
       right = icons.blocks.Diagonal.UpperRight,
     },
+    disabled_filetypes = {},
   },
   sections = {
-    lualine_a = {
+    lualine_a = { 'mode' },
+    lualine_b = { 'branch' },
+    lualine_c = {
       {
-        'mode',
-        separator = {
-          right = icons.blocks.Diagonal.LowerLeft,
-        },
-        right_padding = 2
+        'filename',
+        file_status = true,
+        path = 0, -- 0 = just filename
       },
     },
-    lualine_b = { 'filename', 'branch' },
-    lualine_c = { 'fileformat' },
-    lualine_x = {},
-    lualine_y = { 'filetype', "require'lsp-status'.status()" },
-    -- lualine_z = {},
-  },
-  inactive_sections = {
-    lualine_a = { 'filename' },
-    lualine_b = {},
-    lualine_c = {},
-    lualine_x = {},
-    lualine_y = {},
+    lualine_x = {
+      {
+        'diagnostics',
+        sources = {
+          'nvim_diagnostic'
+        },
+        symbols = {
+          error = icons.diagnostics.Error .. " ",
+          warn = icons.diagnostics.Warning .. " ",
+          info = icons.diagnostics.Information .. " ",
+          hint = icons.diagnostics.Hint .. " ",
+        },
+      },
+      'encoding',
+      'filetype',
+    },
+    lualine_y = { 'progress' },
     lualine_z = { 'location' },
   },
+  inactive_sections = {
+    lualine_a = {},
+    lualine_b = {},
+    lualine_c = {
+      {
+        'filename',
+        file_status = true,
+        path = 1, -- 1 = relative path
+      }
+    },
+    lualine_x = { 'location' },
+    lualine_y = {},
+    lualine_z = {},
+  },
   tabline = {},
-  extensions = {},
+  extensions = { 'fugitive' },
 }
