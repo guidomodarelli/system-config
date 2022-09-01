@@ -1,46 +1,72 @@
 vim.g.mapleader = ','
 
-local keymap = vim.keymap.set
+local keymap = vim.keymap
 local default_opts = { noremap = true, silent = true }
 
-keymap('n', '<leader>w', ':w<CR>', default_opts)
-keymap('n', '<leader>ws', ':wa<CR>:source %<CR>', default_opts)
-keymap('n', '<leader>d', ':NvimTreeToggle<CR>', default_opts)
+-- Don't yank with x
+keymap.set('n', 'x', '"_x')
+
+-- Increment/Decrement
+keymap.set('n', '+', '<C-a>')
+keymap.set('n', '-', '<C-x>')
+
+-- Delete a word backwards
+keymap.set('n', 'dw', 'vb"_d')
+
+-- Select all
+keymap.set('n', '<C-a>', 'gg<S-v>G')
+
+-- New tab
+keymap.set('n', 'te', ':tabedit<CR>', { silent = true })
+-- Split window
+keymap.set('n', 'ss', ':split<CR><C-w>w', { silent = true }) -- Split horizontal
+keymap.set('n', 'sv', ':vsplit<CR><C-w>w', { silent = true }) -- Split vertical
+-- Move window
+keymap.set('n', '<Space>', '<C-w>w')
+keymap.set('n', '<C-j>', '<C-W>j', default_opts)
+keymap.set('n', '<C-k>', '<C-W>k', default_opts)
+keymap.set('n', '<C-h>', '<C-W>h', default_opts)
+keymap.set('n', '<C-l>', '<C-W>l', default_opts)
+
+-- Resize window
+keymap.set('n', '<C-left>', '5<C-w><')
+keymap.set('n', '<C-right>', '5<C-w>>')
+keymap.set('n', '<C-up>', '5<C-w>+')
+keymap.set('n', '<C-down>', '5<C-w>-')
+
+keymap.set('n', '<leader>w', ':w<CR>', default_opts)
+keymap.set('n', '<leader>ws', ':wa<CR>:source %<CR>', default_opts)
+keymap.set('n', '<leader>d', ':NvimTreeToggle<CR>', default_opts)
 
 -- Terminal
-keymap('n', '<leader>tv', ':botright vnew <Bar> :terminal<CR>', default_opts)
-keymap('n', '<leader>th', ':botright new <Bar> :terminal<CR>', default_opts)
-keymap('t', '<Esc>', '<C-\\><C-n>', default_opts)
+keymap.set('n', '<leader>tv', ':botright vnew <Bar> :terminal<CR>', default_opts)
+keymap.set('n', '<leader>th', ':botright new <Bar> :terminal<CR>', default_opts)
+keymap.set('t', '<Esc>', '<C-\\><C-n>', default_opts)
 
 -- Telescope
-keymap('n', '<leader>f', ':Telescope find_files hidden=true <CR>', default_opts)
-keymap('n', '<leader>s', ':Telescope live_grep<CR>', default_opts)
+keymap.set('n', '<leader>f', ':Telescope find_files hidden=true <CR>', default_opts)
+keymap.set('n', '<leader>s', ':Telescope live_grep<CR>', default_opts)
 
--- Switched of panels
-keymap('n', '<C-j>', '<C-W>j', default_opts)
-keymap('n', '<C-k>', '<C-W>k', default_opts)
-keymap('n', '<C-h>', '<C-W>h', default_opts)
-keymap('n', '<C-l>', '<C-W>l', default_opts)
 
 -- Move lines
-keymap('n', '<A-j>', ':m .+1<CR>==', default_opts)
-keymap('n', '<A-k>', ':m .-2<CR>==', default_opts)
-keymap('i', '<A-j>', '<Esc>:m .+1<CR>==gi', default_opts)
-keymap('i', '<A-k>', '<Esc>:m .-2<CR>==gi', default_opts)
-keymap('v', '<A-j>', ":m '>+1<CR>gv=gv", default_opts)
-keymap('v', '<A-k>', ":m '<-2<CR>gv=gv", default_opts)
+keymap.set('n', '<A-j>', ':m .+1<CR>==', default_opts)
+keymap.set('n', '<A-k>', ':m .-2<CR>==', default_opts)
+keymap.set('i', '<A-j>', '<Esc>:m .+1<CR>==gi', default_opts)
+keymap.set('i', '<A-k>', '<Esc>:m .-2<CR>==gi', default_opts)
+keymap.set('v', '<A-j>', ":m '>+1<CR>gv=gv", default_opts)
+keymap.set('v', '<A-k>', ":m '<-2<CR>gv=gv", default_opts)
 
 -- Buffer Explorer
-keymap('n', '<F7>', ':BufExplorer<CR>', default_opts)
-keymap('n', '<F5>', ':bp<CR>', default_opts)
-keymap('n', '<F6>', ':bn<CR>', default_opts)
+keymap.set('n', '<F7>', ':BufExplorer<CR>', default_opts)
+keymap.set('n', '<F5>', ':bp<CR>', default_opts)
+keymap.set('n', '<F6>', ':bn<CR>', default_opts)
 
 -- Double ESC to exit from terminal insert mode to terminal normal mode
-keymap("t", "<ESC><ESC>", [[<C-\><C-n>]], default_opts)
+keymap.set("t", "<ESC><ESC>", [[<C-\><C-n>]], default_opts)
 
 -- Stay in visual mode after indenting
-keymap("x", "<", "<gv", default_opts)
-keymap("x", ">", ">gv", default_opts)
+keymap.set("x", "<", "<gv", default_opts)
+keymap.set("x", ">", ">gv", default_opts)
 
 require "user.keymaps.nvim-spectre"
 
@@ -53,20 +79,20 @@ return {
     -- Mappings.
     -- See `:help vim.lsp.*` for documentation on any of the below functions
     local bufopts = { noremap = true, silent = true, buffer = bufnr }
-    keymap('n', 'gD', vim.lsp.buf.declaration, bufopts)
-    keymap('n', 'gd', vim.lsp.buf.definition, bufopts)
-    keymap('n', 'K', vim.lsp.buf.hover, bufopts)
-    keymap('n', 'gi', vim.lsp.buf.implementation, bufopts)
-    keymap('n', '<C-s>', vim.lsp.buf.signature_help, bufopts)
-    keymap('n', '<space>wa', vim.lsp.buf.add_workspace_folder, bufopts)
-    keymap('n', '<space>wr', vim.lsp.buf.remove_workspace_folder, bufopts)
-    keymap('n', '<space>wl', function()
+    keymap.set('n', 'gD', vim.lsp.buf.declaration, bufopts)
+    keymap.set('n', 'gd', vim.lsp.buf.definition, bufopts)
+    keymap.set('n', 'K', vim.lsp.buf.hover, bufopts)
+    keymap.set('n', 'gi', vim.lsp.buf.implementation, bufopts)
+    keymap.set('n', '<C-s>', vim.lsp.buf.signature_help, bufopts)
+    keymap.set('n', '<leader>wa', vim.lsp.buf.add_workspace_folder, bufopts)
+    keymap.set('n', '<leader>wr', vim.lsp.buf.remove_workspace_folder, bufopts)
+    keymap.set('n', '<leader>wl', function()
       print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
     end, bufopts)
-    keymap('n', '<space>D', vim.lsp.buf.type_definition, bufopts)
-    keymap('n', '<leader>rn', vim.lsp.buf.rename, bufopts)
-    keymap('n', '<leader>ca', vim.lsp.buf.code_action, bufopts)
-    keymap('n', 'gr', vim.lsp.buf.references, bufopts)
-    keymap('n', '<space>f', vim.lsp.buf.formatting, bufopts)
+    keymap.set('n', '<leader>D', vim.lsp.buf.type_definition, bufopts)
+    keymap.set('n', '<leader>rn', vim.lsp.buf.rename, bufopts)
+    keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, bufopts)
+    keymap.set('n', 'gr', vim.lsp.buf.references, bufopts)
+    keymap.set('n', '<leader>F', vim.lsp.buf.formatting, bufopts)
   end
 }
