@@ -20,6 +20,7 @@ vim.cmd [[packadd packer.nvim]]
 local status_ok, packer = pcall(require, "packer")
 
 if not status_ok then
+  print('Packer is not installed')
   return
 end
 

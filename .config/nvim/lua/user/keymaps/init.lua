@@ -18,9 +18,11 @@ keymap.set('n', '<C-a>', 'gg<S-v>G')
 
 -- New tab
 keymap.set('n', 'te', ':tabedit<CR>', { silent = true })
+
 -- Split window
 keymap.set('n', 'ss', ':split<CR><C-w>w', { silent = true }) -- Split horizontal
 keymap.set('n', 'sv', ':vsplit<CR><C-w>w', { silent = true }) -- Split vertical
+
 -- Move window
 keymap.set('n', '<Space>', '<C-w>w')
 keymap.set('n', '<C-j>', '<C-W>j', default_opts)
