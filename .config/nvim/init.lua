@@ -6,6 +6,10 @@ require 'user.treesitter'
 require 'user.telescope'
 require 'user.lualine'
 require 'user.neosolarized'
+require 'user.bufferline'
+require 'user.colorizer'
+require 'user.gitsigns'
+require 'user.ts-autotag'
 
 require 'user.cmp'
 require 'user.settings'
@@ -26,7 +30,8 @@ packer.startup(function(use)
 		"williamboman/mason.nvim",
 		"williamboman/mason-lspconfig.nvim",
 		"neovim/nvim-lspconfig",
-		"williamboman/nvim-lsp-installer"
+		"williamboman/nvim-lsp-installer",
+		"MunifTanjim/prettier.nvim"
 	}
 
 	-- Statusline
@@ -36,6 +41,7 @@ packer.startup(function(use)
 	}
 
 	-- Find files and text
+	-- use "folke/trouble.nvim"
 	use {
 		"nvim-telescope/telescope.nvim", tag = "0.1.x",
 		requires = { "nvim-lua/plenary.nvim" }
@@ -48,7 +54,8 @@ packer.startup(function(use)
 			"hrsh7th/cmp-buffer", "hrsh7th/cmp-nvim-lsp",
 			"hrsh7th/cmp-nvim-lua",
 			"octaltree/cmp-look", "hrsh7th/cmp-path", "hrsh7th/cmp-calc",
-			"f3fora/cmp-spell", "hrsh7th/cmp-emoji", "saadparwaiz1/cmp_luasnip"
+			"f3fora/cmp-spell", "hrsh7th/cmp-emoji", "saadparwaiz1/cmp_luasnip",
+			"onsails/lspkind.nvim"
 		}
 	}
 
@@ -71,29 +78,25 @@ packer.startup(function(use)
 	}
 
 	-- Git
-	use "airblade/vim-gitgutter"
+	use {
+		'lewis6991/gitsigns.nvim',
+		-- tag = 'release' -- To use the latest release (do not use this if you run Neovim nightly or dev builds!)
+	}
 
 	-- Debugging
 	use { "rcarriga/nvim-dap-ui", requires = { "mfussenegger/nvim-dap" } }
 
 	-- typing
 	use "jiangmiao/auto-pairs"
+	use "tpope/vim-surround"
 	use "tpope/vim-commentary"
-	use({
-		"kylechui/nvim-surround",
-		tag = "*", -- Use for stability; omit to use `main` branch for the latest features
-		config = function()
-			require("nvim-surround").setup({
-				-- Configuration here, or leave empty to use defaults
-			})
-		end
-	})
+	use "windwp/nvim-ts-autotag"
 
 	-- IDE
 	-- use "dense-analysis/ale"
 	use "Yggdroot/indentLine"
 	use "jlanzarotta/bufexplorer"
-	use "ap/vim-buftabline"
+	use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' }
 	use "editorconfig/editorconfig-vim"
 	use {
 		"nvim-pack/nvim-spectre",
@@ -105,4 +108,5 @@ packer.startup(function(use)
 			"tjdevries/colorbuddy.nvim"
 		}
 	}
+	use "norcalli/nvim-colorizer.lua"
 end)

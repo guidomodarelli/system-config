@@ -6,7 +6,7 @@ end
 vim.g.mapleader = ','
 
 keymap('n', '<leader>w', ':w<CR>')
-keymap('n', '<leader>ws', ':w<CR> :source %<CR>')
+keymap('n', '<leader>ws', ':wa<CR> :source %<CR>')
 keymap('n', '<leader>d', ':NvimTreeToggle<CR>')
 
 -- Terminal

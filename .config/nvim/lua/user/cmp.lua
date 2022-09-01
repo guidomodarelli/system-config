@@ -1,5 +1,6 @@
 require("luasnip")
 require("luasnip.loaders.from_vscode").lazy_load()
+local lspkind = require('lspkind')
 
 local cmp = require("cmp")
 
@@ -8,6 +9,12 @@ if cmp == nil then
 end
 
 cmp.setup {
+	formatting = {
+		format = lspkind.cmp_format({
+			mode = 'symbol',
+			maxwidth = 50
+		})
+	},
 	snippet = {
 		-- REQUIRED - you must specify a snippet engine
 		expand = function(args)
