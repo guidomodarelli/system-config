@@ -27,10 +27,6 @@ keymap.set('n', 'sv', ':vsplit<CR><C-w>w', { silent = true }) -- Split vertical
 
 -- Move window
 keymap.set('n', '<Space>', '<C-w>w')
-keymap.set('n', '<C-j>', '<C-W>j', default_opts)
-keymap.set('n', '<C-k>', '<C-W>k', default_opts)
-keymap.set('n', '<C-h>', '<C-W>h', default_opts)
-keymap.set('n', '<C-l>', '<C-W>l', default_opts)
 
 -- Resize window
 keymap.set('n', '<C-left>', '5<C-w><')
