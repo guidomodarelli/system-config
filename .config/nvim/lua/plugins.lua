@@ -15,7 +15,8 @@ packer.startup(function(use)
   }
 
   -- Formatter
-  use "MunifTanjim/prettier.nvim"
+  use "MunifTanjim/prettier.nvim" -- Prettier plugin for Neovim's built-in LSP client
+  use "jose-elias-alvarez/null-ls.nvim" -- Use a Neovim as a language server to inject LSP diagnostics, code actions and more via Lua
 
   -- Statusline
   use {
