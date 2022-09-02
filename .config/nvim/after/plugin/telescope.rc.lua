@@ -26,6 +26,8 @@ telescope.setup {
         ['n'] = {
           ['N'] = fb_actions.create,
           ['h'] = fb_actions.goto_parent_dir,
+          ['c'] = fb_actions.change_cwd,
+          ['g'] = fb_actions.goto_cwd,
         }
       }
     }
