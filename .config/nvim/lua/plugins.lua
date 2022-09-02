@@ -75,7 +75,7 @@ packer.startup(function(use)
   use { "rcarriga/nvim-dap-ui", requires = { "mfussenegger/nvim-dap" } }
 
   -- typing
-  use "jiangmiao/auto-pairs"
+  use "windwp/nvim-autopairs"
   use "tpope/vim-surround"
   use "tpope/vim-commentary"
   use "windwp/nvim-ts-autotag"
