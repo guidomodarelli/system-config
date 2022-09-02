@@ -3,10 +3,11 @@ vim.g.mapleader = ','
 local keymap = vim.keymap
 
 require "maps.base"
-require "maps.nvim-spectre"
-require "maps.telescope"
 require "maps.bufexplorer"
+require "maps.bufferline"
+require "maps.nvim-spectre"
 require "maps.nvim-tree"
+require "maps.telescope"
 
 return {
   -- https://github.com/neovim/nvim-lspconfig#suggested-configuration

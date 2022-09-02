@@ -25,10 +25,7 @@ telescope.setup {
         },
         ['n'] = {
           ['N'] = fb_actions.create,
-          ['p'] = fb_actions.goto_parent_dir,
-          ['/'] = function()
-            vim.cmd('startinsert')
-          end
+          ['h'] = fb_actions.goto_parent_dir,
         }
       }
     }
