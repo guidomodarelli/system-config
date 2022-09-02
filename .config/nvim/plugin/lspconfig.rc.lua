@@ -16,13 +16,18 @@ local on_attach = function(client, bufnr)
 
   -- Mappings.
   -- See `:help vim.lsp.*` for documentation on any of the below functions
-  local bufopts = { noremap = true, silent = true, buffer = bufnr }
-  local keymap = vim.keymap
-  keymap.set('n', 'gD', vim.lsp.buf.declaration, bufopts)
-  keymap.set('n', 'gd', vim.lsp.buf.definition, bufopts)
-  keymap.set('n', 'gi', vim.lsp.buf.implementation, bufopts)
-  keymap.set('n', 'gT', vim.lsp.buf.type_definition, bufopts)
-  keymap.set('n', 'gr', vim.lsp.buf.references, bufopts)
+  local status_wk, wk = pcall(require, 'which-key')
+  if (not status_wk) then return end
+
+  wk.register({
+    g = {
+      D = { vim.lsp.buf.declaration, 'Go to declaration', noremap = true, silent = true, buffer = bufnr },
+      d = { vim.lsp.buf.definition, 'Go to definition', noremap = true, silent = true, buffer = bufnr },
+      i = { vim.lsp.buf.implementation, 'Go to implementation', noremap = true, silent = true, buffer = bufnr },
+      T = { vim.lsp.buf.type_definition, 'Go to type definition', noremap = true, silent = true, buffer = bufnr },
+      r = { vim.lsp.buf.references, 'Go to references', noremap = true, silent = true, buffer = bufnr },
+    }
+  })
 end
 
 nvim_lsp.volar.setup {
