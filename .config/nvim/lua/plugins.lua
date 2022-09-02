@@ -26,8 +26,11 @@ packer.startup(function(use)
   -- Find files and text
   -- use "folke/trouble.nvim"
   use {
-    "nvim-telescope/telescope.nvim", tag = "0.1.x",
-    requires = { "nvim-lua/plenary.nvim" }
+    "nvim-telescope/telescope.nvim",
+    requires = {
+      "nvim-lua/plenary.nvim",
+      "nvim-telescope/telescope-file-browser.nvim"
+    }
   }
 
   -- Completion
