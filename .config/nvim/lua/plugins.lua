@@ -93,13 +93,8 @@ packer.startup(function(use)
   -- IDE
   -- use "dense-analysis/ale"
   use "Yggdroot/indentLine"
-  use "jlanzarotta/bufexplorer"
   use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' }
   use "editorconfig/editorconfig-vim"
-  use {
-    "nvim-pack/nvim-spectre",
-    "nvim-lua/plenary.nvim"
-  }
   use {
     "svrana/neosolarized.nvim",
     requires = {
