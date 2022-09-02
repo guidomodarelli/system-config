@@ -100,16 +100,6 @@ packer.startup(function(use)
     }
   }
   use "norcalli/nvim-colorizer.lua"
-  use({
-    "glepnir/lspsaga.nvim",
-    branch = "main",
-    config = function()
-      local saga = require("lspsaga")
-
-      saga.init_lsp_saga({
-        -- your configuration
-      })
-    end,
-  })
+  use "glepnir/lspsaga.nvim" -- LSP UIs
   use "folke/which-key.nvim"
 end)
