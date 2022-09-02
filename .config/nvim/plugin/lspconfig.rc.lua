@@ -1,8 +1,6 @@
 local status, nvim_lsp = pcall(require, "lspconfig")
 if not status then return end
 
-require("nvim-lsp-installer").setup {}
-
 local on_attach = require("maps").on_attach
 
 nvim_lsp.volar.setup {
