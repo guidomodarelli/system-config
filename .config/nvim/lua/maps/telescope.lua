@@ -7,7 +7,7 @@ end
 
 keymap.set('n', ';f', '<cmd>lua require("telescope.builtin").find_files({ no_ignore = false, hidden = true })<CR>', opts)
 keymap.set('n', ';r', '<cmd>lua require("telescope.builtin").live_grep()<CR>', opts)
-keymap.set('n', ';b', '<cmd>lua require("telescope.builtin").buffers()<CR>', opts)
+keymap.set('n', '\\\\', '<cmd>lua require("telescope.builtin").buffers()<CR>', opts)
 keymap.set('n', ';t', '<cmd>lua require("telescope.builtin").help_tags()<CR>', opts)
 keymap.set('n', ';;', '<cmd>lua require("telescope.builtin").resume()<CR>', opts)
 keymap.set('n', ';d', '<cmd>lua require("telescope.builtin").diagnostics()<CR>', opts)

@@ -14,6 +14,11 @@ packer.startup(function(use)
     "williamboman/nvim-lsp-installer",
   }
 
+  use {
+    "williamboman/mason.nvim",
+    "williamboman/mason-lspconfig.nvim"
+  }
+
   -- Formatter
   use "MunifTanjim/prettier.nvim" -- Prettier plugin for Neovim's built-in LSP client
   use "jose-elias-alvarez/null-ls.nvim" -- Use a Neovim as a language server to inject LSP diagnostics, code actions and more via Lua
@@ -74,6 +79,7 @@ packer.startup(function(use)
     'lewis6991/gitsigns.nvim',
     -- tag = 'release' -- To use the latest release (do not use this if you run Neovim nightly or dev builds!)
   }
+  use 'dinhhuy258/git.nvim'
 
   -- Debugging
   use { "rcarriga/nvim-dap-ui", requires = { "mfussenegger/nvim-dap" } }
