@@ -56,8 +56,8 @@ wk.register({
 }, { mode = 'v' })
 
 wk.register({
-  ['<Esc>'] = { [[<C-\><C-n>]], 'ESC to exit from terminal insert mode to terminal normal mode' }
-}, { mode = 't' })
+  ['<Esc>'] = { '<C-Bslash><C-n>', 'ESC to exit from terminal insert mode to terminal normal mode' }
+}, { mode = 't', noremap = true })
 
 wk.register({
   -- Stay in visual mode after indenting
@@ -78,14 +78,12 @@ local normal_key_tree = {
 
     d = { ':NvimTreeToggle<CR>', 'NvimTreeToggle' },
 
-    h = { ':nohl<CR>', 'Disable highlight' },
-
     t = {
       name = '+Terminal...',
       v = { ':botright vnew <Bar> :terminal<CR>', 'Open terminal in vertical split view' },
       h = { ':botright new <Bar> :terminal<CR>', 'Open terminal in horizontal split view' },
       f = { '<cmd>Lspsaga open_floaterm<CR>', 'Open float term' },
-      c = { '<cmd>Lspsaga close_floaterm<CR>', 'Close float term' },
+      k = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
     },
 
     T = {
@@ -101,7 +99,7 @@ local normal_key_tree = {
 
     f = {
       name = '+Find...',
-      f    = { '<cmd>lua require("telescope.builtin").find_files({ no_ignore = false, hidden = true })<CR>',
+      f    = { '<cmd>lua require("telescope.builtin").find_files()<CR>',
         'Find files' },
       g    = { '<cmd>lua require("telescope.builtin").live_grep()<CR>', 'Live grep text' },
       b    = { '<cmd>lua require("telescope.builtin").buffers()<CR>', 'Buffers' },

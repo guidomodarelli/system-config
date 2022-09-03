@@ -16,8 +16,7 @@ nvim_tree.setup {
     "alpha",
   },
   filters = {
-    custom = { "^\\.git" },
-    exclude = { "^\\.gitignore" },
+    custom = { "^\\.git$" },
   },
   update_cwd = true,
   renderer = {

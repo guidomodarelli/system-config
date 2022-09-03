@@ -4,12 +4,17 @@ local actions = require('telescope.actions')
 local fb_actions = require 'telescope'.extensions.file_browser.actions
 
 telescope.setup {
+  pickers = {
+    find_files = {
+      find_command = { "rg", "--files", "--hidden", "--glob", "!.git/*" },
+    },
+  },
   defaults = {
     mappings = {
       n = {
         ['q'] = actions.close
       }
-    }
+    },
   },
   extensions = {
     file_browser = {
