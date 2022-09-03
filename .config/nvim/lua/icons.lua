@@ -1,5 +1,5 @@
 return {
-  kind = {
+  kind          = {
     Text          = "",
     Method        = "m",
     Function      = "",
@@ -26,14 +26,14 @@ return {
     Operator      = "",
     TypeParameter = "",
   },
-  type = {
+  type          = {
     Array   = "",
     Number  = "",
     String  = "",
     Boolean = "蘒",
     Object  = "",
   },
-  documents = {
+  documents     = {
     File   = {
       Default = "",
       Empty   = "",
@@ -48,12 +48,12 @@ return {
       SymlinkOpen = "",
     },
   },
-  symlink = {
+  symlink       = {
     Arrow  = "➛",
     File   = "",
     Folder = "",
   },
-  git = {
+  git           = {
     Add       = "",
     Mod       = "",
     Remove    = "",
@@ -70,7 +70,7 @@ return {
     Deleted   = "",
     Ignored   = "◌",
   },
-  ui = {
+  ui            = {
     ArrowClosed       = "⮞",
     ArrowOpen         = "⮟",
     Lock              = "",
@@ -103,14 +103,14 @@ return {
     Calendar          = "",
     CloudDownload     = "",
   },
-  diagnostics = {
+  diagnostics   = {
     Error       = "",
     Warning     = "",
     Information = "",
     Question    = "",
     Hint        = "",
   },
-  misc = {
+  misc          = {
     Robot        = "ﮧ",
     Squirrel     = "",
     Tag          = "",
@@ -119,13 +119,13 @@ return {
     Package      = "",
     CircuitBoard = "",
   },
-  separator = {
+  separator     = {
     LeftSeparator      = "",
     RightSeparator     = "",
     ThinLeftSeparator  = "",
     ThinRightSeparator = "",
   },
-  blocks = {
+  blocks        = {
     Diagonal = {
       LowerLeft  = '🭐',
       UpperRight = '🭖',

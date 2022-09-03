@@ -98,4 +98,5 @@ packer.startup(function(use)
   use "folke/which-key.nvim"
   use "tpope/vim-sleuth"
   use "navarasu/onedark.nvim"
+  use "junegunn/vim-easy-align"
 end)

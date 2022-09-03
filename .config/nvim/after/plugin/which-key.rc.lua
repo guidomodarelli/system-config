@@ -76,12 +76,6 @@ local normal_key_tree = {
       ['q!'] = { ':wa<CR> :qa!<CR>', 'Write all and quit all' },
     },
 
-    d = {
-      name = "+Tree...",
-      d = { ':NvimTreeToggle<CR>', 'NvimTreeToggle' },
-      f = { ':NvimTreeFindFile<CR>', 'NvimTreeFindFile', noremap = true, silent = true },
-    },
-
     t = {
       name = '+Terminal...',
       v = { ':botright vnew <Bar> :terminal<CR>', 'Open terminal in vertical split view' },
@@ -123,6 +117,10 @@ local normal_key_tree = {
   K         = { '<cmd>Lspsaga hover_doc<CR>', 'Hover documentation' },
   ['<M-r>'] = { '<cmd>Lspsaga rename<CR>', 'Rename' },
 
+  -- Tree
+  ['<M-d>'] = { ':NvimTreeToggle<CR>', 'NvimTreeToggle' },
+  ['<M-f>'] = { ':NvimTreeFindFile<CR>', 'NvimTreeFindFile', noremap = true, silent = true },
+
   g = {
     name = '+Global...',
     l = {
@@ -131,6 +129,7 @@ local normal_key_tree = {
       p = { '<cmd>Lspsaga preview_definition<CR>', 'Preview definiton' },
       c = { '<cmd>Lspsaga code_action<CR>', 'Code actions' },
     },
+    a = { '<Plug>(EasyAlign)', 'Start interactive EasyAlign for a motion/text object (e.g. gaip)' },
   },
 
   ['<Tab>'] = { '<cmd>BufferLineCycleNext<CR>', 'Buffer line cycle next' },
@@ -145,5 +144,12 @@ local visual_key_tree = {
   }
 }
 
+local select_key_tree = {
+  g = {
+    a = { '<Plug>(EasyAlign)', 'Start interactive EasyAlign in visual mode (e.g. vipga)' }
+  }
+}
+
 wk.register(normal_key_tree)
+wk.register(select_key_tree, { mode = 'x' })
 wk.register(visual_key_tree, { prefix = "<leader>", mode = "v" })
