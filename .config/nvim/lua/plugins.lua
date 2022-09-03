@@ -30,7 +30,6 @@ packer.startup(function(use)
   }
 
   -- Find files and text
-  -- use "folke/trouble.nvim"
   use {
     "nvim-telescope/telescope.nvim",
     requires = {
@@ -87,11 +86,10 @@ packer.startup(function(use)
   -- typing
   use "windwp/nvim-autopairs"
   use "tpope/vim-surround"
-  use "tpope/vim-commentary"
+  use "numToStr/Comment.nvim"
   use "windwp/nvim-ts-autotag"
 
   -- IDE
-  -- use "dense-analysis/ale"
   use "Yggdroot/indentLine"
   use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' }
   use "editorconfig/editorconfig-vim"
@@ -104,4 +102,5 @@ packer.startup(function(use)
   use "norcalli/nvim-colorizer.lua"
   use "glepnir/lspsaga.nvim" -- LSP UIs
   use "folke/which-key.nvim"
+  use "tpope/vim-sleuth"
 end)

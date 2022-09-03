@@ -30,7 +30,8 @@ local base_key_tree = {
   ['-']       = { "<C-x>", "Decrement" },
   ['dw']      = { 'vb"_b', "Delete a word backwards" },
   ['<C-a>']   = { 'gg<S-v>G', "Select all" },
-  ['<Space>'] = { '<C-w>w', 'Move window' },
+  ['<Space>'] = { '<C-w>w', 'Switch windows' },
+  ['<M-q>']   = { ':q<CR>', 'Quit a window' },
 
   -- Resize window
   ['<C-left>']  = { '5<C-w><', 'Resize window to left' },
@@ -68,15 +69,18 @@ wk.register({
 local normal_key_tree = {
   ['<leader>'] = {
     w = {
-      name = '+Save...',
+      name = '+Write...',
       w = { ':w<CR>', 'Write file' },
       a = { ':wa<CR>', 'Write all files' },
       q = { ':wa<CR> :qa<CR>', 'Write all and quit all' },
+      ['q!'] = { ':wa<CR> :qa!<CR>', 'Write all and quit all' },
     },
 
-    q = { ':q<CR>', 'Quit' },
-
-    d = { ':NvimTreeToggle<CR>', 'NvimTreeToggle' },
+    d = {
+      name = "+Tree...",
+      d = { ':NvimTreeToggle<CR>', 'NvimTreeToggle' },
+      f = { ':NvimTreeFindFile<CR>', 'NvimTreeFindFile', noremap = true, silent = true },
+    },
 
     t = {
       name = '+Terminal...',
