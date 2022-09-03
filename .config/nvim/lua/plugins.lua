@@ -93,14 +93,9 @@ packer.startup(function(use)
   use "Yggdroot/indentLine"
   use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' }
   use "editorconfig/editorconfig-vim"
-  use {
-    "svrana/neosolarized.nvim",
-    requires = {
-      "tjdevries/colorbuddy.nvim"
-    }
-  }
   use "norcalli/nvim-colorizer.lua"
   use "glepnir/lspsaga.nvim" -- LSP UIs
   use "folke/which-key.nvim"
   use "tpope/vim-sleuth"
+  use "navarasu/onedark.nvim"
 end)

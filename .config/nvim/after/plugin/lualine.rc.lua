@@ -3,7 +3,8 @@ local icons = require("icons")
 require('lualine').setup {
   options = {
     icons_enabled = true,
-    theme = 'solarized_dark',
+    -- theme = 'solarized_dark',
+    theme = 'onedark',
     component_separators = {
       left = icons.separator.ThinRightSeparator,
       right = icons.separator.ThinLeftSeparator,

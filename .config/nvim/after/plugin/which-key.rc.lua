@@ -25,13 +25,13 @@ local function toggle_diagnostics()
 end
 
 local base_key_tree = {
-  ['x']       = { '"_x', "Don't yank with x" },
-  ['+']       = { "<C-a>", "Increment" },
-  ['-']       = { "<C-x>", "Decrement" },
-  ['dw']      = { 'vb"_b', "Delete a word backwards" },
-  ['<C-a>']   = { 'gg<S-v>G', "Select all" },
-  ['<Space>'] = { '<C-w>w', 'Switch windows' },
-  ['<M-q>']   = { ':q<CR>', 'Quit a window' },
+  ['x']     = { '"_x', "Don't yank with x" },
+  ['+']     = { "<C-a>", "Increment" },
+  ['-']     = { "<C-x>", "Decrement" },
+  ['dw']    = { 'vb"_b', "Delete a word backwards" },
+  ['<C-a>'] = { 'gg<S-v>G', "Select all" },
+  ['<M-w>'] = { '<C-w>w', 'Switch windows' },
+  ['<M-q>'] = { ':q<CR>', 'Quit a window' },
 
   -- Resize window
   ['<C-left>']  = { '5<C-w><', 'Resize window to left' },
@@ -121,7 +121,7 @@ local normal_key_tree = {
   ['<C-k>'] = { '<cmd>Lspsaga signature_help<CR>', 'Signature help', mode = 'i' },
   ['<C-j>'] = { '<cmd>Lspsaga diagnostic_jump_next<CR>', 'Diagnostic jump next' },
   K         = { '<cmd>Lspsaga hover_doc<CR>', 'Hover documentation' },
-  R         = { '<cmd>Lspsaga rename<CR>', 'Rename' },
+  ['<M-r>'] = { '<cmd>Lspsaga rename<CR>', 'Rename' },
 
   g = {
     name = '+Global...',
