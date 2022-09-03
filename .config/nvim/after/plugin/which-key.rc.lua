@@ -81,7 +81,7 @@ local normal_key_tree = {
       v = { ':botright vnew <Bar> :terminal<CR>', 'Open terminal in vertical split view' },
       h = { ':botright new <Bar> :terminal<CR>', 'Open terminal in horizontal split view' },
       f = { '<cmd>Lspsaga open_floaterm<CR>', 'Open float term' },
-      k = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
+      ['<Esc>'] = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
     },
 
     T = {
