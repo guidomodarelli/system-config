@@ -3,14 +3,15 @@ if not status then return end
 
 -- https://github.com/neovim/nvim-lspconfig#suggested-configuration
 local on_attach = function(client, bufnr)
-  -- formatting
-  if client.server_capabilities.documentFormattingProvider then
-    local command = vim.api.nvim_command
-    command [[augroup Format]]
-    command [[autocmd! * <buffer>]]
-    command [[autocmd BufWritePre <buffer> lua vim.lsp.buf.formatting_seq_sync()]]
-    command [[augroup END]]
-  end
+  -- formatting in save
+  -- if client.server_capabilities.documentFormattingProvider then
+  --   local command = vim.api.nvim_command
+  --   command [[augroup Format]]
+  --   command [[autocmd! * <buffer>]]
+  --   command [[autocmd BufWritePre <buffer> lua vim.lsp.buf.formatting_seq_sync()]]
+  --   command [[augroup END]]
+  -- end
+
   -- Enable completion triggered by <c-x><c-o>
   vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
 
@@ -21,11 +22,12 @@ local on_attach = function(client, bufnr)
 
   wk.register({
     g = {
-      D = { vim.lsp.buf.declaration, 'Go to declaration', noremap = true, silent = true, buffer = bufnr },
-      d = { vim.lsp.buf.definition, 'Go to definition', noremap = true, silent = true, buffer = bufnr },
-      i = { vim.lsp.buf.implementation, 'Go to implementation', noremap = true, silent = true, buffer = bufnr },
+      D = { vim.lsp.buf.declaration,     'Go to declaration',     noremap = true, silent = true, buffer = bufnr },
+      d = { vim.lsp.buf.definition,      'Go to definition',      noremap = true, silent = true, buffer = bufnr },
+      i = { vim.lsp.buf.implementation,  'Go to implementation',  noremap = true, silent = true, buffer = bufnr },
       T = { vim.lsp.buf.type_definition, 'Go to type definition', noremap = true, silent = true, buffer = bufnr },
-      r = { vim.lsp.buf.references, 'Go to references', noremap = true, silent = true, buffer = bufnr },
+      r = { vim.lsp.buf.references,      'Go to references',      noremap = true, silent = true, buffer = bufnr },
+      f = { vim.lsp.buf.formatting,      'Formatting',            noremap = true, silent = true, buffer = bufnr },
     }
   })
 end
