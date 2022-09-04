@@ -24,7 +24,8 @@ local function toggle_diagnostics()
   end
 end
 
-local base_key_tree = {
+local normal_key_tree = {
+  -- Base key tree
   ['x']     = { '"_x', "Don't yank with x" },
   ['+']     = { "<C-a>", "Increment" },
   ['-']     = { "<C-x>", "Decrement" },
@@ -42,31 +43,8 @@ local base_key_tree = {
   -- Move lines
   ['<A-j>'] = { ':m .+1<CR>==', 'Move lines down' },
   ['<A-k>'] = { ':m .-2<CR>==', 'Move lines up' },
-}
 
-wk.register(base_key_tree)
 
-wk.register({
-  ['<A-j>'] = { '<Esc>:m .+1<CR>==gi', 'Move lines down' },
-  ['<A-k>'] = { '<Esc>:m .-2<CR>==gi', 'Move lines up' },
-}, { mode = 'i' })
-
-wk.register({
-  ['<A-j>'] = { ":m '>+1<CR>gv=gv", 'Move lines down' },
-  ['<A-k>'] = { ":m '<-2<CR>gv=gv", 'Move lines up' },
-}, { mode = 'v' })
-
-wk.register({
-  ['<Esc>'] = { '<C-Bslash><C-n>', 'ESC to exit from terminal insert mode to terminal normal mode' }
-}, { mode = 't', noremap = true })
-
-wk.register({
-  -- Stay in visual mode after indenting
-  ['<'] = { '<gv', 'Stay in visual mode after indenting to left' },
-  ['>'] = { '>gv', 'Stay in visual mode after indenting to right' },
-}, { mode = 'x' })
-
-local normal_key_tree = {
   ['<leader>'] = {
     w = {
       name = '+Write...',
@@ -81,7 +59,6 @@ local normal_key_tree = {
       v = { ':botright vnew <Bar> :terminal<CR>', 'Open terminal in vertical split view' },
       h = { ':botright new <Bar> :terminal<CR>', 'Open terminal in horizontal split view' },
       f = { '<cmd>Lspsaga open_floaterm<CR>', 'Open float term' },
-      ['<Esc>'] = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
     },
 
     T = {
@@ -104,11 +81,11 @@ local normal_key_tree = {
       t    = { '<cmd>lua require("telescope.builtin").help_tags()<CR>', 'Help tags' },
       r    = { '<cmd>lua require("telescope.builtin").resume()<CR>', 'Resume' },
       d    = { '<cmd>lua require("telescope.builtin").diagnostics()<CR>', 'Diagnostics' },
-      F   = {
+      F    = {
         '<cmd>lua require("telescope").extensions.file_browser.file_browser({ path = "%:p:h", cwd = vim.fn.expand("%:p:h"), respect_git_ignore = false, hidden = true, grouped = true, previewer = false, initial_mode = "normal", layout_config = { height = 40 } })<CR>',
         'Find files (extension)'
       },
-      c = { '<cmd>lua require("telescope.builtin").commands()<CR>', 'Commands' },
+      c    = { '<cmd>lua require("telescope.builtin").commands()<CR>', 'Commands' },
     },
 
     l = {
@@ -136,22 +113,43 @@ local normal_key_tree = {
 
   ['<Tab>'] = { '<cmd>BufferLineCycleNext<CR>', 'Buffer line cycle next' },
   ['<S-Tab>'] = { '<cmd>BufferLineCyclePrev<CR>', 'Buffer line cycle previuos' },
+
+  ['<M-k>'] = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
 }
 
 local visual_key_tree = {
-  s = {
-    name = '+Sort...',
-    s = { ":'<,'>sort\n", "Sort" },
-    u = { ":'<,'>sort u\n", "Sort uniq" },
-  }
+  ['<leader>'] = {
+    s = {
+      name = '+Sort...',
+      s = { ":'<,'>sort\n", "Sort" },
+      u = { ":'<,'>sort u\n", "Sort uniq" },
+    }
+  },
+  ['<A-j>'] = { ":m '>+1<CR>gv=gv", 'Move lines down' },
+  ['<A-k>'] = { ":m '<-2<CR>gv=gv", 'Move lines up' },
 }
 
 local select_key_tree = {
   g = {
     a = { '<Plug>(EasyAlign)', 'Start interactive EasyAlign in visual mode (e.g. vipga)' }
-  }
+  },
+  -- Stay in visual mode after indenting
+  ['<'] = { '<gv', 'Stay in visual mode after indenting to left' },
+  ['>'] = { '>gv', 'Stay in visual mode after indenting to right' },
+}
+
+local terminal_key_tree = {
+  ['<Esc>'] = { '<C-Bslash><C-n>', 'ESC to exit from terminal insert mode to terminal normal mode', noremap = true },
+  ['<M-k>'] = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
+}
+
+local insert_key_tree = {
+  ['<A-j>'] = { '<Esc>:m .+1<CR>==gi', 'Move lines down' },
+  ['<A-k>'] = { '<Esc>:m .-2<CR>==gi', 'Move lines up' },
 }
 
 wk.register(normal_key_tree)
 wk.register(select_key_tree, { mode = 'x' })
-wk.register(visual_key_tree, { prefix = "<leader>", mode = "v" })
+wk.register(insert_key_tree, { mode = 'i' })
+wk.register(terminal_key_tree, { mode = 't' })
+wk.register(visual_key_tree, { mode = 'v' })

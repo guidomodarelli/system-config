@@ -35,6 +35,7 @@ telescope.setup {
           ['h'] = fb_actions.goto_parent_dir,
           ['cc'] = fb_actions.change_cwd,
           ['gc'] = fb_actions.goto_cwd,
+          ['l'] = actions.select_default
         }
       }
     }
