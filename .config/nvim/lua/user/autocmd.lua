@@ -1,5 +1,22 @@
 local augroups = {}
 
+augroups.buf_write_pre = {
+	mkdir_before_saving = {
+		event = { "BufWritePre", "FileWritePre" },
+		pattern = "*",
+		command = [[silent! call mkdir(expand("<afile>:p:h"), "p")]],
+	},
+	trim_extra_spaces_and_newlines = {
+		event = "BufWritePre",
+		pattern = "*",
+		command = [[
+			let current_pos = getpos(".")
+			silent! %s/\v\s+$|\n+%$//e
+			silent! call setpos(".", current_pos)
+		]],
+	}
+}
+
 augroups.misc = {
 	highlight_yank = {
 		event = "TextYankPost",

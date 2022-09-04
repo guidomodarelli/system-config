@@ -29,7 +29,9 @@ telescope.setup {
           end
         },
         ['n'] = {
-          ['N'] = fb_actions.create,
+          ['a'] = fb_actions.create,
+          ['r'] = fb_actions.rename,
+          ['d'] = fb_actions.remove,
           ['h'] = fb_actions.goto_parent_dir,
           ['cc'] = fb_actions.change_cwd,
           ['gc'] = fb_actions.goto_cwd,

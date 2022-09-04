@@ -22,12 +22,12 @@ local on_attach = function(client, bufnr)
 
   wk.register({
     g = {
-      D = { vim.lsp.buf.declaration,     'Go to declaration',     noremap = true, silent = true, buffer = bufnr },
-      d = { vim.lsp.buf.definition,      'Go to definition',      noremap = true, silent = true, buffer = bufnr },
-      i = { vim.lsp.buf.implementation,  'Go to implementation',  noremap = true, silent = true, buffer = bufnr },
-      T = { vim.lsp.buf.type_definition, 'Go to type definition', noremap = true, silent = true, buffer = bufnr },
-      r = { vim.lsp.buf.references,      'Go to references',      noremap = true, silent = true, buffer = bufnr },
-      f = { vim.lsp.buf.formatting,      'Formatting',            noremap = true, silent = true, buffer = bufnr },
+      D = { vim.lsp.buf.declaration,               'Go to declaration',     noremap = true, buffer = bufnr },
+      d = { ':Telescope lsp_definitions<CR>',      'Go to definition',      noremap = true, buffer = bufnr },
+      i = { ':Telescope lsp_implementations<CR>',  'Go to implementation',  noremap = true, buffer = bufnr },
+      T = { ':Telescope lsp_type_definitions<CR>', 'Go to type definition', noremap = true, buffer = bufnr },
+      r = { ':Telescope lsp_references<CR>',       'Go to references',      noremap = true, buffer = bufnr },
+      f = { vim.lsp.buf.formatting,                'Formatting',            noremap = true, buffer = bufnr },
     }
   })
 end

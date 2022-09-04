@@ -72,7 +72,7 @@ local normal_key_tree = {
       name = '+Write...',
       w = { ':w<CR>', 'Write file' },
       a = { ':wa<CR>', 'Write all files' },
-      q = { ':wa<CR> :qa<CR>', 'Write all and quit all' },
+      q = { ':wa<CR>:qa<CR>', 'Write all and quit all' },
       ['q!'] = { ':wa<CR> :qa!<CR>', 'Write all and quit all' },
     },
 
@@ -104,10 +104,18 @@ local normal_key_tree = {
       t    = { '<cmd>lua require("telescope.builtin").help_tags()<CR>', 'Help tags' },
       r    = { '<cmd>lua require("telescope.builtin").resume()<CR>', 'Resume' },
       d    = { '<cmd>lua require("telescope.builtin").diagnostics()<CR>', 'Diagnostics' },
-      ef   = {
+      F   = {
         '<cmd>lua require("telescope").extensions.file_browser.file_browser({ path = "%:p:h", cwd = vim.fn.expand("%:p:h"), respect_git_ignore = false, hidden = true, grouped = true, previewer = false, initial_mode = "normal", layout_config = { height = 40 } })<CR>',
         'Find files (extension)'
       },
+      c = { '<cmd>lua require("telescope.builtin").commands()<CR>', 'Commands' },
+    },
+
+    l = {
+      name = '+LSP...',
+      f = { '<cmd>Lspsaga lsp_finder<CR>', 'Definition, Implementations and references' },
+      p = { '<cmd>Lspsaga preview_definition<CR>', 'Preview definiton' },
+      c = { '<cmd>Lspsaga code_action<CR>', 'Code actions' },
     },
   },
 
@@ -123,12 +131,6 @@ local normal_key_tree = {
 
   g = {
     name = '+Global...',
-    l = {
-      name = '+LSP...',
-      f = { '<cmd>Lspsaga lsp_finder<CR>', 'Definition, Implementations and references' },
-      p = { '<cmd>Lspsaga preview_definition<CR>', 'Preview definiton' },
-      c = { '<cmd>Lspsaga code_action<CR>', 'Code actions' },
-    },
     a = { '<Plug>(EasyAlign)', 'Start interactive EasyAlign for a motion/text object (e.g. gaip)' },
   },
 
