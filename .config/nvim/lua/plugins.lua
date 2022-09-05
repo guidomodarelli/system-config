@@ -79,6 +79,7 @@ packer.startup(function(use)
     -- tag = 'release' -- To use the latest release (do not use this if you run Neovim nightly or dev builds!)
   }
   use 'dinhhuy258/git.nvim'
+  use { 'TimUntersberger/neogit', requires = 'nvim-lua/plenary.nvim' }
 
   -- Debugging
   use { "rcarriga/nvim-dap-ui", requires = { "mfussenegger/nvim-dap" } }

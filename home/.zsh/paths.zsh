@@ -7,6 +7,7 @@ paths=(
 	"/usr/local/apache-maven-3.8.1/bin"
 	$HOME/.yarn/bin
 	$HOME/.config/yarn/global/node_modules/.bin
+	/home/linuxbrew/.linuxbrew/bin
 )
 
 newPath=$(echo ${paths[@]} | sed 's/ /:/g')
