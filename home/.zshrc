@@ -11,4 +11,3 @@ compinit
 
 source $ZSH/oh-my-zsh.sh
 source $ZSH_HOME/init.zsh
-

@@ -48,8 +48,8 @@ nvim_tree.setup {
         default = icons.documents.File.Default,
         symlink = icons.symlink.File,
         folder = {
-          arrow_open = icons.ui.ArrowOpen,
-          arrow_closed = icons.ui.ArrowClosed,
+          arrow_open = icons.ui.Open,
+          arrow_closed = icons.ui.Closed,
           default = icons.documents.Folder.Default,
           open = icons.documents.Folder.Open,
           empty = icons.documents.Folder.Empty,

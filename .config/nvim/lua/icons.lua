@@ -71,8 +71,8 @@ return {
     Ignored            = "◌",
   },
   ui                   = {
-    ArrowClosed        = "⮞",
-    ArrowOpen          = "⮟",
+    Closed             = "+",
+    Open               = "-",
     Lock               = "",
     Circle             = "",
     BigCircle          = "",

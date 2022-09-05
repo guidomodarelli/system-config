@@ -23,10 +23,12 @@ packer.startup(function(use)
   use "MunifTanjim/prettier.nvim" -- Prettier plugin for Neovim's built-in LSP client
   use "jose-elias-alvarez/null-ls.nvim" -- Use a Neovim as a language server to inject LSP diagnostics, code actions and more via Lua
 
+  -- Icons
+  use "kyazdani42/nvim-web-devicons"
+
   -- Statusline
   use {
     "nvim-lualine/lualine.nvim",
-    requires = { "kyazdani42/nvim-web-devicons", opt = true }
   }
 
   -- Find files and text
@@ -67,9 +69,6 @@ packer.startup(function(use)
   -- Sidebar tree
   use {
     "kyazdani42/nvim-tree.lua",
-    requires = {
-      "kyazdani42/nvim-web-devicons", -- optional, for file icons
-    },
     tag = "nightly" -- optional, updated every week. (see issue #1193)
   }
 
@@ -92,7 +91,7 @@ packer.startup(function(use)
 
   -- IDE
   use "Yggdroot/indentLine"
-  use { 'akinsho/bufferline.nvim', tag = "v2.*", requires = 'kyazdani42/nvim-web-devicons' }
+  use { 'akinsho/bufferline.nvim', tag = "v2.*" }
   use "editorconfig/editorconfig-vim"
   use "norcalli/nvim-colorizer.lua"
   use "glepnir/lspsaga.nvim" -- LSP UIs
