@@ -3,7 +3,7 @@ if (not status) then return end
 
 ts.setup {
   -- A list of parser names, or "all"
-  ensure_installed = { "cpp", "lua", "javascript", "typescript", "json", "css" },
+  ensure_installed = { "lua", "javascript", "typescript", "json", "css" },
 
   autotag = {
     enable = true,

@@ -3,7 +3,7 @@ cd $HOME
 sudo apt install git zsh fzf exa
 curl -L git.io/antigen > antigen.zsh
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install ghq nvim
+brew install ghq nvim rg fd
 
 # Config zsh
 git clone https://gitlab.com/guidomodarelli25/system-config.git # Clone this config
