@@ -1,6 +1,8 @@
 local status_ok, packer = pcall(require, "packer")
 if not status_ok then
   print('Packer is not installed')
+  local install_path = vim.fn.stdpath 'data' .. '/site/pack/packer/start/packer.nvim'
+  vim.fn.execute('!git clone https://github.com/wbthomason/packer.nvim ' .. install_path)
   return
 end
 
@@ -60,7 +62,8 @@ packer.startup(function(use)
   -- Parser
   use {
     "nvim-treesitter/nvim-treesitter",
-    run = function() require("nvim-treesitter.install").update({ with_sync = true }) end,
+    -- run = function() require("nvim-treesitter.install").update({ with_sync = true }) end,
+    run = ":TSUpdate"
   }
 
   -- Snippets
@@ -99,4 +102,14 @@ packer.startup(function(use)
   use "tpope/vim-sleuth"
   use "navarasu/onedark.nvim"
   use "junegunn/vim-easy-align"
+
+  packer.sync()
 end)
+
+-- Automatically source and re-compile packer whenever you save this file
+local packer_group = vim.api.nvim_create_augroup('Packer', { clear = true })
+vim.api.nvim_create_autocmd('BufWritePost', {
+  command = 'source <afile> | PackerCompile',
+  group = packer_group,
+  pattern = vim.fn.expand '$MYVIMRC',
+})
