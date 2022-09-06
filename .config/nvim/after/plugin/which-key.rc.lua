@@ -51,7 +51,7 @@ local normal_key_tree = {
       w = { ':w<CR>', 'Write file' },
       a = { ':wa<CR>', 'Write all files' },
       q = { ':wa<CR>:qa<CR>', 'Write all and quit all' },
-      ['q!'] = { ':wa<CR> :qa!<CR>', 'Write all and quit all' },
+      Q = { ':wa<CR> :qa!<CR>', 'Write all and quit all' },
     },
 
     t = {
@@ -114,7 +114,7 @@ local normal_key_tree = {
   ['<Tab>'] = { '<cmd>BufferLineCycleNext<CR>', 'Buffer line cycle next' },
   ['<S-Tab>'] = { '<cmd>BufferLineCyclePrev<CR>', 'Buffer line cycle previuos' },
 
-  ['<M-k>'] = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
+  ['<M-t>'] = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
 }
 
 local visual_key_tree = {
@@ -140,7 +140,7 @@ local select_key_tree = {
 
 local terminal_key_tree = {
   ['<Esc>'] = { '<C-Bslash><C-n>', 'ESC to exit from terminal insert mode to terminal normal mode', noremap = true },
-  ['<M-k>'] = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
+  ['<M-t>'] = { '<cmd>Lspsaga close_floaterm<CR>', 'Kill float term' },
 }
 
 local insert_key_tree = {
