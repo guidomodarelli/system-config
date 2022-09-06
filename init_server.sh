@@ -1,9 +1,11 @@
 cd $HOME
+sudo apt-get update
 # Instalación de paquetes y binarios
-sudo apt install git zsh fzf exa
+sudo apt-get install git zsh fzf
 curl -L git.io/antigen > antigen.zsh
+# Install Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install ghq nvim rg fd
+brew install ghq nvim rg fd exa
 
 # Config zsh
 git clone https://gitlab.com/guidomodarelli25/system-config.git # Clone this config
@@ -12,6 +14,7 @@ ln -s system-config/home/.zsh
 ln -s .zsh/.antigenrc
 ln -s system-config/home/.zshrc
 source ~/.zshrc
+# Install Oh-my-zsh
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 rm .zshrc
 mv .zshrc.pre-oh-my-zsh .zshrc
@@ -20,3 +23,8 @@ source ~/.zshrc
 # Config nvim
 mkdir -p .config
 ln -s ~/system-config/.config/nvim ~/.config
+
+# Install Docker: https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository
+
+# Generate an SSH Key
+ssh-keygen -b 2048 -t rsa

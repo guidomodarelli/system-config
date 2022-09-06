@@ -6,8 +6,9 @@ ZSH="$HOME/.oh-my-zsh"
 # │ ZSH configuration                                                            │
 # └──────────────────────────────────────────────────────────────────────────────┘
 # ------------------------------ zsh-completions ----------------------------- #
-autoload -U compinit
+autoload -Uz compinit
 compinit
+_comp_options+=(globdots)
 
 source $ZSH/oh-my-zsh.sh
 source $ZSH_HOME/init.zsh
