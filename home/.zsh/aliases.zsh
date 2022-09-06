@@ -5,8 +5,7 @@ alias k=kubectl
 alias b=batcat
 
 # exa
-alias exa='exa --group-directories-first --icons --color-scale'
-alias ll='exa -lFhg --no-time --no-filesize'
-alias la='ll -a'
-alias lt='exa -T'
-
+alias exa='exa --group-directories-first --icons --color-scale --git-ignore'
+alias ll='exa --long --classify --header --group --no-time --no-filesize'
+alias la='ll --all'
+alias lt='exa --tree'

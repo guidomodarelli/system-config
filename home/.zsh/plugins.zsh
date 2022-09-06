@@ -12,5 +12,4 @@ plugins=(
 	gradle
 	nvm
 	fd
-	z
 )

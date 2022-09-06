@@ -1,9 +1,9 @@
 local status_ok, packer = pcall(require, "packer")
 if not status_ok then
   print('Packer is not installed')
+  print('Installing packer...')
   local install_path = vim.fn.stdpath 'data' .. '/site/pack/packer/start/packer.nvim'
   vim.fn.execute('!git clone https://github.com/wbthomason/packer.nvim ' .. install_path)
-  return
 end
 
 vim.cmd [[packadd packer.nvim]]
@@ -102,6 +102,8 @@ packer.startup(function(use)
   use "tpope/vim-sleuth"
   use "navarasu/onedark.nvim"
   use "junegunn/vim-easy-align"
+  use "camspiers/lens.vim"
+  use "junegunn/goyo.vim"
 
   packer.sync()
 end)
