@@ -5,7 +5,7 @@ sudo apt-get install git zsh fzf
 curl -L git.io/antigen > antigen.zsh
 # Install Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install ghq nvim rg fd exa
+brew install ghq nvim rg fd exa git-delta
 
 # Config zsh
 git clone https://gitlab.com/guidomodarelli25/system-config.git # Clone this config
@@ -23,6 +23,9 @@ source ~/.zshrc
 # Config nvim
 mkdir -p .config
 ln -s ~/system-config/.config/nvim ~/.config
+
+# Config git
+ln -s ~/system-config/home/.gitconfig
 
 # Install Docker: https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository
 
