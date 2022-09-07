@@ -102,7 +102,6 @@ packer.startup(function(use)
   use "tpope/vim-sleuth"
   use "navarasu/onedark.nvim"
   use "junegunn/vim-easy-align"
-  use "camspiers/lens.vim"
   use "junegunn/goyo.vim"
 
   packer.sync()
