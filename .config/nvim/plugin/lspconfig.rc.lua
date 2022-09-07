@@ -32,6 +32,10 @@ local on_attach = function(client, bufnr)
   })
 end
 
+nvim_lsp.svelte.setup {
+  on_attach = on_attach,
+}
+
 nvim_lsp.yamlls.setup {
   on_attach = on_attach,
 }

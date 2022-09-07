@@ -127,7 +127,8 @@ local visual_key_tree = {
   },
   ['<A-j>'] = { ":m '>+1<CR>gv=gv", 'Move lines down' },
   ['<A-k>'] = { ":m '<-2<CR>gv=gv", 'Move lines up' },
-  ['/'] = { "y/\\V<C-R>=escape(@\",'/\')<CR><CR>", 'To search for visually selected text', noremap = true },
+  ['//'] = { "y/\\V<C-R>=escape(@\",'/\')<CR><CR>", 'To search for visually selected text', noremap = true },
+  ['<M-r>'] = { '"hy:%s/<C-r>h//gc<left><left><left>', 'Search and replace selected text', noremap = true },
 }
 
 local select_key_tree = {
