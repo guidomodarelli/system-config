@@ -5,7 +5,7 @@ sudo apt-get install git zsh fzf
 curl -L git.io/antigen > antigen.zsh
 # Install Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install ghq nvim rg fd exa git-delta
+brew install ghq nvim rg fd exa git-delta zoxide
 
 # Config zsh
 git clone https://gitlab.com/guidomodarelli25/system-config.git # Clone this config
