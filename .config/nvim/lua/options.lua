@@ -45,7 +45,6 @@ local options = {
 	splitright     = true, -- Open splits right of the current window
 	tabstop        = 2, -- Number of columns to move when pressing <TAB> (see noexpandtab)
 	termguicolors  = true, -- Enable 24-bit RGB color in the TUI
-	textwidth      = 79,
 	timeoutlen     = 500, -- Milliseconds to wait before completing a mapped sequence
 	title          = true,
 	ttyfast        = true,
