@@ -33,8 +33,6 @@ local normal_key_tree = {
   ['<C-a>'] = { 'gg<S-v>G', "Select all" },
   ['<M-w>'] = { '<C-w>w', 'Switch windows' },
   ['<M-q>'] = { ':q<CR>', 'Quit a window' },
-  p = { '"0p', 'replace-paste yanked text in vim without yanking the deleted lines', noremap = true },
-  P = { '"0P', 'replace-paste yanked text in vim without yanking the deleted lines', noremap = true },
 
   -- Resize window
   ['<C-left>']  = { '5<C-w><', 'Resize window to left' },
@@ -131,8 +129,6 @@ local visual_key_tree = {
   ['<A-k>'] = { ":m '<-2<CR>gv=gv", 'Move lines up' },
   ['//'] = { "y/\\V<C-R>=escape(@\",'/\')<CR><CR>", 'To search for visually selected text', noremap = true },
   ['<M-r>'] = { '"hy:%s/<C-r>h/<C-r>h/gc<left><left><left>', 'Search and replace selected text', noremap = true },
-  p = { '"0p', 'replace-paste yanked text in vim without yanking the deleted lines', noremap = true },
-  P = { '"0P', 'replace-paste yanked text in vim without yanking the deleted lines', noremap = true },
 }
 
 local select_key_tree = {
