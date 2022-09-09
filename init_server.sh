@@ -1,7 +1,7 @@
 cd $HOME
 sudo apt-get update
 # Instalación de paquetes y binarios
-sudo apt-get install git zsh fzf
+sudo apt-get install git zsh fzf build-essential
 curl -L git.io/antigen > antigen.zsh
 # Install Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
