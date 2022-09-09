@@ -66,7 +66,9 @@ vim.opt.wildignore:append { '*/node_modules/*' }
 vim.opt.formatoptions:append { 'r' }
 vim.opt.clipboard:append { 'unnamedplus' }
 
-vim.cmd [[let g:indentLine_setConceal = 0]]
+vim.g.indentLine_fileTypeExclude = {
+	'json'
+}
 
 -- Undercurl
 vim.cmd [[let &t_Cs = "\e[4:3m"]]

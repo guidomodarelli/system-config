@@ -32,6 +32,10 @@ local on_attach = function(client, bufnr)
   })
 end
 
+nvim_lsp.pylsp.setup {
+  on_attach = on_attach,
+}
+
 nvim_lsp.bashls.setup {
   on_attach = on_attach,
 }

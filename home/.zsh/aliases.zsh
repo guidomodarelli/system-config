@@ -15,6 +15,12 @@ if command -v batcat &> /dev/null; then
 	alias b=batcat
 fi
 
+if command -v curlie &> /dev/null; then
+	alias c=curlie
+else
+	alias c=curl
+fi
+
 # exa
 if command -v exa &> /dev/null; then
 	alias exa='exa --group-directories-first --icons --color-scale --git-ignore'
