@@ -103,6 +103,7 @@ packer.startup(function(use)
   use "navarasu/onedark.nvim"
   use "junegunn/vim-easy-align"
   use "junegunn/goyo.vim"
+  use "Pocco81/auto-save.nvim"
 end)
 
 -- Automatically source and re-compile packer whenever you save this file
