@@ -1,5 +1,6 @@
 cd $HOME
 sudo apt-get update
+curl https://rclone.org/install.sh | sudo bash
 # Instalación de paquetes y binarios
 sudo apt-get install git zsh fzf build-essential
 curl -L git.io/antigen > antigen.zsh
