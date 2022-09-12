@@ -1,7 +1,7 @@
 local status, nvim_lsp = pcall(require, "lspconfig")
 if not status then return end
-
 -- https://github.com/neovim/nvim-lspconfig#suggested-configuration
+
 local on_attach = function(client, bufnr)
   -- formatting in save
   -- if client.server_capabilities.documentFormattingProvider then
@@ -39,6 +39,7 @@ nvim_lsp.pyright.setup {
 
 nvim_lsp.bashls.setup {
   on_attach = on_attach,
+  filetypes = { 'zsh', 'bash', 'sh' }
 }
 
 nvim_lsp.svelte.setup {

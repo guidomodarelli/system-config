@@ -103,7 +103,6 @@ packer.startup(function(use)
   use "navarasu/onedark.nvim"
   use "junegunn/vim-easy-align"
   use "junegunn/goyo.vim"
-  use "Pocco81/auto-save.nvim"
   use { 'michaelb/sniprun', run = 'bash ./install.sh'}
 end)
 

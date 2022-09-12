@@ -3,7 +3,7 @@
 get_list_of_files () {
   local src="$1"
 
-  echo $(ls -a "$src" | grep -vE "^\.+$")
+  echo "$(ls -a "$src" | grep -vE "^\.+$")"
 }
 
 create_symbolic_links () {
@@ -12,9 +12,9 @@ create_symbolic_links () {
 
   local list=$(get_list_of_files "$src")
 
-  for path in ${list[@]}; do
+  for path in "${list[@]}"; do
     rm "$dest"/"$path"
-    ln -s `realpath ./"$src"/"$path"` "$dest"
+    ln -s "$(realpath ./"$src"/"$path")" "$dest"
   done
 }
 
