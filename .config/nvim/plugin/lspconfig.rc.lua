@@ -57,7 +57,7 @@ nvim_lsp.volar.setup {
 
 nvim_lsp.tsserver.setup {
   on_attach = on_attach,
-  filetypes = { 'typescript', 'typescriptreact', 'tsx', 'javascript', 'javascriptreact', 'jsx', 'js', 'ts' },
+  filetypes = { 'typescript', 'typescriptreact', 'typescript.tsx', 'javascript', 'javascriptreact', 'javascript.jsx' },
   cmd = { 'typescript-language-server', '--stdio' }
 }
 
