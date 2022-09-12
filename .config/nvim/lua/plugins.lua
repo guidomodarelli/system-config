@@ -12,8 +12,8 @@ packer.startup(function(use)
   use "wbthomason/packer.nvim"
 
   use {
-    "neovim/nvim-lspconfig", -- LSP
     "williamboman/nvim-lsp-installer",
+    "neovim/nvim-lspconfig", -- LSP
   }
 
   use {
@@ -104,6 +104,7 @@ packer.startup(function(use)
   use "junegunn/vim-easy-align"
   use "junegunn/goyo.vim"
   use "Pocco81/auto-save.nvim"
+  use { 'michaelb/sniprun', run = 'bash ./install.sh'}
 end)
 
 -- Automatically source and re-compile packer whenever you save this file

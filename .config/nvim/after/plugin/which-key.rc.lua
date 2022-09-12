@@ -97,7 +97,6 @@ local normal_key_tree = {
   },
 
   -- LSP
-  ['<C-k>'] = { '<cmd>Lspsaga signature_help<CR>', 'Signature help', mode = 'i' },
   ['<C-j>'] = { '<cmd>Lspsaga diagnostic_jump_next<CR>', 'Diagnostic jump next' },
   K         = { '<cmd>Lspsaga hover_doc<CR>', 'Hover documentation' },
   ['<M-r>'] = { '<cmd>Lspsaga rename<CR>', 'Rename' },

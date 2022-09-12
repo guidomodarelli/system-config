@@ -22,17 +22,18 @@ local on_attach = function(client, bufnr)
 
   wk.register({
     g = {
-      D = { vim.lsp.buf.declaration,               'Go to declaration',     noremap = true, buffer = bufnr },
-      d = { ':Telescope lsp_definitions<CR>',      'Go to definition',      noremap = true, buffer = bufnr },
-      i = { ':Telescope lsp_implementations<CR>',  'Go to implementation',  noremap = true, buffer = bufnr },
+      D = { vim.lsp.buf.declaration, 'Go to declaration', noremap = true, buffer = bufnr },
+      d = { ':Telescope lsp_definitions<CR>', 'Go to definition', noremap = true, buffer = bufnr },
+      i = { ':Telescope lsp_implementations<CR>', 'Go to implementation', noremap = true, buffer = bufnr },
       T = { ':Telescope lsp_type_definitions<CR>', 'Go to type definition', noremap = true, buffer = bufnr },
-      r = { ':Telescope lsp_references<CR>',       'Go to references',      noremap = true, buffer = bufnr },
-      f = { vim.lsp.buf.formatting,                'Formatting',            noremap = true, buffer = bufnr },
-    }
+      r = { ':Telescope lsp_references<CR>', 'Go to references', noremap = true, buffer = bufnr },
+      f = { vim.lsp.buf.formatting, 'Formatting', noremap = true, buffer = bufnr },
+    },
+    ['<C-k>'] = { vim.lsp.buf.signature_help, 'Signature help', mode = 'i', buffer = bufnr },
   })
 end
 
-nvim_lsp.pylsp.setup {
+nvim_lsp.pyright.setup {
   on_attach = on_attach,
 }
 
@@ -55,7 +56,7 @@ nvim_lsp.volar.setup {
 
 nvim_lsp.tsserver.setup {
   on_attach = on_attach,
-  filetypes = { 'typescript', 'typescriptreact', 'tsx', 'javascript', 'javascriptreact', 'jsx' },
+  filetypes = { 'typescript', 'typescriptreact', 'tsx', 'javascript', 'javascriptreact', 'jsx', 'js', 'ts' },
   cmd = { 'typescript-language-server', '--stdio' }
 }
 
