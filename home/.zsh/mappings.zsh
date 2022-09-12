@@ -1,4 +1,4 @@
-if command -v fzf &> /dev/null; then
+if command -v fzf &>/dev/null; then
 	bindkey '^b' anyframe-widget-checkout-git-branch
 
 	bindkey '^r' anyframe-widget-execute-history

@@ -1,4 +1,3 @@
-source "$ZSH_HOME/.antigenrc"
 source "$ZSH_HOME/aliases.zsh"
 source "$ZSH_HOME/completions.zsh"
 source "$ZSH_HOME/functions.zsh"
