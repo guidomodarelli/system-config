@@ -6,6 +6,17 @@ local diagnostics = null_ls.builtins.diagnostics
 
 local diagnostics_format = '[#{s}] #{m}'
 
+local formatting_eslint_d_condition = function(utils)
+  return utils.root_has_file({
+    ".eslintrc.js",
+    ".eslintrc.cjs",
+    ".eslintrc.yaml",
+    ".eslintrc.yml",
+    ".eslintrc.json",
+    "package.json"
+  })
+end
+
 ---@diagnostic disable-next-line: redundant-parameter
 null_ls.setup {
   ---@diagnostic disable-next-line: unused-local
@@ -19,18 +30,12 @@ null_ls.setup {
     end
   end,
   sources = {
+    formatting.eslint_d.with({
+      condition = formatting_eslint_d_condition,
+    }),
     diagnostics.eslint_d.with({
       diagnostics_format = diagnostics_format,
-      condition = function(utils)
-        return utils.root_has_file({
-          ".eslintrc.js",
-          ".eslintrc.cjs",
-          ".eslintrc.yaml",
-          ".eslintrc.yml",
-          ".eslintrc.json",
-          "package.json"
-        })
-      end,
+      condition = formatting_eslint_d_condition,
     }),
     diagnostics.zsh.with({
       diagnostics_format = diagnostics_format,
