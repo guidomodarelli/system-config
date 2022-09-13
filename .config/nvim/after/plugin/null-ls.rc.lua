@@ -42,6 +42,8 @@ null_ls.setup {
     }),
     formatting.shfmt.with({
       filetypes = { "sh", "zsh" }
-    })
+    }),
+    formatting.black,
+    diagnostics.flake8,
   }
 }
