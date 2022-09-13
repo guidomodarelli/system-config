@@ -15,11 +15,17 @@ if command -v batcat &>/dev/null; then
 	alias b=batcat
 fi
 
+if command -v python3 &>/dev/null; then
+	alias p=python3
+fi
+
 if command -v curlie &>/dev/null; then
 	alias c=curlie
 else
 	alias c=curl
 fi
+
+alias so=source
 
 # exa
 if command -v exa &>/dev/null; then
