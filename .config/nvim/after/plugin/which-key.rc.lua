@@ -97,7 +97,8 @@ local normal_key_tree = {
   },
 
   -- LSP
-  ['<C-j>'] = { '<cmd>Lspsaga diagnostic_jump_next<CR>', 'Diagnostic jump next' },
+  ['[d'] = { '<cmd>lua vim.diagnostic.goto_prev({ border = "rounded" })<CR>', 'Diagnostic jump previous', noremap = true, silent = true },
+  [']d'] = { '<cmd>lua vim.diagnostic.goto_next({ border = "rounded" })<CR>', 'Diagnostic jump next', noremap = true, silent = true  },
   K         = { '<cmd>Lspsaga hover_doc<CR>', 'Hover documentation' },
   ['<M-r>'] = { '<cmd>Lspsaga rename<CR>', 'Rename' },
 
