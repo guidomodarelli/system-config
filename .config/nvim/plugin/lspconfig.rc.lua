@@ -3,6 +3,9 @@ if not status then return end
 -- https://github.com/neovim/nvim-lspconfig#suggested-configuration
 
 local on_attach = function(client, bufnr)
+  if client.name == "tsserver" then
+    client.resolved_capabilities.document_formatting = false
+  end
   -- formatting in save
   -- if client.server_capabilities.documentFormattingProvider then
   --   local command = vim.api.nvim_command

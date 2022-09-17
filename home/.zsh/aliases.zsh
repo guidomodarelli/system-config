@@ -21,8 +21,6 @@ fi
 
 if command -v curlie &>/dev/null; then
 	alias c=curlie
-else
-	alias c=curl
 fi
 
 alias so=source

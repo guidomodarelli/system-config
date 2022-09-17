@@ -6,7 +6,7 @@ local diagnostics = null_ls.builtins.diagnostics
 
 local diagnostics_format = '[#{s}] #{m}'
 
-local formatting_eslint_d_condition = function(utils)
+local eslint_d_condition = function(utils)
   return utils.root_has_file({
     ".eslintrc.js",
     ".eslintrc.cjs",
@@ -30,12 +30,23 @@ null_ls.setup {
     end
   end,
   sources = {
+    formatting.prettierd.with({
+      condition = function(utils)
+        return utils.root_has_file({
+          ".prettierrc",
+        })
+      end,
+    }),
     formatting.eslint_d.with({
-      condition = formatting_eslint_d_condition,
+      condition = function(utils)
+        return eslint_d_condition(utils)
+      end,
     }),
     diagnostics.eslint_d.with({
       diagnostics_format = diagnostics_format,
-      condition = formatting_eslint_d_condition,
+      condition = function(utils)
+        return eslint_d_condition(utils)
+      end,
     }),
     diagnostics.zsh.with({
       diagnostics_format = diagnostics_format,
