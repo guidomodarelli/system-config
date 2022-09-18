@@ -13,15 +13,62 @@ wk.setup {
   }
 }
 
-local diagnostics_active = true
+function On_attach_mappings(bufnr)
+  wk.register({
+    g = {
+      D = { vim.lsp.buf.declaration, 'Go to declaration', noremap = true, buffer = bufnr },
+      d = { '<cmd>Telescope lsp_definitions<CR>', 'Go to definition', noremap = true, buffer = bufnr },
+      i = { '<cmd>Telescope lsp_implementations<CR>', 'Go to implementation', noremap = true, buffer = bufnr },
+      T = { '<cmd>Telescope lsp_type_definitions<CR>', 'Go to type definition', noremap = true, buffer = bufnr },
+      r = { '<cmd>Telescope lsp_references<CR>', 'Go to references', noremap = true, buffer = bufnr },
+      f = { vim.lsp.buf.formatting, 'Formatting', noremap = true, buffer = bufnr },
+      s = { vim.lsp.buf.document_symbol, 'Document Symbol', noremap = true, buffer = bufnr },
+      w = {
+        a = { vim.lsp.buf.add_workspace_folder, 'Add workspace folder', noremap = true, buffer = bufnr },
+        r = { vim.lsp.buf.remove_workspace_folder, 'Remove workspace folder', noremap = true, buffer = bufnr },
+        l = {
+          '<cmd>lua print(vim.inspect(vim.lsp.buf.list_workspace_folders()))<CR>',
+          'List workspace folders',
+          noremap = true,
+          buffer = bufnr
+        },
+      },
+      p = { '<cmd>Lspsaga preview_definition<CR>', 'Preview definiton' },
+      F = { '<cmd>Lspsaga lsp_finder<CR>', 'Definition, Implementations and references' },
+      C = { '<cmd>Lspsaga code_action<CR>', 'Code actions' },
+    },
 
-local function toggle_diagnostics()
-  diagnostics_active = not diagnostics_active
-  if diagnostics_active then
-    vim.diagnostic.show()
-  else
-    vim.diagnostic.hide()
-  end
+    ['<C-k>'] = { vim.lsp.buf.signature_help, 'Signature help', mode = 'i', buffer = bufnr },
+    K         = { '<cmd>Lspsaga hover_doc<CR>', 'Hover documentation' },
+    ['<M-r>'] = { '<cmd>Lspsaga rename<CR>', 'Rename' },
+
+    ['<leader>'] = {
+      d = {
+        name  = '+Diagnostic...',
+        d     = { vim.diagnostic.setloclist, 'Diagnostic setloclist', noremap = true, silent = true },
+        o     = {
+          vim.diagnostic.open_float,
+          'Diagnostic open float',
+          noremap = true,
+          silent = true
+        },
+        -- When hover next line, lua throw an error: malformed pattern (missing ']')
+        -- is OK
+        ['['] = {
+          vim.diagnostic.goto_prev,
+          'Diagnostic jump previous',
+          noremap = true,
+          silent = true
+        },
+        [']'] = {
+          vim.diagnostic.goto_next,
+          'Diagnostic jump next',
+          noremap = true,
+          silent = true
+        },
+      }
+    },
+  })
 end
 
 local normal_key_tree = {
