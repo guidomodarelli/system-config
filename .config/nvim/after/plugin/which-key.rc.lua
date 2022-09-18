@@ -87,20 +87,7 @@ local normal_key_tree = {
       },
       c    = { '<cmd>lua require("telescope.builtin").commands()<CR>', 'Commands' },
     },
-
-    l = {
-      name = '+LSP...',
-      f = { '<cmd>Lspsaga lsp_finder<CR>', 'Definition, Implementations and references' },
-      p = { '<cmd>Lspsaga preview_definition<CR>', 'Preview definiton' },
-      c = { '<cmd>Lspsaga code_action<CR>', 'Code actions' },
-    },
   },
-
-  -- LSP
-  ['[d'] = { '<cmd>lua vim.diagnostic.goto_prev({ border = "rounded" })<CR>', 'Diagnostic jump previous', noremap = true, silent = true },
-  [']d'] = { '<cmd>lua vim.diagnostic.goto_next({ border = "rounded" })<CR>', 'Diagnostic jump next', noremap = true, silent = true  },
-  K         = { '<cmd>Lspsaga hover_doc<CR>', 'Hover documentation' },
-  ['<M-r>'] = { '<cmd>Lspsaga rename<CR>', 'Rename' },
 
   -- Tree
   ['<M-d>'] = { ':NvimTreeToggle<CR>', 'NvimTreeToggle' },
