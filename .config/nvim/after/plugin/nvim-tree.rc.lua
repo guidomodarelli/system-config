@@ -26,7 +26,7 @@ nvim_tree.setup {
   update_cwd = true,
   renderer = {
     add_trailing = false,
-    group_empty = false,
+    group_empty = true,
     highlight_git = false,
     highlight_opened_files = "none",
     root_folder_modifier = ":t",
