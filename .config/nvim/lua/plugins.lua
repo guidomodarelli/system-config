@@ -46,16 +46,17 @@ packer.startup(function(use)
   use {
     "hrsh7th/nvim-cmp",
     requires = {
-      "hrsh7th/cmp-buffer", -- nvim-cmp source for buffer words
       "hrsh7th/cmp-nvim-lsp", -- nvim-cmp source for neovim's built-in LSP
-      "hrsh7th/cmp-nvim-lua",
-      "octaltree/cmp-look",
+      "hrsh7th/cmp-cmdline",
       "hrsh7th/cmp-path",
+      "hrsh7th/cmp-buffer", -- nvim-cmp source for buffer words
       "hrsh7th/cmp-calc",
       "f3fora/cmp-spell",
-      "hrsh7th/cmp-emoji",
-      "saadparwaiz1/cmp_luasnip",
-      "onsails/lspkind.nvim", -- vscode-like pictograms
+      "tamago324/cmp-zsh",
+      "quangnguyen30192/cmp-nvim-ultisnips",
+      "hrsh7th/cmp-nvim-lsp-signature-help",
+      "hrsh7th/cmp-nvim-lua",
+      "octaltree/cmp-look",
     }
   }
 
@@ -67,7 +68,8 @@ packer.startup(function(use)
   }
 
   -- Snippets
-  use "L3MON4D3/LuaSnip"
+  use "SirVer/ultisnips"
+  use "honza/vim-snippets"
 
   -- Sidebar tree
   use {
@@ -93,17 +95,24 @@ packer.startup(function(use)
   use "windwp/nvim-ts-autotag"
 
   -- IDE
-  use "Yggdroot/indentLine"
   use { 'akinsho/bufferline.nvim', tag = "v2.*" }
   use "editorconfig/editorconfig-vim"
   use "norcalli/nvim-colorizer.lua"
   use "glepnir/lspsaga.nvim" -- LSP UIs
   use "folke/which-key.nvim"
+  --[[
+  --  This plugin automatically adjusts 'shiftwidth' and 'expandtab' heuristically
+  --  based on the current file, or, in the case the current file is new, blank,
+  --  or otherwise insufficient, by looking at other files of the same type in the
+  --  current and parent directories. Modelines and EditorConfig are also consulted,
+  --  adding 'tabstop', 'textwidth', 'endofline', 'fileformat', 'fileencoding',
+  --  and 'bomb' to the list of supported options.
+  --]]
   use "tpope/vim-sleuth"
   use "navarasu/onedark.nvim"
   use "junegunn/vim-easy-align"
   use "junegunn/goyo.vim"
-  use { 'michaelb/sniprun', run = 'bash ./install.sh'}
+  use { 'michaelb/sniprun', run = 'bash ./install.sh' }
 end)
 
 -- Automatically source and re-compile packer whenever you save this file

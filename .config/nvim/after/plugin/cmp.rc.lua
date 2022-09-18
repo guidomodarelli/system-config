@@ -1,22 +1,47 @@
 local status, cmp = pcall(require, "cmp")
 if (not status) then return end
-local lspkind = require 'lspkind'
 
 if cmp == nil then
   return
 end
 
+cmp.setup.cmdline('/', {
+  sources = {
+    { name = 'buffer' },
+  }
+})
+
+cmp.setup.cmdline(':', {
+  sources = cmp.config.sources({
+    { name = 'path' },
+    { name = 'cmdline' },
+  })
+})
+
 cmp.setup {
   formatting = {
-    format = lspkind.cmp_format({
-      with_text = false,
-      maxwidth = 50
-    })
+    format = function(entry, vim_item)
+      vim_item.kind = string.format("%s %s", require('icons').kind[vim_item.kind], vim_item.kind) -- Concatonate the icons with name of the item-kind
+      vim_item.menu = ({
+        nvim_lsp = "[LSP]",
+        spell = "[Spellings]",
+        zsh = "[Zsh]",
+        buffer = "[Buffer]",
+        ultisnips = "[Snip]",
+        treesitter = "[Treesitter]",
+        calc = "[Calculator]",
+        nvim_lua = "[Lua]",
+        path = "[Path]",
+        nvim_lsp_signature_help = "[Signature]",
+        cmdline = "[Vim Command]"
+      })[entry.source.name]
+      return vim_item
+    end,
   },
   snippet = {
     -- REQUIRED - you must specify a snippet engine
     expand = function(args)
-      require("luasnip").lsp_expand(args.body) -- For `luasnip` users.
+      vim.fn["UltiSnips#Anon"](args.body)
     end,
   },
   window = {
@@ -24,21 +49,33 @@ cmp.setup {
     -- documentation = cmp.config.window.bordered(),
   },
   mapping = cmp.mapping.preset.insert({
-    ["<C-u>"] = cmp.mapping.scroll_docs(4),
-    ["<C-d>"] = cmp.mapping.scroll_docs(-4),
-    ["<C-Space>"] = cmp.mapping.complete(),
-    ["<C-e>"] = cmp.mapping.close(),
-    ["<CR>"] = cmp.mapping.confirm({
-      behavior = cmp.ConfirmBehavior.Replace,
-      select = true, -- Accept currently
+    ["<C-n>"] = cmp.mapping(cmp.mapping.select_next_item(), { "i", "c" }),
+    ["<C-p>"] = cmp.mapping(cmp.mapping.select_prev_item(), { "i", "c" }),
+    ["<C-M-k>"] = cmp.mapping(cmp.mapping.scroll_docs(-4), { "i", "c" }),
+    ["<C-M-j>"] = cmp.mapping(cmp.mapping.scroll_docs(4), { "i", "c" }),
+    ["<C-Space>"] = cmp.mapping(cmp.mapping.complete(), { "i", "c" }),
+    ["<C-y>"] = cmp.config.disable,
+    ["<C-e>"] = cmp.mapping({
+      i = cmp.mapping.abort(),
+      c = cmp.mapping.close(),
     }),
-    -- selected item. Set `select` to `false` to only confirm explicitly
-    -- selected items.
+    ["<CR>"] = cmp.mapping.confirm({ select = false }),
   }),
+  completion = {
+    keyword_length = 1,
+  },
+  matching = {
+    disallow_fuzzy_matching = false,
+  },
   sources = cmp.config.sources({
     { name = "nvim_lsp" },
+    { name = "ultisnips" },
+  }, {
     { name = "buffer" },
-    { name = "luasnip" }, -- For luasnip users.
+  }, {
+    { name = "nvim_lsp_signature_help" }
+  }, {
+    { name = "path" }
   })
 }
 

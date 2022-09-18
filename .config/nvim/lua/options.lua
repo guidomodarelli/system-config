@@ -66,9 +66,7 @@ vim.opt.wildignore:append { '*/node_modules/*' }
 vim.opt.formatoptions:append { 'r' }
 vim.opt.clipboard:append { 'unnamedplus' }
 
-vim.g.indentLine_fileTypeExclude = {
-	'json'
-}
+vim.cmd [[ let g:python3_host_prog= "/usr/bin/python3" ]]
 
 -- Undercurl
 vim.cmd [[let &t_Cs = "\e[4:3m"]]
