@@ -15,6 +15,7 @@ packer.startup(function(use)
     "williamboman/nvim-lsp-installer",
     "neovim/nvim-lspconfig", -- LSP
   }
+  use "mfussenegger/nvim-jdtls" -- Java language server
 
   use {
     "williamboman/mason.nvim",
@@ -96,7 +97,6 @@ packer.startup(function(use)
 
   -- IDE
   use { 'akinsho/bufferline.nvim', tag = "v2.*" }
-  use "editorconfig/editorconfig-vim"
   use "norcalli/nvim-colorizer.lua"
   use "glepnir/lspsaga.nvim" -- LSP UIs
   use "folke/which-key.nvim"

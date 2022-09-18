@@ -55,6 +55,7 @@ null_ls.setup {
       filetypes = { "sh", "zsh" }
     }),
     formatting.black,
+    formatting.astyle,
     diagnostics.flake8,
   }
 }

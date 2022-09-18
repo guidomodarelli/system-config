@@ -3,7 +3,7 @@ if not status then return end
 -- https://github.com/neovim/nvim-lspconfig#suggested-configuration
 
 local on_attach = function(client, bufnr)
-  if client.name == "tsserver" then
+  if client.name == "tsserver" or client.name == "jdtls" then
     client.resolved_capabilities.document_formatting = false
   end
 
@@ -37,7 +37,6 @@ local capabilities = require('cmp_nvim_lsp').update_capabilities(vim.lsp.protoco
 
 local servers = {
   'pyright',
-  'jdtls',
   'groovyls',
   'svelte',
   'yamlls',
@@ -49,6 +48,12 @@ for _, lsp in ipairs(servers) do
     capabilities = capabilities,
   }
 end
+
+nvim_lsp.jdtls.setup {
+  on_attach = on_attach,
+  capabilities = capabilities,
+  filetypes = { 'java' }
+}
 
 nvim_lsp.bashls.setup {
   on_attach = on_attach,
