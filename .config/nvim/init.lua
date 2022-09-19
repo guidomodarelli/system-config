@@ -1,3 +1,5 @@
-require 'options'
-require 'plugins'
-require 'user'
+require('base')
+require('highlights')
+require('options')
+require('plugins')
+require('user')

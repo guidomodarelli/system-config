@@ -1,4 +1,4 @@
-local status_ok, packer = pcall(require, "packer")
+local status_ok, packer = pcall(require, 'packer')
 if not status_ok then
   print('Packer is not installed')
   print('Installing packer...')
@@ -6,76 +6,76 @@ if not status_ok then
   vim.fn.execute('!git clone https://github.com/wbthomason/packer.nvim ' .. install_path)
 end
 
-vim.cmd [[packadd packer.nvim]]
+vim.cmd([[ packadd packer.nvim ]])
 
 packer.startup(function(use)
-  use "wbthomason/packer.nvim"
+  use 'wbthomason/packer.nvim'
 
   use {
-    "williamboman/nvim-lsp-installer",
-    "neovim/nvim-lspconfig", -- LSP
+    'williamboman/nvim-lsp-installer',
+    'neovim/nvim-lspconfig', -- LSP
   }
-  use "mfussenegger/nvim-jdtls" -- Java language server
+  use 'mfussenegger/nvim-jdtls' -- Java language server
 
   use {
-    "williamboman/mason.nvim",
-    "williamboman/mason-lspconfig.nvim"
+    'williamboman/mason.nvim',
+    'williamboman/mason-lspconfig.nvim'
   }
 
   -- Formatter
-  use "MunifTanjim/prettier.nvim" -- Prettier plugin for Neovim's built-in LSP client
-  use "jose-elias-alvarez/null-ls.nvim" -- Use a Neovim as a language server to inject LSP diagnostics, code actions and more via Lua
+  use 'MunifTanjim/prettier.nvim' -- Prettier plugin for Neovim's built-in LSP client
+  use 'jose-elias-alvarez/null-ls.nvim' -- Use a Neovim as a language server to inject LSP diagnostics, code actions and more via Lua
 
   -- Icons
-  use "kyazdani42/nvim-web-devicons"
+  use 'kyazdani42/nvim-web-devicons'
 
   -- Statusline
   use {
-    "nvim-lualine/lualine.nvim",
+    'nvim-lualine/lualine.nvim',
   }
 
   -- Find files and text
   use {
-    "nvim-telescope/telescope.nvim",
+    'nvim-telescope/telescope.nvim',
     requires = {
-      "nvim-lua/plenary.nvim",
-      "nvim-telescope/telescope-file-browser.nvim"
+      'nvim-lua/plenary.nvim',
+      'nvim-telescope/telescope-file-browser.nvim'
     }
   }
 
   -- Completion
   use {
-    "hrsh7th/nvim-cmp",
+    'hrsh7th/nvim-cmp',
     requires = {
-      "hrsh7th/cmp-nvim-lsp", -- nvim-cmp source for neovim's built-in LSP
-      "hrsh7th/cmp-cmdline",
-      "hrsh7th/cmp-path",
-      "hrsh7th/cmp-buffer", -- nvim-cmp source for buffer words
-      "hrsh7th/cmp-calc",
-      "f3fora/cmp-spell",
-      "tamago324/cmp-zsh",
-      "quangnguyen30192/cmp-nvim-ultisnips",
-      "hrsh7th/cmp-nvim-lsp-signature-help",
-      "hrsh7th/cmp-nvim-lua",
-      "octaltree/cmp-look",
+      'hrsh7th/cmp-nvim-lsp', -- nvim-cmp source for neovim's built-in LSP
+      'hrsh7th/cmp-cmdline',
+      'hrsh7th/cmp-path',
+      'hrsh7th/cmp-buffer', -- nvim-cmp source for buffer words
+      'hrsh7th/cmp-calc',
+      'f3fora/cmp-spell',
+      'tamago324/cmp-zsh',
+      'quangnguyen30192/cmp-nvim-ultisnips',
+      'hrsh7th/cmp-nvim-lsp-signature-help',
+      'hrsh7th/cmp-nvim-lua',
+      'octaltree/cmp-look',
     }
   }
 
   -- Parser
   use {
-    "nvim-treesitter/nvim-treesitter",
-    -- run = function() require("nvim-treesitter.install").update({ with_sync = true }) end,
-    run = ":TSUpdate"
+    'nvim-treesitter/nvim-treesitter',
+    -- run = function() require('nvim-treesitter.install').update({ with_sync = true }) end,
+    run = ':TSUpdate'
   }
 
   -- Snippets
-  use "SirVer/ultisnips"
-  use "honza/vim-snippets"
+  use 'SirVer/ultisnips'
+  use 'honza/vim-snippets'
 
   -- Sidebar tree
   use {
-    "kyazdani42/nvim-tree.lua",
-    tag = "nightly" -- optional, updated every week. (see issue #1193)
+    'kyazdani42/nvim-tree.lua',
+    tag = 'nightly' -- optional, updated every week. (see issue #1193)
   }
 
   -- Git
@@ -87,19 +87,19 @@ packer.startup(function(use)
   use { 'TimUntersberger/neogit', requires = 'nvim-lua/plenary.nvim' }
 
   -- Debugging
-  use { "rcarriga/nvim-dap-ui", requires = { "mfussenegger/nvim-dap" } }
+  use { 'rcarriga/nvim-dap-ui', requires = { 'mfussenegger/nvim-dap' } }
 
   -- typing
-  use "windwp/nvim-autopairs"
-  use "tpope/vim-surround"
-  use "numToStr/Comment.nvim"
-  use "windwp/nvim-ts-autotag"
+  use 'windwp/nvim-autopairs'
+  use 'tpope/vim-surround'
+  use 'numToStr/Comment.nvim'
+  use 'windwp/nvim-ts-autotag'
 
   -- IDE
-  use { 'akinsho/bufferline.nvim', tag = "v2.*" }
-  use "norcalli/nvim-colorizer.lua"
-  use "glepnir/lspsaga.nvim" -- LSP UIs
-  use "folke/which-key.nvim"
+  use { 'akinsho/bufferline.nvim', tag = 'v2.*' }
+  use 'norcalli/nvim-colorizer.lua'
+  use 'glepnir/lspsaga.nvim' -- LSP UIs
+  use 'folke/which-key.nvim'
   --[[
   --  This plugin automatically adjusts 'shiftwidth' and 'expandtab' heuristically
   --  based on the current file, or, in the case the current file is new, blank,
@@ -108,10 +108,10 @@ packer.startup(function(use)
   --  adding 'tabstop', 'textwidth', 'endofline', 'fileformat', 'fileencoding',
   --  and 'bomb' to the list of supported options.
   --]]
-  use "tpope/vim-sleuth"
-  use "navarasu/onedark.nvim"
-  use "junegunn/vim-easy-align"
-  use "junegunn/goyo.vim"
+  use 'tpope/vim-sleuth'
+  use 'navarasu/onedark.nvim'
+  use 'junegunn/vim-easy-align'
+  use 'junegunn/goyo.vim'
   use { 'michaelb/sniprun', run = 'bash ./install.sh' }
 end)
 

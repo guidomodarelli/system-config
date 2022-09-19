@@ -2,21 +2,21 @@ local augroups = {}
 
 augroups.buf_write_pre = {
 	trim_extra_spaces_and_newlines = {
-		event = "BufWritePre",
+		event = 'BufWritePre',
 		command = [[
-			let current_pos = getpos(".")
+			let current_pos = getpos('.')
 			silent! %s/\v\s+$|\n+%$//e
-			silent! call setpos(".", current_pos)
+			silent! call setpos('.', current_pos)
 		]],
 	},
 }
 
 augroups.misc = {
 	highlight_yank = {
-		event = "TextYankPost",
+		event = 'TextYankPost',
 		callback = function()
 			vim.highlight.on_yank({
-				higroup = "IncSearch",
+				higroup = 'IncSearch',
 				timeout = 400,
 				on_visual = true
 			})
@@ -25,7 +25,7 @@ augroups.misc = {
 }
 
 for group, commands in pairs(augroups) do
-	local augroup = vim.api.nvim_create_augroup("AU_" .. group, { clear = true })
+	local augroup = vim.api.nvim_create_augroup('AU_' .. group, { clear = true })
 
 	for _, opts in pairs(commands) do
 		local event = opts.event

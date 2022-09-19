@@ -1,9 +1,9 @@
-local status, nvim_lsp = pcall(require, "lspconfig")
+local status, nvim_lsp = pcall(require, 'lspconfig')
 if not status then return end
 -- https://github.com/neovim/nvim-lspconfig#suggested-configuration
 
 local on_attach = function(client, bufnr)
-  if client.name == "tsserver" or client.name == "jdtls" then
+  if client.name == 'tsserver' or client.name == 'jdtls' then
     client.resolved_capabilities.document_formatting = false
   end
 
@@ -85,11 +85,11 @@ nvim_lsp.sumneko_lua.setup {
       },
       diagnostics = {
         globals = {
-          "vim"
+          'vim'
         }
       },
       workspace = {
-        library = vim.api.nvim_get_runtime_file("", true),
+        library = vim.api.nvim_get_runtime_file('', true),
         checkThirdParty = false
       },
       -- By default, lua-language-server sends anonymized data to its developers. Stop it using the following.
