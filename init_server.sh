@@ -3,14 +3,14 @@ sudo apt-get update
 curl https://rclone.org/install.sh | sudo bash
 # Instalación de paquetes y binarios
 sudo apt-get install git zsh fzf build-essential
-curl -L git.io/antigen > antigen.zsh
+curl -L git.io/antigen >antigen.zsh
 # Install Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 brew install ghq nvim rg fd exa git-delta zoxide
 
 # Config zsh
 git clone https://gitlab.com/guidomodarelli25/system-config.git # Clone this config
-chsh -s "$(which zsh)" # Make it your default shell
+chsh -s "$(which zsh)"                                          # Make it your default shell
 ln -s system-config/home/.zsh
 ln -s .zsh/.antigenrc
 ln -s system-config/home/.zshrc
