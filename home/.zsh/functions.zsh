@@ -7,3 +7,7 @@ if command -v rg &>/dev/null && command -v fzf &>/dev/null; then
 		rg --hidden --files-with-matches --no-messages "$1" | fzf --preview "rg --ignore-case --pretty --context 10 '$1' {}"
 	}
 fi
+
+function precmd() {
+	print -Pn -- '\e]2;%n@%m %~\a'
+}

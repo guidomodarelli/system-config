@@ -1,8 +1,8 @@
 # ┌──────────────────────────────────────────────────────────────────────────────┐
 # │ Plugins                                                                      │
 # └──────────────────────────────────────────────────────────────────────────────┘
-# Standard plugins can be found in $ZSH/plugins/
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
+# Standard plugins can be found in $ZSH/plugins/
 plugins=(
 	git
 	docker
@@ -12,4 +12,15 @@ plugins=(
 	gradle
 	nvm
 	fd
+	kubectl
+	aliases
+	brew
+	fzf
+	helm
+	mvn
+	pip
+	postgres
+	python
+	ripgrep
+	zoxide
 )
