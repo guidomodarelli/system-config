@@ -1,4 +1,6 @@
 # General
+alias rg="rg --glob \"!.git/*\""
+
 if command -v nvim &>/dev/null; then
 	alias v=nvim
 fi
