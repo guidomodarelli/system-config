@@ -6,7 +6,7 @@ ZSH=$HOME/.oh-my-zsh
 source $HOME/.antigenrc
 source $ZSH/oh-my-zsh.sh
 
-files="$(cd "$ZSH_HOME" && find . -type f)"
+files="$(cd "$ZSH_HOME" && find . -type f | grep "\.zsh")"
 
 while read file; do
 	fullpath="$(cd "$ZSH_HOME" && realpath "$file")"
