@@ -1,23 +1,26 @@
 #!/bin/bash
 
-get_list_of_files() {
-	local src="$1"
+create_symbolic_link() {
+	local files="$(cat listfiles)"
+	local prefix="$HOME"
 
-	echo "$(ls -a "$src" | grep -vE "^\.+$")"
-}
+	for path in ${files[@]}; do
+		local src="$path"
+		local filename="$(basename "$src")"
+		local dest_fullpath="$(echo "$prefix"/"$filename")"
 
-create_symbolic_links() {
-	local src="$1"
-	local dest="$2"
+		if [ -n "$(echo "$path" | grep "=")" ]; then
+			src="$(echo "$path" | cut -d'=' -f1)"
+			filename="$(basename "$src")"
+			dest_parent_folder="$(echo "$path" | cut -d'=' -f2)"
+			dest_fullpath="$(echo "$prefix"/"$dest_parent_folder"/"$filename")"
+		fi
 
-	local list=$(get_list_of_files "$src")
+		rm "$dest_fullpath" 2>/dev/null
 
-	for path in ${list[@]}; do
-		rm "$dest"/"$path"
-		ln -s "$(realpath ./"$src"/"$path")" "$dest"
+		src_fullpath="$(realpath ./files/"$src")"
+		ln -s "$src_fullpath" "$dest_fullpath"
 	done
 }
 
-create_symbolic_links "home" "$HOME"
-
-create_symbolic_links ".config" "$HOME/.config"
+create_symbolic_link
