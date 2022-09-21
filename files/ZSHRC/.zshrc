@@ -1,6 +1,6 @@
 # See https://smarttech101.com/zsh-highlighting-autosuggestion-themes-binding-alias-fzf/
 ZSH_HOME=$HOME/.zsh
-ZSH_THEME="dst"
+ZSH_THEME="murilasso"
 ZSH=$HOME/.oh-my-zsh
 
 source $HOME/.antigenrc
