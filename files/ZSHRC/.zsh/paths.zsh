@@ -1,4 +1,3 @@
-export FZF_DEFAULT_OPTS="--height=50% --min-height=15 --reverse"
 # Go
 export GOPATH="$HOME/go"
 export GOBIN="$GOPATH/bin"

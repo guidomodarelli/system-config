@@ -12,16 +12,28 @@ function precmd() {
 	print -Pn -- '\e]2;%n@%m %~\a'
 }
 
-function gdf() {
-	local inst=$(git diff --name-only | eval "fzf ${FZF_DEFAULT_OPTS} -m --header='[git:diff]'")
+function __fzf() {
+	local header
+	local fzf_default_opts=("--height=50%" "--min-height=15" "--reverse" "-m")
+
+	if [ $# -ne 0 ]; then
+		header=$1
+		fzf_default_opts+=("--header=\"[$header]\"")
+	fi
+
+	echo $(eval "fzf ${fzf_default_opts}")
+}
+
+function fgd() {
+	local inst=$(git diff --name-only | __fzf "git:diff")
 
 	if [[ $inst ]]; then
 		git diff $inst
 	fi
 }
 
-function gaf() {
-	local inst=$(git diff --name-only | eval "fzf ${FZF_DEFAULT_OPTS} -m --header='[git:add]'")
+function fga() {
+	local inst=$(git diff --name-only | __fzf "git:add")
 
 	if [[ $inst ]]; then
 		for file in $(echo $inst); do
@@ -30,8 +42,8 @@ function gaf() {
 	fi
 }
 
-function grsf() {
-	local inst=$(git diff --name-only | eval "fzf ${FZF_DEFAULT_OPTS} -m --header='[git:restore]'")
+function fgrs() {
+	local inst=$(git diff --name-only | __fzf "git:restore")
 
 	if [[ $inst ]]; then
 		for file in $(echo $inst); do
@@ -40,8 +52,8 @@ function grsf() {
 	fi
 }
 
-function grstf() {
-	local inst=$(git diff --name-only --cached | eval "fzf ${FZF_DEFAULT_OPTS} -m --header='[git:restore]'")
+function fgrst() {
+	local inst=$(git diff --name-only --cached | __fzf "git:restore:staged")
 
 	if [[ $inst ]]; then
 		for file in $(echo $inst); do
