@@ -1,2 +1,3 @@
 *.zwc
 packer_compiled.lua
+shunit2
