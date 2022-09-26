@@ -1,8 +1,5 @@
-.config/nvim=.config
-.config/ranger=.config
+.config/*=.config
 .tmux.conf
-ZSHRC/.zsh
-ZSHRC/.zshrc
-.antigenrc
+zsh/*
 .astylerc
 .gitconfig
