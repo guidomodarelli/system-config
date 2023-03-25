@@ -1,3 +1,4 @@
 *.zwc
 packer_compiled.lua
 shunit2
+__pycache__
