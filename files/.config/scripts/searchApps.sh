@@ -1,6 +1,8 @@
 #!/bin/env bash
 
 rofi \
--show drun \
+-show combi \
+-combi-modes "drun,run" \
 -disable-history \
--config ~/.config/rofi/rofidmenu.rasi
+-config ~/.config/rofi/rofidmenu.rasi \
+-matching fuzzy
