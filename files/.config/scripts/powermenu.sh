@@ -33,7 +33,7 @@ then
     kill -9 -1
 elif [ "$selected_option" == "$shutdown" ]
 then
-    shutdown -h now
+    systemctl poweroff
 elif [ "$selected_option" == "$reboot" ]
 then
     systemctl reboot
