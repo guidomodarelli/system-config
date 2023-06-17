@@ -10,7 +10,9 @@
 
 [delta]
     navigate = true
+    side-by-side = true
     line-numbers = true
+    max-line-length = 0
 
 [merge]
     conflictstyle = diff3
