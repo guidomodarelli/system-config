@@ -3,3 +3,4 @@
 zsh/*
 .astylerc
 .gitconfig
+.curlrc
