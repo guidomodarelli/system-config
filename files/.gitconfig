@@ -22,3 +22,4 @@
     defaultBranch = main
 [safe]
 	directory = /home/guido/Documents/equo/chromium/download/depot_tools
+	directory = /home/guido/Documents/equo/chromium/download/chromium/src/cef
