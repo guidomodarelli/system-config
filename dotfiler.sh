@@ -20,7 +20,9 @@ main() {
 		if [[ -z "$dest" ]]; then
 			dest="$HOME"
 		else
-			dest="$HOME"/"$dest"
+			if [[ "${dest:0:1}" != '/' ]]; then
+				dest="$HOME"/"$dest"
+			fi
 		fi
 		local paths="$(find ./files/"$src" 2>/dev/null)"
 		if [[ -n "$(echo "$src" | grep "*")" ]]; then

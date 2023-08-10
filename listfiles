@@ -4,3 +4,4 @@ zsh/*
 .astylerc
 .gitconfig
 .curlrc
+pacman.conf=/etc
