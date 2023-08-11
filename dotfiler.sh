@@ -20,7 +20,7 @@ main() {
 		if [[ -z "$dest" ]]; then
 			dest="$HOME"
 		else
-			if [[ "${dest:0:1}" != '/' ]]; then
+			if [[ "${dest:0:1}" != "/" ]]; then
 				dest="$HOME"/"$dest"
 			fi
 		fi
