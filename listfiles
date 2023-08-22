@@ -5,3 +5,4 @@ zsh/*
 .gitconfig
 .curlrc
 pacman.conf=/etc
+murilasso.zsh-theme=.oh-my-zsh/themes
