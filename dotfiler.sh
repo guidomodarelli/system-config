@@ -8,7 +8,7 @@ create_symbolic_link() {
 		local abs_path="$(realpath "$path")"
 		local dest_abs_path="$dst_folder"/"$(basename "$abs_path")"
 
-		rm -rf "$dest_abs_path" 2>/dev/null
+		mv "$dest_abs_path"{,.bak} 2>/dev/null
 		ln -s "$abs_path" "$dest_abs_path"
 	done
 }
