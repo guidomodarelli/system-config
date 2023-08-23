@@ -4,5 +4,5 @@ zsh/*
 .astylerc
 .gitconfig
 .curlrc
-pacman.conf=/etc
-murilasso.zsh-theme=.oh-my-zsh/themes
+root/etc/pacman.conf=/etc
+.oh-my-zsh/themes/murilasso.zsh-theme=.oh-my-zsh/themes
