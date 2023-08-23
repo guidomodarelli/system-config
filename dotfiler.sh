@@ -8,8 +8,15 @@ create_symbolic_link() {
 		local abs_path="$(realpath "$path")"
 		local dest_abs_path="$dst_folder"/"$(basename "$abs_path")"
 
-		mv "$dest_abs_path"{,.bak} 2>/dev/null
-		ln -s "$abs_path" "$dest_abs_path"
+		local mv='mv "$dest_abs_path"{,.bak} 2>/dev/null'
+		local ln='ln -s "$abs_path" "$dest_abs_path"'
+		if [[ "${dst_folder:0:1}" == "/" ]]; then
+			eval "sudo $mv"
+			eval "sudo $ln"
+		else
+			eval $mv
+			eval $ln
+		fi
 	done
 }
 
