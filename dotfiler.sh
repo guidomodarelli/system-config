@@ -14,8 +14,11 @@ create_symbolic_link() {
 			eval "sudo $mv"
 			eval "sudo $ln"
 		else
-			eval $mv
-			eval $ln
+			if [[ -d "${dest_abs_path}.bak" ]]; then
+				rm "${dest_abs_path}.bak"
+			fi
+			mv "${dest_abs_path}"{,.bak}
+			ln -s "$abs_path" "$dest_abs_path"
 		fi
 	done
 }
