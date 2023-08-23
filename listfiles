@@ -1,4 +1,9 @@
-.config/*=.config
+.config/awesome=.config
+.config/espanso=.config
+.config/ranger=.config
+.config/rofi=.config
+.config/scripts=.config
+.config/Code/User/*=.config/Code/User
 .tmux.conf
 zsh/*
 .astylerc

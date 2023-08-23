@@ -30,6 +30,7 @@ main() {
 	local files="$(cat listfiles)"
 
 	while IFS='=' read src dest; do
+		src=./files/"$src"
 		if [[ -z "$dest" ]]; then
 			dest="$HOME"
 		else
@@ -37,10 +38,10 @@ main() {
 				dest="$HOME"/"$dest"
 			fi
 		fi
-		local paths="$(find ./files/"$src" 2>/dev/null)"
+		local paths="$src"
 		if [[ -n "$(echo "$src" | grep "*")" ]]; then
 			src="$(echo "$src" | cut -d'*' -f1)"
-			paths="$(find ./files/"$src" -maxdepth 1 -mindepth 1)"
+			paths="$(find "$src" -maxdepth 1 -mindepth 1)"
 		fi
 
 		create_symbolic_link "$paths" "$dest"
