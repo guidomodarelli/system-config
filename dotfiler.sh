@@ -21,6 +21,9 @@ create_symbolic_link() {
 				rm "${dest_abs_path}.bak"
 			fi
 			eval "$mv"
+			if [[ ! -d "$dest_abs_path" ]]; then
+				mkdir -p $(dirname "$dest_abs_path")
+			fi
 			eval "$ln"
 		fi
 	done
