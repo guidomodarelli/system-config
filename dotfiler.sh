@@ -10,7 +10,7 @@ create_symbolic_link() {
 
 		local mv='mv "$dest_abs_path"{,.bak} 2>/dev/null'
 		local ln='ln -s "$abs_path" "$dest_abs_path"'
-		if [[ "${dst_folder:0:1}" == "/" ]]; then
+		if [[ ! "${dst_folder}" =~ "/home/$USER" ]]; then
 			eval "sudo $mv"
 			eval "sudo $ln"
 		else
