@@ -1,11 +1,12 @@
 {
-    "workbench.productIconTheme": "fluent-icons",
     "editor.fontFamily": "'Dank Mono', 'Droid Sans Mono', 'monospace', monospace",
     "editor.fontSize": 18,
     "editor.lineHeight": 35,
     "workbench.colorTheme": "Dobri Next -C07- One",
-    "workbench.iconTheme": "helium-icon-theme",
     "explorer.confirmDragAndDrop": false,
     "explorer.confirmDelete": false,
-    "workbench.colorCustomizations": {}
+    "workbench.colorCustomizations": {},
+    "workbench.iconTheme": "helium-icon-theme",
+    "helium-icon-theme.folders.theme": "specific",
+    "workbench.productIconTheme": "fluent-icons"
 }
