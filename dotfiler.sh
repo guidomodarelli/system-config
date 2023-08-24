@@ -1,4 +1,5 @@
 #!/bin/bash
+home="/home/$USER"
 
 create_symbolic_link() {
 	local paths="$1"
@@ -10,15 +11,16 @@ create_symbolic_link() {
 
 		local mv='mv "${dest_abs_path}"{,.bak} 2>/dev/null'
 		local ln='ln -s "$abs_path" "$dest_abs_path"'
-		if [[ ! "${dst_folder}" =~ "/home/$USER" ]]; then
+		local rm_bak='rm -r "${dest_abs_path}.bak"'
+		if [[ ! "${dst_folder}" =~ "$home" ]]; then
 			if [[ -d "${dest_abs_path}.bak" ]]; then
-				sudo rm "${dest_abs_path}.bak"
+				eval "sudo $rm_bak"
 			fi
 			eval "sudo $mv"
 			eval "sudo $ln"
 		else
 			if [[ -d "${dest_abs_path}.bak" ]]; then
-				rm "${dest_abs_path}.bak"
+				eval "$rm_bak"
 			fi
 			eval "$mv"
 			if [[ ! -d "$dest_abs_path" ]]; then
@@ -35,10 +37,10 @@ main() {
 	while IFS='=' read src dest; do
 		src=./files/"$src"
 		if [[ -z "$dest" ]]; then
-			dest="$HOME"
+			dest="$home"
 		else
 			if [[ "${dest:0:1}" != "/" ]]; then
-				dest="$HOME"/"$dest"
+				dest="$home"/"$dest"
 			fi
 		fi
 		local paths="$src"

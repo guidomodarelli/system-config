@@ -8,5 +8,11 @@
     "workbench.colorCustomizations": {},
     "workbench.iconTheme": "helium-icon-theme",
     "helium-icon-theme.folders.theme": "specific",
-    "workbench.productIconTheme": "fluent-icons"
+    "workbench.productIconTheme": "fluent-icons",
+    "redhat.telemetry.enabled": true,
+    "C_Cpp.default.cStandard": "c11",
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
+    "C_Cpp.default.compilerPath": "/usr/bin/gcc",
+    "C_Cpp.intelliSenseEngine": "disabled",
 }

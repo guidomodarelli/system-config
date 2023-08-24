@@ -1,0 +1,11 @@
+// Place your key bindings in this file to override the defaults
+[
+    {
+        "key": "ctrl+alt+b a",
+        "command": "bookmarks.listFromAllFiles"
+    },
+    {
+        "key": "ctrl+alt+b l",
+        "command": "bookmarks.list"
+    }
+]
