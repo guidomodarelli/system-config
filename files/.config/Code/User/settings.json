@@ -15,4 +15,7 @@
     "C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
     "C_Cpp.default.compilerPath": "/usr/bin/gcc",
     "C_Cpp.intelliSenseEngine": "disabled",
+    "yaml.schemas": {
+        "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.1/dist/toc.schema.json": "/toc\\.yml/i"
+    },
 }
