@@ -1,6 +1,13 @@
 #!/bin/bash
 home="/home/$USER"
 
+isDarwin() {
+	if [[ uname = "Darwin" ]]; then
+		return 0
+	fi
+	return 1
+}
+
 create_symbolic_link() {
 	local paths="$1"
 	local dst_folder="$2"
@@ -33,6 +40,10 @@ create_symbolic_link() {
 
 main() {
 	local files="$(cat listfiles)"
+	if [[ isDarwin ]]; then
+		home="/Users/$USER"
+		files="$(cat listfiles.darwin)"
+	fi
 
 	while IFS='=' read src dest; do
 		src=./files/"$src"

@@ -1,0 +1,12 @@
+.config/awesome=.config
+.config/espanso=.config
+.config/ranger=.config
+.config/rofi=.config
+.config/scripts=.config
+.config/Code/User/*=.config/Code/User
+.tmux.conf
+zsh/*
+.astylerc
+.gitconfig
+.curlrc
+.oh-my-zsh/themes/murilasso.zsh-theme=.oh-my-zsh/themes
