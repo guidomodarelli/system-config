@@ -8,11 +8,11 @@ isDarwin() {
 }
 
 printRed() {
-	printf "\033[31m%s\033[m\n" "$1"
+	printf "\033[91m%s\033[m\n" "$1"
 }
 
 printInfo() {
-	printf "\033[34m[INFO] %s\033[m\n" "$1"
+	printf "\033[96m[INFO] %s\033[m\n" "$1"
 }
 
 _ls() {
@@ -21,7 +21,14 @@ _ls() {
 	if [[ $? = 0 ]]; then
 		col=10
 	fi
-	ls -gG $1 | cut -d' ' -f$col-
+	ls -gG "$1" | cut -d' ' -f$col-
+}
+
+showCreated() {
+	if [[ ! -e "$1" ]]; then
+		return 1
+	fi
+	printInfo "Created $(_ls "$1")"
 }
 
 create_symbolic_link() {
@@ -39,13 +46,13 @@ create_symbolic_link() {
 
 		# Remove .bak
 		if [[ -e "${dest_abs_path}.bak" ]]; then
-			printRed "[REMOVED] ${dest_abs_path}.bak"
+			printRed "[DEL] ${dest_abs_path}.bak"
 			$SUDO rm -r "${dest_abs_path}.bak"
 		fi
 
 		# Create .bak
 		$SUDO mv "${dest_abs_path}"{,.bak} 2>/dev/null
-		printInfo "Created $(_ls $dest_abs_path.bak)"
+		showCreated "$dest_abs_path".bak
 
 		# Create symbolic link
 		$SUDO ln -s "$abs_path" "$dest_abs_path"
