@@ -2,7 +2,7 @@
 home="/home/$USER"
 
 isDarwin() {
-	if [[ uname = "Darwin" ]]; then
+	if [[ $(uname) = "Darwin" ]]; then
 		return 0
 	fi
 	return 1
@@ -40,7 +40,8 @@ create_symbolic_link() {
 
 main() {
 	local files="$(cat listfiles)"
-	if [[ isDarwin ]]; then
+	isDarwin
+	if [[ $? = 0 ]]; then
 		home="/Users/$USER"
 		files="$(cat listfiles.darwin)"
 		# https://stackoverflow.com/a/13785716
