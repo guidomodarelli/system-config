@@ -9,7 +9,7 @@ function __git_prompt_git() {
   GIT_OPTIONAL_LOCKS=0 command git "$@"
 }
 
-function git_prompt_info() {
+function git_prompt_info() { 
   # If we are on a folder not tracked by git, get out.
   # Otherwise, check for hide-info at global and local repository level
   if ! __git_prompt_git rev-parse --git-dir &> /dev/null \
@@ -17,6 +17,9 @@ function git_prompt_info() {
     return 0
   elif [[ -z "$(__git_prompt_git branch --show-current)" ]]; then
     echo "(no branch)"
+    return 0
+  elif [[ "$(uname -a)" =~ "WSL2" ]]; then
+    echo "$(__git_prompt_git branch --show-current)"
     return 0
   fi
 
