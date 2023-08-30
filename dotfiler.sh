@@ -15,6 +15,15 @@ printInfo() {
 	printf "\033[34m[INFO] %s\033[m\n" "$1"
 }
 
+_ls() {
+	local col=7
+	isDarwin
+	if [[ $? = 0 ]]; then
+		col=10
+	fi
+	ls -gG $1 | cut -d' ' -f$col-
+}
+
 create_symbolic_link() {
 	local paths="$1"
 	local dst_folder="$2"
@@ -36,11 +45,11 @@ create_symbolic_link() {
 
 		# Create .bak
 		$SUDO mv "${dest_abs_path}"{,.bak} 2>/dev/null
-		printInfo "Created $(ls $dest_abs_path.bak -gG | cut -d' ' -f7-)"
+		printInfo "Created $(_ls $dest_abs_path.bak)"
 
 		# Create symbolic link
 		$SUDO ln -s "$abs_path" "$dest_abs_path"
-		printInfo "New symbolic link => $(ls $dest_abs_path -gG | cut -d' ' -f7-)"
+		printInfo "New symbolic link => $(_ls $dest_abs_path)"
 
 		if [[ $SUDO = '' && ! -d "$dest_abs_path" ]]; then
 			mkdir -p $(dirname "$dest_abs_path")
