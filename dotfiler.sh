@@ -43,7 +43,10 @@ main() {
 	if [[ isDarwin ]]; then
 		home="/Users/$USER"
 		files="$(cat listfiles.darwin)"
+		# https://stackoverflow.com/a/13785716
+		sudo chmod -R 755 /usr/local/share
 	fi
+	files="$(echo "$files" | grep -Ev "^\s*#")"
 
 	while IFS='=' read src dest; do
 		src=./files/"$src"
