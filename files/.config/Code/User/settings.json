@@ -3,14 +3,15 @@
   "editor.fontLigatures": true,
   "editor.formatOnSave": false,
   "editor.inlineSuggest.enabled": true,
-  "editor.fontSize": 18,
+  "editor.fontSize": 16,
   "editor.fontWeight": "350",
   "editor.showUnused": true,
+  "terminal.integrated.fontWeight": "bold",
   "editor.rulers": [
     120
   ],
   "editor.tabSize": 2,
-  "editor.wordWrapColumn": 80,
+  "editor.wordWrapColumn": 120,
   "editor.wrappingIndent": "deepIndent",
   "errorLens.fontSize": "12",
   "errorLens.fontWeight": "bold",
@@ -38,8 +39,11 @@
   ],
   "terminal.integrated.tabs.enabled": true,
   "path-autocomplete.pathMappings": {
-    "@": "${folder}/src",
+    "@cmp": "${folder}/components",
+    "@styles": "${folder}/styles",
+    "images": "${folder}/public/images",
     "~": "${folder}/",
+    "src": "${folder}/src",
   },
   "path-autocomplete.includeExtension": true,
   "path-autocomplete.extensionOnImport": true,
@@ -52,7 +56,7 @@
     "no-inline-html": false,
     "single-title": false
   },
-  "terminal.integrated.fontFamily": "'Jetbrains Mono', monospace",
+  "terminal.integrated.fontFamily": "'MesloLGM Nerd Font', monospace",
   // Config specific
   "[markdown]": {
     "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
@@ -75,7 +79,7 @@
     "strings": true
   },
   "files.associations": {
-    "*.sass": "scss",
+    "*.sass": "sass",
     ".env_cluster": "dotenv",
     ".helmignore": "dotenv",
     "*.lock": "yaml"
@@ -137,9 +141,10 @@
       "blocks",
       "containers"
     ],
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
   },
   "[typescript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features"
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
   "git.confirmSync": false,
   "editor.suggestSelection": "first",
@@ -154,7 +159,7 @@
   "debug.console.fontSize": 12,
   "terminal.integrated.fontSize": 12,
   "eslint.packageManager": "yarn",
-  "editor.formatOnSaveMode": "file",
+  "editor.formatOnSaveMode": "modificationsIfAvailable",
   "jest.autoRun": "off",
   "todo-tree.general.tags": [
     "FIXME",
@@ -196,7 +201,6 @@
       "iconColour": "#4C82EF"
     }
   },
-  "svelte.enable-ts-plugin": true,
   "[scss]": {
     "editor.defaultFormatter": "sibiraj-s.vscode-scss-formatter"
   },
@@ -208,8 +212,7 @@
   "editor.stickyScroll.enabled": true,
   "[python]": {
     "editor.defaultFormatter": "ms-python.python",
-    "editor.tabSize": 4,
-    "editor.formatOnType": true
+    "editor.tabSize": 4
   },
   "python.languageServer": "Pylance",
   "pythonTestExplorer.testFramework": "pytest",
@@ -253,27 +256,7 @@
   "todo-tree.general.statusBar": "tags",
   "workbench.productIconTheme": "fluent-icons",
   "workbench.editor.enablePreview": false,
-  "files.autoSave": "onFocusChange",
-  "rsp-ui.enableStartServerOnActivation": [
-    {
-      "id": "redhat.vscode-community-server-connector",
-      "name": "Community Server Connector",
-      "startOnActivation": true
-    }
-  ],
-  "workbench.iconTheme": "helium-icon-theme",
-  "material-icon-theme.folders.associations": {
-    "store": "ngrx-store",
-  },
-  "material-icon-theme.files.associations": {
-    "*.actions.ts": "ngrx-actions",
-    "*.effects.ts": "ngrx-effects",
-    "*.reducers.ts": "ngrx-reducer",
-    "*.selectors.ts": "ngrx-selectors",
-    "*.state.ts": "ngrx-state",
-    "*.interface.ts": "typescript-def",
-    "*.validator.ts": "todo",
-  },
+  "workbench.iconTheme": "material-icon-theme",
   "editor.tokenColorCustomizations": {
     "[Dobri Next -C07- One]": {
       "textMateRules": [
@@ -334,7 +317,7 @@
   "workbench.startupEditor": "none",
   "editor.cursorBlinking": "expand",
   "editor.linkedEditing": true,
-  "editor.lineHeight": 2.1,
+  "editor.lineHeight": 2.5,
   "editor.cursorSmoothCaretAnimation": "on",
   "editor.smoothScrolling": true,
   "workbench.list.smoothScrolling": true,
@@ -344,7 +327,7 @@
   "workbench.sideBar.location": "left",
   "workbench.tree.indent": 20,
   "editor.bracketPairColorization.enabled": true,
-  "workbench.colorTheme": "One Dark Pro",
+  "workbench.colorTheme": "Quiet Light",
   "terminal.integrated.env.linux": {},
   "git.openRepositoryInParentFolders": "always",
   "[css]": {
@@ -354,10 +337,28 @@
   "terminal.integrated.env.windows": {},
   "security.workspace.trust.untrustedFiles": "open",
   "C_Cpp.default.cStandard": "c11",
-"C_Cpp.default.cppStandard": "c++17",
-"C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
-"C_Cpp.default.compilerPath": "/usr/bin/gcc",
+  "C_Cpp.default.cppStandard": "c++17",
+  "C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
+  "C_Cpp.default.compilerPath": "/usr/bin/gcc",
   "C_Cpp.workspaceParsingPriority": "low",
   "C_Cpp.codeAnalysis.runAutomatically": false,
   "C_Cpp.codeAnalysis.clangTidy.enabled": false,
+  "advancedNewFile.exclude": {
+    "bin": true,
+    "build": true,
+    "gradle": true,
+  },
+  "editor.foldingImportsByDefault": true,
+  "cmake.configureOnOpen": false,
+  "editor.minimap.enabled": false,
+  "java.gradle.buildServer.enabled": "on",
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "vscodeGoogleTranslate.preferredLanguage": "English",
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "always"
+  },
+  "diffEditor.renderSideBySide": false,
 }
