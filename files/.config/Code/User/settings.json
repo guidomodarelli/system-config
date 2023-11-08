@@ -327,7 +327,7 @@
   "workbench.sideBar.location": "left",
   "workbench.tree.indent": 20,
   "editor.bracketPairColorization.enabled": true,
-  "workbench.colorTheme": "Quiet Light",
+  "workbench.colorTheme": "One Dark Pro",
   "terminal.integrated.env.linux": {},
   "git.openRepositoryInParentFolders": "always",
   "[css]": {
@@ -356,9 +356,6 @@
   "vscodeGoogleTranslate.preferredLanguage": "English",
   "[javascript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
-  },
-  "editor.codeActionsOnSave": {
-    "source.organizeImports": "always"
   },
   "diffEditor.renderSideBySide": false,
 }
