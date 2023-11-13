@@ -358,4 +358,5 @@
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "diffEditor.renderSideBySide": false,
+  "files.autoSave": "onFocusChange",
 }
