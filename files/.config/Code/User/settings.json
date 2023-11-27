@@ -44,6 +44,7 @@
     "images": "${folder}/public/images",
     "~": "${folder}/",
     "src": "${folder}/src",
+    "assets": "${folder}/src/assets",
   },
   "path-autocomplete.includeExtension": true,
   "path-autocomplete.extensionOnImport": true,
@@ -82,7 +83,8 @@
     "*.sass": "sass",
     ".env_cluster": "dotenv",
     ".helmignore": "dotenv",
-    "*.lock": "yaml"
+    "*.lock": "yaml",
+    "*.css": "scss"
   },
   "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
   "go.useLanguageServer": true,
@@ -144,7 +146,7 @@
     "editor.defaultFormatter": "dbaeumer.vscode-eslint",
   },
   "[typescript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "git.confirmSync": false,
   "editor.suggestSelection": "first",
@@ -327,7 +329,7 @@
   "workbench.sideBar.location": "left",
   "workbench.tree.indent": 20,
   "editor.bracketPairColorization.enabled": true,
-  "workbench.colorTheme": "One Dark Pro",
+  "workbench.colorTheme": "GitHub Dark",
   "terminal.integrated.env.linux": {},
   "git.openRepositoryInParentFolders": "always",
   "[css]": {
@@ -359,4 +361,5 @@
   },
   "diffEditor.renderSideBySide": false,
   "files.autoSave": "onFocusChange",
+  "cmake.showOptionsMovedNotification": false,
 }
