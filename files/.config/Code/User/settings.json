@@ -222,7 +222,7 @@
   "oneDarkPro.bold": true,
   "diffEditor.ignoreTrimWhitespace": false,
   "yaml.schemas": {
-    "file:///c%3A/Users/Guido/.vscode/extensions/docsmsft.docs-yaml-1.0.1/dist/toc.schema.json": "/toc\\.yml/i"
+    "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.1/dist/toc.schema.json": "/toc\\.yml/i"
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
