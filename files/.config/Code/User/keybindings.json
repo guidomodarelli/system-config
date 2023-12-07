@@ -81,5 +81,9 @@
         "key": "ctrl+.",
         "command": "-docs.write",
         "when": "editorTextFocus && config.docwriter.hotkey.window == 'Ctrl + .' && editorLangId =~ /typescript|javascript|python|php|java|c|cpp|csharp|dart|ruby|go|rust/"
+    },
+    {
+        "key": "shift+alt+delete",
+        "command": "editor.emmet.action.removeTag"
     }
 ]

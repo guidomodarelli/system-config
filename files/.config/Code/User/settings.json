@@ -42,7 +42,7 @@
     "@cmp": "${folder}/components",
     "@styles": "${folder}/styles",
     "images": "${folder}/public/images",
-    "~": "${folder}/",
+    "@": "${folder}/src",
     "src": "${folder}/src",
     "assets": "${folder}/src/assets",
   },
