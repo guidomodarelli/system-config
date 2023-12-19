@@ -3,7 +3,7 @@
   "editor.fontLigatures": true,
   "editor.formatOnSave": false,
   "editor.inlineSuggest.enabled": true,
-  "editor.fontSize": 16,
+  "editor.fontSize": 14,
   "editor.fontWeight": "350",
   "editor.showUnused": true,
   "terminal.integrated.fontWeight": "bold",
@@ -220,7 +220,6 @@
     "editor.defaultFormatter": "redhat.java"
   },
   "oneDarkPro.bold": true,
-  "diffEditor.ignoreTrimWhitespace": false,
   "yaml.schemas": {
     "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.1/dist/toc.schema.json": "/toc\\.yml/i"
   },
@@ -357,9 +356,10 @@
   "[javascript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
-  "diffEditor.renderSideBySide": false,
-  "files.autoSave": "onFocusChange",
   "cmake.showOptionsMovedNotification": false,
   "google-translate.firstLanguage": "es",
   "google-translate.secondLanguage": "en",
+  "diffEditor.ignoreTrimWhitespace": false,
+  "files.autoSave": "onFocusChange",
+  "workbench.tree.enableStickyScroll": true,
 }
