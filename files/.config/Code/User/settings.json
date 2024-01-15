@@ -356,7 +356,7 @@
   "javascript.updateImportsOnFileMove.enabled": "always",
   "vscodeGoogleTranslate.preferredLanguage": "English",
   "[javascript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features"
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
   "cmake.showOptionsMovedNotification": false,
   "diffEditor.ignoreTrimWhitespace": false,
