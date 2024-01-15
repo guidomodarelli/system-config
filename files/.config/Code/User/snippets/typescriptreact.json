@@ -16,4 +16,16 @@
 			"type $1Props = {\n\t$2\n}",
 		],
 	},
+	"inline arrow function": {
+		"prefix": "ianf",
+		"body": [
+			"($1) => ${2:void}",
+		],
+	},
+	"JSON.stringify": {
+		"prefix": "jstr",
+		"body": [
+			"JSON.stringify($1)",
+		],
+	},
 }

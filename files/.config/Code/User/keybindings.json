@@ -9,10 +9,6 @@
         "command": "bookmarks.list"
     },
     {
-        "key": "shift+alt+w",
-        "command": "editor.emmet.action.wrapWithAbbreviation"
-    },
-    {
         "key": "alt+d",
         "command": "editor.action.copyLinesDownAction",
         "when": "editorTextFocus && !editorReadonly"
@@ -85,5 +81,14 @@
     {
         "key": "shift+alt+delete",
         "command": "editor.emmet.action.removeTag"
+    },
+    {
+        "key": "ctrl+i",
+        "command": "-extension.wrapTag",
+        "when": "editorTextFocus"
+    },
+    {
+        "key": "shift+alt+w",
+        "command": "editor.emmet.action.wrapWithAbbreviation"
     }
 ]
