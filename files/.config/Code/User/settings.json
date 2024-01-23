@@ -1,6 +1,7 @@
 {
   "workbench.localHistory.enabled": false,
-  "editor.multiDocumentOccurrencesHighlight": true,
+  "window.menuBarVisibility": "compact",
+  "window.titleBarStyle": "custom",
   "editor.fontFamily": "'Dank Mono', monospace",
   "editor.fontLigatures": true,
   "editor.formatOnSave": false,
@@ -12,9 +13,9 @@
   "editor.tabSize": 2,
   "editor.wrappingStrategy": "advanced",
   "editor.wordWrap": "off",
-  "editor.wordWrapColumn": 120,
+  "editor.wordWrapColumn": 80,
   "editor.rulers": [
-    120
+    80
   ],
   "editor.wrappingIndent": "deepIndent",
   "errorLens.fontSize": "12",
@@ -150,7 +151,7 @@
     "editor.defaultFormatter": "dbaeumer.vscode-eslint",
   },
   "[typescript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "git.confirmSync": false,
   "editor.suggestSelection": "first",
@@ -218,10 +219,6 @@
     "editor.tabSize": 4
   },
   "python.languageServer": "Pylance",
-  "pythonTestExplorer.testFramework": "pytest",
-  "[java]": {
-    "editor.defaultFormatter": "redhat.java"
-  },
   "oneDarkPro.bold": true,
   "yaml.schemas": {
     "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.1/dist/toc.schema.json": "/toc\\.yml/i"
@@ -229,35 +226,8 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
-  "html-css-class-completion.HTMLLanguages": [
-    "html",
-    "vue",
-    "razor",
-    "blade",
-    "handlebars",
-    "twig",
-    "django-html",
-    "php",
-    "markdown",
-    "erb",
-    "ejs",
-    "svelte"
-  ],
-  "html-css-class-completion.includeGlobPattern": "**/*.{css,html,tsx,jsx,ts,js}",
-  "html-css-class-completion.CSSLanguages": [
-    "css",
-    "sass",
-    "scss"
-  ],
-  "html-css-class-completion.JavaScriptLanguages": [
-    "javascript",
-    "javascriptreact",
-    "typescriptreact"
-  ],
   "rapidapi.terminalLink.enabled": false,
   "todo-tree.general.statusBar": "tags",
-  "workbench.productIconTheme": "fluent-icons",
-  "workbench.editor.enablePreview": false,
   "workbench.iconTheme": "symbols",
   "editor.tokenColorCustomizations": {
     "[Dobri Next -C07- One]": {
@@ -329,7 +299,7 @@
   "workbench.sideBar.location": "left",
   "workbench.tree.indent": 20,
   "editor.bracketPairColorization.enabled": true,
-  "workbench.colorTheme": "One Dark Pro Darker",
+  "workbench.colorTheme": "One Dark Pro Mix",
   "terminal.integrated.env.linux": {},
   "git.openRepositoryInParentFolders": "always",
   "[css]": {
@@ -363,7 +333,9 @@
   "files.autoSave": "onFocusChange",
   "workbench.tree.enableStickyScroll": true,
   "tailwindCSS.experimental.classRegex": [
-    "clsx`([^`]*)"
+    "clsx`([^`]*)",
+    "tw`([^`]*)",
+    ["tw.style\\(([^)]*)\\)", "'([^']*)'"]
   ],
   "tailwindCSS.classAttributes": [
     "class",
@@ -373,5 +345,9 @@
   ],
   "highlight-matching-tag.highlightFromContent": true,
   "highlight-matching-tag.highlightSelfClosing": true,
-  "symbols.hidesExplorerArrows": false
+  "symbols.hidesExplorerArrows": false,
+  "workbench.editor.enablePreview": false,
+  "diffEditor.experimental.showMoves": true,
+  "workbench.productIconTheme": "fluent-icons",
+  "diffEditor.hideUnchangedRegions.enabled": true
 }
