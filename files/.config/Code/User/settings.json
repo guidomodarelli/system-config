@@ -89,7 +89,9 @@
     ".env_cluster": "dotenv",
     ".helmignore": "dotenv",
     "*.lock": "yaml",
-    "*.css": "scss"
+    "*.css": "scss",
+    ".env.production": "properties",
+    ".env.local": "properties"
   },
   "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
   "go.useLanguageServer": true,
