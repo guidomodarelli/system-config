@@ -1,10 +1,9 @@
 {
   "workbench.localHistory.enabled": false,
-  "window.menuBarVisibility": "compact",
   "window.titleBarStyle": "custom",
   "editor.fontFamily": "'Dank Mono', monospace",
   "editor.fontLigatures": true,
-  "editor.formatOnSave": false,
+  "editor.formatOnSave": true,
   "editor.inlineSuggest.enabled": true,
   "editor.fontSize": 18,
   "editor.fontWeight": "350",
@@ -298,7 +297,6 @@
   "explorer.compactFolders": false,
   "editor.renderWhitespace": "selection",
   "workbench.list.horizontalScrolling": true,
-  "workbench.sideBar.location": "left",
   "workbench.tree.indent": 20,
   "editor.bracketPairColorization.enabled": true,
   "workbench.colorTheme": "One Dark Pro Mix",
@@ -332,7 +330,6 @@
   },
   "cmake.showOptionsMovedNotification": false,
   "diffEditor.ignoreTrimWhitespace": false,
-  "files.autoSave": "onFocusChange",
   "workbench.tree.enableStickyScroll": true,
   "tailwindCSS.experimental.classRegex": [
     "clsx`([^`]*)",
@@ -351,5 +348,6 @@
   "workbench.editor.enablePreview": false,
   "diffEditor.experimental.showMoves": true,
   "workbench.productIconTheme": "fluent-icons",
-  "diffEditor.hideUnchangedRegions.enabled": true
+  "diffEditor.hideUnchangedRegions.enabled": true,
+  "window.menuBarVisibility": "compact"
 }
