@@ -4,6 +4,7 @@
 
 [core]
     pager = delta
+	autocrlf = input
 
 [interactive]
     diffFilter = delta --color-only
@@ -23,3 +24,5 @@
 [safe]
 	directory = /home/guido/Documents/equo/chromium/download/depot_tools
 	directory = /home/guido/Documents/equo/chromium/download/chromium/src/cef
+	directory = /home/guido/ghq/work/equo/download5845/cef
+	directory = /home/guido/ghq/work/equo/download5845/chromium/src
