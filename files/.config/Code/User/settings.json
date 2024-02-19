@@ -334,7 +334,10 @@
   "tailwindCSS.experimental.classRegex": [
     "clsx`([^`]*)",
     "tw`([^`]*)",
-    ["tw.style\\(([^)]*)\\)", "'([^']*)'"]
+    [
+      "tw.style\\(([^)]*)\\)",
+      "'([^']*)'"
+    ]
   ],
   "tailwindCSS.classAttributes": [
     "class",
