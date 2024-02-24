@@ -3,6 +3,7 @@
 .config/ranger=.config
 .config/rofi=.config
 .config/scripts=.config
+.config/nvim=.config
 #.config/Code/User/*=.config/Code/User
 .tmux.conf
 zsh/*
