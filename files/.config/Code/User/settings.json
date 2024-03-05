@@ -351,6 +351,13 @@
   "workbench.editor.enablePreview": false,
   "diffEditor.experimental.showMoves": true,
   "workbench.productIconTheme": "fluent-icons",
-  "diffEditor.hideUnchangedRegions.enabled": true,
-  "window.menuBarVisibility": "compact"
+  "window.menuBarVisibility": "compact",
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "README.md": "changelog.md, CODE_OF_CONDUCT.md, LICENSE.md",
+    "build.gradle*": "gradlew*, gradle.properties, settings.gradle",
+    ".gitignore": ".*ignore",
+    "next.config.*": "next*",
+  },
+  "diffEditor.hideUnchangedRegions.enabled": true
 }
