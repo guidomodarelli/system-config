@@ -1,28 +1,33 @@
 [user]
-    email = guidomodarelli25@gmail.com
-    name = guidomodarelli25
+	email = guidomodarelli25@gmail.com
+	name = guidomodarelli25
+	signingkey = /home/guido/.ssh/id_rsa.pub
 
 [core]
-    pager = delta
+	pager = delta
 	autocrlf = input
 
 [interactive]
-    diffFilter = delta --color-only
+	diffFilter = delta --color-only
 
 [delta]
-    navigate = true
-    line-numbers = true
-    max-line-length = 0
+	navigate = true
+	line-numbers = true
+	max-line-length = 0
 
 [merge]
-    conflictstyle = diff3
+	conflictstyle = diff3
 
 [diff]
-    colorMoved = default
+	colorMoved = default
 [init]
-    defaultBranch = main
+	defaultBranch = main
 [safe]
-	directory = /home/guido/Documents/equo/chromium/download/depot_tools
-	directory = /home/guido/Documents/equo/chromium/download/chromium/src/cef
 	directory = /home/guido/ghq/work/equo/download5845/cef
 	directory = /home/guido/ghq/work/equo/download5845/chromium/src
+[gpg]
+	format = ssh
+[commit]
+	gpgsign = true
+[gpg "ssh"]
+	allowedSignersFile = $HOME/.config/git/allowed_signers
