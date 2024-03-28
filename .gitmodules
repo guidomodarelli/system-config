@@ -4,3 +4,6 @@
 [submodule "files/.config/awesome/freedesktop"]
 	path = files/.config/awesome/freedesktop
 	url = https://github.com/lcpz/awesome-freedesktop.git
+[submodule "files/zsh/.zsh/.equo/cef-finder"]
+	path = files/zsh/.zsh/.equo/cef-finder
+	url = git@gitlab.com:guidomodarelli25/cef-finder.git
