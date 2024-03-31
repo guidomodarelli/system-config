@@ -166,7 +166,7 @@
   "debug.console.fontSize": 12,
   "terminal.integrated.fontSize": 12,
   "editor.formatOnSaveMode": "modificationsIfAvailable",
-  "jest.autoRun": "off",
+  "jest.runMode": "on-demand",
   "todo-tree.general.tags": [
     "FIXME",
     "FIX",
@@ -289,7 +289,7 @@
   "workbench.startupEditor": "none",
   "editor.cursorBlinking": "expand",
   "editor.linkedEditing": true,
-  "editor.lineHeight": 2.5,
+  "editor.lineHeight": 2,
   "editor.cursorSmoothCaretAnimation": "on",
   "editor.smoothScrolling": true,
   "workbench.list.smoothScrolling": true,
@@ -321,7 +321,6 @@
   "editor.foldingImportsByDefault": true,
   "cmake.configureOnOpen": false,
   "editor.minimap.enabled": false,
-  "java.gradle.buildServer.enabled": "on",
   "javascript.updateImportsOnFileMove.enabled": "always",
   "vscodeGoogleTranslate.preferredLanguage": "English",
   "[javascript]": {
