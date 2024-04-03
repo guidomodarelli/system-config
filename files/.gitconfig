@@ -22,9 +22,6 @@
 	colorMoved = default
 [init]
 	defaultBranch = main
-[safe]
-	directory = /home/guido/ghq/work/equo/download5845/cef
-	directory = /home/guido/ghq/work/equo/download5845/chromium/src
 [gpg]
 	format = ssh
 [commit]
