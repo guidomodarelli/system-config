@@ -27,4 +27,4 @@
 [commit]
 	gpgsign = true
 [gpg "ssh"]
-	allowedSignersFile = $HOME/.config/git/allowed_signers
+	allowedSignersFile = /home/guido/.config/git/allowed_signers
