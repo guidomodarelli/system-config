@@ -3,7 +3,7 @@
 notify_time=30
 
 xautolock -detectsleep \
-  -time 1 \
-	-locker "i3lock -d -c 000070" \
+  -time 3 \
+	-locker "~/.config/scripts/lockBlur" \
   -notify $notify_time \
   -notifier "notify-send -u critical -t 10000 -- 'LOCKING screen in $notify_time seconds'"
