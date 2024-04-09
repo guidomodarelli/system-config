@@ -8,16 +8,43 @@ trap 'rm -f -- "$IMAGE"' EXIT
 scrot --overwrite --silent -f "$IMAGE"
 # import -silent -window root $IMAGE
 # convert $IMAGE -scale '25%' -scale '400%' $IMAGE
-COLOR=$(convert "$IMAGE" -gravity center -crop 100x100+0+0 +repage -colorspace hsl \
-    -resize 1x1 txt:- | awk -F '[%$]' 'NR==2{gsub(",",""); printf "%.0f\n", $(NF-1)}');
+
+COLOR=$(
+	convert "$IMAGE" \
+		-gravity center \
+		-crop 100x100+0+0 \
+		+repage \
+		-colorspace hsl \
+		-resize 1x1 txt:- |
+		awk -F '[%$]' 'NR==2{gsub(",",""); printf "%.0f\n", $(NF-1)}'
+)
+
+FILL=black
+STROKE=white
+
 if [[ $COLOR -gt 60 ]]; then #white background image and black text
-    convert "$IMAGE" -scale '25%' -scale '400%' -size 128x128 /usr/share/icons/HighContrast/256x256/status/system-lock-screen.png -gravity center -compose over -composite \
-      -font Noto-Sans-Bold -fill white -stroke black -strokewidth 3 -pointsize 60 -gravity center -draw "text 0,300 'Type your password to unlock'" "$IMAGE"
-else
-    convert "$IMAGE" -scale '25%' -scale '400%' -size 128x128 /usr/share/icons/HighContrast/256x256/status/system-lock-screen.png -gravity center -compose over -composite \
-      -font Noto-Sans-Bold -fill black -stroke white -strokewidth 3 -pointsize 60 -gravity center -draw "text 0,300 'Type your password to unlock'" "$IMAGE"
+	FILL=white
+	STROKE=black
 fi
+
+LOCK_MESSAGE="Type your password to unlock"
+# The first `-gravity center` option is for lock icon and the second one is for the lock message
+convert "$IMAGE" -scale '25%' \
+	-scale '400%' \
+	-size 128x128 /usr/share/icons/HighContrast/256x256/status/system-lock-screen.png \
+	-gravity center \
+	-compose over \
+	-composite \
+	-font Noto-Sans-Bold \
+	-strokewidth 3 \
+	-pointsize 60 \
+	-gravity center \
+	-fill $FILL \
+	-stroke $STROKE \
+	-draw "text 0,300 '$LOCK_MESSAGE'" \
+	"$IMAGE"
 # convert $IMAGE -font Sans -fill white -pointsize 60 -gravity center -draw "text 0,300 'Type your password to unlock'" $IMAGE
-# convert $IMAGE -scale '400%' $IMAGE-undercolor '#00000080' 
+# convert $IMAGE -scale '400%' $IMAGE-undercolor '#00000080'
+
 i3lock -i "$IMAGE"
 rm -f "$IMAGE"
