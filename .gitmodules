@@ -7,3 +7,4 @@
 [submodule "files/zsh/.zsh/.equo/cef-finder"]
 	path = files/zsh/.zsh/.equo/cef-finder
 	url = git@gitlab.com:guidomodarelli25/cef-finder.git
+	branch = main
