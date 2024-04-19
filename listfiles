@@ -10,6 +10,7 @@ zsh/*
 .astylerc
 .gitconfig
 .curlrc
+.gdbinit
 root/etc/pacman.conf=/etc
 .oh-my-zsh/themes/murilasso.zsh-theme=.oh-my-zsh/themes
 .oh-my-zsh/lib/git.zsh=.oh-my-zsh/lib
