@@ -2,3 +2,7 @@
 	path = files/zsh/.zsh/.equo/cef-finder
 	url = git@gitlab.com:guidomodarelli25/cef-finder.git
 	branch = main
+[submodule "files/.config/awesome"]
+	path = files/.config/awesome
+	url = git@gitlab.com:guidomodarelli/configs/awesome-config/awesome.git
+	branch = main
