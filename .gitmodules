@@ -10,3 +10,7 @@
 	path = files/.config/nvim
 	url = git@gitlab.com:guidomodarelli/configs/nvim-config.git
 	branch = main
+[submodule "files/zsh"]
+	path = files/zsh
+	url = git@gitlab.com:guidomodarelli/configs/zsh-config.git
+	branch = main
