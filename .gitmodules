@@ -10,3 +10,7 @@
 	path = files/.config/rofi
 	url = git@gitlab.com:guidomodarelli/configs/rofi-config.git
 	branch = main
+[submodule "files/.config/nvim"]
+	path = files/.config/nvim
+	url = git@gitlab.com:guidomodarelli/configs/nvim-config.git
+	branch = main
