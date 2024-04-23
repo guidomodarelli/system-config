@@ -6,11 +6,13 @@
 .config/nvim=.config
 .config/Code/User/*=.config/Code/User
 .tmux.conf
-zsh/*
+zsh/.zsh
+zsh/.antigenrc
+zsh/.zshrc
+zsh/.oh-my-zsh/themes/murilasso.zsh-theme=.oh-my-zsh/themes
+zsh/.oh-my-zsh/lib/git.zsh=.oh-my-zsh/lib
 .astylerc
 .gitconfig
 .curlrc
 .gdbinit
 root/etc/pacman.conf=/etc
-.oh-my-zsh/themes/murilasso.zsh-theme=.oh-my-zsh/themes
-.oh-my-zsh/lib/git.zsh=.oh-my-zsh/lib
