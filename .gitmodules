@@ -14,3 +14,7 @@
 	path = files/zsh
 	url = git@gitlab.com:guidomodarelli/configs/zsh-config.git
 	branch = main
+[submodule "files/.config/espanso"]
+	path = files/.config/espanso
+	url = git@gitlab.com:guidomodarelli/configs/espanso-config.git
+	branch = main
