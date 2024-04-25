@@ -3,7 +3,14 @@
 	name = guidomodarelli25
 	signingkey = /home/guido/.ssh/id_rsa.pub
 [core]
-	autocrlf = input
+	pager = delta
+	autocrlf = false
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+    navigate = true
+    line-numbers = true
+    max-line-length = 0
 [merge]
 	conflictstyle = diff3
 [diff]
