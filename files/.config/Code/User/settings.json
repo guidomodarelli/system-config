@@ -357,5 +357,8 @@
     ".gitignore": ".*ignore",
     "next.config.*": "next*",
   },
-  "diffEditor.hideUnchangedRegions.enabled": true
+  "diffEditor.hideUnchangedRegions.enabled": true,
+  "gitlens.blame.highlight.enabled": false,
+  "gitlens.blame.heatmap.enabled": false,
+  "gitlens.blame.toggleMode": "window"
 }
