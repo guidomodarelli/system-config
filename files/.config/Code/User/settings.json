@@ -218,10 +218,9 @@
     "editor.defaultFormatter": "ms-python.python",
     "editor.tabSize": 4
   },
-  "python.languageServer": "Pylance",
   "oneDarkPro.bold": true,
   "yaml.schemas": {
-    "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.1/dist/toc.schema.json": "/toc\\.yml/i"
+    "file:///c%3A/Users/Guido/.vscode/extensions/docsmsft.docs-yaml-1.0.1/dist/toc.schema.json": "/toc\\.yml/i"
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "dbaeumer.vscode-eslint"
@@ -229,50 +228,6 @@
   "rapidapi.terminalLink.enabled": false,
   "todo-tree.general.statusBar": "tags",
   "workbench.iconTheme": "symbols",
-  "editor.tokenColorCustomizations": {
-    "[Dobri Next -C07- One]": {
-      "textMateRules": [
-        {
-          "scope": [
-            "support.class.component.tsx",
-            "support.class.component",
-          ],
-          "settings": {
-            "fontStyle": "bold"
-          }
-        },
-        {
-          "scope": "entity.name.function.member",
-          "settings": {
-            "fontStyle": "bold"
-          }
-        },
-        {
-          "scope": [
-            "support.function.tsx",
-            "support.function"
-          ],
-          "settings": {
-            "fontStyle": "bold"
-          }
-        },
-        {
-          "scope": "support.type",
-          "settings": {
-            "foreground": "#FFCC00"
-          }
-        },
-        {
-          "scope": [
-            "keyword.operator",
-          ],
-          "settings": {
-            "foreground": "#CB6CFE",
-          }
-        }
-      ],
-    },
-  },
   "editor.semanticTokenColorCustomizations": {
     "enabled": true,
     "[One Dark Pro]": {
@@ -306,27 +261,12 @@
   },
   "terminal.integrated.env.windows": {},
   "security.workspace.trust.untrustedFiles": "open",
-  "C_Cpp.default.cStandard": "c11",
-  "C_Cpp.default.cppStandard": "c++17",
-  "C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
-  "C_Cpp.default.compilerPath": "/usr/bin/gcc",
-  "C_Cpp.workspaceParsingPriority": "low",
-  "C_Cpp.codeAnalysis.runAutomatically": false,
-  "C_Cpp.codeAnalysis.clangTidy.enabled": false,
-  "advancedNewFile.exclude": {
-    "bin": true,
-    "build": true,
-    "gradle": true,
-  },
   "editor.foldingImportsByDefault": true,
-  "cmake.configureOnOpen": false,
   "editor.minimap.enabled": false,
   "javascript.updateImportsOnFileMove.enabled": "always",
-  "vscodeGoogleTranslate.preferredLanguage": "English",
   "[javascript]": {
     "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
-  "cmake.showOptionsMovedNotification": false,
   "diffEditor.ignoreTrimWhitespace": false,
   "workbench.tree.enableStickyScroll": true,
   "tailwindCSS.experimental.classRegex": [
@@ -348,7 +288,6 @@
   "symbols.hidesExplorerArrows": false,
   "workbench.editor.enablePreview": false,
   "diffEditor.experimental.showMoves": true,
-  "workbench.productIconTheme": "fluent-icons",
   "window.menuBarVisibility": "compact",
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
