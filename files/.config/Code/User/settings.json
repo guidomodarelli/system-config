@@ -4,7 +4,7 @@
   "editor.fontFamily": "'Iosevka','Dank Mono', monospace",
   "editor.fontLigatures": false,
   "editor.inlineSuggest.enabled": true,
-  "editor.fontSize": 16,
+  "editor.fontSize": 18,
   "editor.fontWeight": "350",
   "editor.showUnused": true,
   "terminal.integrated.fontWeight": "bold",
