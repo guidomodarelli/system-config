@@ -1,13 +1,15 @@
 -- Pull in the wezterm API
-local wezterm = require 'wezterm'
+local wezterm = require("wezterm")
 
 -- This will hold the configuration.
 local config = wezterm.config_builder()
 
-config.font = wezterm.font_with_fallback {
-  'Iosevka',
-  'JetBrains Mono',
-}
+config.font = wezterm.font_with_fallback({
+	"Iosevka",
+	"JetBrains Mono",
+})
+
+warn_about_missing_glyphs = false
 
 config.font_size = 14
 
