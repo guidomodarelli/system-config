@@ -1,7 +1,7 @@
 {
   "workbench.localHistory.enabled": false,
   "window.titleBarStyle": "custom",
-  "editor.fontFamily": "'Dank Mono', monospace",
+  "editor.fontFamily": "'Iosevka','Dank Mono', monospace",
   "editor.fontLigatures": false,
   "editor.inlineSuggest.enabled": true,
   "editor.fontSize": 16,
@@ -223,7 +223,7 @@
     "file:///c%3A/Users/Guido/.vscode/extensions/docsmsft.docs-yaml-1.0.1/dist/toc.schema.json": "/toc\\.yml/i"
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "rapidapi.terminalLink.enabled": false,
   "todo-tree.general.statusBar": "tags",
