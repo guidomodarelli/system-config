@@ -299,5 +299,27 @@
   "diffEditor.hideUnchangedRegions.enabled": true,
   "gitlens.blame.highlight.enabled": false,
   "gitlens.blame.heatmap.enabled": false,
-  "gitlens.blame.toggleMode": "window"
+  "gitlens.blame.toggleMode": "window",
+  "auto-close-tag.activationOnLanguage": [
+    "astro",
+    "xml",
+    "php",
+    "blade",
+    "ejs",
+    "jinja",
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact",
+    "plaintext",
+    "markdown",
+    "vue",
+    "liquid",
+    "erb",
+    "lang-cfml",
+    "cfml",
+    "HTML (EEx)",
+    "HTML (Eex)",
+    "plist"
+  ]
 }
