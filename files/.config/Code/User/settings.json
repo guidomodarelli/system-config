@@ -321,5 +321,6 @@
     "HTML (EEx)",
     "HTML (Eex)",
     "plist"
-  ]
+  ],
+  "files.autoSave": "onFocusChange"
 }
