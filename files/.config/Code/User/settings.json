@@ -28,7 +28,6 @@
   "emmet.includeLanguages": {
     "javascript": "javascriptreact"
   },
-  "emmet.triggerExpansionOnTab": true,
   "typescript.preferences.quoteStyle": "double",
   "typescript.suggest.paths": false,
   "typescript.updateImportsOnFileMove.enabled": "always",
@@ -56,10 +55,6 @@
   "redhat.telemetry.enabled": true,
   "json.maxItemsComputed": 50000,
   "go.toolsManagement.autoUpdate": true,
-  "markdownlint.config": {
-    "no-inline-html": false,
-    "single-title": false
-  },
   "terminal.integrated.fontFamily": "'MesloLGM Nerd Font', monospace",
   // Config specific
   "[markdown]": {
@@ -91,7 +86,6 @@
     ".env.production": "properties",
     ".env.local": "properties"
   },
-  "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
   "go.useLanguageServer": true,
   "editor.guides.bracketPairs": true,
   "[jsonc]": {
@@ -143,12 +137,7 @@
       "other": true
     },
     "editor.suggest.insertMode": "replace",
-    "gitlens.codeLens.scopes": [
-      "document",
-      "blocks",
-      "containers"
-    ],
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.defaultFormatter": "vscode.json-language-features",
   },
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
@@ -220,7 +209,7 @@
   },
   "oneDarkPro.bold": true,
   "yaml.schemas": {
-    "file:///c%3A/Users/Guido/.vscode/extensions/docsmsft.docs-yaml-1.0.1/dist/toc.schema.json": "/toc\\.yml/i"
+    "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.4/dist/toc.schema.json": "/toc\\.yml/i"
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
@@ -261,7 +250,6 @@
   },
   "terminal.integrated.env.windows": {},
   "security.workspace.trust.untrustedFiles": "open",
-  "editor.foldingImportsByDefault": true,
   "editor.minimap.enabled": false,
   "javascript.updateImportsOnFileMove.enabled": "always",
   "[javascript]": {
@@ -297,9 +285,6 @@
     "next.config.*": "next*",
   },
   "diffEditor.hideUnchangedRegions.enabled": true,
-  "gitlens.blame.highlight.enabled": false,
-  "gitlens.blame.heatmap.enabled": false,
-  "gitlens.blame.toggleMode": "window",
   "auto-close-tag.activationOnLanguage": [
     "astro",
     "xml",
@@ -322,5 +307,10 @@
     "HTML (Eex)",
     "plist"
   ],
-  "files.autoSave": "onFocusChange"
+  "files.autoSave": "onFocusChange",
+  "circleci.hostUrl": "",
+  "[astro]": {
+    "editor.defaultFormatter": "astro-build.astro-vscode"
+  },
+  "emmet.showAbbreviationSuggestions": false
 }
