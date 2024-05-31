@@ -6,11 +6,25 @@
 	// $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders.
 	// Placeholders with the same ids are connected.
 	// Example:
-	"Destructuring const": {
-		"scope": "javascript,typescript,astro",
-		"prefix": "const",
+	"Destructuring an object as consts": {
+		"scope": "javascript,typescript,astro,javascriptreact,typescriptreact",
+		"prefix": "..",
+		"body": [
+			"{ $2 }: $1",
+		],
+	},
+	"Destructuring an object": {
+		"scope": "javascript,typescript,astro,javascriptreact,typescriptreact",
+		"prefix": "..const",
 		"body": [
 			"const { $2 } = $1;",
+		],
+	},
+	"Destructuring props": {
+		"scope": "javascript,typescript,astro,javascriptreact,typescriptreact",
+		"prefix": "..props",
+		"body": [
+			"const { $1 } = props;",
 		],
 	}
 }
