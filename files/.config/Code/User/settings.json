@@ -3,7 +3,6 @@
   "window.titleBarStyle": "custom",
   "editor.fontFamily": "'Iosevka','Dank Mono', monospace",
   "editor.fontLigatures": false,
-  "editor.inlineSuggest.enabled": true,
   "editor.fontSize": 18,
   "editor.fontWeight": "450",
   "editor.showUnused": true,
@@ -25,9 +24,6 @@
     "HINT"
   ],
   "errorLens.messageTemplate": "[$severity] $message",
-  "emmet.includeLanguages": {
-    "javascript": "javascriptreact"
-  },
   "typescript.preferences.quoteStyle": "double",
   "typescript.suggest.paths": false,
   "typescript.updateImportsOnFileMove.enabled": "always",
@@ -147,10 +143,6 @@
   "css.lint.unknownAtRules": "ignore",
   "scss.lint.unknownAtRules": "ignore",
   "less.lint.unknownAtRules": "ignore",
-  "javascript.inlayHints.parameterNames.enabled": "literals",
-  "javascript.inlayHints.parameterTypes.enabled": true,
-  "typescript.inlayHints.parameterNames.enabled": "literals",
-  "typescript.inlayHints.parameterTypes.enabled": true,
   "debug.console.wordWrap": false,
   "debug.console.fontSize": 12,
   "terminal.integrated.fontSize": 12,
@@ -312,5 +304,17 @@
   "[astro]": {
     "editor.defaultFormatter": "astro-build.astro-vscode"
   },
-  "emmet.showAbbreviationSuggestions": false
+  "javascript.inlayHints.parameterNames.enabled": "literals",
+  "javascript.inlayHints.parameterTypes.enabled": true,
+  "typescript.inlayHints.parameterNames.enabled": "literals",
+  "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
+  "typescript.inlayHints.enumMemberValues.enabled": true,
+  "typescript.inlayHints.propertyDeclarationTypes.enabled": true,
+  "typescript.inlayHints.parameterTypes.enabled": true,
+  "javascript.inlayHints.enumMemberValues.enabled": true,
+  "javascript.inlayHints.functionLikeReturnTypes.enabled": true,
+  "javascript.inlayHints.propertyDeclarationTypes.enabled": true,
+  "javascript.inlayHints.variableTypes.enabled": true,
+  "editor.snippetSuggestions": "bottom",
+  "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly"
 }
