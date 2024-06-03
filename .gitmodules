@@ -1,20 +1,20 @@
 [submodule "files/.config/awesome"]
 	path = files/.config/awesome
-	url = git@gitlab.com:guidomodarelli/configs/awesome-config/awesome.git
+	url = git@gitlab.com:guidomodarelli-groups/configs/awesome-config/awesome.git
 	branch = main
 [submodule "files/.config/rofi"]
 	path = files/.config/rofi
-	url = git@gitlab.com:guidomodarelli/configs/rofi-config.git
+	url = git@gitlab.com:guidomodarelli-groups/configs/rofi-config.git
 	branch = main
 [submodule "files/.config/nvim"]
 	path = files/.config/nvim
-	url = git@gitlab.com:guidomodarelli/configs/nvim-config.git
+	url = git@gitlab.com:guidomodarelli-groups/configs/nvim-config.git
 	branch = main
 [submodule "files/zsh"]
 	path = files/zsh
-	url = git@gitlab.com:guidomodarelli/configs/zsh-config.git
+	url = git@gitlab.com:guidomodarelli-groups/configs/zsh-config.git
 	branch = main
 [submodule "files/.config/espanso"]
 	path = files/.config/espanso
-	url = git@gitlab.com:guidomodarelli/configs/espanso-config.git
+	url = git@gitlab.com:guidomodarelli-groups/configs/espanso-config.git
 	branch = main
