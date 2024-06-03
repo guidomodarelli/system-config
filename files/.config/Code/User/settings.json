@@ -208,7 +208,7 @@
   },
   "rapidapi.terminalLink.enabled": false,
   "todo-tree.general.statusBar": "tags",
-  "workbench.iconTheme": "symbols",
+  "workbench.iconTheme": "icons",
   "editor.semanticTokenColorCustomizations": {
     "enabled": true,
     "[One Dark Pro]": {
@@ -316,5 +316,8 @@
   "javascript.inlayHints.propertyDeclarationTypes.enabled": true,
   "javascript.inlayHints.variableTypes.enabled": true,
   "editor.snippetSuggestions": "inline",
-  "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly"
+  "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
+  "cSpell.userWords": [
+    "Modarelli"
+  ]
 }
