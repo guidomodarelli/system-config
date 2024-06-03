@@ -1,6 +1,6 @@
 [submodule "files/.config/awesome"]
 	path = files/.config/awesome
-	url = git@gitlab.com:guidomodarelli-groups/configs/awesome-config/awesome.git
+	url = git@gitlab.com:guidomodarelli-groups/configs/awesome-wm/awesome.git
 	branch = main
 [submodule "files/.config/rofi"]
 	path = files/.config/rofi
