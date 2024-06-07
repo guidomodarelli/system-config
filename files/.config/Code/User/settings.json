@@ -12,7 +12,7 @@
   "editor.wordWrap": "off",
   "editor.wordWrapColumn": 80,
   "editor.rulers": [
-    80
+    120
   ],
   "editor.wrappingIndent": "deepIndent",
   "errorLens.fontSize": "12",
@@ -245,7 +245,7 @@
   "editor.minimap.enabled": false,
   "javascript.updateImportsOnFileMove.enabled": "always",
   "[javascript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "diffEditor.ignoreTrimWhitespace": false,
   "workbench.tree.enableStickyScroll": true,
