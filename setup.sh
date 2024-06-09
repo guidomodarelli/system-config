@@ -3,7 +3,6 @@ install_vscode() {
 	git clone https://aur.archlinux.org/visual-studio-code-bin.git $HOME/visual-studio-code-bin
 	cd $HOME/visual-studio-code-bin
 	makepkg -si
-	cd $HOME
 }
 
 install_homebrew() {
@@ -28,7 +27,6 @@ install_LazyVim() {
 }
 
 install_oh_my_zsh() {
-	cd $HOME
 	sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 }
 
