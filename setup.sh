@@ -73,7 +73,7 @@ install_font_Iosevka() {
 
 main() {
 	# Install dependendencies
-	sudo pacman -Sy --noconfirm base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm
+	sudo pacman -Sy --noconfirm base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi
 
 	install_vscode
 	install_homebrew
