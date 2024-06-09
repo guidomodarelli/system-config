@@ -59,6 +59,8 @@ install_sdkman() {
 }
 
 install_font_IosevkaTermCurly() {
+	# https://github.com/be5invis/Iosevka/releases
+
 	local folderName="IosevkaTermCurly"
 	local zipName="${folderName}.zip"
 	curl -Lo $zipName https://github.com/be5invis/Iosevka/releases/download/v30.1.2/PkgTTF-IosevkaTermCurly-30.1.2.zip
