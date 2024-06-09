@@ -1,7 +1,7 @@
 {
   "workbench.localHistory.enabled": false,
   "window.titleBarStyle": "custom",
-  "editor.fontFamily": "'Iosevka','Dank Mono', monospace",
+  "editor.fontFamily": "'Iosevka Term Curly','Dank Mono', monospace",
   "editor.fontLigatures": false,
   "editor.fontSize": 18,
   "editor.fontWeight": "450",
