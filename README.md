@@ -1,5 +1,7 @@
 # System config
 
+Repository designed to configure your system effortlessly, thanks to our comprehensive collection of resources that simplify the entire setup process.
+
 ## Pre-requirements
 
 ```sh
