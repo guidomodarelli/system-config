@@ -101,6 +101,10 @@ install_ghq() {
 	go install github.com/x-motemen/ghq@latest
 }
 
+install_asdf() {
+	brew install asdf
+}
+
 main() {
 	# Install dependendencies
 	sudo pacman -Sy --noconfirm yay base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
@@ -117,6 +121,7 @@ main() {
 	install_espanso
 	install_golang
 	install_ghq
+	install_asdf
 }
 
 main
