@@ -87,9 +87,21 @@ install_espanso() {
 	espanso service register
 }
 
+install_golang() {
+	# https://go.dev/dl/
+	local GO_VERSION="1.22.3"
+	local FILE="go${GO_VERSION}.linux-amd64.tar.gz"
+	curl -LO https://go.dev/dl/$FILE
+	sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $FILE
+}
+
+install_ghq() {
+	go install github.com/x-motemen/ghq@latest
+}
+
 main() {
 	# Install dependendencies
-	sudo pacman -Sy --noconfirm base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
+	sudo pacman -Sy --noconfirm yay base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
 
 	install_vscode
 	install_homebrew
@@ -101,6 +113,8 @@ main() {
 	install_aicommits
 	install_sdkman
 	install_espanso
+	install_golang
+	install_ghq
 }
 
 main
