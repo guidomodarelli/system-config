@@ -1,7 +1,7 @@
 [user]
 	email = guidomodarelli25@gmail.com
 	name = guidomodarelli25
-	signingkey = /home/guido/.ssh/id_rsa.pub
+	signingkey = /home/guido/.ssh/id_ed25519.pub
 [core]
 	pager = delta
 	autocrlf = false
