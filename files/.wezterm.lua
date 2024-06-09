@@ -5,7 +5,7 @@ local wezterm = require("wezterm")
 local config = wezterm.config_builder()
 
 config.font = wezterm.font_with_fallback({
-	"Iosevka",
+	"Iosevka Term Curly",
 	"JetBrains Mono",
 })
 
