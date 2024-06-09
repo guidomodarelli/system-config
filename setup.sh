@@ -56,6 +56,21 @@ install_aicommits() {
 	aicommits config set generate=3
 }
 
+install_sdkman() {
+	curl -s "https://get.sdkman.io" | bash
+}
+
+install_font_Iosevka() {
+	local folderName="Iosevka"
+	local zipName="${folderName}.zip"
+	curl -Lo $zipName https://github.com/be5invis/Iosevka/releases/download/v30.1.2/PkgTTF-IosevkaTermCurly-30.1.2.zip
+	unzip $zipName
+	cd $folderName
+	mkdir -p $HOME/.fonts
+	mv *.ttf $HOME/.fonts/
+	fc-cache -fv
+}
+
 main() {
 	# Install dependendencies
 	sudo pacman -Sy --noconfirm base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide
@@ -68,6 +83,8 @@ main() {
 	install_antigen
 	install_nvm
 	install_aicommits
+	install_sdkman
+	install_font_Iosevka
 }
 
 main
