@@ -234,7 +234,7 @@
   "workbench.list.horizontalScrolling": true,
   "workbench.tree.indent": 20,
   "editor.bracketPairColorization.enabled": true,
-  "workbench.colorTheme": "One Dark Pro Mix",
+  "workbench.colorTheme": "One Dark Pro Darker",
   "terminal.integrated.env.linux": {},
   "git.openRepositoryInParentFolders": "always",
   "[css]": {
@@ -319,5 +319,6 @@
   "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
   "cSpell.userWords": [
     "Modarelli"
-  ]
+  ],
+  "editor.detectIndentation": true
 }
