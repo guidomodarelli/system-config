@@ -71,6 +71,24 @@ install_font_IosevkaTermCurly() {
 	fc-cache -fv
 }
 
+install_espanso() {
+	# https://espanso.org/docs/install/linux/#appimage-x11
+
+	# Create the $HOME/opt destination folder
+	mkdir -p ~/opt
+	# Download the AppImage inside it
+	wget -O ~/opt/Espanso.AppImage 'https://github.com/federico-terzi/espanso/releases/download/v2.2.1/Espanso-X11.AppImage'
+	# Make it executable
+	chmod u+x ~/opt/Espanso.AppImage
+	# Create the "espanso" command alias
+	sudo ~/opt/Espanso.AppImage env-path register
+
+	# At this point, you are ready to use espanso by registering it first as a Systemd service and then starting it with:
+
+	# Register espanso as a systemd service (required only once)
+	espanso service register
+}
+
 main() {
 	# Install dependendencies
 	sudo pacman -Sy --noconfirm base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
@@ -84,6 +102,7 @@ main() {
 	install_nvm
 	install_aicommits
 	install_sdkman
+	install_espanso
 }
 
 main
