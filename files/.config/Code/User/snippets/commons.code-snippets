@@ -26,5 +26,15 @@
 		"body": [
 			"const { $1 } = props;",
 		],
+	},
+	"rel='noopener noreferrer'": {
+		"scope": "astro,javascriptreact,typescriptreact",
+		"prefix": "rel",
+		"body": "rel=\"noopener noreferrer\""
+	},
+	"tag <a>": {
+		"scope": "astro,javascriptreact,typescriptreact",
+		"prefix": "<a",
+		"body": "<a href=\"$1\" rel=\"noopener noreferrer\" target=\"_blank\">\n$2\n</a>"
 	}
 }
