@@ -42,9 +42,15 @@ install_antigen() {
 	curl -L git.io/antigen > $HOME/antigen.zsh
 }
 
+install_npm_deps() {
+	npm i -g pnpm yarn @nestjs/cli
+}
+
 install_nvm() {
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 	nvm install lts/iron
+
+	install_npm_deps
 }
 
 install_aicommits() {
