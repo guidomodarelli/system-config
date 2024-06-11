@@ -35,7 +35,7 @@ install_docker() {
 	sudo systemctl start docker.service
 	sudo systemctl enable docker.service
 	sudo usermod -aG docker $USER
-	# reboot
+	# NOTE: reboot
 }
 
 install_antigen() {
@@ -44,13 +44,13 @@ install_antigen() {
 
 install_nvm() {
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-	# nvm install v...
+	nvm install lts/iron
 }
 
 install_aicommits() {
 	# https://github.com/Nutlope/aicommits
 	npm install -g aicommits
-	# aicommits config set OPENAI_KEY=<your token>
+	# NOTE: aicommits config set OPENAI_KEY=<your token>
 	aicommits config set generate=3
 }
 
@@ -87,6 +87,8 @@ install_espanso() {
 
 	# Register espanso as a systemd service (required only once)
 	espanso service register
+
+	# NOTE: espanso start
 }
 
 install_golang() {
@@ -107,7 +109,7 @@ install_asdf() {
 
 main() {
 	# Install dependendencies
-	sudo pacman -Sy --noconfirm yay base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
+	sudo pacman -Sy --noconfirm yay base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd awesome
 
 	install_vscode
 	install_homebrew
