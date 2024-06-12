@@ -1,3 +1,7 @@
+install_obs_studio() {
+	flatpak install flathub com.obsproject.Studio -y
+}
+
 install_vscode() {
 	# Install Visual Studio Code
 	git clone https://aur.archlinux.org/visual-studio-code-bin.git $HOME/visual-studio-code-bin
