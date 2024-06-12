@@ -115,7 +115,7 @@ install_asdf() {
 
 main() {
 	# Install dependendencies
-	sudo pacman -Sy --noconfirm yay base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd awesome
+	sudo pacman -Sy --noconfirm yay base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo btop ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd awesome
 
 	install_vscode
 	install_homebrew
