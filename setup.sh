@@ -42,15 +42,9 @@ install_antigen() {
 	curl -L git.io/antigen > $HOME/antigen.zsh
 }
 
-install_npm_deps() {
-	npm i -g pnpm yarn @nestjs/cli
-}
-
 install_nvm() {
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 	nvm install lts/iron
-
-	install_npm_deps
 }
 
 install_aicommits() {
@@ -58,6 +52,12 @@ install_aicommits() {
 	npm install -g aicommits
 	# NOTE: aicommits config set OPENAI_KEY=<your token>
 	aicommits config set generate=3
+}
+
+install_npm_dependencies() {
+	npm i -g pnpm yarn @nestjs/cli
+
+	install_aicommits
 }
 
 install_sdkman() {
@@ -109,27 +109,46 @@ install_ghq() {
 	go install github.com/x-motemen/ghq@latest
 }
 
+install_go_dependencies() {
+	install_ghq
+}
+
 install_asdf() {
 	brew install asdf
 }
 
-main() {
-	# Install dependendencies
+install_homebrew_dependencies() {
+	install_asdf
+}
+
+install_dependencies() {
+	# System dependencies
 	sudo pacman -Sy --noconfirm yay base-devel gcc git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo btop ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd awesome
 
-	install_vscode
+	# Go dependencies
+	install_golang
+	install_go_dependencies
+
+	# Homebrew dependencies
 	install_homebrew
+	install_homebrew_dependencies
+
+	# NPM dependencies
+	install_nvm
+	install_npm_dependencies
+}
+
+main() {
+	install_dependencies
+
+	# Custom installation
+	install_vscode
 	install_LazyVim
 	install_oh_my_zsh
 	install_docker
 	install_antigen
-	install_nvm
-	install_aicommits
 	install_sdkman
 	install_espanso
-	install_golang
-	install_ghq
-	install_asdf
 }
 
 main
