@@ -13,6 +13,12 @@ git submodule update --init --recursive
 In Linux:
 
 ```sh
+# 1.
+# Read SETUP.md
+
+# 2.
 ./setup.sh
+
+# 3.
 ./dotfilers.sh
 ```
