@@ -242,7 +242,6 @@
   },
   "terminal.integrated.env.windows": {},
   "security.workspace.trust.untrustedFiles": "open",
-  "editor.minimap.enabled": false,
   "javascript.updateImportsOnFileMove.enabled": "always",
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
@@ -320,5 +319,8 @@
   "cSpell.userWords": [
     "Modarelli"
   ],
-  "editor.detectIndentation": true
+  "editor.detectIndentation": true,
+  "zenMode.hideLineNumbers": false,
+  "editor.minimap.enabled": false,
+  "window.customTitleBarVisibility": "auto",
 }
