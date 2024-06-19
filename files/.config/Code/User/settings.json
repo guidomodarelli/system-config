@@ -133,7 +133,7 @@
       "other": true
     },
     "editor.suggest.insertMode": "replace",
-    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
   },
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
@@ -251,6 +251,7 @@
   "tailwindCSS.experimental.classRegex": [
     "clsx`([^`]*)",
     "tw`([^`]*)",
+    "/\\*\\s*tw\\s*\\*/\\s*`([^`]*)",
     [
       "tw.style\\(([^)]*)\\)",
       "'([^']*)'"
