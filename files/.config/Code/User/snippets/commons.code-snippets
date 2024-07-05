@@ -36,5 +36,32 @@
 		"scope": "astro,javascriptreact,typescriptreact",
 		"prefix": "<a",
 		"body": "<a href=\"$1\" rel=\"noopener noreferrer\" target=\"_blank\">\n$2\n</a>"
+	},
+	"Creates a React Functional Component with ES7 module system": {
+		"scope": "javascriptreact,typescriptreact",
+		"prefix": "rfce",
+		"body": [
+			"interface $1Props {",
+			"$2",
+			"}",
+			"",
+			"function $1({ $3 } : $1Props) {",
+			"\treturn (",
+			"\t\t<div>$1</div>",
+			"\t)",
+			"}",
+			"",
+			"export default $1;",
+		]
+	},
+	"Creates an interface Props": {
+		"scope": "javascriptreact,typescriptreact",
+		"prefix": "iprops",
+		"body": [
+			"interface $1Props {",
+			"$2",
+			"}",
+			"",
+		]
 	}
 }

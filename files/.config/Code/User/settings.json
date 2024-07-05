@@ -37,12 +37,12 @@
   ],
   "terminal.integrated.tabs.enabled": true,
   "path-autocomplete.pathMappings": {
-    "@cmp": "${folder}/components",
-    "@styles": "${folder}/styles",
-    "/images": "${folder}/public/images",
     "@": "${folder}/src",
+    "@components": "${folder}/src/components",
+    "@utils": "${folder}/src/utils",
+    "@assets": "${folder}/src/assets",
     "src": "${folder}/src",
-    "assets": "${folder}/src/assets",
+    "/images": "${folder}/public/images",
   },
   "path-autocomplete.includeExtension": true,
   "path-autocomplete.extensionOnImport": true,
@@ -316,7 +316,7 @@
   "javascript.inlayHints.propertyDeclarationTypes.enabled": true,
   "javascript.inlayHints.variableTypes.enabled": true,
   "editor.snippetSuggestions": "inline",
-  "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
+  "emmet.showExpandedAbbreviation": "always",
   "cSpell.userWords": [
     "Modarelli"
   ],
