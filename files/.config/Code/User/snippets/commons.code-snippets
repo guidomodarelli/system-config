@@ -41,11 +41,12 @@
 		"scope": "javascriptreact,typescriptreact",
 		"prefix": "rfce",
 		"body": [
+			"import React from 'react';\n",
 			"interface $1Props {",
 			"$2",
 			"}",
 			"",
-			"function $1({ $3 } : $1Props) {",
+			"const $1 = ({ $3 } : $1Props) => {",
 			"\treturn (",
 			"\t\t<div>$1</div>",
 			"\t)",
@@ -62,6 +63,15 @@
 			"$2",
 			"}",
 			"",
+		]
+	},
+	"Create an const arrow function": {
+		"scope": "javascript,typescript,astro,javascriptreact,typescriptreact",
+		"prefix": "canf",
+		"body": [
+			"const $1 = ($2) => {",
+			"\t$3",
+			"}"
 		]
 	}
 }
