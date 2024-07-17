@@ -90,5 +90,15 @@
     {
         "key": "shift+alt+w",
         "command": "editor.emmet.action.wrapWithAbbreviation"
+    },
+    {
+        "key": "shift+alt+s",
+        "command": "editor.action.smartSelect.expand",
+        "when": "editorTextFocus"
+    },
+    {
+        "key": "shift+alt+right",
+        "command": "-editor.action.smartSelect.expand",
+        "when": "editorTextFocus"
     }
 ]

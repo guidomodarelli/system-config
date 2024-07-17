@@ -3,8 +3,8 @@
   "window.titleBarStyle": "custom",
   "editor.fontFamily": "'IosevkaTerm NF','Dank Mono', monospace",
   "editor.fontLigatures": false,
-  "editor.fontSize": 18,
-  "editor.fontWeight": "450",
+  "editor.fontSize": 16,
+  "editor.fontWeight": "400",
   "editor.showUnused": true,
   "terminal.integrated.fontWeight": "bold",
   "editor.tabSize": 2,
@@ -276,7 +276,6 @@
     ".gitignore": ".*ignore",
     "next.config.*": "next*",
   },
-  "diffEditor.hideUnchangedRegions.enabled": true,
   "auto-close-tag.activationOnLanguage": [
     "astro",
     "xml",
@@ -316,7 +315,7 @@
   "javascript.inlayHints.propertyDeclarationTypes.enabled": true,
   "javascript.inlayHints.variableTypes.enabled": true,
   "editor.snippetSuggestions": "inline",
-  "emmet.showExpandedAbbreviation": "always",
+  "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
   "cSpell.userWords": [
     "Modarelli"
   ],
@@ -335,4 +334,5 @@
     "editor.tabCompletion": "onlySnippets",
     "editor.wordBasedSuggestions": "off"
   },
+  "diffEditor.hideUnchangedRegions.enabled": true,
 }
