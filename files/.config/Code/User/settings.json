@@ -337,4 +337,5 @@
     "editor.wordBasedSuggestions": "off"
   },
   "diffEditor.hideUnchangedRegions.enabled": true,
+  "diffEditor.renderSideBySide": false,
 }
