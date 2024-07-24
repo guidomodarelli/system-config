@@ -14,6 +14,7 @@
   "editor.rulers": [
     120
   ],
+  "rewrap.wrappingColumn": 80,
   "editor.wrappingIndent": "deepIndent",
   "errorLens.fontSize": "12",
   "errorLens.fontWeight": "bold",
