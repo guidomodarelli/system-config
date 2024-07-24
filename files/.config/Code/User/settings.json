@@ -81,7 +81,8 @@
     "*.lock": "yaml",
     "*.css": "scss",
     ".env.production": "properties",
-    ".env.local": "properties"
+    ".env.local": "properties",
+    ".env": "properties"
   },
   "go.useLanguageServer": true,
   "editor.guides.bracketPairs": true,
