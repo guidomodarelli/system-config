@@ -100,5 +100,13 @@
         "key": "shift+alt+right",
         "command": "-editor.action.smartSelect.expand",
         "when": "editorTextFocus"
+    },
+    {
+        "key": "shift+alt+u",
+        "command": "typescript.removeUnusedImports"
+    },
+    {
+        "key": "shift+alt+u",
+        "command": "javascript.removeUnusedImports"
     }
 ]
