@@ -1,10 +1,11 @@
 {
   "workbench.localHistory.enabled": false,
   "window.titleBarStyle": "custom",
-  "editor.fontFamily": "'IosevkaTerm NF','Dank Mono', monospace",
+  "editor.fontFamily": "'JetBrains Mono', 'IosevkaTerm NF','Dank Mono', monospace",
   "editor.fontLigatures": false,
-  "editor.fontSize": 16,
-  "editor.fontWeight": "400",
+  "editor.fontSize": 14,
+  "editor.lineHeight": 1.8,
+  "editor.fontWeight": "normal",
   "editor.showUnused": true,
   "terminal.integrated.fontWeight": "bold",
   "editor.tabSize": 2,
@@ -227,7 +228,6 @@
   "workbench.startupEditor": "none",
   "editor.cursorBlinking": "expand",
   "editor.linkedEditing": true,
-  "editor.lineHeight": 1.5,
   "editor.cursorSmoothCaretAnimation": "on",
   "editor.smoothScrolling": true,
   "workbench.list.smoothScrolling": true,
@@ -337,5 +337,5 @@
     "editor.wordBasedSuggestions": "off"
   },
   "diffEditor.hideUnchangedRegions.enabled": true,
-  "diffEditor.renderSideBySide": false,
+  "diffEditor.renderSideBySide": true,
 }
