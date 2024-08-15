@@ -8,16 +8,23 @@
 	// Example:
 	"Destructuring an object as consts": {
 		"scope": "javascript,typescript,astro,javascriptreact,typescriptreact",
-		"prefix": "..",
+		"prefix": "..p",
 		"body": [
 			"{ $2 }: $1",
 		],
 	},
 	"Destructuring an object": {
 		"scope": "javascript,typescript,astro,javascriptreact,typescriptreact",
-		"prefix": "..const",
+		"prefix": "..d",
 		"body": [
 			"const { $2 } = $1;",
+		],
+	},
+	"Const": {
+		"scope": "javascript,typescript,astro,javascriptreact,typescriptreact",
+		"prefix": "..c",
+		"body": [
+			"const $2 = $1;",
 		],
 	},
 	"Destructuring props": {
