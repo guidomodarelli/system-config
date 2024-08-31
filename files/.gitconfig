@@ -1,6 +1,6 @@
 [user]
 	email = guidomodarelli25@gmail.com
-	name = guidomodarelli25
+	name = Guido Modarelli
 	signingkey = /home/guido/.ssh/id_ed25519.pub
 [core]
 	pager = delta
@@ -19,6 +19,8 @@
 	defaultBranch = main
 [commit]
 	gpgsign = true
+[gpg]
+	format = ssh
 [gpg "ssh"]
 	allowedSignersFile = /home/guido/.ssh/allowed_signers
 
