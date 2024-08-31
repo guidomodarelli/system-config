@@ -8,9 +8,9 @@
 [interactive]
 	diffFilter = delta --color-only
 [delta]
-    navigate = true
-    line-numbers = true
-    max-line-length = 0
+  navigate = true
+  line-numbers = true
+  max-line-length = 0
 [merge]
 	conflictstyle = diff3
 [diff]
