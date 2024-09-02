@@ -24,3 +24,5 @@
 [gpg "ssh"]
 	allowedSignersFile = /home/guido/.ssh/allowed_signers
 
+[tag]
+	gpgSign = false
