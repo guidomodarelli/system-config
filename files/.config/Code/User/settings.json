@@ -140,7 +140,7 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
   },
   "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
   "git.confirmSync": false,
   "editor.suggestSelection": "first",
