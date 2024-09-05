@@ -140,7 +140,7 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
   },
   "[typescript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "git.confirmSync": false,
   "editor.suggestSelection": "first",
@@ -340,4 +340,6 @@
   "diffEditor.hideUnchangedRegions.enabled": true,
   "diffEditor.renderSideBySide": true,
   "focus.highlightRange": "indent",
+  "editor.formatOnSave": true,
+  "markdowntable.formatOnSave": true,
 }
