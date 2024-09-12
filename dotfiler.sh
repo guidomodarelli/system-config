@@ -46,7 +46,7 @@ create_symbolic_link() {
 
 		# Remove .bak
 		if [[ -e "${dest_abs_path}.bak" ]]; then
-			printRed "[DEL] ${dest_abs_path}.bak"
+			printRed "[BAK] ${dest_abs_path}.bak"
 			$SUDO rm -r "${dest_abs_path}.bak"
 		fi
 
