@@ -4,6 +4,7 @@
 .config/rofi=.config
 .config/scripts=.config
 .config/nvim=.config
+.config/lazygit=~/Library/Application Support/lazygit
 #.config/Code/User/*=.config/Code/User
 .tmux.conf
 zsh/.zsh
