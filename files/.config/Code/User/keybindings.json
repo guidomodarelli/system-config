@@ -108,5 +108,15 @@
     {
         "key": "shift+alt+u",
         "command": "javascript.removeUnusedImports"
+    },
+    {
+        "key": "f9",
+        "command": "workbench.action.debug.stepIntoTarget",
+        "when": "inDebugMode && stepIntoTargetsSupported && debugState == 'stopped'"
+    },
+    {
+        "key": "ctrl+f11",
+        "command": "-workbench.action.debug.stepIntoTarget",
+        "when": "inDebugMode && stepIntoTargetsSupported && debugState == 'stopped'"
     }
 ]
