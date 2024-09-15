@@ -127,8 +127,8 @@ install_homebrew_dependencies() {
 
 install_dependencies() {
 	# System dependencies
-	sudo pacman -Sy --noconfirm yay base-devel gcc jq vlc peek telegram-desktop git-delta neovim fzf ripgrep fd bat kubectl curlie exa zoxide ranger wezterm rofi git-filter-repo btop ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd awesome
-	yay -S --noconfirm --needed lazygit-git lyx
+	sudo pacman -Sy --noconfirm yay base-devel gcc jq vlc peek telegram-desktop git-delta neovim fzf ripgrep fd bat curlie exa zoxide ranger wezterm rofi git-filter-repo btop ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd xclip
+	yay -S --noconfirm --needed lazygit-git difft
 
 	# Go dependencies
 	install_golang
