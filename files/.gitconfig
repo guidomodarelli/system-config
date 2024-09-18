@@ -11,10 +11,13 @@
   navigate = true
   line-numbers = true
   max-line-length = 0
+  diff-so-fancy = true
+  side-by-side = true
 [merge]
 	conflictstyle = diff3
 [diff]
 	colorMoved = default
+  tool = difftastic
 [init]
 	defaultBranch = main
 [commit]
@@ -23,6 +26,14 @@
 	format = ssh
 [gpg "ssh"]
 	allowedSignersFile = /home/guido/.ssh/allowed_signers
-
 [tag]
 	gpgSign = false
+[difftool]
+  prompt = false
+[difftool "difftastic"]
+  cmd = difft "$LOCAL" "$REMOTE" --color=always --syntax-highlight=off --graph-limit 30000000
+[pager]
+  difftool = true
+# `git dft` is less to type than `git difftool`.
+[alias]
+  dft = difftool
