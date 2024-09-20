@@ -118,5 +118,9 @@
         "key": "ctrl+f11",
         "command": "-workbench.action.debug.stepIntoTarget",
         "when": "inDebugMode && stepIntoTargetsSupported && debugState == 'stopped'"
+    },
+    {
+        "key": "ctrl+shift+i",
+        "command": "-supermaven.addToChat"
     }
 ]
