@@ -55,10 +55,6 @@
   "json.maxItemsComputed": 50000,
   "go.toolsManagement.autoUpdate": true,
   "terminal.integrated.fontFamily": "'MesloLGM Nerd Font', monospace",
-  // Config specific
-  "[markdown]": {
-    "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
-  },
   "editor.suggest.showVariables": true,
   "files.watcherExclude": {
     "**/.git/objects/**": true,
@@ -210,7 +206,6 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "rapidapi.terminalLink.enabled": false,
   "todo-tree.general.statusBar": "tags",
   "workbench.iconTheme": "icons",
   "editor.semanticTokenColorCustomizations": {
@@ -274,7 +269,7 @@
   "window.menuBarVisibility": "compact",
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
-    "README.md": "changelog.md, CODE_OF_CONDUCT.md, LICENSE.md",
+    "README.md": "*.md",
     "build.gradle*": "gradlew*, gradle.properties, settings.gradle",
     ".gitignore": ".*ignore",
     "next.config.*": "next*",
@@ -302,7 +297,6 @@
     "plist"
   ],
   "files.autoSave": "onFocusChange",
-  "circleci.hostUrl": "",
   "[astro]": {
     "editor.defaultFormatter": "astro-build.astro-vscode"
   },
@@ -319,9 +313,6 @@
   "javascript.inlayHints.variableTypes.enabled": true,
   "editor.snippetSuggestions": "inline",
   "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
-  "cSpell.userWords": [
-    "Modarelli"
-  ],
   "editor.detectIndentation": true,
   "zenMode.hideLineNumbers": false,
   "editor.minimap.enabled": false,
@@ -339,6 +330,6 @@
   },
   "diffEditor.hideUnchangedRegions.enabled": true,
   "diffEditor.renderSideBySide": true,
-  "focus.highlightRange": "indent",
-  "markdowntable.formatOnSave": true,
+  "typescript.inlayHints.variableTypes.enabled": true,
+  "diffEditor.useInlineViewWhenSpaceIsLimited": false,
 }
