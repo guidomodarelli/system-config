@@ -332,4 +332,7 @@
   "diffEditor.renderSideBySide": true,
   "typescript.inlayHints.variableTypes.enabled": true,
   "diffEditor.useInlineViewWhenSpaceIsLimited": false,
+  "githubPullRequests.fileListLayout": "flat",
+  "supermaven.allowGitignore": true,
+  "prettier.requireConfig": true,
 }
