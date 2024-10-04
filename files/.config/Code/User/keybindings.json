@@ -122,5 +122,23 @@
     {
         "key": "ctrl+shift+i",
         "command": "-supermaven.addToChat"
+    },
+    {
+        "key": "f8",
+        "command": "workbench.action.debug.continue",
+        "when": "debugState == 'stopped'"
+    },
+    {
+        "key": "f5",
+        "command": "-workbench.action.debug.continue",
+        "when": "debugState == 'stopped'"
+    },
+    {
+        "key": "ctrl+shift+alt+e",
+        "command": "editor.debug.action.selectionToRepl"
+    },
+    {
+        "key": "f9",
+        "command": "editor.debug.action.runToCursor"
     }
 ]
