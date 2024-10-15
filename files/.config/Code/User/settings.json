@@ -200,9 +200,6 @@
     "editor.tabSize": 4
   },
   "oneDarkPro.bold": true,
-  "yaml.schemas": {
-    "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.4/dist/toc.schema.json": "/toc\\.yml/i"
-  },
   "[typescriptreact]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
@@ -242,7 +239,7 @@
   "security.workspace.trust.untrustedFiles": "open",
   "javascript.updateImportsOnFileMove.enabled": "always",
   "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "diffEditor.ignoreTrimWhitespace": false,
   "workbench.tree.enableStickyScroll": true,
@@ -335,4 +332,9 @@
   "githubPullRequests.fileListLayout": "flat",
   "supermaven.allowGitignore": true,
   "prettier.requireConfig": true,
+  "vscodeGoogleTranslate.preferredLanguage": "English",
+  "githubPullRequests.pullBranch": "never",
+  "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
 }
