@@ -11,7 +11,6 @@
   "terminal.integrated.fontWeight": "bold",
   "editor.tabSize": 2,
   "editor.wrappingStrategy": "advanced",
-  "editor.wordWrap": "off",
   "editor.wordWrapColumn": 80,
   "editor.rulers": [
     120
@@ -241,7 +240,7 @@
   "[javascript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
-  "diffEditor.ignoreTrimWhitespace": false,
+  "diffEditor.ignoreTrimWhitespace": true,
   "workbench.tree.enableStickyScroll": true,
   "tailwindCSS.experimental.classRegex": [
     "clsx`([^`]*)",
@@ -297,17 +296,8 @@
   "[astro]": {
     "editor.defaultFormatter": "astro-build.astro-vscode"
   },
-  "javascript.inlayHints.parameterNames.enabled": "literals",
-  "javascript.inlayHints.parameterTypes.enabled": true,
-  "typescript.inlayHints.parameterNames.enabled": "all",
   "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
-  "typescript.inlayHints.enumMemberValues.enabled": true,
-  "typescript.inlayHints.propertyDeclarationTypes.enabled": true,
-  "typescript.inlayHints.parameterTypes.enabled": true,
-  "javascript.inlayHints.enumMemberValues.enabled": true,
   "javascript.inlayHints.functionLikeReturnTypes.enabled": true,
-  "javascript.inlayHints.propertyDeclarationTypes.enabled": true,
-  "javascript.inlayHints.variableTypes.enabled": true,
   "editor.snippetSuggestions": "inline",
   "emmet.showExpandedAbbreviation": "inMarkupAndStylesheetFilesOnly",
   "editor.detectIndentation": true,
@@ -325,9 +315,7 @@
     "editor.tabCompletion": "onlySnippets",
     "editor.wordBasedSuggestions": "off"
   },
-  "diffEditor.hideUnchangedRegions.enabled": true,
   "diffEditor.renderSideBySide": true,
-  "typescript.inlayHints.variableTypes.enabled": true,
   "diffEditor.useInlineViewWhenSpaceIsLimited": false,
   "githubPullRequests.fileListLayout": "flat",
   "supermaven.allowGitignore": true,
@@ -335,6 +323,19 @@
   "vscodeGoogleTranslate.preferredLanguage": "English",
   "githubPullRequests.pullBranch": "never",
   "[yaml]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "redhat.vscode-yaml",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "prettier.useTabs": false,
+    "prettier.tabWidth": 2,
+    "editor.formatOnSave": true,
+    "editor.indentSize": "tabSize",
+    "editor.detectIndentation": false,
+    "editor.autoIndent": "full",
+    "editor.guides.indentation": true
   },
+  "yaml.schemas": {
+    "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.5/dist/toc.schema.json": "/toc\\.yml/i"
+  },
+  "diffEditor.hideUnchangedRegions.enabled": true,
 }
