@@ -140,5 +140,9 @@
     {
         "key": "f9",
         "command": "editor.debug.action.runToCursor"
+    },
+    {
+        "key": "f12",
+        "command": "diffEditor.toggleCollapseUnchangedRegions"
     }
 ]
