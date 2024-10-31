@@ -240,7 +240,7 @@
   "[javascript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
-  "diffEditor.ignoreTrimWhitespace": true,
+  "diffEditor.ignoreTrimWhitespace": false,
   "workbench.tree.enableStickyScroll": true,
   "tailwindCSS.experimental.classRegex": [
     "clsx`([^`]*)",
@@ -317,7 +317,7 @@
   },
   "diffEditor.renderSideBySide": true,
   "diffEditor.useInlineViewWhenSpaceIsLimited": false,
-  "githubPullRequests.fileListLayout": "flat",
+  "githubPullRequests.fileListLayout": "tree",
   "supermaven.allowGitignore": true,
   "prettier.requireConfig": true,
   "vscodeGoogleTranslate.preferredLanguage": "English",
@@ -337,5 +337,8 @@
   "yaml.schemas": {
     "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.5/dist/toc.schema.json": "/toc\\.yml/i"
   },
+  "window.zoomLevel": 1,
+  "editor.renderControlCharacters": false,
+  "explorer.confirmPasteNative": false,
   "diffEditor.hideUnchangedRegions.enabled": true,
 }
