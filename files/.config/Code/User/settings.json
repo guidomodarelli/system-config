@@ -332,7 +332,8 @@
     "editor.indentSize": "tabSize",
     "editor.detectIndentation": false,
     "editor.autoIndent": "full",
-    "editor.guides.indentation": true
+    "editor.guides.indentation": true,
+    "files.autoSave": "off"
   },
   "yaml.schemas": {
     "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.5/dist/toc.schema.json": "/toc\\.yml/i"
