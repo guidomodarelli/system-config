@@ -59,7 +59,7 @@ install_aicommits() {
 }
 
 install_npm_dependencies() {
-	npm i -g pnpm yarn @nestjs/cli
+	npm i -g yarn
 
 	install_aicommits
 }
@@ -122,12 +122,12 @@ install_asdf() {
 }
 
 install_homebrew_dependencies() {
-	install_asdf
+	# install_asdf
 }
 
 install_dependencies() {
 	# System dependencies
-	sudo pacman -Sy --noconfirm yay base-devel gcc jq vlc peek telegram-desktop git-delta neovim fzf ripgrep fd bat curlie exa zoxide ranger wezterm rofi git-filter-repo btop ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd xclip
+	sudo pacman -Sy --noconfirm yay base-devel gcc jq vlc peek git-delta neovim fzf ripgrep fd bat curlie exa zoxide ranger wezterm rofi git-filter-repo btop ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd xclip
 	yay -S --noconfirm --needed lazygit-git difft
 
 	# Go dependencies
