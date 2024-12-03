@@ -83,9 +83,6 @@
   },
   "go.useLanguageServer": true,
   "editor.guides.bracketPairs": true,
-  "[jsonc]": {
-    "editor.defaultFormatter": "vscode.json-language-features"
-  },
   /* -------------------------------------------------------------------------- */
   /*                                   ESLINT                                   */
   /* -------------------------------------------------------------------------- */
@@ -132,10 +129,6 @@
       "other": true
     },
     "editor.suggest.insertMode": "replace",
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "git.confirmSync": false,
   "editor.suggestSelection": "first",
@@ -186,21 +179,14 @@
       "iconColour": "#4C82EF"
     }
   },
-  "[scss]": {
-    "editor.defaultFormatter": "sibiraj-s.vscode-scss-formatter"
-  },
   "workbench.colorCustomizations": {},
   "files.eol": "\n",
   "files.trimTrailingWhitespace": true,
   "editor.stickyScroll.enabled": true,
   "[python]": {
-    "editor.defaultFormatter": "ms-python.python",
     "editor.tabSize": 4
   },
   "oneDarkPro.bold": true,
-  "[typescriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
   "todo-tree.general.statusBar": "tags",
   "workbench.iconTheme": "icons",
   "editor.semanticTokenColorCustomizations": {
@@ -230,15 +216,9 @@
   "workbench.colorTheme": "One Dark Pro Darker",
   "terminal.integrated.env.linux": {},
   "git.openRepositoryInParentFolders": "always",
-  "[css]": {
-    "editor.defaultFormatter": "sibiraj-s.vscode-scss-formatter"
-  },
   "terminal.integrated.env.windows": {},
   "security.workspace.trust.untrustedFiles": "open",
   "javascript.updateImportsOnFileMove.enabled": "always",
-  "[javascript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features"
-  },
   "diffEditor.ignoreTrimWhitespace": true,
   "workbench.tree.enableStickyScroll": true,
   "tailwindCSS.experimental.classRegex": [
@@ -319,9 +299,6 @@
   "prettier.requireConfig": true,
   "vscodeGoogleTranslate.preferredLanguage": "English",
   "githubPullRequests.pullBranch": "never",
-  "[yaml]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
   "yaml.schemas": {
     "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.5/dist/toc.schema.json": "/toc\\.yml/i"
   },
