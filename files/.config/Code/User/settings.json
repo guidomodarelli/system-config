@@ -193,9 +193,6 @@
     "enabled": true,
     "[One Dark Pro]": {
       "rules": {
-        "*.readonly": {
-          "underline": true,
-        },
         "class": {
           "bold": true
         }
@@ -209,11 +206,11 @@
   "editor.smoothScrolling": true,
   "workbench.list.smoothScrolling": true,
   "explorer.compactFolders": false,
-  "editor.renderWhitespace": "selection",
+  "editor.renderWhitespace": "all",
   "workbench.list.horizontalScrolling": true,
   "workbench.tree.indent": 20,
   "editor.bracketPairColorization.enabled": true,
-  "workbench.colorTheme": "One Dark Pro Darker",
+  "workbench.colorTheme": "One Dark Pro",
   "terminal.integrated.env.linux": {},
   "git.openRepositoryInParentFolders": "always",
   "terminal.integrated.env.windows": {},
@@ -302,6 +299,6 @@
   "yaml.schemas": {
     "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.5/dist/toc.schema.json": "/toc\\.yml/i"
   },
-  "window.zoomLevel": 1,
+  "window.zoomLevel": 0,
   "diffEditor.hideUnchangedRegions.enabled": true,
 }
