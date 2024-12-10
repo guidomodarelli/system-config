@@ -289,7 +289,7 @@
     "editor.tabCompletion": "onlySnippets",
     "editor.wordBasedSuggestions": "off"
   },
-  "diffEditor.renderSideBySide": true,
+  "diffEditor.renderSideBySide": false,
   "diffEditor.useInlineViewWhenSpaceIsLimited": false,
   "githubPullRequests.fileListLayout": "tree",
   "supermaven.allowGitignore": true,
