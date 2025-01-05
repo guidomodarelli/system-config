@@ -216,7 +216,7 @@
   "terminal.integrated.env.windows": {},
   "security.workspace.trust.untrustedFiles": "open",
   "javascript.updateImportsOnFileMove.enabled": "always",
-  "diffEditor.ignoreTrimWhitespace": true,
+  "diffEditor.ignoreTrimWhitespace": false,
   "workbench.tree.enableStickyScroll": true,
   "tailwindCSS.experimental.classRegex": [
     "clsx`([^`]*)",
@@ -300,5 +300,6 @@
     "file:///home/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.5/dist/toc.schema.json": "/toc\\.yml/i"
   },
   "window.zoomLevel": 0,
+  "editor.inlineSuggest.showToolbar": "always",
   "diffEditor.hideUnchangedRegions.enabled": true,
 }
