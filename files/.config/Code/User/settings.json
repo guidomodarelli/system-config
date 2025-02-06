@@ -305,4 +305,10 @@
   "supermaven.enable": {
     "*": true
   },
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Use conventional commit message format."
+    }
+  ],
+  "github.copilot.editor.enableAutoCompletions": false,
 }
