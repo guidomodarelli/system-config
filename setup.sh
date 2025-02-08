@@ -102,7 +102,7 @@ install_dependencies() {
 	sudo pacman -Sy --noconfirm base-devel yay gcc jq vlc peek git-delta neovim fzf ripgrep fd bat exa zoxide ranger wezterm rofi git-filter-repo btop xclip obs-studio
 	# Fonts
 	sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
-	yay -S --noconfirm --needed lazygit-git visual-studio-code-bin
+	yay -S --noconfirm --needed lazygit-git visual-studio-code-bin snapd
 
 	# Go dependencies
 	install_golang
