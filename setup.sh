@@ -1,18 +1,3 @@
-install_obs_studio() {
-	flatpak install flathub com.obsproject.Studio -y
-}
-
-install_vscode() {
-	# Install Visual Studio Code
-	git clone https://aur.archlinux.org/visual-studio-code-bin.git $HOME/visual-studio-code-bin
-	cd $HOME/visual-studio-code-bin
-	makepkg -si
-}
-
-install_homebrew() {
-	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-}
-
 install_LazyVim() {
 	# Make a backup of your current Neovim files:
 	## required
@@ -48,7 +33,6 @@ install_antigen() {
 
 install_nvm() {
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-	nvm install lts/iron
 }
 
 install_aicommits() {
@@ -62,10 +46,6 @@ install_npm_dependencies() {
 	npm i -g yarn
 
 	install_aicommits
-}
-
-install_sdkman() {
-	curl -s "https://get.sdkman.io" | bash
 }
 
 install_font_IosevkaTermCurly() {
@@ -103,7 +83,7 @@ install_espanso() {
 
 install_golang() {
 	# https://go.dev/dl/
-	local GO_VERSION="1.22.3"
+	local GO_VERSION="1.22.6"
 	local FILE="go${GO_VERSION}.linux-amd64.tar.gz"
 	curl -LO https://go.dev/dl/$FILE
 	sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $FILE
@@ -117,26 +97,16 @@ install_go_dependencies() {
 	install_ghq
 }
 
-install_asdf() {
-	brew install asdf
-}
-
-install_homebrew_dependencies() {
-	# install_asdf
-}
-
 install_dependencies() {
 	# System dependencies
-	sudo pacman -Sy --noconfirm yay base-devel gcc jq vlc peek git-delta neovim fzf ripgrep fd bat curlie exa zoxide ranger wezterm rofi git-filter-repo btop ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd xclip
-	yay -S --noconfirm --needed lazygit-git difft
+	sudo pacman -Sy --noconfirm base-devel yay gcc jq vlc peek git-delta neovim fzf ripgrep fd bat exa zoxide ranger wezterm rofi git-filter-repo btop xclip obs-studio
+	# Fonts
+	sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
+	yay -S --noconfirm --needed lazygit-git difft visual-studio-code-bin
 
 	# Go dependencies
 	install_golang
 	install_go_dependencies
-
-	# Homebrew dependencies
-	install_homebrew
-	install_homebrew_dependencies
 
 	# NPM dependencies
 	install_nvm
@@ -147,12 +117,10 @@ main() {
 	install_dependencies
 
 	# Custom installation
-	install_vscode
 	install_LazyVim
 	install_oh_my_zsh
 	install_docker
 	install_antigen
-	install_sdkman
 	install_espanso
 }
 
