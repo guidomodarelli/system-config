@@ -28,7 +28,7 @@ install_docker() {
 }
 
 install_antigen() {
-	curl -L git.io/antigen > $HOME/antigen.zsh
+	curl -L git.io/antigen >$HOME/antigen.zsh
 }
 
 install_nvm() {
