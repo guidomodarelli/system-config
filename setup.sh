@@ -118,10 +118,10 @@ main() {
 
 	# Custom installation
 	install_LazyVim
-	install_oh_my_zsh
-	install_docker
 	install_antigen
 	install_espanso
+	install_docker
+	install_oh_my_zsh
 }
 
 main
