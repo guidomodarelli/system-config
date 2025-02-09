@@ -20,5 +20,5 @@ In Linux:
 ./setup.sh
 
 # 3.
-./dotfilers.sh
+./dotfiler.sh
 ```
