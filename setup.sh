@@ -130,4 +130,10 @@ main() {
   install_oh_my_zsh
 }
 
-main
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  if [[ -n "$1" ]]; then
+    "$@"
+  else
+    main
+  fi
+fi
