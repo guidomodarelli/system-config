@@ -48,17 +48,23 @@ install_npm_dependencies() {
 	install_aicommits
 }
 
-install_font_IosevkaTermCurly() {
-	# https://github.com/be5invis/Iosevka/releases
-
-	local folderName="IosevkaTermCurly"
+install_font() {
+	local folderName="$1"
 	local zipName="${folderName}.zip"
-	curl -Lo $zipName https://github.com/be5invis/Iosevka/releases/download/v30.1.2/PkgTTF-IosevkaTermCurly-30.1.2.zip
+	local url="$2"
+
+	curl -Lo $zipName $url
 	unzip $zipName
 	cd $folderName
 	mkdir -p $HOME/.fonts
 	mv *.ttf $HOME/.fonts/
 	fc-cache -fv
+	cd ..
+	rm -rf $folderName $zipName
+}
+
+install_font_IosevkaTermCurly() {
+	install_font "IosevkaTermCurly" "https://github.com/be5invis/Iosevka/releases/download/v30.1.2/PkgTTF-IosevkaTermCurly-30.1.2.zip"
 }
 
 install_espanso() {
