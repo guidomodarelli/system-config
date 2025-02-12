@@ -213,6 +213,7 @@ install_dependencies() {
 	fi
 
 	install_exa
+	install_fd_find
 
   # Go dependencies
   install_golang
