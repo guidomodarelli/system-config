@@ -180,6 +180,10 @@ install_dependencies() {
     sudo apt update
     sudo apt install -y build-essential git curl wget jq neovim fzf ripgrep fd-find bat exa zoxide git-filter-repo btop xclip
     sudo snap install lazygit
+		# TODO: install peek
+		if ! is_windows; then
+			sudo apt install -y btop xclip
+		fi
   else
     # System dependencies
     sudo pacman -Sy --noconfirm base-devel yay gcc jq git-delta neovim fzf ripgrep fd bat zoxide git-filter-repo btop xclip
