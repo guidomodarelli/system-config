@@ -166,18 +166,17 @@ install_dependencies() {
   if is_ubuntu; then
     # System dependencies
     sudo apt update
-    sudo apt install -y build-essential git curl wget jq vlc neovim fzf ripgrep fd-find bat exa zoxide wezterm rofi git-filter-repo btop xclip obs-studio
-    # Fonts
-    sudo apt install -y fonts-iosevka fonts-jetbrains-mono fonts-victor-mono fonts-dejavu fonts-cascadia-code
-    sudo snap install --classic code
+    sudo apt install -y build-essential git curl wget jq neovim fzf ripgrep fd-find bat exa zoxide git-filter-repo btop xclip
     sudo snap install lazygit
   else
     # System dependencies
-    sudo pacman -Sy --noconfirm base-devel yay gcc jq vlc peek git-delta neovim fzf ripgrep fd bat exa zoxide wezterm rofi git-filter-repo btop xclip obs-studio
-    # Fonts
-    sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
-    yay -S --noconfirm --needed lazygit-git visual-studio-code-bin snapd
+    sudo pacman -Sy --noconfirm base-devel yay gcc jq peek git-delta neovim fzf ripgrep fd bat exa zoxide git-filter-repo btop xclip
+    yay -S --noconfirm --needed lazygit-git
   fi
+
+	if ! is_windows; then
+		install_fonts
+	fi
 
   # Go dependencies
   install_golang
