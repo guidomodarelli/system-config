@@ -99,10 +99,6 @@ install_font_IosevkaTermCurly() {
 }
 
 install_espanso() {
-	if is_windows; then
-		return
-	fi
-
   # https://espanso.org/docs/install/linux/#appimage-x11
 
   # Create the $HOME/opt destination folder
@@ -269,6 +265,7 @@ install_dependencies() {
 		install_fonts
 		install_btop
 		install_xclip
+		install_espanso
 	fi
 
 	install_exa
@@ -291,7 +288,6 @@ main() {
   # Custom installation
   install_LazyVim
   install_antigen
-  install_espanso
   install_docker
 	install_zsh
   install_oh_my_zsh
