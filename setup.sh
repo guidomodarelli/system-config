@@ -159,9 +159,7 @@ install_user_interface_apps() {
 		sudo pacman -Sy --noconfirm vlc wezterm rofi obs-studio peek
 	fi
 
-	if ! is_windows; then
-		install_VsCode
-	fi
+	install_VsCode
 }
 
 install_exa() {
@@ -206,9 +204,8 @@ install_dependencies() {
 
 	install_homebrew
 
-	install_user_interface_apps
-
 	if ! is_windows; then
+		install_user_interface_apps
 		install_fonts
 	fi
 
