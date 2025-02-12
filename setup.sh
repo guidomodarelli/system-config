@@ -268,7 +268,7 @@ install_utilities() {
   fi
 }
 
-install_dependencies() {
+install_all_dependencies() {
 	install_essencials
 	install_utilities
 
@@ -297,7 +297,7 @@ install_dependencies() {
 }
 
 main() {
-  install_dependencies
+  install_all_dependencies
 
   # Custom installation
   install_LazyVim
