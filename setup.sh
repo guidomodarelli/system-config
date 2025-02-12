@@ -154,7 +154,7 @@ install_user_interface_apps() {
 	if is_ubuntu; then
 		sudo apt install -y vlc wezterm rofi obs-studio
 	else
-		sudo pacman -Sy --noconfirm vlc wezterm rofi obs-studio
+		sudo pacman -Sy --noconfirm vlc wezterm rofi obs-studio peek
 	fi
 
 	if ! is_windows; then
