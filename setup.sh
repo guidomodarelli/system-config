@@ -174,6 +174,14 @@ install_homebrew() {
 	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 
+install_fd_find() {
+	if is_ubuntu; then
+		sudo apt install -y fd-find
+	else
+		sudo pacman -Sy --noconfirm fd
+	fi
+}
+
 install_dependencies() {
   if is_ubuntu; then
     # System dependencies
