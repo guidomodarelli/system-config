@@ -231,6 +231,14 @@ install_git_dependencies() {
 	install_git_filter_repo
 }
 
+install_zsh() {
+	if is_ubuntu; then
+		sudo apt install -y zsh
+	else
+		sudo pacman -Sy --noconfirm zsh
+	fi
+}
+
 install_essencials() {
 	if is_ubuntu; then
 		sudo apt install -y build-essential git curl wget
@@ -282,6 +290,7 @@ main() {
   install_antigen
   install_espanso
   install_docker
+	install_zsh
   install_oh_my_zsh
 }
 
