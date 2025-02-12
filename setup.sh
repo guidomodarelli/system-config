@@ -261,7 +261,7 @@ install_dependencies() {
     sudo pacman -Sy --noconfirm jq neovim fzf ripgrep bat zoxide
   fi
 
-	install_homebrew
+	# install_homebrew
 
 	if ! is_windows; then
 		install_user_interface_apps
