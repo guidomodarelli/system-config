@@ -150,7 +150,7 @@ install_fonts() {
 	fi
 }
 
-install_programs() {
+install_user_interface_apps() {
 	if is_ubuntu; then
 		sudo apt install -y vlc wezterm rofi obs-studio
 	else
@@ -173,6 +173,8 @@ install_dependencies() {
     sudo pacman -Sy --noconfirm base-devel yay gcc jq peek git-delta neovim fzf ripgrep fd bat exa zoxide git-filter-repo btop xclip
     yay -S --noconfirm --needed lazygit-git
   fi
+
+	install_user_interface_apps
 
 	if ! is_windows; then
 		install_fonts
