@@ -186,12 +186,19 @@ install_fd_find() {
 	fi
 }
 
+install_lazygit() {
+	if is_ubuntu; then
+		sudo snap install lazygit
+	else
+		yay -S --noconfirm --needed lazygit-git
+	fi
+}
+
 install_dependencies() {
   if is_ubuntu; then
     # System dependencies
     sudo apt update
     sudo apt install -y build-essential git curl wget jq git-delta neovim fzf ripgrep bat zoxide git-filter-repo
-    sudo snap install lazygit
 		# TODO: install peek
 		if ! is_windows; then
 			sudo apt install -y btop xclip
@@ -199,7 +206,6 @@ install_dependencies() {
   else
     # System dependencies
     sudo pacman -Sy --noconfirm base-devel yay gcc jq git-delta neovim fzf ripgrep bat zoxide git-filter-repo btop xclip
-    yay -S --noconfirm --needed lazygit-git
   fi
 
 	install_homebrew
@@ -211,6 +217,7 @@ install_dependencies() {
 
 	install_exa
 	install_fd_find
+	install_lazygit
 
   # Go dependencies
   install_golang
