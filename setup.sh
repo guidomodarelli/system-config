@@ -210,6 +210,28 @@ install_xclip() {
 	fi
 }
 
+install_git_delta() {
+	if is_ubuntu; then
+		sudo apt install -y git-delta
+	else
+		sudo pacman -Sy --noconfirm git-delta
+	fi
+}
+
+install_git_filter_repo() {
+	if is_ubuntu; then
+		sudo apt install -y git-filter-repo
+	else
+		sudo pacman -Sy --noconfirm git-filter-repo
+	fi
+}
+
+install_git_dependencies() {
+	install_git_delta
+	install_git_filter_repo
+}
+
+
 install_dependencies() {
   if is_ubuntu; then
     # System dependencies
@@ -233,6 +255,7 @@ install_dependencies() {
 	install_exa
 	install_fd_find
 	install_lazygit
+	install_git_dependencies
 
   # Go dependencies
   install_golang
