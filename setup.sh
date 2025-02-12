@@ -182,7 +182,7 @@ install_dependencies() {
     sudo snap install lazygit
   else
     # System dependencies
-    sudo pacman -Sy --noconfirm base-devel yay gcc jq peek git-delta neovim fzf ripgrep fd bat exa zoxide git-filter-repo btop xclip
+    sudo pacman -Sy --noconfirm base-devel yay gcc jq git-delta neovim fzf ripgrep fd bat zoxide git-filter-repo btop xclip
     yay -S --noconfirm --needed lazygit-git
   fi
 
