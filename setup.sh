@@ -1,3 +1,5 @@
+LOCAL_BINARIES="$HOME/.local/bin"
+
 is_windows() {
   if uname -r | grep -iq "microsoft"; then
     return 0  # true
@@ -177,9 +179,9 @@ install_homebrew() {
 install_fd_find() {
 	if is_ubuntu; then
 		sudo apt install -y fd-find
-		mkdir -p ~/.local/bin
-		if [ ! -f ~/.local/bin/fd ]; then
-			ln -s $(which fdfind) ~/.local/bin/fd
+		mkdir -p $LOCAL_BINARIES
+		if [ ! -f $LOCAL_BINARIES/fd ]; then
+			ln -s $(which fdfind) $LOCAL_BINARIES/fd
 		fi
 	else
 		sudo pacman -Sy --noconfirm fd
