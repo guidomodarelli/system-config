@@ -150,6 +150,17 @@ install_fonts() {
 	fi
 }
 
+install_programs() {
+	if is_ubuntu; then
+		sudo apt install -y vlc wezterm rofi obs-studio
+	else
+		sudo pacman -Sy --noconfirm vlc wezterm rofi obs-studio
+	fi
+
+	if ! is_windows; then
+		install_VsCode
+	fi
+}
 
 install_dependencies() {
   if is_ubuntu; then
