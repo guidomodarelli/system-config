@@ -94,7 +94,7 @@ install_espanso() {
   # At this point, you are ready to use espanso by registering it first as a Systemd service and then starting it with:
 
   # Register espanso as a systemd service (required only once)
-  # NOTE: espanso service register
+  espanso service register
 
   # NOTE: espanso start
 }
