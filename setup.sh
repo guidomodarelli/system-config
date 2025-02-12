@@ -130,6 +130,15 @@ install_go_dependencies() {
   install_ghq
 }
 
+install_VsCode() {
+  if is_ubuntu; then
+		sudo snap install --classic code
+	else
+		yay -S --noconfirm --needed visual-studio-code-bin
+	fi
+}
+
+
 install_dependencies() {
   if is_ubuntu; then
     # System dependencies
