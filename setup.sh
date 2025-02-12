@@ -194,18 +194,31 @@ install_lazygit() {
 	fi
 }
 
+install_btop() {
+	if is_ubuntu; then
+		sudo apt install -y btop
+	else
+		sudo pacman -Sy --noconfirm btop
+	fi
+}
+
+install_xclip() {
+	if is_ubuntu; then
+		sudo apt install -y xclip
+	else
+		sudo pacman -Sy --noconfirm xclip
+	fi
+}
+
 install_dependencies() {
   if is_ubuntu; then
     # System dependencies
     sudo apt update
     sudo apt install -y build-essential git curl wget jq git-delta neovim fzf ripgrep bat zoxide git-filter-repo
 		# TODO: install peek
-		if ! is_windows; then
-			sudo apt install -y btop xclip
-		fi
   else
     # System dependencies
-    sudo pacman -Sy --noconfirm base-devel yay gcc jq git-delta neovim fzf ripgrep bat zoxide git-filter-repo btop xclip
+    sudo pacman -Sy --noconfirm base-devel yay gcc jq git-delta neovim fzf ripgrep bat zoxide git-filter-repo
   fi
 
 	install_homebrew
@@ -213,6 +226,8 @@ install_dependencies() {
 	if ! is_windows; then
 		install_user_interface_apps
 		install_fonts
+		install_btop
+		install_xclip
 	fi
 
 	install_exa
