@@ -227,7 +227,17 @@ install_git_filter_repo() {
 	fi
 }
 
+install_git() {
+	if is_ubuntu; then
+		sudo apt install -y git
+	else
+		sudo pacman -Sy --noconfirm git
+	fi
+}
+
 install_git_dependencies() {
+	install_git
+
 	install_git_delta
 	install_git_filter_repo
 }
@@ -243,9 +253,9 @@ install_zsh() {
 
 install_essencials() {
 	if is_ubuntu; then
-		sudo apt install -y build-essential git curl wget unzip
+		sudo apt install -y build-essential gcc curl wget unzip
 	else
-		sudo pacman -Sy --noconfirm base-devel yay gcc curl wget unzip
+		sudo pacman -Sy --noconfirm yay base-devel gcc curl wget unzip
 	fi
 }
 
