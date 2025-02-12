@@ -142,6 +142,14 @@ install_VsCode() {
 	fi
 }
 
+install_fonts() {
+	if is_ubuntu; then
+		sudo apt install -y fonts-iosevka fonts-jetbrains-mono fonts-victor-mono fonts-dejavu fonts-cascadia-code
+	else
+		sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
+	fi
+}
+
 
 install_dependencies() {
   if is_ubuntu; then
