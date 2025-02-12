@@ -162,6 +162,14 @@ install_user_interface_apps() {
 	fi
 }
 
+install_exa() {
+	if is_ubuntu; then
+		brew install exa
+	else
+		sudo pacman -Sy --noconfirm exa
+	fi
+}
+
 install_homebrew() {
 	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
@@ -185,6 +193,8 @@ install_dependencies() {
 	if ! is_windows; then
 		install_fonts
 	fi
+
+	install_exa
 
   # Go dependencies
   install_golang
