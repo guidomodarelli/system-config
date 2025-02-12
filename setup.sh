@@ -259,17 +259,18 @@ install_essencials() {
 	fi
 }
 
-install_dependencies() {
-	install_essencials
-
+install_utilities() {
   if is_ubuntu; then
-    # System dependencies
     sudo apt update
     sudo apt install -y jq neovim fzf ripgrep bat zoxide
   else
-    # System dependencies
     sudo pacman -Sy --noconfirm jq neovim fzf ripgrep bat zoxide
   fi
+}
+
+install_dependencies() {
+	install_essencials
+	install_utilities
 
 	# install_homebrew
 
