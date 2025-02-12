@@ -95,6 +95,10 @@ install_font_IosevkaTermCurly() {
 }
 
 install_espanso() {
+	if is_windows; then
+		return
+	fi
+
   # https://espanso.org/docs/install/linux/#appimage-x11
 
   # Create the $HOME/opt destination folder
