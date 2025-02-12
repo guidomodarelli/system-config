@@ -1,3 +1,11 @@
+is_windows() {
+  if uname -r | grep -iq "microsoft"; then
+    return 0  # true
+  else
+    return 1  # false
+  fi
+}
+
 install_LazyVim() {
   # Make a backup of your current Neovim files:
   ## required
