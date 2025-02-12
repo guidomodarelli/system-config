@@ -177,6 +177,7 @@ install_homebrew() {
 install_fd_find() {
 	if is_ubuntu; then
 		sudo apt install -y fd-find
+		ln -s $(which fdfind) ~/.local/bin/fd
 	else
 		sudo pacman -Sy --noconfirm fd
 	fi
@@ -186,7 +187,7 @@ install_dependencies() {
   if is_ubuntu; then
     # System dependencies
     sudo apt update
-    sudo apt install -y build-essential git curl wget jq neovim fzf ripgrep fd-find bat exa zoxide git-filter-repo btop xclip
+    sudo apt install -y build-essential git curl wget jq git-delta neovim fzf ripgrep bat zoxide git-filter-repo
     sudo snap install lazygit
 		# TODO: install peek
 		if ! is_windows; then
@@ -194,7 +195,7 @@ install_dependencies() {
 		fi
   else
     # System dependencies
-    sudo pacman -Sy --noconfirm base-devel yay gcc jq git-delta neovim fzf ripgrep fd bat zoxide git-filter-repo btop xclip
+    sudo pacman -Sy --noconfirm base-devel yay gcc jq git-delta neovim fzf ripgrep bat zoxide git-filter-repo btop xclip
     yay -S --noconfirm --needed lazygit-git
   fi
 
