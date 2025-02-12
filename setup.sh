@@ -1,3 +1,5 @@
+#!/bin/bash
+
 LOCAL_BINARIES="$HOME/.local/bin"
 
 is_windows() {
@@ -237,6 +239,7 @@ install_zsh() {
 	else
 		sudo pacman -Sy --noconfirm zsh
 	fi
+	chsh -s $(which zsh)
 }
 
 install_essencials() {
