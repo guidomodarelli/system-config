@@ -166,7 +166,7 @@ install_user_interface_apps() {
 
 install_exa() {
 	if is_ubuntu; then
-		brew install exa
+		# TODO: install exa
 	else
 		sudo pacman -Sy --noconfirm exa
 	fi
