@@ -231,16 +231,24 @@ install_git_dependencies() {
 	install_git_filter_repo
 }
 
+install_essencials() {
+	if is_ubuntu; then
+		sudo apt install -y build-essential git curl wget
+	else
+		sudo pacman -Sy --noconfirm base-devel yay gcc curl wget
+	fi
+}
 
 install_dependencies() {
+	install_essencials
+
   if is_ubuntu; then
     # System dependencies
     sudo apt update
-    sudo apt install -y build-essential git curl wget jq git-delta neovim fzf ripgrep bat zoxide git-filter-repo
-		# TODO: install peek
+    sudo apt install -y jq neovim fzf ripgrep bat zoxide
   else
     # System dependencies
-    sudo pacman -Sy --noconfirm base-devel yay gcc jq git-delta neovim fzf ripgrep bat zoxide git-filter-repo
+    sudo pacman -Sy --noconfirm jq neovim fzf ripgrep bat zoxide
   fi
 
 	install_homebrew
