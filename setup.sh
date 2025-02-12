@@ -6,6 +6,16 @@ is_windows() {
   fi
 }
 
+is_ubuntu() {
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ "$ID" == *"ubuntu"* ]]; then
+      return 0  # true
+    fi
+  fi
+  return 1  # false
+}
+
 install_LazyVim() {
   # Make a backup of your current Neovim files:
   ## required
@@ -28,7 +38,12 @@ install_oh_my_zsh() {
 }
 
 install_docker() {
-  sudo pacman -Sy --noconfirm docker docker-compose
+  if is_ubuntu; then
+    sudo apt update
+    sudo apt install -y docker.io docker-compose
+  else
+    sudo pacman -Sy --noconfirm docker docker-compose
+  fi
   sudo systemctl start docker.service
   sudo systemctl enable docker.service
   sudo usermod -aG docker $USER
@@ -57,7 +72,7 @@ install_npm_dependencies() {
 }
 
 install_font() {
-	if is_windows; then
+  if is_windows; then
     return
   fi
 
@@ -116,11 +131,21 @@ install_go_dependencies() {
 }
 
 install_dependencies() {
-  # System dependencies
-  sudo pacman -Sy --noconfirm base-devel yay gcc jq vlc peek git-delta neovim fzf ripgrep fd bat exa zoxide wezterm rofi git-filter-repo btop xclip obs-studio
-  # Fonts
-  sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
-  yay -S --noconfirm --needed lazygit-git visual-studio-code-bin snapd
+  if is_ubuntu; then
+    # System dependencies
+    sudo apt update
+    sudo apt install -y build-essential git curl wget jq vlc neovim fzf ripgrep fd-find bat exa zoxide wezterm rofi git-filter-repo btop xclip obs-studio
+    # Fonts
+    sudo apt install -y fonts-iosevka fonts-jetbrains-mono fonts-victor-mono fonts-dejavu fonts-cascadia-code
+    sudo snap install --classic code
+    sudo snap install lazygit
+  else
+    # System dependencies
+    sudo pacman -Sy --noconfirm base-devel yay gcc jq vlc peek git-delta neovim fzf ripgrep fd bat exa zoxide wezterm rofi git-filter-repo btop xclip obs-studio
+    # Fonts
+    sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
+    yay -S --noconfirm --needed lazygit-git visual-studio-code-bin snapd
+  fi
 
   # Go dependencies
   install_golang
