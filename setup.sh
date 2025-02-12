@@ -240,9 +240,9 @@ install_zsh() {
 
 install_essencials() {
 	if is_ubuntu; then
-		sudo apt install -y build-essential git curl wget
+		sudo apt install -y build-essential git curl wget unzip
 	else
-		sudo pacman -Sy --noconfirm base-devel yay gcc curl wget
+		sudo pacman -Sy --noconfirm base-devel yay gcc curl wget unzip
 	fi
 }
 
