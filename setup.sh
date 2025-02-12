@@ -184,7 +184,7 @@ install_dependencies() {
 
   # NPM dependencies
   install_nvm
-  install_npm_dependencies
+  # install_npm_dependencies
 }
 
 main() {
