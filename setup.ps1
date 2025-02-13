@@ -15,6 +15,7 @@ function Install-Espanso {
 
 	Remove-Item -Recurse -Force C:\Users\Guido\AppData\Roaming\espanso\
 	New-Item -ItemType SymbolicLink -Path C:\Users\Guido\AppData\Roaming\espanso\ -Target C:\Users\Guido\system-config\files\.config\espanso\
+	espanso restart
 }
 
 function Main {
