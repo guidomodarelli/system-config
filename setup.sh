@@ -70,8 +70,6 @@ install_aicommits() {
 }
 
 install_npm_dependencies() {
-  npm i -g yarn
-
   install_aicommits
 }
 
