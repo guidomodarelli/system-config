@@ -164,7 +164,8 @@ install_fonts() {
 	is_windows && return
 
 	if is_ubuntu; then
-		sudo apt install -y fonts-iosevka fonts-jetbrains-mono fonts-victor-mono fonts-dejavu fonts-cascadia-code
+		sudo apt install -y fonts-jetbrains-mono fonts-dejavu fonts-cascadia-code
+		# TODO: install Iosevka & Victor Mono
 	elif is_arch; then
 		sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
 	fi
