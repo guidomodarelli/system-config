@@ -335,6 +335,10 @@ install_utilities() {
 }
 
 install_all_dependencies() {
+	if is_ubuntu || is_windows; then
+		sudo apt update
+	fi
+
 	install_essencials
 	install_utilities
 
