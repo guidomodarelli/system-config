@@ -24,4 +24,15 @@ function Main {
 	Install-Espanso
 }
 
-Main
+if ($args.Count -gt 0) {
+	$functionName = $args[0]
+	if (Get-Command -Name $functionName -CommandType Function -ErrorAction SilentlyContinue) {
+		Write-Host "Invoking function: $functionName"
+		Invoke-Expression $functionName
+	} else {
+		Write-Host "Function "$functionName" does not exist."
+	}
+} else {
+	Write-Host "No arguments were passed. Running default functions."
+	Main
+}
