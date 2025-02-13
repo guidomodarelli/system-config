@@ -95,6 +95,8 @@ install_font_IosevkaTermCurly() {
 }
 
 install_espanso() {
+	is_windows && return
+
   # https://espanso.org/docs/install/linux/#appimage-x11
 
   # Create the $HOME/opt destination folder
@@ -131,6 +133,8 @@ install_go_dependencies() {
 }
 
 install_VsCode() {
+	is_windows && return
+
   if is_ubuntu; then
 		sudo snap install --classic code
 	else
@@ -139,6 +143,8 @@ install_VsCode() {
 }
 
 install_fonts() {
+	is_windows && return
+
 	if is_ubuntu; then
 		sudo apt install -y fonts-iosevka fonts-jetbrains-mono fonts-victor-mono fonts-dejavu fonts-cascadia-code
 	else
@@ -147,6 +153,8 @@ install_fonts() {
 }
 
 install_vlc() {
+	is_windows && return
+
 	if is_ubuntu; then
 		sudo apt install -y vlc
 	else
@@ -155,6 +163,8 @@ install_vlc() {
 }
 
 install_wezterm() {
+	is_windows && return
+
 	if is_ubuntu; then
 		sudo apt install -y wezterm
 	else
@@ -163,6 +173,8 @@ install_wezterm() {
 }
 
 install_rofi() {
+	is_windows && return
+
 	if is_ubuntu; then
 		sudo apt install -y rofi
 	else
@@ -171,6 +183,8 @@ install_rofi() {
 }
 
 install_obs_studio() {
+	is_windows && return
+
 	if is_ubuntu; then
 		sudo apt install -y obs-studio
 	else
@@ -179,6 +193,8 @@ install_obs_studio() {
 }
 
 install_peek() {
+	is_windows && return
+
 	if is_ubuntu; then
 		sudo apt install -y peek
 	else
@@ -193,6 +209,7 @@ install_user_interface_apps() {
 	install_obs_studio
 	install_peek
 	install_VsCode
+	install_espanso
 }
 
 install_exa() {
@@ -231,6 +248,8 @@ install_lazygit() {
 }
 
 install_btop() {
+	is_windows && return
+
 	if is_ubuntu; then
 		sudo apt install -y btop
 	else
@@ -239,6 +258,8 @@ install_btop() {
 }
 
 install_xclip() {
+	is_windows && return
+
 	if is_ubuntu; then
 		sudo apt install -y xclip
 	else
@@ -309,18 +330,19 @@ install_all_dependencies() {
 
 	# install_homebrew
 
-	if ! is_windows; then
-		install_user_interface_apps
-		install_fonts
-		install_btop
-		install_xclip
-		install_espanso
-	fi
-
+	install_user_interface_apps
+	install_fonts
+	install_btop
+	install_xclip
 	install_exa
 	install_fd_find
 	install_lazygit
 	install_git_dependencies
+	install_LazyVim
+  install_antigen
+  install_docker
+	install_zsh
+  install_oh_my_zsh
 
   # Go dependencies
   install_golang
@@ -333,13 +355,6 @@ install_all_dependencies() {
 
 main() {
   install_all_dependencies
-
-  # Custom installation
-  install_LazyVim
-  install_antigen
-  install_docker
-	install_zsh
-  install_oh_my_zsh
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
