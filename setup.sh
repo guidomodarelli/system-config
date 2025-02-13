@@ -134,8 +134,16 @@ install_golang() {
   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $FILE
 }
 
+go_install() {
+  local package="$1"
+  /usr/local/go/bin/go install "$package"
+}
+
 install_ghq() {
-  go install github.com/x-motemen/ghq@latest
+  go_install github.com/x-motemen/ghq@latest
+
+	mkdir -p $HOME/ghq/work
+	mkdir -p $HOME/ghq/projects
 }
 
 install_go_dependencies() {
