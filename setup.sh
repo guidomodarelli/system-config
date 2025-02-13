@@ -253,7 +253,7 @@ install_zsh() {
 
 install_essencials() {
 	if is_ubuntu; then
-		sudo apt install -y build-essential gcc curl wget unzip
+		sudo apt install -y build-essential gcc curl wget unzip python3.12-venv
 	else
 		sudo pacman -Sy --noconfirm yay base-devel gcc curl wget unzip
 	fi
