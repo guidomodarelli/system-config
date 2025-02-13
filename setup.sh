@@ -55,7 +55,7 @@ install_docker() {
   if is_ubuntu; then
     sudo apt update
     sudo apt install -y docker.io docker-compose
-  else
+  elif is_arch; then
     sudo pacman -Sy --noconfirm docker docker-compose
   fi
   sudo systemctl start docker.service
@@ -147,7 +147,7 @@ install_VsCode() {
 
   if is_ubuntu; then
 		sudo snap install --classic code
-	else
+	elif is_arch; then
 		yay -S --noconfirm --needed visual-studio-code-bin
 	fi
 }
@@ -157,7 +157,7 @@ install_fonts() {
 
 	if is_ubuntu; then
 		sudo apt install -y fonts-iosevka fonts-jetbrains-mono fonts-victor-mono fonts-dejavu fonts-cascadia-code
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
 	fi
 }
@@ -167,7 +167,7 @@ install_vlc() {
 
 	if is_ubuntu; then
 		sudo apt install -y vlc
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm vlc
 	fi
 }
@@ -177,7 +177,7 @@ install_wezterm() {
 
 	if is_ubuntu; then
 		sudo apt install -y wezterm
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm wezterm
 	fi
 }
@@ -187,7 +187,7 @@ install_rofi() {
 
 	if is_ubuntu; then
 		sudo apt install -y rofi
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm rofi
 	fi
 }
@@ -197,7 +197,7 @@ install_obs_studio() {
 
 	if is_ubuntu; then
 		sudo apt install -y obs-studio
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm obs-studio
 	fi
 }
@@ -207,7 +207,7 @@ install_peek() {
 
 	if is_ubuntu; then
 		sudo apt install -y peek
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm peek
 	fi
 }
@@ -228,7 +228,7 @@ install_exa() {
 		curl -Lo exa.zip "https://github.com/ogham/exa/releases/latest/download/exa-linux-x86_64-v${EXA_VERSION}.zip"
 		sudo unzip -q exa.zip bin/exa -d /usr/local
 		rm -rf exa.zip
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm exa
 	fi
 }
@@ -244,7 +244,7 @@ install_fd_find() {
 		if [ ! -f $LOCAL_BINARIES/fd ]; then
 			ln -s $(which fdfind) $LOCAL_BINARIES/fd
 		fi
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm fd
 	fi
 }
@@ -252,7 +252,7 @@ install_fd_find() {
 install_lazygit() {
 	if is_ubuntu; then
 		sudo snap install lazygit
-	else
+	elif is_arch; then
 		yay -S --noconfirm --needed lazygit-git
 	fi
 }
@@ -262,7 +262,7 @@ install_btop() {
 
 	if is_ubuntu; then
 		sudo apt install -y btop
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm btop
 	fi
 }
@@ -272,7 +272,7 @@ install_xclip() {
 
 	if is_ubuntu; then
 		sudo apt install -y xclip
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm xclip
 	fi
 }
@@ -280,7 +280,7 @@ install_xclip() {
 install_git_delta() {
 	if is_ubuntu; then
 		sudo apt install -y git-delta
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm git-delta
 	fi
 }
@@ -288,7 +288,7 @@ install_git_delta() {
 install_git_filter_repo() {
 	if is_ubuntu; then
 		sudo apt install -y git-filter-repo
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm git-filter-repo
 	fi
 }
@@ -296,7 +296,7 @@ install_git_filter_repo() {
 install_git() {
 	if is_ubuntu; then
 		sudo apt install -y git
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm git
 	fi
 }
@@ -311,7 +311,7 @@ install_git_dependencies() {
 install_zsh() {
 	if is_ubuntu; then
 		sudo apt install -y zsh
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm zsh
 	fi
 	chsh -s $(which zsh)
@@ -320,7 +320,7 @@ install_zsh() {
 install_essencials() {
 	if is_ubuntu; then
 		sudo apt install -y build-essential gcc curl wget unzip python3.12-venv
-	else
+	elif is_arch; then
 		sudo pacman -Sy --noconfirm yay base-devel gcc curl wget unzip
 	fi
 }
@@ -329,7 +329,7 @@ install_utilities() {
   if is_ubuntu; then
     sudo apt update
     sudo apt install -y jq neovim fzf ripgrep bat zoxide
-  else
+  elif is_arch; then
     sudo pacman -Sy --noconfirm jq neovim fzf ripgrep bat zoxide
   fi
 }
