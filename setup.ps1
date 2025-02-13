@@ -12,6 +12,9 @@ function Install-Fonts {
 
 function Install-Espanso {
 	choco install espanso --confirm --no-progress
+
+	Remove-Item -Recurse -Force C:\Users\Guido\AppData\Roaming\espanso\
+	New-Item -ItemType SymbolicLink -Path C:\Users\Guido\AppData\Roaming\espanso\ -Target C:\Users\Guido\system-config\files\.config\espanso\
 }
 
 function Main {
