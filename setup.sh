@@ -150,13 +150,52 @@ install_fonts() {
 	fi
 }
 
-install_user_interface_apps() {
+install_vlc() {
 	if is_ubuntu; then
-		sudo apt install -y vlc wezterm rofi obs-studio
+		sudo apt install -y vlc
 	else
-		sudo pacman -Sy --noconfirm vlc wezterm rofi obs-studio peek
+		sudo pacman -Sy --noconfirm vlc
 	fi
+}
 
+install_wezterm() {
+	if is_ubuntu; then
+		sudo apt install -y wezterm
+	else
+		sudo pacman -Sy --noconfirm wezterm
+	fi
+}
+
+install_rofi() {
+	if is_ubuntu; then
+		sudo apt install -y rofi
+	else
+		sudo pacman -Sy --noconfirm rofi
+	fi
+}
+
+install_obs_studio() {
+	if is_ubuntu; then
+		sudo apt install -y obs-studio
+	else
+		sudo pacman -Sy --noconfirm obs-studio
+	fi
+}
+
+install_peek() {
+	if is_ubuntu; then
+		sudo apt install -y peek
+	else
+		sudo pacman -Sy --noconfirm peek
+	fi
+}
+
+install_user_interface_apps() {
+	install_vlc
+	install_wezterm
+	install_rofi
+	install_obs_studio
+	install_peek
 	install_VsCode
 }
 
