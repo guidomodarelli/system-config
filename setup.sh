@@ -335,7 +335,7 @@ install_utilities() {
 }
 
 install_all_dependencies() {
-	if is_ubuntu || is_windows; then
+	if is_ubuntu; then
 		sudo apt update
 	fi
 
