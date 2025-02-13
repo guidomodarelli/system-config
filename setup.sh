@@ -364,6 +364,11 @@ install_all_dependencies() {
 }
 
 main() {
+	if ! is_ubuntu && ! is_arch && ! is_windows; then
+		echo "Unsupported OS"
+		exit 1
+	fi
+
   install_all_dependencies
 }
 
