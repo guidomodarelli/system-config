@@ -20,6 +20,16 @@ is_ubuntu() {
   return 1  # false
 }
 
+is_arch() {
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ "$ID" == *"arch"* ]]; then
+      return 0  # true
+    fi
+  fi
+  return 1  # false
+}
+
 install_LazyVim() {
   # Make a backup of your current Neovim files:
   ## required
