@@ -74,9 +74,7 @@ install_npm_dependencies() {
 }
 
 install_font() {
-  if is_windows; then
-    return
-  fi
+	is_windows && return
 
   local folderName="$1"
   local zipName="${folderName}.zip"
