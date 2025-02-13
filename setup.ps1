@@ -10,9 +10,14 @@ function Install-Fonts {
 	choco install jetbrainsmono --confirm --no-progress
 }
 
+function Install-Espanso {
+	choco install espanso --confirm --no-progress
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
+	Install-Espanso
 }
 
 Main
