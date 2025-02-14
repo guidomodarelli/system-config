@@ -8,6 +8,7 @@ function Install-Choco {
 
 function Install-Fonts {
 	choco install jetbrainsmono --confirm --no-progress
+	choco install nerd-fonts-iosevkaterm --confirm --no-progress
 }
 
 function Install-Espanso {
