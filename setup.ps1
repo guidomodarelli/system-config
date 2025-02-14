@@ -6,23 +6,30 @@ function Install-Choco {
     iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 }
 
-function Install-ChocoPackage {
+function Install-ChocoPackages {
 	param (
-		[string]$package
+		[string[]]$packages
 	)
-	choco install $package --confirm --no-progress
+	foreach ($package in $packages) {
+		choco install $package --confirm --no-progress
+	}
 }
 
 function Install-Fonts {
-	Install-ChocoPackage nerd-fonts-jetbrainsmono
-	Install-ChocoPackage nerd-fonts-iosevkaterm
-	Install-ChocoPackage nerd-fonts-cascadiamono
-	Install-ChocoPackage nerd-fonts-dejavusansmono
-	Install-ChocoPackage nerd-fonts-victormono
+	$fonts = @(
+		'nerd-fonts-jetbrainsmono',
+		'nerd-fonts-iosevkaterm',
+		'nerd-fonts-cascadiamono',
+		'nerd-fonts-dejavusansmono',
+		'nerd-fonts-victormono'
+	)
+	Install-ChocoPackages -packages $fonts
 }
 
 function Install-Espanso {
-	Install-ChocoPackage espanso
+	if (-Not (Get-Command espanso -ErrorAction SilentlyContinue)) {
+		Install-ChocoPackages -packages @('espanso')
+	}
 
 	Remove-Item -Recurse -Force C:\Users\Guido\AppData\Roaming\espanso\
 	New-Item -ItemType SymbolicLink -Path C:\Users\Guido\AppData\Roaming\espanso\ -Target C:\Users\Guido\system-config\files\.config\espanso\
