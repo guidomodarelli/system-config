@@ -2,8 +2,12 @@
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
 function Install-Choco {
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+	if (-Not (Test-Path 'C:\ProgramData\chocolatey\bin\choco.exe')) {
+		[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+		iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+	} else {
+		Write-Host "Chocolatey is already installed."
+	}
 }
 
 function Install-ChocoPackages {
