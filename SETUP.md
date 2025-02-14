@@ -52,9 +52,9 @@ El script incluye las siguientes funciones:
 surtan efecto, como `install_docker`.
 - Asegúrate de tener permisos de ejecución para el script:
 
-	```bash
-	chmod +x setup.sh
-	```
+```bash
+chmod +x setup.sh
+```
 
 ## Autocompletado
 
