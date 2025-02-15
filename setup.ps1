@@ -109,6 +109,10 @@ function Install-Fzf {
 	winget install -e --id junegunn.fzf
 }
 
+function Install-RipGrep {
+	winget install -e --id BurntSushi.ripgrep.GNU
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -127,6 +131,7 @@ function Main {
 	Install-Jq
 	Install-Curl
 	Install-Fzf
+	Install-RipGrep
 }
 
 if ($args.Count -gt 0) {
