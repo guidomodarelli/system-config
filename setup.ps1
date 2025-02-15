@@ -61,6 +61,10 @@ function Install-PeekScreenRecorder {
 	winget install -e --id XP8CD3D3Q50MS2
 }
 
+function Install-Lazygit {
+	winget install -e --id JesseDuffield.lazygit
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -70,6 +74,7 @@ function Main {
 	Install-Vlc
 	Install-ObsStudio
 	Install-PeekScreenRecorder
+	Install-Lazygit
 }
 
 if ($args.Count -gt 0) {
