@@ -1,13 +1,24 @@
 # Script de Configuración
 
-Este script `setup.sh` está diseñado para automatizar la instalación y
-configuración de varias herramientas y dependencias en un sistema basado en Arch
-Linux.
+Estos scripts están diseñados para automatizar la instalación y configuración de
+diversas herramientas y dependencias del sistema, facilitando así el proceso de
+configuración inicial y asegurando que todas las aplicaciones necesarias estén
+disponibles y correctamente configuradas.
 
 ## Uso en Linux
 
 Puedes ejecutar el script completo o llamar a funciones específicas desde la
 terminal.
+
+### Consideraciones
+
+- Algunas funciones pueden requerir un reinicio del sistema para que los cambios
+  surtan efecto, como `install_docker`.
+- Asegúrate de tener permisos de ejecución para el script:
+
+```bash
+chmod +x setup.sh
+```
 
 ### Ejecutar el script completo
 
@@ -68,16 +79,6 @@ El script incluye las siguientes funciones:
 - `install_utilities`: Instala utilidades varias.
 - `main`: Punto de entrada de la aplicación.
 
-### Notas
-
-- Algunas funciones pueden requerir un reinicio del sistema para que los cambios
-  surtan efecto, como `install_docker`.
-- Asegúrate de tener permisos de ejecución para el script:
-
-```bash
-chmod +x setup.sh
-```
-
 ### Autocompletado
 
 El script incluye soporte para autocompletado en `zsh`. Para habilitar el
@@ -96,12 +97,20 @@ Para los usuarios de Windows, se proporciona un script `setup.ps1` que
 automatiza la instalación de varias herramientas y dependencias utilizando
 Chocolatey.
 
+### Consideraciones
+
+- Asegúrate de ejecutar PowerShell como Administrador.
+
 ### Ejecutar el script completo
 
-Para ejecutar el script completo, abre PowerShell como Administrador y ejecuta:
+Para ejecutar el script completo, simplemente ejecuta:
 
-```ps1
+```bat
 .\setup.bat
+
+# or
+
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
 ### Ejecutar una función específica
@@ -109,8 +118,12 @@ Para ejecutar el script completo, abre PowerShell como Administrador y ejecuta:
 Para ejecutar una función específica, usa el nombre de la función como
 argumento. Por ejemplo, para instalar Chocolatey, ejecuta:
 
-```ps1
-.\setup.ps1 Install-Choco
+```bat
+.\setup.bat Install-Choco
+
+# or
+
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 Install-Choco
 ```
 
 ### Funciones Disponibles
