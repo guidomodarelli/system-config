@@ -116,6 +116,10 @@ function Install-Bitwarden {
 	winget install -e --id Bitwarden.Bitwarden
 }
 
+function Install-Bat {
+	winget install -e --id sharkdp.bat
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -136,6 +140,7 @@ function Main {
 	Install-Fzf
 	Install-RipGrep
 	Install-Bitwarden
+	Install-Bat
 }
 
 if ($args.Count -gt 0) {
