@@ -93,6 +93,10 @@ function Install-FdFind {
 	winget install -e --id sharkdp.fd
 }
 
+function Install-Btop {
+	winget install -e --id aristocratos.btop4win
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -107,6 +111,7 @@ function Main {
 	Install-NeoVim
 	Install-LazyVim
 	Install-FdFind
+	Install-Btop
 }
 
 if ($args.Count -gt 0) {
