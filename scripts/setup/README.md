@@ -66,7 +66,6 @@ El script incluye las siguientes funciones:
 - `install_zsh`: Instala Zsh.
 - `install_essencials`: Instala herramientas esenciales.
 - `install_utilities`: Instala utilidades varias.
-- `install_all_dependencies`: Instala todas las dependencias del sistema.
 - `main`: Punto de entrada de la aplicación.
 
 ### Notas
