@@ -89,6 +89,10 @@ function Install-NeoVim {
 	winget install -e --id Neovim.Neovim
 }
 
+function Install-FdFind {
+	winget install -e --id sharkdp.fd
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -102,6 +106,7 @@ function Main {
 	Install-GitDelta
 	Install-NeoVim
 	Install-LazyVim
+	Install-FdFind
 }
 
 if ($args.Count -gt 0) {
