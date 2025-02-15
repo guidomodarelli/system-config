@@ -57,6 +57,10 @@ function Install-ObsStudio {
 	winget install -e --id OBSProject.OBSStudio
 }
 
+function Install-PeekScreenRecorder {
+	winget install -e --id XP8CD3D3Q50MS2
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -65,6 +69,7 @@ function Main {
 	Install-VsCode
 	Install-Vlc
 	Install-ObsStudio
+	Install-PeekScreenRecorder
 }
 
 if ($args.Count -gt 0) {
