@@ -365,7 +365,7 @@ install_all_dependencies() {
 	install_fonts
 	install_btop
 	install_xclip
-	install_eza
+	install_exa
 	install_fd_find
 	install_lazygit
 	install_git_dependencies
