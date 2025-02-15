@@ -15,7 +15,11 @@ function Install-ChocoPackages {
 		[string[]]$packages
 	)
 	foreach ($package in $packages) {
-		choco install $package --confirm --no-progress
+		if (choco list | Select-String -Pattern $package) {
+			choco upgrade $package --confirm --no-progress
+		} else {
+			choco install $package --confirm --no-progress
+		}
 	}
 }
 
@@ -125,7 +129,12 @@ function Install-Eza {
 	winget install -e --id eza-community.eza
 }
 
+function Install-WSL {
+	wsl --install
+}
+
 function Main {
+	Install-WSL
 	Install-Choco
 	Install-Fonts
 	Install-Espanso
