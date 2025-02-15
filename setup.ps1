@@ -101,6 +101,10 @@ function Install-Jq {
 	winget install -e --id jqlang.jq
 }
 
+function Install-Curl {
+	winget install -e --id cURL.cURL
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -117,6 +121,7 @@ function Main {
 	Install-FdFind
 	Install-Btop
 	Install-Jq
+	Install-Curl
 }
 
 if ($args.Count -gt 0) {
