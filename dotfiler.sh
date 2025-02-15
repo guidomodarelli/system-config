@@ -1,10 +1,10 @@
 #!/bin/bash
 
 isDarwin() {
-	if [[ $(uname) = "Darwin" ]]; then
-		return 0
+	if [ "$(uname)" = "Darwin" ]; then
+		return 0 # true
 	fi
-	return 1
+	return 1 # false
 }
 
 printRed() {
@@ -17,8 +17,7 @@ printInfo() {
 
 _ls() {
 	local col=7
-	isDarwin
-	if [[ $? = 0 ]]; then
+	if isDarwin; then
 		col=10
 	fi
 	ls -gG "$1" | cut -d' ' -f$col-
@@ -66,8 +65,7 @@ create_symbolic_link() {
 
 main() {
 	local files="$(cat listfiles)"
-	isDarwin
-	if [[ $? = 0 ]]; then
+	if isDarwin; then
 		files="$(cat listfiles.darwin)"
 		# https://stackoverflow.com/a/13785716
 		sudo chmod -R 755 /usr/local/share
