@@ -4,12 +4,13 @@ import pathlib
 
 def main():
 	try:
+		script_dir = pathlib.Path("scripts/setup")
 		system = platform.system()
 		if system == "Windows":
-			script_path = pathlib.Path("scripts/setup/setup.ps1")
+			script_path = script_dir / "setup.ps1"
 			subprocess.call(["powershell", "-ExecutionPolicy", "Bypass", "-Command", str(script_path.absolute())])
 		elif system == "Linux":
-			script_path = pathlib.Path("scripts/setup/setup.sh")
+			script_path = script_dir / "setup.sh"
 			subprocess.call([str(script_path.absolute())])
 		else:
 			print(f"Unsupported operating system: {system}")
