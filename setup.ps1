@@ -88,6 +88,10 @@ function Install-LazyVim {
 	# Backup existing Neovim directory
 	Write-InfoMessage "Checking for existing Neovim directory..."
 	if (Test-Path $env:LOCALAPPDATA\nvim) {
+		if (Test-Path $env:LOCALAPPDATA\nvim.bak) {
+			Remove-Item -Recurse -Force $env:LOCALAPPDATA\nvim.bak
+			Write-InfoMessage "Existing nvim.bak has been removed."
+		}
 		# required
 		Move-Item $env:LOCALAPPDATA\nvim $env:LOCALAPPDATA\nvim.bak
 		Write-SuccessMessage "Existing Neovim directory has been backed up."
@@ -96,6 +100,10 @@ function Install-LazyVim {
 	# Backup existing Neovim data directory
 	Write-InfoMessage "Checking for existing Neovim data directory..."
 	if (Test-Path $env:LOCALAPPDATA\nvim-data) {
+		if (Test-Path $env:LOCALAPPDATA\nvim-data.bak) {
+			Remove-Item -Recurse -Force $env:LOCALAPPDATA\nvim-data.bak
+			Write-InfoMessage "Existing nvim-data.bak has been removed."
+		}
 		# optional but recommended
 		Move-Item $env:LOCALAPPDATA\nvim-data $env:LOCALAPPDATA\nvim-data.bak
 		Write-SuccessMessage "Existing Neovim data directory has been backed up."
