@@ -120,6 +120,10 @@ function Install-Bat {
 	winget install -e --id sharkdp.bat
 }
 
+function Install-Eza {
+	winget install -e --id eza-community.eza
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -141,6 +145,7 @@ function Main {
 	Install-RipGrep
 	Install-Bitwarden
 	Install-Bat
+	Install-Eza
 }
 
 if ($args.Count -gt 0) {
