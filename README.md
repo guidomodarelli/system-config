@@ -28,7 +28,7 @@ git submodule update --init --recursive
 
 En Linux y Windows:
 
-1. **Lee `SETUP.md`** _(ubicado en `scripts/setup`)_: Antes de proceder con la
+1. **Lee [`SETUP.md`](./scripts/setup/SETUP.md)**: Antes de proceder con la
    instalación, asegúrate de leer el archivo `SETUP.md`. Contiene instrucciones
    detalladas sobre cómo usar el script de configuración, incluyendo cómo
    ejecutar el script completo o funciones específicas.
