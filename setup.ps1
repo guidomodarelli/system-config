@@ -97,6 +97,10 @@ function Install-Btop {
 	winget install -e --id aristocratos.btop4win
 }
 
+function Install-Jq {
+	winget install -e --id jqlang.jq
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -112,6 +116,7 @@ function Main {
 	Install-LazyVim
 	Install-FdFind
 	Install-Btop
+	Install-Jq
 }
 
 if ($args.Count -gt 0) {
