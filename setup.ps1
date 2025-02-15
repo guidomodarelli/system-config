@@ -49,12 +49,17 @@ function Install-VsCode {
 	winget install -e --id Microsoft.VisualStudioCode
 }
 
+function Install-Vlc {
+	winget install -e --id VideoLAN.VLC
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
 	Install-Espanso
 	Install-Git
 	Install-VsCode
+	Install-Vlc
 }
 
 if ($args.Count -gt 0) {
