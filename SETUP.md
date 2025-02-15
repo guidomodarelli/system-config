@@ -42,9 +42,29 @@ El script incluye las siguientes funciones:
 - `install_golang`: Instala Go (Golang).
 - `install_ghq`: Instala GHQ, una herramienta de gestión de repositorios.
 - `install_go_dependencies`: Instala dependencias de Go.
-- `install_dependencies`: Instala todas las dependencias del sistema.
-- `main`: Función principal que llama a install_dependencies y otras funciones
-  de instalación personalizadas.
+- `install_VsCode`: Instala Visual Studio Code.
+- `install_fonts`: Instala varias fuentes.
+- `install_vlc`: Instala VLC Media Player.
+- `install_wezterm`: Instala WezTerm.
+- `install_rofi`: Instala Rofi.
+- `install_obs_studio`: Instala OBS Studio.
+- `install_peek`: Instala Peek.
+- `install_user_interface_apps`: Instala varias aplicaciones de interfaz de usuario.
+- `install_exa`: Instala Exa.
+- `install_homebrew`: Instala Homebrew.
+- `install_fd_find`: Instala fd (find alternative).
+- `install_lazygit`: Instala LazyGit.
+- `install_btop`: Instala Btop.
+- `install_xclip`: Instala Xclip.
+- `install_git_delta`: Instala Git Delta.
+- `install_git_filter_repo`: Instala Git Filter Repo.
+- `install_git`: Instala Git.
+- `install_git_dependencies`: Instala dependencias de Git.
+- `install_zsh`: Instala Zsh.
+- `install_essencials`: Instala herramientas esenciales.
+- `install_utilities`: Instala utilidades varias.
+- `install_all_dependencies`: Instala todas las dependencias del sistema.
+- `main`: Punto de entrada de la aplicación.
 
 ## Notas
 
