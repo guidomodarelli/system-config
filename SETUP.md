@@ -87,3 +87,33 @@ carga correctamente en tu configuración de `zsh`.
 fpath+=~/.zsh/completions
 autoload -Uz compinit && compinit
 ```
+## Instrucciones para Windows
+
+Para los usuarios de Windows, se proporciona un script `setup.ps1` que automatiza la instalación de varias herramientas y dependencias utilizando Chocolatey.
+
+### Ejecutar el script completo
+
+Para ejecutar el script completo, abre PowerShell como Administrador y ejecuta:
+
+```ps1
+.\setup.bat
+```
+
+### Ejecutar una función específica
+
+Para ejecutar una función específica, usa el nombre de la función como argumento.
+Por ejemplo, para instalar Chocolatey, ejecuta:
+
+```ps1
+.\setup.ps1 Install-Choco
+```
+
+### Funciones Disponibles
+
+El script incluye las siguientes funciones:
+
+`Install-Choco`: Instala Chocolatey.
+`Install-ChocoPackages`: Instala paquetes de Chocolatey.
+`Install-Fonts`: Instala varias fuentes.
+`Install-Espanso`: Instala Espanso, un expansor de texto.
+`Main`: Función principal que llama a las funciones de instalación personalizadas.
