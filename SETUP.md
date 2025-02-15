@@ -122,5 +122,22 @@ El script incluye las siguientes funciones:
 - `Install-ChocoPackages`: Instala paquetes de Chocolatey.
 - `Install-Fonts`: Instala varias fuentes.
 - `Install-Espanso`: Instala Espanso, un expansor de texto.
-- `Main`: Función principal que llama a las funciones de instalación
-  personalizadas.
+- `Install-LazyVim`: Instala y configura LazyVim.
+- `Install-Git`: Instala Git.
+- `Install-VsCode`: Instala Visual Studio Code.
+- `Install-Vlc`: Instala VLC Media Player.
+- `Install-ObsStudio`: Instala OBS Studio.
+- `Install-PeekScreenRecorder`: Instala Peek Screen Recorder.
+- `Install-Lazygit`: Instala LazyGit.
+- `Install-GitDelta`: Instala Git Delta.
+- `Install-NeoVim`: Instala NeoVim.
+- `Install-FdFind`: Instala fd (find alternative).
+- `Install-Btop`: Instala Btop.
+- `Install-Jq`: Instala jq.
+- `Install-Curl`: Instala cURL.
+- `Install-Fzf`: Instala fzf.
+- `Install-RipGrep`: Instala RipGrep.
+- `Install-Bitwarden`: Instala Bitwarden.
+- `Install-Bat`: Instala Bat.
+- `Install-Eza`: Instala Eza.
+- `Main`: Función principal que llama a las funciones de instalación personalizadas.
