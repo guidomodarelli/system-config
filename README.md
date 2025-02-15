@@ -9,7 +9,7 @@ configuración.
 Antes de comenzar con la instalación, asegúrate de cumplir con los siguientes
 requisitos:
 
-- **Sistema operativo**: Linux (preferiblemente basado en Arch) o Windows.
+- **Sistema operativo**: Linux (basado en Arch o en Ubuntu) o Windows.
 - **Privilegios de administrador**: Necesarios para ejecutar ciertos comandos y
   scripts.
 - **Conexión a Internet**: Para descargar dependencias y herramientas
@@ -35,7 +35,7 @@ En Linux:
 
 2. Ejecuta el script de configuración: Ejecuta el script de configuración para
    instalar y configurar varias herramientas y dependencias. Este script está
-   diseñado para sistemas basados en Arch Linux.
+   diseñado para sistemas basados en Arch Linux o Ubuntu.
 
 	```bash
 	./setup.sh
