@@ -351,7 +351,7 @@ install_utilities() {
   fi
 }
 
-install_all_dependencies() {
+main() {
 	if is_ubuntu; then
 		sudo apt update
 	fi
@@ -384,14 +384,10 @@ install_all_dependencies() {
   # install_npm_dependencies
 }
 
-main() {
-	if ! is_ubuntu && ! is_arch; then
-		echo "Unsupported OS"
-		exit 1
-	fi
-
-  install_all_dependencies
-}
+if ! is_ubuntu && ! is_arch; then
+	echo "Unsupported OS"
+	exit 1
+fi
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   if [[ -n "$1" ]]; then
