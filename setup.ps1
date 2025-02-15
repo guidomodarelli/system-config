@@ -92,72 +92,72 @@ function Install-LazyVim {
 }
 
 function Install-Git {
-	winget install -e --id Git.Git
+	Install-WingetPackages Git.Git
 }
 
 function Install-VsCode {
-	winget install -e --id Microsoft.VisualStudioCode
+	Install-WingetPackages Microsoft.VisualStudioCode
 }
 
 function Install-Vlc {
-	winget install -e --id VideoLAN.VLC
+	Install-WingetPackages VideoLAN.VLC
 }
 
 function Install-ObsStudio {
-	winget install -e --id OBSProject.OBSStudio
+	Install-WingetPackages OBSProject.OBSStudio
 }
 
 function Install-PeekScreenRecorder {
-	winget install -e --id XP8CD3D3Q50MS2
+	Install-WingetPackages XP8CD3D3Q50MS2
 }
 
 function Install-Lazygit {
-	winget install -e --id JesseDuffield.lazygit
+	Install-WingetPackages JesseDuffield.lazygit
 }
 
 function Install-GitDelta {
-	winget install -e --id dandavison.delta
+	Install-WingetPackages dandavison.delta
 }
 
 function Install-NeoVim {
-	winget install -e --id Neovim.Neovim
+	Install-WingetPackages Neovim.Neovim
 }
 
 function Install-FdFind {
-	winget install -e --id sharkdp.fd
+	Install-WingetPackages sharkdp.fd
 }
 
 function Install-Btop {
-	winget install -e --id aristocratos.btop4win
+	Install-WingetPackages aristocratos.btop4win
 }
 
 function Install-Jq {
-	winget install -e --id jqlang.jq
+	Install-WingetPackages jqlang.jq
 }
 
 function Install-Curl {
-	winget install -e --id cURL.cURL
+	Install-WingetPackages cURL.cURL
 }
 
 function Install-Fzf {
-	winget install -e --id junegunn.fzf
+	Install-WingetPackages junegunn.fzf
 }
 
 function Install-RipGrep {
-	winget install -e --id BurntSushi.ripgrep.GNU
+	Install-WingetPackages BurntSushi.ripgrep.GNU
 }
 
 function Install-Bitwarden {
-	winget install -e --id Bitwarden.Bitwarden
+	Install-WingetPackages Bitwarden.Bitwarden
 }
 
 function Install-Bat {
-	winget install -e --id sharkdp.bat
+	Install-WingetPackages sharkdp.bat
 }
 
 function Install-Eza {
 	# https://eza.rocks/
-	winget install -e --id eza-community.eza
+	Install-WingetPackages eza-community.eza
 }
 
 function Install-WSL {
