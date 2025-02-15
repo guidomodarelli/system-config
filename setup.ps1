@@ -113,6 +113,10 @@ function Install-RipGrep {
 	winget install -e --id BurntSushi.ripgrep.GNU
 }
 
+function Install-Bitwarden {
+	winget install -e --id Bitwarden.Bitwarden
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -132,6 +136,7 @@ function Main {
 	Install-Curl
 	Install-Fzf
 	Install-RipGrep
+	Install-Bitwarden
 }
 
 if ($args.Count -gt 0) {
