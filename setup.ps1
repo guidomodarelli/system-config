@@ -161,7 +161,11 @@ function Install-Eza {
 }
 
 function Install-WSL {
-	wsl --install
+	if (wsl --list --quiet) {
+		Write-InfoMessage "WSL is already installed."
+	} else {
+		wsl --install
+	}
 }
 
 function Main {
