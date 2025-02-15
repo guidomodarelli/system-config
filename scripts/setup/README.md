@@ -139,5 +139,7 @@ El script incluye las siguientes funciones:
 - `Install-Bitwarden`: Instala Bitwarden.
 - `Install-Bat`: Instala Bat.
 - `Install-Eza`: Instala Eza.
+- `Install-WSL`: Instala el Subsistema de Windows para Linux.
+- `Install-Python`: Instala Python.
 - `Main`: Función principal que llama a las funciones de instalación
   personalizadas.
