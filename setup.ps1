@@ -43,14 +43,10 @@ function Install-WingetPackages {
 		[string[]]$appIds
 	)
 	foreach ($appId in $appIds) {
-		$appName = (winget show $appId | Select-String -Pattern 'Name' | ForEach-Object { $_.Line.Split(':')[1].Trim() })
-		if (winget show $appId) {
-			Write-InfoMessage "The package $appName is already installed. Upgrading..."
-			winget upgrade -e --id $appId
-		} else {
-			Write-InfoMessage "Installing the package $appName..."
-			winget install -e --id $appId
-		}
+		$appName = (winget search -e --id $appId | Select-Object -Last 1 | ForEach-Object { $_.Split(" ")[0] })
+		Write-InfoMessage "Installing the package '$appName'..."
+		winget install -e --id $appId
+		Write-SuccessMessage "The package '$appName' has been installed successfully."
 	}
 }
 
