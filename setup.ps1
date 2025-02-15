@@ -29,8 +29,10 @@ function Install-ChocoPackages {
 	)
 	foreach ($package in $packages) {
 		if (choco list | Select-String -Pattern $package) {
+			Write-InfoMessage "The package $package is already installed. Upgrading..."
 			choco upgrade $package --confirm --no-progress
 		} else {
+			Write-InfoMessage "Installing the package $package..."
 			choco install $package --confirm --no-progress
 		}
 	}
