@@ -242,6 +242,14 @@ install_exa() {
 	fi
 }
 
+install_eza() {
+	if is_ubuntu; then
+		sudo apt install -y eza
+	elif is_arch; then
+		yay -S --noconfirm --needed eza
+	fi
+}
+
 install_homebrew() {
 	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
@@ -357,7 +365,7 @@ install_all_dependencies() {
 	install_fonts
 	install_btop
 	install_xclip
-	install_exa
+	install_eza
 	install_fd_find
 	install_lazygit
 	install_git_dependencies
