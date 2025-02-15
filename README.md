@@ -1,47 +1,45 @@
-# System config
+# Configuración del sistema
 
-Repository designed to configure your system effortlessly, thanks to our comprehensive collection of resources that simplify the entire setup process.
+Este repositorio está diseñado para configurar tu sistema sin esfuerzo, gracias a nuestra completa colección de recursos que simplifican todo el proceso de configuración.
 
-## Requirements
+## Requisitos
 
-To ensure that all submodules are initialized and updated, run the following command:
+Antes de comenzar con la instalación, asegúrate de cumplir con los siguientes requisitos:
+
+- **Sistema operativo**: Linux (preferiblemente basado en Arch) o Windows.
+- **Privilegios de administrador**: Necesarios para ejecutar ciertos comandos y scripts.
+- **Conexión a Internet**: Para descargar dependencias y herramientas necesarias.
+- **Git**: Asegúrate de tener Git instalado para clonar el repositorio y actualizar los submódulos.
+
+Para asegurarte de que todos los submódulos estén inicializados y actualizados, ejecuta el siguiente comando:
 
 ```sh
 git submodule update --init --recursive
 ```
 
-## Installation
+## Instalación
 
-In Linux:
+En Linux:
 
-1. Read `SETUP.md`: Before proceeding with the installation, make sure to read
-   the `SETUP.md` file. It contains detailed instructions on how to use the
-   setup `script`, including how to run the entire script or specific functions.
+1. Lee `SETUP.md`: Antes de proceder con la instalación, asegúrate de leer el archivo `SETUP.md`. Contiene instrucciones detalladas sobre cómo usar el script de configuración, incluyendo cómo ejecutar el script completo o funciones específicas.
 
-2. Run the setup `script`: Execute the setup script to install and configure
-   various tools and dependencies. This script is designed for Arch Linux-based
-   systems.
+2. Ejecuta el script de configuración: Ejecuta el script de configuración para instalar y configurar varias herramientas y dependencias. Este script está diseñado para sistemas basados en Arch Linux.
 
 	```bash
 	./setup.sh
 	```
 
-3. Run `dotfiler.sh`: After running the setup script, execute the `dotfiler.sh`
-   script to set up your dotfiles and other configurations.
+3. Ejecuta `dotfiler.sh`: Después de ejecutar el script de configuración, ejecuta el script `dotfiler.sh` para configurar tus dotfiles y otras configuraciones.
 
 	```sh
 	./dotfiler.sh
 	```
 
-In Windows:
+En Windows:
 
-1. Read `SETUP.md`: Before proceeding with the installation, make sure to read
-   the `SETUP.md` file. It contains detailed instructions on how to use the
-   setup script, including how to run the entire script or specific functions.
+1. Lee `SETUP.md`: Antes de proceder con la instalación, asegúrate de leer el archivo `SETUP.md`. Contiene instrucciones detalladas sobre cómo usar el script de configuración, incluyendo cómo ejecutar el script completo o funciones específicas.
 
-2. Run the setup `script`: Open PowerShell as Administrator and execute the
-   setup.bat `script` to install and configure various tools and dependencies
-   using Chocolatey.
+2. Ejecuta el script de configuración: Abre PowerShell como Administrador y ejecuta el script `setup.bat` para instalar y configurar varias herramientas y dependencias usando Chocolatey.
 
 	```ps1
 	.\setup.bat
