@@ -132,6 +132,7 @@ install_golang() {
   local FILE="go${GO_VERSION}.linux-amd64.tar.gz"
   curl -LO https://go.dev/dl/$FILE
   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $FILE
+	rm -rf $FILE
 }
 
 go_install() {
