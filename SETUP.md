@@ -1,4 +1,4 @@
-# Setup Script
+# Script de Configuración
 
 Este script `setup.sh` está diseñado para automatizar la instalación y
 configuración de varias herramientas y dependencias en un sistema basado en Arch
