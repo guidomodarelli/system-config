@@ -4,7 +4,7 @@ Este script `setup.sh` está diseñado para automatizar la instalación y
 configuración de varias herramientas y dependencias en un sistema basado en Arch
 Linux.
 
-## Uso
+## Uso en Linux
 
 Puedes ejecutar el script completo o llamar a funciones específicas desde la terminal.
 
@@ -66,17 +66,17 @@ El script incluye las siguientes funciones:
 - `install_all_dependencies`: Instala todas las dependencias del sistema.
 - `main`: Punto de entrada de la aplicación.
 
-## Notas
+### Notas
 
 - Algunas funciones pueden requerir un reinicio del sistema para que los cambios
-surtan efecto, como `install_docker`.
+  surtan efecto, como `install_docker`.
 - Asegúrate de tener permisos de ejecución para el script:
 
 ```bash
 chmod +x setup.sh
 ```
 
-## Autocompletado
+### Autocompletado
 
 El script incluye soporte para autocompletado en `zsh`. Para habilitar el
 autocompletado, asegúrate de que el archivo de autocompletado se genera y se
@@ -87,6 +87,7 @@ carga correctamente en tu configuración de `zsh`.
 fpath+=~/.zsh/completions
 autoload -Uz compinit && compinit
 ```
+
 ## Instrucciones para Windows
 
 Para los usuarios de Windows, se proporciona un script `setup.ps1` que automatiza la instalación de varias herramientas y dependencias utilizando Chocolatey.
@@ -101,8 +102,8 @@ Para ejecutar el script completo, abre PowerShell como Administrador y ejecuta:
 
 ### Ejecutar una función específica
 
-Para ejecutar una función específica, usa el nombre de la función como argumento.
-Por ejemplo, para instalar Chocolatey, ejecuta:
+Para ejecutar una función específica, usa el nombre de la función como
+argumento. Por ejemplo, para instalar Chocolatey, ejecuta:
 
 ```ps1
 .\setup.ps1 Install-Choco
@@ -112,8 +113,8 @@ Por ejemplo, para instalar Chocolatey, ejecuta:
 
 El script incluye las siguientes funciones:
 
-`Install-Choco`: Instala Chocolatey.
-`Install-ChocoPackages`: Instala paquetes de Chocolatey.
-`Install-Fonts`: Instala varias fuentes.
-`Install-Espanso`: Instala Espanso, un expansor de texto.
-`Main`: Función principal que llama a las funciones de instalación personalizadas.
+- `Install-Choco`: Instala Chocolatey.
+- `Install-ChocoPackages`: Instala paquetes de Chocolatey.
+- `Install-Fonts`: Instala varias fuentes.
+- `Install-Espanso`: Instala Espanso, un expansor de texto.
+- `Main`: Función principal que llama a las funciones de instalación personalizadas.
