@@ -105,6 +105,10 @@ function Install-Curl {
 	winget install -e --id cURL.cURL
 }
 
+function Install-Fzf {
+	winget install -e --id junegunn.fzf
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -122,6 +126,7 @@ function Main {
 	Install-Btop
 	Install-Jq
 	Install-Curl
+	Install-Fzf
 }
 
 if ($args.Count -gt 0) {
