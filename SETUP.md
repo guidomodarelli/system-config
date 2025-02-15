@@ -140,4 +140,5 @@ El script incluye las siguientes funciones:
 - `Install-Bitwarden`: Instala Bitwarden.
 - `Install-Bat`: Instala Bat.
 - `Install-Eza`: Instala Eza.
-- `Main`: Función principal que llama a las funciones de instalación personalizadas.
+- `Main`: Función principal que llama a las funciones de instalación
+  personalizadas.
