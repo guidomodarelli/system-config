@@ -26,40 +26,26 @@ git submodule update --init --recursive
 
 ## Instalación
 
-En Linux:
+En Linux y Windows:
 
-1. Lee `SETUP.md`: Antes de proceder con la instalación, asegúrate de leer el
-   archivo `SETUP.md`. Contiene instrucciones detalladas sobre cómo usar el
-   script de configuración, incluyendo cómo ejecutar el script completo o
-   funciones específicas.
+1. Lee `SETUP.md` (ubicado en `scripts/setup`): Antes de proceder con la
+   instalación, asegúrate de leer el archivo `SETUP.md`. Contiene instrucciones
+   detalladas sobre cómo usar el script de configuración, incluyendo cómo
+   ejecutar el script completo o funciones específicas.
 
-2. Ejecuta el script de configuración: Ejecuta el script de configuración para
-   instalar y configurar varias herramientas y dependencias. Este script está
-   diseñado para sistemas basados en Arch Linux o Ubuntu.
+2. Ejecuta el script de configuración: Ejecuta el script `setup.py`. Este script
+   detectará automáticamente si estás en un sistema Linux o Windows y procederá
+   con la instalación y configuración de las herramientas y dependencias
+   necesarias.
 
-	```bash
-	./setup.sh
+	```sh
+	python3 setup.py
 	```
 
-3. Ejecuta `dotfiler.sh`: Después de ejecutar el script de configuración,
-   ejecuta el script `dotfiler.sh` para configurar tus dotfiles y otras
-   configuraciones.
+3. Ejecuta `dotfiler.sh` (solo en Linux): Después de ejecutar el script de
+   configuración en Linux, ejecuta el script `dotfiler.sh` para configurar tus
+   dotfiles y otras configuraciones.
 
 	```sh
 	./dotfiler.sh
-	```
-
-En Windows:
-
-1. Lee `SETUP.md`: Antes de proceder con la instalación, asegúrate de leer el
-   archivo `SETUP.md`. Contiene instrucciones detalladas sobre cómo usar el
-   script de configuración, incluyendo cómo ejecutar el script completo o
-   funciones específicas.
-
-2. Ejecuta el script de configuración: Abre PowerShell como Administrador y
-   ejecuta el script `setup.bat` para instalar y configurar varias herramientas
-   y dependencias usando Chocolatey.
-
-	```ps1
-	.\setup.bat
 	```
