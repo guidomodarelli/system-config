@@ -18,6 +18,7 @@ function Install-Choco {
 	if (-Not (Test-Path 'C:\ProgramData\chocolatey\bin\choco.exe')) {
 		[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
 		iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+		Write-SuccessMessage "Chocolatey has been installed successfully."
 	} else {
 		Write-InfoMessage "Chocolatey is already installed."
 	}
