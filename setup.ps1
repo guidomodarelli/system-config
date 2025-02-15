@@ -194,19 +194,19 @@ function Main {
 }
 
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-	Write-ErrorMessage "Por favor, ejecute este script como Administrador."
+	Write-ErrorMessage "Please run this script as Administrator."
 	exit
 }
 
 if ($args.Count -gt 0) {
 	$functionName = $args[0]
 	if (Get-Command -Name $functionName -CommandType Function -ErrorAction SilentlyContinue) {
-		Write-Host "Invoking function: $functionName"
+		Write-InfoMessage "Invoking function: $functionName"
 		Invoke-Expression $functionName
 	} else {
-		Write-Host "Function "$functionName" does not exist."
+		Write-InfoMessage "Function "$functionName" does not exist."
 	}
 } else {
-	Write-Host "No arguments were passed. Running default functions."
+	Write-InfoMessage "No arguments were passed. Running default functions."
 	Main
 }
