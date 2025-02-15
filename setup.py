@@ -2,19 +2,25 @@
 
 import platform
 import subprocess
-import pathlib
+from pathlib import Path
 import sys
+
+def setup_windows(script_dir: Path, args: list[str]):
+	script_path = script_dir / "setup.ps1"
+	subprocess.call(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script_path.absolute())] + args)
+
+def setup_linux(script_dir: Path, args: list[str]):
+	script_path = script_dir / "setup.sh"
+	subprocess.call([str(script_path.absolute())] + args)
 
 def main(args: list[str]):
 	try:
-		script_dir = pathlib.Path("scripts/setup")
+		script_dir = Path("scripts/setup")
 		system = platform.system()
 		if system == "Windows":
-			script_path = script_dir / "setup.ps1"
-			subprocess.call(["powershell", "-ExecutionPolicy", "Bypass", "-Command", str(script_path.absolute())] + args)
+			setup_windows(script_dir, args)
 		elif system == "Linux":
-			script_path = script_dir / "setup.sh"
-			subprocess.call([str(script_path.absolute())] + args)
+			setup_linux(script_dir, args)
 		else:
 			print(f"Unsupported operating system: {system}")
 	except KeyboardInterrupt:
