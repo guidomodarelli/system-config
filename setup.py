@@ -6,12 +6,15 @@ from pathlib import Path
 import sys
 
 def setup_windows(script_dir: Path, args: list[str]):
-	script_path = script_dir / "setup.ps1"
-	subprocess.call(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script_path.absolute())] + args)
+	setup_script_path = script_dir / "setup.ps1"
+	subprocess.call(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(setup_script_path.absolute())] + args)
 
 def setup_linux(script_dir: Path, args: list[str]):
-	script_path = script_dir / "setup.sh"
-	subprocess.call([str(script_path.absolute())] + args)
+	setup_script_path = script_dir / "setup.sh"
+	subprocess.call([str(setup_script_path.absolute())] + args)
+
+	dotfiler_path = Path("dotfiler.sh")
+	subprocess.call([str(dotfiler_path.absolute())])
 
 def main(args: list[str]):
 	try:
