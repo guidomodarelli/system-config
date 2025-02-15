@@ -53,6 +53,10 @@ function Install-Vlc {
 	winget install -e --id VideoLAN.VLC
 }
 
+function Install-ObsStudio {
+	winget install -e --id OBSProject.OBSStudio
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -60,6 +64,7 @@ function Main {
 	Install-Git
 	Install-VsCode
 	Install-Vlc
+	Install-ObsStudio
 }
 
 if ($args.Count -gt 0) {
