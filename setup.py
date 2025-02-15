@@ -1,17 +1,20 @@
+#!/usr/bin/env python3
+
 import platform
 import subprocess
 import pathlib
+import sys
 
-def main():
+def main(args: list[str]):
 	try:
 		script_dir = pathlib.Path("scripts/setup")
 		system = platform.system()
 		if system == "Windows":
 			script_path = script_dir / "setup.ps1"
-			subprocess.call(["powershell", "-ExecutionPolicy", "Bypass", "-Command", str(script_path.absolute())])
+			subprocess.call(["powershell", "-ExecutionPolicy", "Bypass", "-Command", str(script_path.absolute())] + args)
 		elif system == "Linux":
 			script_path = script_dir / "setup.sh"
-			subprocess.call([str(script_path.absolute())])
+			subprocess.call([str(script_path.absolute())] + args)
 		else:
 			print(f"Unsupported operating system: {system}")
 	except KeyboardInterrupt:
@@ -20,4 +23,4 @@ def main():
 		print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-	main()
+	main(sys.argv[1:])
