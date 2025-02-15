@@ -41,10 +41,15 @@ function Install-Espanso {
 	espanso service register
 }
 
+function Install-Git {
+	winget install -e --id Git.Git
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
 	Install-Espanso
+	Install-Git
 }
 
 if ($args.Count -gt 0) {
