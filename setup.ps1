@@ -205,7 +205,12 @@ function Install-WSL {
 	}
 }
 
+function Install-Python {
+	Install-WingetPackages 9PNRBTZXMB4Z
+}
+
 function Main {
+	Install-Python
 	Install-WSL
 	Install-Choco
 	Install-Fonts
