@@ -53,6 +53,7 @@ El script incluye las siguientes funciones:
 - `install_user_interface_apps`: Instala varias aplicaciones de interfaz de
   usuario.
 - `install_exa`: Instala Exa.
+- `install_eza`: Instala Eza.
 - `install_homebrew`: Instala Homebrew.
 - `install_fd_find`: Instala fd (find alternative).
 - `install_lazygit`: Instala LazyGit.
