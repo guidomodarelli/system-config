@@ -65,6 +65,10 @@ function Install-Lazygit {
 	winget install -e --id JesseDuffield.lazygit
 }
 
+function Install-GitDelta {
+	winget install -e --id dandavison.delta
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -75,6 +79,7 @@ function Main {
 	Install-ObsStudio
 	Install-PeekScreenRecorder
 	Install-Lazygit
+	Install-GitDelta
 }
 
 if ($args.Count -gt 0) {
