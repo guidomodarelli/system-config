@@ -88,7 +88,7 @@ fpath+=~/.zsh/completions
 autoload -Uz compinit && compinit
 ```
 
-## Instrucciones para Windows
+## Uso en Windows
 
 Para los usuarios de Windows, se proporciona un script `setup.ps1` que automatiza la instalación de varias herramientas y dependencias utilizando Chocolatey.
 
