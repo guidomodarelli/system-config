@@ -121,6 +121,7 @@ function Install-Bat {
 }
 
 function Install-Eza {
+	# https://eza.rocks/
 	winget install -e --id eza-community.eza
 }
 
