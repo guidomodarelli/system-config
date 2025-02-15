@@ -14,6 +14,13 @@ function Write-InfoMessage {
 	Write-Host "[ INFO ] $message" -ForegroundColor Blue
 }
 
+function Write-WarningMessage {
+	param (
+		[string]$message
+	)
+	Write-Host "[ WARNING ] $message" -ForegroundColor Yellow
+}
+
 function Write-SuccessMessage {
 	param (
 		[string]$message
@@ -28,7 +35,7 @@ function Install-Choco {
 		iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 		Write-SuccessMessage "Chocolatey has been installed successfully."
 	} else {
-		Write-InfoMessage "Chocolatey is already installed."
+		Write-WarningMessage "Chocolatey is already installed."
 	}
 }
 
@@ -38,7 +45,7 @@ function Install-ChocoPackages {
 	)
 	foreach ($package in $packages) {
 		if (choco list | Select-String -Pattern $package) {
-			Write-InfoMessage "The package '$package' is already installed. Upgrading..."
+			Write-WarningMessage "The package '$package' is already installed. Upgrading..."
 			choco upgrade $package --confirm --no-progress
 			Write-SuccessMessage "The package '$package' has been upgraded successfully."
 		} else {
@@ -90,7 +97,7 @@ function Install-LazyVim {
 	if (Test-Path $env:LOCALAPPDATA\nvim) {
 		if (Test-Path $env:LOCALAPPDATA\nvim.bak) {
 			Remove-Item -Recurse -Force $env:LOCALAPPDATA\nvim.bak
-			Write-InfoMessage "Existing nvim.bak has been removed."
+			Write-WarningMessage "Existing nvim.bak has been removed."
 		}
 		# required
 		Move-Item $env:LOCALAPPDATA\nvim $env:LOCALAPPDATA\nvim.bak
@@ -102,7 +109,7 @@ function Install-LazyVim {
 	if (Test-Path $env:LOCALAPPDATA\nvim-data) {
 		if (Test-Path $env:LOCALAPPDATA\nvim-data.bak) {
 			Remove-Item -Recurse -Force $env:LOCALAPPDATA\nvim-data.bak
-			Write-InfoMessage "Existing nvim-data.bak has been removed."
+			Write-WarningMessage "Existing nvim-data.bak has been removed."
 		}
 		# optional but recommended
 		Move-Item $env:LOCALAPPDATA\nvim-data $env:LOCALAPPDATA\nvim-data.bak
@@ -112,6 +119,7 @@ function Install-LazyVim {
 	# Clone LazyVim repository
 	Write-InfoMessage "Cloning LazyVim repository..."
 	git clone https://github.com/LazyVim/starter $env:LOCALAPPDATA\nvim
+	Write-SuccessMessage "LazyVim repository cloned successfully."
 
 	Remove-Item $env:LOCALAPPDATA\nvim\.git -Recurse -Force
 	Write-SuccessMessage "LazyVim has been installed successfully."
@@ -189,7 +197,7 @@ function Install-Eza {
 function Install-WSL {
 	Write-InfoMessage "Checking if WSL is installed..."
 	if (wsl --list --quiet) {
-		Write-InfoMessage "WSL is already installed."
+		Write-WarningMessage "WSL is already installed."
 	} else {
 		Write-InfoMessage "Installing WSL..."
 		wsl --install
