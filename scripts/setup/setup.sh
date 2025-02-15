@@ -391,8 +391,10 @@ fi
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   if [[ -n "$1" ]]; then
+		echo "Running $0 $@"
     "$@"
   else
+		echo "Running $0 main"
     main
   fi
 fi
