@@ -6,7 +6,8 @@ Linux.
 
 ## Uso en Linux
 
-Puedes ejecutar el script completo o llamar a funciones específicas desde la terminal.
+Puedes ejecutar el script completo o llamar a funciones específicas desde la
+terminal.
 
 ### Ejecutar el script completo
 
@@ -49,7 +50,8 @@ El script incluye las siguientes funciones:
 - `install_rofi`: Instala Rofi.
 - `install_obs_studio`: Instala OBS Studio.
 - `install_peek`: Instala Peek.
-- `install_user_interface_apps`: Instala varias aplicaciones de interfaz de usuario.
+- `install_user_interface_apps`: Instala varias aplicaciones de interfaz de
+  usuario.
 - `install_exa`: Instala Exa.
 - `install_homebrew`: Instala Homebrew.
 - `install_fd_find`: Instala fd (find alternative).
@@ -90,7 +92,9 @@ autoload -Uz compinit && compinit
 
 ## Uso en Windows
 
-Para los usuarios de Windows, se proporciona un script `setup.ps1` que automatiza la instalación de varias herramientas y dependencias utilizando Chocolatey.
+Para los usuarios de Windows, se proporciona un script `setup.ps1` que
+automatiza la instalación de varias herramientas y dependencias utilizando
+Chocolatey.
 
 ### Ejecutar el script completo
 
@@ -117,4 +121,5 @@ El script incluye las siguientes funciones:
 - `Install-ChocoPackages`: Instala paquetes de Chocolatey.
 - `Install-Fonts`: Instala varias fuentes.
 - `Install-Espanso`: Instala Espanso, un expansor de texto.
-- `Main`: Función principal que llama a las funciones de instalación personalizadas.
+- `Main`: Función principal que llama a las funciones de instalación
+  personalizadas.
