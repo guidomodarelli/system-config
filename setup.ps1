@@ -168,10 +168,13 @@ function Install-Eza {
 }
 
 function Install-WSL {
+	Write-InfoMessage "Checking if WSL is installed..."
 	if (wsl --list --quiet) {
 		Write-InfoMessage "WSL is already installed."
 	} else {
+		Write-InfoMessage "Installing WSL..."
 		wsl --install
+		Write-SuccessMessage "WSL has been installed successfully."
 	}
 }
 
