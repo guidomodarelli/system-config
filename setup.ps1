@@ -83,19 +83,30 @@ function Install-Espanso {
 }
 
 function Install-LazyVim {
+	Write-InfoMessage "Installing LazyVim..."
+
+	# Backup existing Neovim directory
+	Write-InfoMessage "Checking for existing Neovim directory..."
 	if (Test-Path $env:LOCALAPPDATA\nvim) {
 		# required
 		Move-Item $env:LOCALAPPDATA\nvim $env:LOCALAPPDATA\nvim.bak
+		Write-SuccessMessage "Existing Neovim directory has been backed up."
 	}
 
+	# Backup existing Neovim data directory
+	Write-InfoMessage "Checking for existing Neovim data directory..."
 	if (Test-Path $env:LOCALAPPDATA\nvim-data) {
 		# optional but recommended
 		Move-Item $env:LOCALAPPDATA\nvim-data $env:LOCALAPPDATA\nvim-data.bak
+		Write-SuccessMessage "Existing Neovim data directory has been backed up."
 	}
 
+	# Clone LazyVim repository
+	Write-InfoMessage "Cloning LazyVim repository..."
 	git clone https://github.com/LazyVim/starter $env:LOCALAPPDATA\nvim
 
 	Remove-Item $env:LOCALAPPDATA\nvim\.git -Recurse -Force
+	Write-SuccessMessage "LazyVim has been installed successfully."
 }
 
 function Install-Git {
