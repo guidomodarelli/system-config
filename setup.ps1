@@ -1,5 +1,18 @@
 # NOTE: Run this script as Administrator
-Set-ExecutionPolicy Bypass -Scope Process -Force
+
+function Write-ErrorMessage {
+	param (
+		[string]$message
+	)
+	Write-Host "[ ERROR ] $message" -ForegroundColor Red
+}
+
+function Write-InfoMessage {
+	param (
+		[string]$message
+	)
+	Write-Host "[ INFO ] $message" -ForegroundColor Blue
+}
 
 function Install-Choco {
 	if (-Not (Test-Path 'C:\ProgramData\chocolatey\bin\choco.exe')) {
@@ -156,6 +169,11 @@ function Main {
 	Install-Bitwarden
 	Install-Bat
 	Install-Eza
+}
+
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+	Write-ErrorMessage "Por favor, ejecute este script como Administrador."
+	exit
 }
 
 if ($args.Count -gt 0) {
