@@ -41,6 +41,22 @@ function Install-Espanso {
 	espanso service register
 }
 
+function Install-LazyVim {
+	if (Test-Path $env:LOCALAPPDATA\nvim) {
+		# required
+		Move-Item $env:LOCALAPPDATA\nvim $env:LOCALAPPDATA\nvim.bak
+	}
+
+	if (Test-Path $env:LOCALAPPDATA\nvim-data) {
+		# optional but recommended
+		Move-Item $env:LOCALAPPDATA\nvim-data $env:LOCALAPPDATA\nvim-data.bak
+	}
+
+	git clone https://github.com/LazyVim/starter $env:LOCALAPPDATA\nvim
+
+	Remove-Item $env:LOCALAPPDATA\nvim\.git -Recurse -Force
+}
+
 function Install-Git {
 	winget install -e --id Git.Git
 }
@@ -69,6 +85,10 @@ function Install-GitDelta {
 	winget install -e --id dandavison.delta
 }
 
+function Install-NeoVim {
+	winget install -e --id Neovim.Neovim
+}
+
 function Main {
 	Install-Choco
 	Install-Fonts
@@ -80,6 +100,8 @@ function Main {
 	Install-PeekScreenRecorder
 	Install-Lazygit
 	Install-GitDelta
+	Install-NeoVim
+	Install-LazyVim
 }
 
 if ($args.Count -gt 0) {
