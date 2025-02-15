@@ -14,6 +14,14 @@ function Write-InfoMessage {
 	Write-Host "[ INFO ] $message" -ForegroundColor Blue
 }
 
+function Write-SuccessMessage {
+	param (
+		[string]$message
+	)
+	Write-Host "[ SUCCESS ] $message" -ForegroundColor Green
+}
+
+
 function Install-Choco {
 	if (-Not (Test-Path 'C:\ProgramData\chocolatey\bin\choco.exe')) {
 		[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
