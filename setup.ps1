@@ -38,13 +38,13 @@ function Install-ChocoPackages {
 	)
 	foreach ($package in $packages) {
 		if (choco list | Select-String -Pattern $package) {
-			Write-InfoMessage "The package $package is already installed. Upgrading..."
+			Write-InfoMessage "The package '$package' is already installed. Upgrading..."
 			choco upgrade $package --confirm --no-progress
-			Write-SuccessMessage "The package $package has been upgraded successfully."
+			Write-SuccessMessage "The package '$package' has been upgraded successfully."
 		} else {
-			Write-InfoMessage "Installing the package $package..."
+			Write-InfoMessage "Installing the package '$package'..."
 			choco install $package --confirm --no-progress
-			Write-SuccessMessage "The package $package has been installed successfully."
+			Write-SuccessMessage "The package '$package' has been installed successfully."
 		}
 	}
 }
