@@ -40,15 +40,16 @@ function Install-ChocoPackages {
 
 function Install-WingetPackages {
 	param (
-		[string[]]$packages
+		[string[]]$appIds
 	)
-	foreach ($package in $packages) {
-		if (winget show $package) {
-			Write-InfoMessage "El paquete $package ya está instalado. Actualizando..."
-			winget upgrade -e --id $package
+	foreach ($appId in $appIds) {
+		$appName = (winget show $appId | Select-String -Pattern 'Name' | ForEach-Object { $_.Line.Split(':')[1].Trim() })
+		if (winget show $appId) {
+			Write-InfoMessage "The package $appName is already installed. Upgrading..."
+			winget upgrade -e --id $appId
 		} else {
-			Write-InfoMessage "Instalando el paquete $package..."
-			winget install -e --id $package
+			Write-InfoMessage "Installing the package $appName..."
+			winget install -e --id $appId
 		}
 	}
 }
@@ -65,7 +66,7 @@ function Install-Fonts {
 }
 
 function Install-Espanso {
-	winget install -e --id Espanso.Espanso
+	Install-WingetPackages Espanso.Espanso
 
 	Remove-Item -Recurse -Force C:\Users\Guido\AppData\Roaming\espanso\
 	New-Item -ItemType SymbolicLink -Path C:\Users\Guido\AppData\Roaming\espanso\ -Target C:\Users\Guido\system-config\files\.config\espanso\
