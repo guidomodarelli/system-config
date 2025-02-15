@@ -36,6 +36,21 @@ function Install-ChocoPackages {
 	}
 }
 
+function Install-WingetPackages {
+	param (
+		[string[]]$packages
+	)
+	foreach ($package in $packages) {
+		if (winget show $package) {
+			Write-InfoMessage "El paquete $package ya está instalado. Actualizando..."
+			winget upgrade -e --id $package
+		} else {
+			Write-InfoMessage "Instalando el paquete $package..."
+			winget install -e --id $package
+		}
+	}
+}
+
 function Install-Fonts {
 	$fonts = @(
 		'nerd-fonts-jetbrainsmono',
