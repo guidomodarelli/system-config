@@ -39,9 +39,9 @@ En Linux y Windows:
    dependencias necesarias. En sistemas Linux, también ejecutará `dotfiler.sh`
    para configurar tus dotfiles y otras configuraciones.
 
-	```sh
-	python3 setup.py
-	```
+  ```sh
+  python3 setup.py
+  ```
 
 3. **Revisa la configuración**: Asegúrate de que todas las herramientas y
    configuraciones se hayan instalado correctamente. Puedes revisar los archivos
