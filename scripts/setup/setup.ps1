@@ -209,6 +209,14 @@ function Install-Python {
 	Install-WingetPackages 9PNRBTZXMB4Z
 }
 
+function Install-Telegram {
+	Install-WingetPackages Telegram.TelegramDesktop
+}
+
+function Install-WhatsApp {
+	Install-WingetPackages 9NKSQGP7F2NH
+}
+
 function Main {
 	Install-Python
 	Install-WSL
@@ -233,6 +241,8 @@ function Main {
 	Install-Bitwarden
 	Install-Bat
 	Install-Eza
+	Install-Telegram
+	Install-WhatsApp
 }
 
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
