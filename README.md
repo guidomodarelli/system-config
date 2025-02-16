@@ -33,11 +33,11 @@ En Linux y Windows:
    detalladas sobre cómo usar el script de configuración, incluyendo cómo
    ejecutar el script completo o funciones específicas.
 
-2. **Ejecuta el script de configuración**: Ejecuta el script `setup.py`. Este script
-   detectará automáticamente si estás en un sistema Linux o Windows y procederá
-   con la instalación y configuración de las herramientas y dependencias
-   necesarias. En sistemas Linux, también ejecutará `dotfiler.sh` para
-   configurar tus dotfiles y otras configuraciones.
+2. **Ejecuta el script de configuración**: Ejecuta el script `setup.py`. Este
+   script detectará automáticamente si estás en un sistema Linux o Windows y
+   procederá con la instalación y configuración de las herramientas y
+   dependencias necesarias. En sistemas Linux, también ejecutará `dotfiler.sh`
+   para configurar tus dotfiles y otras configuraciones.
 
 	```sh
 	python3 setup.py
