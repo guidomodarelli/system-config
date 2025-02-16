@@ -14,8 +14,6 @@ Darwin (macOS).
   - Cada línea tiene el formato `origen=destino`.
   - Si no se especifica un destino (es decir, la parte después del `=` está
     vacía), el destino por defecto es el directorio del usuario `$HOME`.
-  - Se admiten comodines (como en `*.ext`), que se procesan y resuelven para
-    generar los enlaces a los archivos correspondientes.
 
 - **`listfiles.darwin`**:
   - Es similar a `listfiles` pero se utiliza específicamente en sistemas Darwin
