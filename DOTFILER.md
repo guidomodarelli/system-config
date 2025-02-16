@@ -40,7 +40,15 @@ Darwin (macOS).
 	- Si el destino definido no es una ruta absoluta (no comienza por `/`), se le
 		antepone el directorio del usuario (`$HOME`).
 
-3. **Creación de Enlaces Simbólicos**
+3. **Manejo de comodines**
+
+	Cuando el "origen" termina con un asterisco (`*`), el script interpreta que se
+	deben enlazar todos los archivos y directorios contenidos en la carpeta
+	indicada. Para ello, elimina el asterisco del valor original y utiliza el
+	comando `find` para obtener la lista de elementos, generando enlaces
+	simbólicos para cada uno.
+
+4. **Creación de Enlaces Simbólicos**
 
 	La función `create_symbolic_link` se encarga de:
 	- Comprobar que el destino no tenga un enlace ya existente y realizar una
@@ -49,7 +57,7 @@ Darwin (macOS).
 	- Utilizar `sudo` en caso de que el directorio de destino no pertenezca al
 		usuario actual.
 
-4. **Modificación de Configuraciones**:
+5. **Modificación de Configuraciones**:
 
 	Con esta infraestructura, modificar el archivo `listfiles` (o
 	`listfiles.darwin` según corresponda) te permite controlar qué archivos y
