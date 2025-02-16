@@ -29,35 +29,35 @@ Darwin (macOS).
 
 1. **Detección del Sistema Operativo**
 
-	Utiliza la función `isDarwin` para determinar si se está en un entorno Darwin
-	(macOS). Si es así, se carga la configuración desde `listfiles.darwin`; de lo
-	contrario, se utiliza `listfiles`.
+  Utiliza la función `isDarwin` para determinar si se está en un entorno Darwin
+  (macOS). Si es así, se carga la configuración desde `listfiles.darwin`; de lo
+  contrario, se utiliza `listfiles`.
 
 2. **Procesamiento de las Asignaciones**
 
-	- Por cada línea del archivo de configuración, se interpreta la ruta origen
-		(en la carpeta files) y el destino asignado.
-	- Si el destino definido no es una ruta absoluta (no comienza por `/`), se le
-		antepone el directorio del usuario (`$HOME`).
-	- Cuando el "`origen`" termina con un asterisco (`*`), el script interpreta que
-		se deben enlazar todos los archivos y directorios contenidos en la carpeta
-		indicada. Para ello, elimina el asterisco del valor original y utiliza el
-		comando `find` para obtener la lista de elementos, generando enlaces
-		simbólicos para cada uno.
+  - Por cada línea del archivo de configuración, se interpreta la ruta origen
+    (en la carpeta files) y el destino asignado.
+  - Si el destino definido no es una ruta absoluta (no comienza por `/`), se le
+    antepone el directorio del usuario (`$HOME`).
+  - Cuando el "`origen`" termina con un asterisco (`*`), el script interpreta
+    que se deben enlazar todos los archivos y directorios contenidos en la
+    carpeta indicada. Para ello, elimina el asterisco del valor original y
+    utiliza el comando `find` para obtener la lista de elementos, generando
+    enlaces simbólicos para cada uno.
 
 3. **Creación de Enlaces Simbólicos**
 
-	La función `create_symbolic_link` se encarga de:
-	- Comprobar que el destino no tenga un enlace ya existente y realizar una
-		copia de seguridad (con la extensión `.bak`) en caso de existir.
-	- Crear el enlace simbólico desde el archivo origen a la ruta de destino.
-	- Utilizar `sudo` en caso de que el directorio de destino no pertenezca al
-		usuario actual.
+  La función `create_symbolic_link` se encarga de:
+  - Comprobar que el destino no tenga un enlace ya existente y realizar una
+    copia de seguridad (con la extensión `.bak`) en caso de existir.
+  - Crear el enlace simbólico desde el archivo origen a la ruta de destino.
+  - Utilizar `sudo` en caso de que el directorio de destino no pertenezca al
+    usuario actual.
 
 4. **Modificación de Configuraciones**:
 
-	Con esta infraestructura, modificar el archivo `listfiles` (o
-	`listfiles.darwin` según corresponda) te permite controlar qué archivos y
-	directorios serán enlazados y a qué ubicaciones del sistema se llevarán,
-	facilitando la transferencia y sincronización de configuraciones entre
-	distintas máquinas o entornos.
+  Con esta infraestructura, modificar el archivo `listfiles` (o
+  `listfiles.darwin` según corresponda) te permite controlar qué archivos y
+  directorios serán enlazados y a qué ubicaciones del sistema se llevarán,
+  facilitando la transferencia y sincronización de configuraciones entre
+  distintas máquinas o entornos.
