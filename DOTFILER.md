@@ -1,7 +1,7 @@
 # Descripción General
 
-El script dotfiler.sh se encarga de crear enlaces simbólicos (symlinks) desde
-archivos y directorios de la carpeta files hacia ubicaciones definidas en
+El script `dotfiler.sh` se encarga de crear enlaces simbólicos (symlinks) desde
+archivos y directorios de la carpeta `files` hacia ubicaciones definidas en
 archivos de configuración, facilitando así la sincronización y gestión de
 configuraciones personales. Además, realiza ajustes específicos para sistemas
 Darwin (macOS).
@@ -18,12 +18,12 @@ Darwin (macOS).
     generar los enlaces a los archivos correspondientes.
 
 - **`listfiles.darwin`**:
-  - Es similar a listfiles pero se utiliza específicamente en sistemas Darwin
+  - Es similar a `listfiles` pero se utiliza específicamente en sistemas Darwin
     (macOS).
   - Permite definir rutas que se adapten a la estructura y convenciones de
     macOS.
   - El script verifica si se ejecuta en Darwin (usando la función `isDarwin`) y,
-    de ser así, usa este archivo en lugar de listfiles.
+    de ser así, usa este archivo en lugar de `listfiles`.
 
 ## Funcionamiento General del Script
 
@@ -39,7 +39,7 @@ Darwin (macOS).
 		(en la carpeta files) y el destino asignado.
 	- Si el destino definido no es una ruta absoluta (no comienza por `/`), se le
 		antepone el directorio del usuario (`$HOME`).
-	- Cuando el "origen" termina con un asterisco (`*`), el script interpreta que
+	- Cuando el "`origen`" termina con un asterisco (`*`), el script interpreta que
 		se deben enlazar todos los archivos y directorios contenidos en la carpeta
 		indicada. Para ello, elimina el asterisco del valor original y utiliza el
 		comando `find` para obtener la lista de elementos, generando enlaces
