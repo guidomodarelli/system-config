@@ -217,8 +217,8 @@ function Install-WhatsApp {
 	Install-WingetPackages 9NKSQGP7F2NH
 }
 
-function Install-VirtualBox {
-	Install-WingetPackages Oracle.VirtualBox
+function Install-Vagrant {
+	Install-WingetPackages Hashicorp.Vagrant
 }
 
 function Main {
@@ -247,7 +247,7 @@ function Main {
 	Install-Eza
 	Install-Telegram
 	Install-WhatsApp
-	Install-VirtualBox
+	Install-Vagrant
 }
 
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
