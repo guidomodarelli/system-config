@@ -217,6 +217,10 @@ function Install-WhatsApp {
 	Install-WingetPackages 9NKSQGP7F2NH
 }
 
+function Install-VirtualBox {
+	Install-WingetPackages Oracle.VirtualBox
+}
+
 function Main {
 	Install-Python
 	Install-WSL
@@ -243,6 +247,7 @@ function Main {
 	Install-Eza
 	Install-Telegram
 	Install-WhatsApp
+	Install-VirtualBox
 }
 
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
