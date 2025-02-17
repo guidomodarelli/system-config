@@ -352,6 +352,12 @@ install_utilities() {
   fi
 }
 
+install_vagrant() {
+	wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+	echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+	sudo apt update && sudo apt install -y vagrant
+}
+
 main() {
 	if is_ubuntu; then
 		sudo apt update
@@ -375,6 +381,7 @@ main() {
   install_docker
 	install_zsh
   install_oh_my_zsh
+	install_vagrant
 
   # Go dependencies
   install_golang
