@@ -221,6 +221,13 @@ function Install-Vagrant {
 	Install-WingetPackages Hashicorp.Vagrant
 }
 
+function Enable-HyperV {
+	Write-InfoMessage "Enabling Hyper-V..."
+	# https://learn.microsoft.com/es-es/windows-server/virtualization/hyper-v/get-started/Install-Hyper-V?pivots=windows#enable-hyper-v-using-powershell
+	Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+	Write-SuccessMessage "Hyper-V has been enabled successfully."
+}
+
 function Main {
 	Install-Python
 	Install-WSL
@@ -248,6 +255,9 @@ function Main {
 	Install-Telegram
 	Install-WhatsApp
 	Install-Vagrant
+
+	# Always run this function last
+	Enable-HyperV
 }
 
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
