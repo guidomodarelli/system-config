@@ -373,15 +373,15 @@ main() {
 
   # install_homebrew
 
-  install_user_interface_apps
-  install_fonts
-  install_btop
-  install_xclip
-  install_exa
-  install_fd_find
-  install_lazygit
-  install_git_dependencies
-  install_NvChad
+	install_user_interface_apps
+	install_fonts
+	install_btop
+	install_xclip
+	install_exa
+	install_fd_find
+	install_lazygit
+	install_git_dependencies
+	install_LazyVim
   install_antigen
   install_docker
   install_zsh
