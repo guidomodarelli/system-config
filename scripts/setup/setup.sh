@@ -32,6 +32,9 @@ is_arch() {
 
 install_NvChad() {
   # Make a backup of your current Neovim files:
+  ## remove previous backup if exists
+  rm -rf ~/.config/nvim.bak ~/.local/share/nvim.bak ~/.local/state/nvim.bak ~/.cache/nvim.bak
+
   ## required
   mv ~/.config/nvim{,.bak}
 
@@ -84,7 +87,7 @@ install_npm_dependencies() {
 }
 
 install_font() {
-	is_windows && return
+  is_windows && return
 
   local folderName="$1"
   local zipName="${folderName}.zip"
@@ -105,7 +108,7 @@ install_font_IosevkaTermCurly() {
 }
 
 install_espanso() {
-	is_windows && return
+  is_windows && return
 
   # https://espanso.org/docs/install/linux/#appimage-x11
 
@@ -132,7 +135,7 @@ install_golang() {
   local FILE="go${GO_VERSION}.linux-amd64.tar.gz"
   curl -LO https://go.dev/dl/$FILE
   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $FILE
-	rm -rf $FILE
+  rm -rf $FILE
 }
 
 go_install() {
@@ -143,8 +146,8 @@ go_install() {
 install_ghq() {
   go_install github.com/x-motemen/ghq@latest
 
-	mkdir -p $HOME/ghq/work
-	mkdir -p $HOME/ghq/projects
+  mkdir -p $HOME/ghq/work
+  mkdir -p $HOME/ghq/projects
 }
 
 install_go_dependencies() {
@@ -152,195 +155,195 @@ install_go_dependencies() {
 }
 
 install_VsCode() {
-	is_windows && return
+  is_windows && return
 
   if is_ubuntu; then
-		sudo snap install --classic code
-	elif is_arch; then
-		yay -S --noconfirm --needed visual-studio-code-bin
-	fi
+    sudo snap install --classic code
+  elif is_arch; then
+    yay -S --noconfirm --needed visual-studio-code-bin
+  fi
 }
 
 install_fonts() {
-	is_windows && return
+  is_windows && return
 
-	if is_ubuntu; then
-		sudo apt install -y fonts-jetbrains-mono fonts-dejavu fonts-cascadia-code
-		# TODO: install Iosevka & Victor Mono
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
-	fi
+  if is_ubuntu; then
+    sudo apt install -y fonts-jetbrains-mono fonts-dejavu fonts-cascadia-code
+    # TODO: install Iosevka & Victor Mono
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
+  fi
 }
 
 install_vlc() {
-	is_windows && return
+  is_windows && return
 
-	if is_ubuntu; then
-		sudo apt install -y vlc
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm vlc
-	fi
+  if is_ubuntu; then
+    sudo apt install -y vlc
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm vlc
+  fi
 }
 
 install_wezterm() {
-	is_windows && return
+  is_windows && return
 
-	if is_ubuntu; then
-		sudo apt install -y wezterm
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm wezterm
-	fi
+  if is_ubuntu; then
+    sudo apt install -y wezterm
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm wezterm
+  fi
 }
 
 install_rofi() {
-	is_windows && return
+  is_windows && return
 
-	if is_ubuntu; then
-		sudo apt install -y rofi
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm rofi
-	fi
+  if is_ubuntu; then
+    sudo apt install -y rofi
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm rofi
+  fi
 }
 
 install_obs_studio() {
-	is_windows && return
+  is_windows && return
 
-	if is_ubuntu; then
-		sudo apt install -y obs-studio
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm obs-studio
-	fi
+  if is_ubuntu; then
+    sudo apt install -y obs-studio
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm obs-studio
+  fi
 }
 
 install_peek() {
-	is_windows && return
+  is_windows && return
 
-	if is_ubuntu; then
-		sudo apt install -y peek
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm peek
-	fi
+  if is_ubuntu; then
+    sudo apt install -y peek
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm peek
+  fi
 }
 
 install_user_interface_apps() {
-	install_vlc
-	install_wezterm
-	install_rofi
-	install_obs_studio
-	install_peek
-	install_VsCode
-	install_espanso
+  install_vlc
+  install_wezterm
+  install_rofi
+  install_obs_studio
+  install_peek
+  install_VsCode
+  install_espanso
 }
 
 install_exa() {
-	if is_ubuntu; then
-		EXA_VERSION=$(curl -s "https://api.github.com/repos/ogham/exa/releases/latest" | grep -Po '"tag_name": "v\K[0-9.]+')
-		curl -Lo exa.zip "https://github.com/ogham/exa/releases/latest/download/exa-linux-x86_64-v${EXA_VERSION}.zip"
-		sudo unzip -q exa.zip bin/exa -d /usr/local
-		rm -rf exa.zip
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm exa
-	fi
+  if is_ubuntu; then
+    EXA_VERSION=$(curl -s "https://api.github.com/repos/ogham/exa/releases/latest" | grep -Po '"tag_name": "v\K[0-9.]+')
+    curl -Lo exa.zip "https://github.com/ogham/exa/releases/latest/download/exa-linux-x86_64-v${EXA_VERSION}.zip"
+    sudo unzip -q exa.zip bin/exa -d /usr/local
+    rm -rf exa.zip
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm exa
+  fi
 }
 
 install_eza() {
-	if is_ubuntu; then
-		sudo apt install -y eza
-	elif is_arch; then
-		yay -S --noconfirm --needed eza
-	fi
+  if is_ubuntu; then
+    sudo apt install -y eza
+  elif is_arch; then
+    yay -S --noconfirm --needed eza
+  fi
 }
 
 install_homebrew() {
-	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 
 install_fd_find() {
-	if is_ubuntu; then
-		sudo apt install -y fd-find
-		mkdir -p $LOCAL_BINARIES
-		if [ ! -f $LOCAL_BINARIES/fd ]; then
-			ln -s $(which fdfind) $LOCAL_BINARIES/fd
-		fi
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm fd
-	fi
+  if is_ubuntu; then
+    sudo apt install -y fd-find
+    mkdir -p $LOCAL_BINARIES
+    if [ ! -f $LOCAL_BINARIES/fd ]; then
+      ln -s $(which fdfind) $LOCAL_BINARIES/fd
+    fi
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm fd
+  fi
 }
 
 install_lazygit() {
-	if is_ubuntu; then
-		sudo snap install lazygit
-	elif is_arch; then
-		yay -S --noconfirm --needed lazygit-git
-	fi
+  if is_ubuntu; then
+    sudo snap install lazygit
+  elif is_arch; then
+    yay -S --noconfirm --needed lazygit-git
+  fi
 }
 
 install_btop() {
-	is_windows && return
+  is_windows && return
 
-	if is_ubuntu; then
-		sudo apt install -y btop
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm btop
-	fi
+  if is_ubuntu; then
+    sudo apt install -y btop
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm btop
+  fi
 }
 
 install_xclip() {
-	is_windows && return
+  is_windows && return
 
-	if is_ubuntu; then
-		sudo apt install -y xclip
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm xclip
-	fi
+  if is_ubuntu; then
+    sudo apt install -y xclip
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm xclip
+  fi
 }
 
 install_git_delta() {
-	if is_ubuntu; then
-		sudo apt install -y git-delta
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm git-delta
-	fi
+  if is_ubuntu; then
+    sudo apt install -y git-delta
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm git-delta
+  fi
 }
 
 install_git_filter_repo() {
-	if is_ubuntu; then
-		sudo apt install -y git-filter-repo
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm git-filter-repo
-	fi
+  if is_ubuntu; then
+    sudo apt install -y git-filter-repo
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm git-filter-repo
+  fi
 }
 
 install_git() {
-	if is_ubuntu; then
-		sudo apt install -y git
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm git
-	fi
+  if is_ubuntu; then
+    sudo apt install -y git
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm git
+  fi
 }
 
 install_git_dependencies() {
-	install_git
+  install_git
 
-	install_git_delta
-	install_git_filter_repo
+  install_git_delta
+  install_git_filter_repo
 }
 
 install_zsh() {
-	if is_ubuntu; then
-		sudo apt install -y zsh
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm zsh
-	fi
-	chsh -s $(which zsh)
+  if is_ubuntu; then
+    sudo apt install -y zsh
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm zsh
+  fi
+  chsh -s $(which zsh)
 }
 
 install_essencials() {
-	if is_ubuntu; then
-		sudo apt install -y build-essential gcc curl wget zip unzip python3.12-venv
-	elif is_arch; then
-		sudo pacman -Sy --noconfirm yay base-devel gcc curl wget zip unzip
-	fi
+  if is_ubuntu; then
+    sudo apt install -y build-essential gcc curl wget zip unzip python3.12-venv
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm yay base-devel gcc curl wget zip unzip
+  fi
 }
 
 install_utilities() {
@@ -353,37 +356,37 @@ install_utilities() {
 }
 
 install_vagrant() {
-	is_windows && return
+  is_windows && return
 
-	wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-	echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-	sudo apt update && sudo apt install -y vagrant
+  wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+  sudo apt update && sudo apt install -y vagrant
 }
 
 main() {
-	if is_ubuntu; then
-		sudo apt update
-	fi
+  if is_ubuntu; then
+    sudo apt update
+  fi
 
-	install_essencials
-	install_utilities
+  install_essencials
+  install_utilities
 
-	# install_homebrew
+  # install_homebrew
 
-	install_user_interface_apps
-	install_fonts
-	install_btop
-	install_xclip
-	install_exa
-	install_fd_find
-	install_lazygit
-	install_git_dependencies
-	install_NvChad
+  install_user_interface_apps
+  install_fonts
+  install_btop
+  install_xclip
+  install_exa
+  install_fd_find
+  install_lazygit
+  install_git_dependencies
+  install_NvChad
   install_antigen
   install_docker
-	install_zsh
+  install_zsh
   install_oh_my_zsh
-	install_vagrant
+  install_vagrant
 
   # Go dependencies
   install_golang
@@ -395,16 +398,16 @@ main() {
 }
 
 if ! is_ubuntu && ! is_arch; then
-	echo "Unsupported OS"
-	exit 1
+  echo "Unsupported OS"
+  exit 1
 fi
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   if [[ -n "$1" ]]; then
-		echo "Running $0 $@"
+    echo "Running $0 $@"
     "$@"
   else
-		echo "Running $0 main"
+    echo "Running $0 main"
     main
   fi
 fi
