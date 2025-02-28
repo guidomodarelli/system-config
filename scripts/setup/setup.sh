@@ -378,7 +378,7 @@ main() {
 	install_fd_find
 	install_lazygit
 	install_git_dependencies
-	install_LazyVim
+	install_NvChad
   install_antigen
   install_docker
 	install_zsh
