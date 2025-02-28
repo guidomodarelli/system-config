@@ -30,7 +30,7 @@ is_arch() {
   return 1  # false
 }
 
-install_LazyVim() {
+install_NvChad() {
   # Make a backup of your current Neovim files:
   ## required
   mv ~/.config/nvim{,.bak}
@@ -41,7 +41,7 @@ install_LazyVim() {
   mv ~/.cache/nvim{,.bak}
 
   # Clone the starter
-  git clone https://github.com/LazyVim/starter ~/.config/nvim
+  git clone https://github.com/NvChad/starter ~/.config/nvim && nvim
 
   # Remove the .git folder, so you can add it to your own repo later
   rm -rf ~/.config/nvim/.git
