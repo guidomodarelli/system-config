@@ -349,9 +349,9 @@ install_essencials() {
 install_utilities() {
   if is_ubuntu; then
     sudo apt update
-    sudo apt install -y jq neovim fzf ripgrep bat zoxide
+    sudo apt install -y jq fzf ripgrep bat zoxide
   elif is_arch; then
-    sudo pacman -Sy --noconfirm jq neovim fzf ripgrep bat zoxide
+    sudo pacman -Sy --noconfirm jq fzf ripgrep bat zoxide
   fi
 }
 
@@ -363,6 +363,10 @@ install_vagrant() {
   sudo apt update && sudo apt install -y vagrant
 }
 
+install_neovim() {
+  brew install neovim
+}
+
 main() {
   if is_ubuntu; then
     sudo apt update
@@ -370,8 +374,6 @@ main() {
 
   install_essencials
   install_utilities
-
-  # install_homebrew
 
 	install_user_interface_apps
 	install_fonts
@@ -381,7 +383,6 @@ main() {
 	install_fd_find
 	install_lazygit
 	install_git_dependencies
-	install_LazyVim
   install_antigen
   install_docker
   install_zsh
@@ -395,6 +396,10 @@ main() {
   # NPM dependencies
   install_nvm
   # install_npm_dependencies
+
+  install_homebrew
+  install_neovim
+	install_LazyVim
 }
 
 if ! is_ubuntu && ! is_arch; then
