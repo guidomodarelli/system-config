@@ -228,8 +228,16 @@ function Install-Vagrant {
 function Enable-HyperV {
 	Write-InfoMessage "Enabling Hyper-V..."
 	# https://learn.microsoft.com/es-es/windows-server/virtualization/hyper-v/get-started/Install-Hyper-V?pivots=windows#enable-hyper-v-using-powershell
-	Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
-	Write-SuccessMessage "Hyper-V has been enabled successfully."
+  try {
+    Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+    Write-SuccessMessage "Hyper-V has been enabled successfully."
+  } catch {
+    Write-ErrorMessage "Failed to enable Hyper-V. Please check your system settings."
+  }
+}
+
+function Install-FlowLauncher {
+  Install-WingetPackages Flow-Launcher.Flow-Launcher
 }
 
 function Main {
