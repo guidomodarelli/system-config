@@ -93,42 +93,6 @@ function Install-Espanso {
 	_espanso start
 }
 
-function Install-LazyVim {
-	Write-InfoMessage "Installing LazyVim..."
-
-	# Backup existing Neovim directory
-	Write-InfoMessage "Checking for existing Neovim directory..."
-	if (Test-Path $env:LOCALAPPDATA\nvim) {
-		if (Test-Path $env:LOCALAPPDATA\nvim.bak) {
-			Remove-Item -Recurse -Force $env:LOCALAPPDATA\nvim.bak
-			Write-WarningMessage "Existing nvim.bak has been removed."
-		}
-		# required
-		Move-Item $env:LOCALAPPDATA\nvim $env:LOCALAPPDATA\nvim.bak
-		Write-SuccessMessage "Existing Neovim directory has been backed up."
-	}
-
-	# Backup existing Neovim data directory
-	Write-InfoMessage "Checking for existing Neovim data directory..."
-	if (Test-Path $env:LOCALAPPDATA\nvim-data) {
-		if (Test-Path $env:LOCALAPPDATA\nvim-data.bak) {
-			Remove-Item -Recurse -Force $env:LOCALAPPDATA\nvim-data.bak
-			Write-WarningMessage "Existing nvim-data.bak has been removed."
-		}
-		# optional but recommended
-		Move-Item $env:LOCALAPPDATA\nvim-data $env:LOCALAPPDATA\nvim-data.bak
-		Write-SuccessMessage "Existing Neovim data directory has been backed up."
-	}
-
-	# Clone LazyVim repository
-	Write-InfoMessage "Cloning LazyVim repository..."
-	git clone https://github.com/LazyVim/starter $env:LOCALAPPDATA\nvim
-	Write-SuccessMessage "LazyVim repository cloned successfully."
-
-	Remove-Item $env:LOCALAPPDATA\nvim\.git -Recurse -Force
-	Write-SuccessMessage "LazyVim has been installed successfully."
-}
-
 function Install-Git {
 	Install-WingetPackages Git.Git
 }
@@ -145,10 +109,6 @@ function Install-ObsStudio {
 	Install-WingetPackages OBSProject.OBSStudio
 }
 
-function Install-PeekScreenRecorder {
-	Install-WingetPackages XP8CD3D3Q50MS2
-}
-
 function Install-Lazygit {
 	Install-WingetPackages JesseDuffield.lazygit
 }
@@ -157,20 +117,8 @@ function Install-GitDelta {
 	Install-WingetPackages dandavison.delta
 }
 
-function Install-NeoVim {
-	Install-WingetPackages Neovim.Neovim
-}
-
 function Install-FdFind {
 	Install-WingetPackages sharkdp.fd
-}
-
-function Install-Btop {
-	Install-WingetPackages aristocratos.btop4win
-}
-
-function Install-Jq {
-	Install-WingetPackages jqlang.jq
 }
 
 function Install-Curl {
@@ -250,18 +198,13 @@ function Main {
 	Install-Choco
 	Install-Fonts
 	Install-Espanso
-	Install-Git
 	Install-VsCode
 	Install-Vlc
 	Install-ObsStudio
-	Install-PeekScreenRecorder
+	Install-Git
 	Install-Lazygit
 	Install-GitDelta
-	Install-NeoVim
-	Install-LazyVim
 	Install-FdFind
-	Install-Btop
-	Install-Jq
 	Install-Curl
 	Install-Fzf
 	Install-RipGrep
