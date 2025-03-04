@@ -240,6 +240,10 @@ function Install-FlowLauncher {
   Install-WingetPackages Flow-Launcher.Flow-Launcher
 }
 
+function Install-PowerToys {
+  Install-WingetPackages Microsoft.PowerToys
+}
+
 function Main {
 	Install-Python
 	Install-WSL
@@ -267,6 +271,7 @@ function Main {
 	Install-Telegram
 	Install-WhatsApp
 	Install-Vagrant
+	Install-PowerToys
 
 	# Always run this function last
 	Enable-HyperV
