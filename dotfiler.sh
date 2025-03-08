@@ -72,12 +72,12 @@ main() {
   fi
   files="$(echo "$files" | grep -Ev "^\s*#")"
 
-  while IFS='=' read src dest; do
+  while IFS='=' read src target; do
     src=./files/"$src"
-    if [[ -z "$dest" ]]; then
-      dest="$HOME"
-    elif [[ "${dest:0:1}" != "/" ]]; then
-      dest="$HOME"/"$dest"
+    if [[ -z "$target" ]]; then
+      target="$HOME"
+    elif [[ "${target:0:1}" != "/" ]]; then
+      target="$HOME"/"$target"
     fi
     local paths="$src"
     if [[ -n "$(echo "$src" | grep "*")" ]]; then
@@ -85,7 +85,7 @@ main() {
       paths="$(find "$src" -maxdepth 1 -mindepth 1)"
     fi
 
-    create_symbolic_link "$paths" "$dest"
+    create_symbolic_link "$paths" "$target"
   done <<<"$files"
 }
 
