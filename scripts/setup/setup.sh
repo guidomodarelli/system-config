@@ -349,9 +349,9 @@ install_essencials() {
 install_utilities() {
   if is_ubuntu; then
     sudo apt update
-    sudo apt install -y jq fzf ripgrep bat zoxide
+    sudo apt install -y jq yq fzf ripgrep bat zoxide
   elif is_arch; then
-    sudo pacman -Sy --noconfirm jq fzf ripgrep bat zoxide
+    sudo pacman -Sy --noconfirm jq yq fzf ripgrep bat zoxide
   fi
 }
 
