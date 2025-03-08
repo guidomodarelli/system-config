@@ -98,16 +98,14 @@
             "items": {
               "type": "object",
               "unevaluatedProperties": false,
-              "allOf": [
-                { "$ref": "#/$defs/platformConfig" },
-                {
-                  "properties": {
-                    "destination": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["destination"]
+              "properties": {
+                "destination": {
+                  "type": "string"
                 }
+              },
+              "required": ["destination"],
+              "allOf": [
+                { "$ref": "#/$defs/platformConfig" }
               ]
             }
           }
