@@ -18,7 +18,7 @@ paths:
     target: .config
     overrides:
       - platform: darwin
-        target: ~/Library/Application Support/lazygit
+        target: Library/Application Support/lazygit
   - path: .config/Code/User/*
     target: .config/Code/User
     excludeFor:
