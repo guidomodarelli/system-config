@@ -22,7 +22,6 @@
     },
     "platformConfig": {
       "type": "object",
-      "additionalProperties": false,
       "unevaluatedProperties": false,
       "properties": {
         "platform": {
@@ -98,41 +97,16 @@
             "type": "array",
             "items": {
               "type": "object",
-              "additionalProperties": false,
               "unevaluatedProperties": false,
-              "properties": {
-                "platform": {
-                  "$ref": "#/$defs/platform"
-                },
-                "linuxDistro": {
-                  "$ref": "#/$defs/linuxDistro",
-                  "description": "Only applicable when platform is 'linux'"
-                },
-                "destination": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "platform",
-                "destination"
-              ],
               "allOf": [
+                { "$ref": "#/$defs/platformConfig" },
                 {
-                  "if": {
-                    "properties": {
-                      "platform": { "enum": ["linux"] }
+                  "properties": {
+                    "destination": {
+                      "type": "string"
                     }
                   },
-                  "then": {
-                    "properties": {
-                      "linuxDistro": { "$ref": "#/$defs/linuxDistro" }
-                    }
-                  },
-                  "else": {
-                    "not": {
-                      "required": ["linuxDistro"]
-                    }
-                  }
+                  "required": ["destination"]
                 }
               ]
             }
