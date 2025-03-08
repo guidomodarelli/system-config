@@ -91,8 +91,8 @@ main() {
   done <<<"$files"
 }
 
-if [[ $EUID = 0 ]]; then
-  printRed "[ERROR] Do not run as root"
+if [ "$EUID" = 0 ]; then
+  printError "Don't run as root!"
   exit 1
 fi
 
