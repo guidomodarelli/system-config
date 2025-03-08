@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=$schema.json
+configs:
+  - origin: .antigen/bundles/guidomodarelli/anyframe
+    destination: .antigen/bundles/guidomodarelli
+  - origin: .config/awesome
+    destination: .config
+  - origin: .config/espanso
+    destination: .config
+  - origin: .config/ranger
+    destination: .config
+  - origin: .config/rofi
+    destination: .config
+  - origin: .config/scripts
+    destination: .config
+  - origin: .config/nvim
+    destination: .config
+  - origin: .config/lazygit
+    destination: .config
+  - origin: '.config/Code/User/*'
+    destination: .config/Code/User
+  - origin: .tmux.conf
+  - origin: .zsh/.zsh
+  - origin: .zsh/.antigenrc
+  - origin: .zsh/.zshrc
+  - origin: .zsh/.oh-my-zsh/themes/murilasso.zsh-theme
+    destination: .oh-my-zsh/themes
+  - origin: .astylerc
+  - origin: .gitconfig
+  - origin: .curlrc
+  - origin: .gdbinit
+  - origin: .wezterm.lua
+  - origin: root/etc/pacman.conf
+    destination: /etc
