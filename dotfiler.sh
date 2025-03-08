@@ -1,10 +1,11 @@
 #!/bin/bash
 
 ROOT_DIR="$(git rev-parse --show-toplevel)"
-source "$ROOT_DIR/files/zsh/.zsh/functions/styleText.zsh"
-source "$ROOT_DIR/files/zsh/.zsh/constants.zsh"
-source "$ROOT_DIR/files/zsh/.zsh/functions/check_command.zsh"
+ROOT_CONFIGS="files"
 LISTFILES="listfiles.yml"
+source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/styleText.zsh"
+source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/constants.zsh"
+source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/check_command.zsh"
 DEBUG=false
 
 is_debug() {
@@ -116,7 +117,7 @@ main() {
   files="$(echo "$files" | grep -Ev "^\s*#")"
 
   while IFS='=' read path target; do
-    path=./files/"$path"
+    path=./$ROOT_CONFIGS/"$path"
     if [[ -z "$target" ]]; then
       target="$HOME"
     elif [ "$(first_letter "$target")" != "/" ]; then
