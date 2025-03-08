@@ -3,6 +3,7 @@
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 source "$ROOT_DIR/files/zsh/.zsh/functions/styleText.zsh"
 source "$ROOT_DIR/files/zsh/.zsh/constants.zsh"
+source "$ROOT_DIR/files/zsh/.zsh/functions/check_command.zsh"
 
 is_darwin() {
   if [ "$(uname)" = "Darwin" ]; then
@@ -94,4 +95,5 @@ if [[ $EUID = 0 ]]; then
   exit 1
 fi
 
+check_command yq
 main
