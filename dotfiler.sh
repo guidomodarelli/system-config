@@ -76,10 +76,8 @@ main() {
     src=./files/"$src"
     if [[ -z "$dest" ]]; then
       dest="$HOME"
-    else
-      if [[ "${dest:0:1}" != "/" ]]; then
-        dest="$HOME"/"$dest"
-      fi
+    elif [[ "${dest:0:1}" != "/" ]]; then
+      dest="$HOME"/"$dest"
     fi
     local paths="$src"
     if [[ -n "$(echo "$src" | grep "*")" ]]; then
