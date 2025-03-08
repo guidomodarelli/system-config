@@ -17,21 +17,21 @@ printPath() {
 }
 
 createBak() {
-  local file_or_dir="$1"
+  local path="$1"
 
     # Remove .bak
-  if [[ -e "${file_or_dir}.bak" ]]; then
-    $SUDO rm -r "${file_or_dir}.bak"
+  if [[ -e "${path}.bak" ]]; then
+    $SUDO rm -r "${path}.bak"
   fi
 
-  $SUDO mv "${file_or_dir}"{,.bak} 2>/dev/null
+  $SUDO mv "${path}"{,.bak} 2>/dev/null
 
   # This code is checking if a file or directory exists at the given path
-  if [[ ! -e "$file_or_dir".bak ]]; then
+  if [[ ! -e "${path}.bak" ]]; then
     return 1
   fi
 
-  printf "[ $(printGreen "BACK") ] Created $(printPath "$(ls -1 -d "$file_or_dir".bak)")\n"
+  printf "[ $(printGreen "BACK") ] Created $(printPath "$(ls -1 -d "${path}.bak")")\n"
 }
 
 create_symbolic_link() {
