@@ -50,10 +50,11 @@ create_symbolic_link() {
 
     # Create .bak
     createBak "$dest_abs_path"
+    echo
 
     # Create symbolic link
     $SUDO ln -s "$abs_path" "$dest_abs_path"
-    printInfo "Created $(styleText -u -- "Symbolic link"): $(printPath "$abs_path") $(printBlue -b -- $POINTER) $(printPath "$(ls -1 -d "$dest_abs_path")")"
+    printInfo "$(printPath "$abs_path") $(printBlue -b -- $POINTER) $(printPath "$(ls -1 -d "$dest_abs_path")")"
 
     if [[ $SUDO = '' && ! -d "$dest_abs_path" ]]; then
       mkdir -p $(dirname "$dest_abs_path")
