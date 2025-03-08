@@ -6,8 +6,8 @@ LISTFILES="listfiles.yml"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/styleText.zsh"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/constants.zsh"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/check_command.zsh"
-DEBUG=false
 
+DEBUG=false
 is_debug() {
   if [ "$DEBUG" = true ]; then
     return 0 # true
