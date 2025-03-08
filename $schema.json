@@ -1,0 +1,47 @@
+{
+	"$schema": "https://json-schema.org/draft-07/schema",
+	"$defs": {
+		"platform": {
+			"type": "string",
+			"enum": ["darwin", "linux", "win32"]
+		},
+		"platformArray": {
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/platform"
+			},
+			"uniqueItems": true
+		}
+	},
+	"type": "array",
+	"items": {
+		"type": "object",
+		"properties": {
+			"origin": {
+				"type": "string"
+			},
+			"destination": {
+				"type": "string"
+			},
+			"onlyFor": {
+				"$ref": "#/$defs/platformArray"
+			},
+			"overrides": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"platform": {
+							"$ref": "#/$defs/platform"
+						},
+						"destination": {
+							"type": "string"
+						}
+					},
+					"required": ["platform", "destination"]
+				}
+			}
+		},
+		"required": ["origin"]
+	}
+}
