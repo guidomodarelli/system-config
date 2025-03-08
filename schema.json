@@ -3,19 +3,11 @@
   "$defs": {
     "platform": {
       "type": "string",
-      "enum": [
-        "darwin",
-        "linux",
-        "win32"
-      ]
+      "enum": ["darwin", "linux", "win32"]
     },
     "linuxDistro": {
       "type": "string",
-      "enum": [
-        "all",
-        "arch",
-        "debian"
-      ],
+      "enum": ["all", "arch", "debian"],
       "description": "Linux distribution type",
       "$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions",
       "default": "all"
@@ -36,12 +28,16 @@
         {
           "if": {
             "properties": {
-              "platform": { "enum": ["linux"] }
+              "platform": {
+                "enum": ["linux"]
+              }
             }
           },
           "then": {
             "properties": {
-              "linuxDistro": { "$ref": "#/$defs/linuxDistro" }
+              "linuxDistro": {
+                "$ref": "#/$defs/linuxDistro"
+              }
             }
           },
           "else": {
@@ -105,14 +101,14 @@
               },
               "required": ["destination"],
               "allOf": [
-                { "$ref": "#/$defs/platformConfig" }
+                {
+                  "$ref": "#/$defs/platformConfig"
+                }
               ]
             }
           }
         },
-        "required": [
-          "origin"
-        ]
+        "required": ["origin"]
       }
     }
   }
