@@ -20,10 +20,50 @@
       "$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions",
       "default": "all"
     },
+    "platformConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "unevaluatedProperties": false,
+      "properties": {
+        "platform": {
+          "$ref": "#/$defs/platform"
+        },
+        "linuxDistro": {
+          "$ref": "#/$defs/linuxDistro"
+        }
+      },
+      "required": ["platform"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "platform": { "enum": ["linux"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "linuxDistro": { "$ref": "#/$defs/linuxDistro" }
+            }
+          },
+          "else": {
+            "not": {
+              "required": ["linuxDistro"]
+            }
+          }
+        }
+      ]
+    },
     "platformArray": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/platform"
+      },
+      "uniqueItems": true
+    },
+    "platformConfigArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/platformConfig"
       },
       "uniqueItems": true
     }
@@ -49,10 +89,10 @@
             "type": "string"
           },
           "onlyFor": {
-            "$ref": "#/$defs/platformArray"
+            "$ref": "#/$defs/platformConfigArray"
           },
           "excludeFor": {
-            "$ref": "#/$defs/platformArray"
+            "$ref": "#/$defs/platformConfigArray"
           },
           "overrides": {
             "type": "array",

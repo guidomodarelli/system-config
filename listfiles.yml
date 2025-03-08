@@ -22,7 +22,7 @@ paths:
   - origin: .config/Code/User/*
     destination: .config/Code/User
     excludeFor:
-      - darwin
+      - platform: darwin
   - origin: .tmux.conf
   - origin: zsh/.zsh
   - origin: zsh/.antigenrc
@@ -36,3 +36,6 @@ paths:
   - origin: .wezterm.lua
   - origin: root/etc/pacman.conf
     destination: /etc
+    onlyFor:
+      - platform: linux
+        linuxDistro: arch
