@@ -51,6 +51,9 @@
           "onlyFor": {
             "$ref": "#/$defs/platformArray"
           },
+          "excludeFor": {
+            "$ref": "#/$defs/platformArray"
+          },
           "overrides": {
             "type": "array",
             "items": {

@@ -21,6 +21,8 @@ configs:
         destination: ~/Library/Application Support/lazygit
   - origin: .config/Code/User/*
     destination: .config/Code/User
+    excludeFor:
+      - darwin
   - origin: .tmux.conf
   - origin: zsh/.zsh
   - origin: zsh/.antigenrc
