@@ -5,6 +5,11 @@
 			"type": "string",
 			"enum": ["darwin", "linux", "win32"]
 		},
+		"linuxDistro": {
+			"type": "string",
+			"enum": ["arch", "debian"],
+			"description": "Linux distribution type"
+		},
 		"platformArray": {
 			"type": "array",
 			"items": {
@@ -33,6 +38,10 @@
 					"properties": {
 						"platform": {
 							"$ref": "#/$defs/platform"
+						},
+						"linuxDistro": {
+							"$ref": "#/$defs/linuxDistro",
+							"description": "Only applicable when platform is 'linux'"
 						},
 						"destination": {
 							"type": "string"
