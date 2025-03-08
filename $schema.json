@@ -1,63 +1,85 @@
 {
-	"$schema": "https://json-schema.org/draft-07/schema",
-	"$defs": {
-		"platform": {
-			"type": "string",
-			"enum": ["darwin", "linux", "win32"]
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "$defs": {
+    "platform": {
+      "type": "string",
+      "enum": [
+        "darwin",
+        "linux",
+        "win32"
+      ]
+    },
+    "linuxDistro": {
+      "type": "string",
+      "enum": [
+        "all",
+        "arch",
+        "debian"
+      ],
+      "description": "Linux distribution type",
+      "$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions",
+      "default": "all"
+    },
+    "platformArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/platform"
+      },
+      "uniqueItems": true
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "unevaluatedProperties": false,
+  "properties": {
+		"$schema": {
+			"type": "string"
 		},
-		"linuxDistro": {
-			"type": "string",
-			"enum": ["all", "arch", "debian"],
-			"description": "Linux distribution type",
-			"$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions",
-			"default": "all"
-		},
-		"platformArray": {
-			"type": "array",
-			"items": {
-				"$ref": "#/$defs/platform"
-			},
-			"uniqueItems": true
-		}
-	},
-	"type": "object",
-	"properties": {
-		"configs": {
-			"type": "array",
-			"items": {
-				"type": "object",
-				"properties": {
-					"origin": {
-						"type": "string"
-					},
-					"destination": {
-						"type": "string"
-					},
-					"onlyFor": {
-						"$ref": "#/$defs/platformArray"
-					},
-					"overrides": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"platform": {
-									"$ref": "#/$defs/platform"
-								},
-								"linuxDistro": {
-									"$ref": "#/$defs/linuxDistro",
-									"description": "Only applicable when platform is 'linux'"
-								},
-								"destination": {
-									"type": "string"
-								}
-							},
-							"required": ["platform", "destination"]
-						}
-					}
-				},
-				"required": ["origin"]
-			}
-		}
-	}
+    "configs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "unevaluatedProperties": false,
+        "properties": {
+          "origin": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "onlyFor": {
+            "$ref": "#/$defs/platformArray"
+          },
+          "overrides": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "unevaluatedProperties": false,
+              "properties": {
+                "platform": {
+                  "$ref": "#/$defs/platform"
+                },
+                "linuxDistro": {
+                  "$ref": "#/$defs/linuxDistro",
+                  "description": "Only applicable when platform is 'linux'"
+                },
+                "destination": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "platform",
+                "destination"
+              ]
+            }
+          }
+        },
+        "required": [
+          "origin"
+        ]
+      }
+    }
+  }
 }
