@@ -13,7 +13,7 @@ is_windows() {
 is_ubuntu() {
   if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [[ "$ID" == *"ubuntu"* ]]; then
+    if [[ "$ID" == *"ubuntu"* ]] || [[ "$ID_LIKE" == *"debian"* ]]; then
       return 0  # true
     fi
   fi
@@ -23,7 +23,7 @@ is_ubuntu() {
 is_arch() {
   if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [[ "$ID" == *"arch"* ]]; then
+    if [[ "$ID" == *"arch"* ]] || [[ "$ID_LIKE" == *"arch"* ]]; then
       return 0  # true
     fi
   fi
