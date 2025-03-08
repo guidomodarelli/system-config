@@ -22,10 +22,10 @@ configs:
   - origin: .config/Code/User/*
     destination: .config/Code/User
   - origin: .tmux.conf
-  - origin: .zsh/.zsh
-  - origin: .zsh/.antigenrc
-  - origin: .zsh/.zshrc
-  - origin: .zsh/.oh-my-zsh/themes/murilasso.zsh-theme
+  - origin: zsh/.zsh
+  - origin: zsh/.antigenrc
+  - origin: zsh/.zshrc
+  - origin: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
     destination: .oh-my-zsh/themes
   - origin: .astylerc
   - origin: .gitconfig
