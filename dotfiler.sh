@@ -4,6 +4,15 @@ ROOT_DIR="$(git rev-parse --show-toplevel)"
 source "$ROOT_DIR/files/zsh/.zsh/functions/styleText.zsh"
 source "$ROOT_DIR/files/zsh/.zsh/constants.zsh"
 source "$ROOT_DIR/files/zsh/.zsh/functions/check_command.zsh"
+LISTFILES="listfiles.yml"
+DEBUG=false
+
+is_debug() {
+  if [ "$DEBUG" = true ]; then
+    return 0 # true
+  fi
+  return 1 # false
+}
 
 is_darwin() {
   if [ "$(uname)" = "Darwin" ]; then
@@ -63,6 +72,40 @@ create_symbolic_link() {
   done
 }
 
+first_letter() {
+  echo "${1:0:1}"
+}
+
+get_darwin_files() {
+  yq '.paths[] | select(
+    (.excludeFor == null or .excludeFor[].platform != "darwin") and
+    (.onlyFor == null or .onlyFor[].platform == "darwin")
+  )' $LISTFILES | jq -c '.' | while read -r line; do
+
+    path=$(echo "$line" | jq -r '.path')
+
+    # Busca un override para platform = darwin
+    override_target=$(echo "$line" | jq -r '.overrides[]? | select(.platform == "darwin") | .target')
+
+    # Si hay override para darwin, úsalo; si no, usa el target normal
+    target=${override_target:-$(echo "$line" | jq -r '.target')}
+
+    if [ "$target" = "null" ]; then
+      target="$HOME"
+    elif [ "$(first_letter "$target")" != "/" ] && [ "$(first_letter "$target")" != "~" ]; then
+      target="$HOME"/"$target"
+    fi
+
+    if is_debug; then
+      echo "Path: $(printPath $path)"
+      echo "Target: $(printPath $target)"
+      echo "-----------"
+    fi
+
+    # Puedes agregar más lógica para procesar $path y $target aquí
+  done
+}
+
 main() {
   local files="$(cat listfiles)"
   if is_darwin; then
@@ -76,7 +119,7 @@ main() {
     path=./files/"$path"
     if [[ -z "$target" ]]; then
       target="$HOME"
-    elif [[ "${target:0:1}" != "/" ]]; then
+    elif [ "$(first_letter "$target")" != "/" ]; then
       target="$HOME"/"$target"
     fi
     local paths="$path"
