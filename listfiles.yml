@@ -1,41 +1,41 @@
 # yaml-language-server: $schema=schema.json
 paths:
-  - origin: .antigen/bundles/guidomodarelli/anyframe
-    destination: .antigen/bundles/guidomodarelli
-  - origin: .config/awesome
-    destination: .config
-  - origin: .config/espanso
-    destination: .config
-  - origin: .config/ranger
-    destination: .config
-  - origin: .config/rofi
-    destination: .config
-  - origin: .config/scripts
-    destination: .config
-  - origin: .config/nvim
-    destination: .config
-  - origin: .config/lazygit
-    destination: .config
+  - path: .antigen/bundles/guidomodarelli/anyframe
+    target: .antigen/bundles/guidomodarelli
+  - path: .config/awesome
+    target: .config
+  - path: .config/espanso
+    target: .config
+  - path: .config/ranger
+    target: .config
+  - path: .config/rofi
+    target: .config
+  - path: .config/scripts
+    target: .config
+  - path: .config/nvim
+    target: .config
+  - path: .config/lazygit
+    target: .config
     overrides:
       - platform: darwin
-        destination: ~/Library/Application Support/lazygit
-  - origin: .config/Code/User/*
-    destination: .config/Code/User
+        target: ~/Library/Application Support/lazygit
+  - path: .config/Code/User/*
+    target: .config/Code/User
     excludeFor:
       - platform: darwin
-  - origin: .tmux.conf
-  - origin: zsh/.zsh
-  - origin: zsh/.antigenrc
-  - origin: zsh/.zshrc
-  - origin: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
-    destination: .oh-my-zsh/themes
-  - origin: .astylerc
-  - origin: .gitconfig
-  - origin: .curlrc
-  - origin: .gdbinit
-  - origin: .wezterm.lua
-  - origin: root/etc/pacman.conf
-    destination: /etc
+  - path: .tmux.conf
+  - path: zsh/.zsh
+  - path: zsh/.antigenrc
+  - path: zsh/.zshrc
+  - path: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
+    target: .oh-my-zsh/themes
+  - path: .astylerc
+  - path: .gitconfig
+  - path: .curlrc
+  - path: .gdbinit
+  - path: .wezterm.lua
+  - path: root/etc/pacman.conf
+    target: /etc
     onlyFor:
       - platform: linux
         linuxDistro: arch

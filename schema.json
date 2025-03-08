@@ -77,10 +77,10 @@
         "additionalProperties": false,
         "unevaluatedProperties": false,
         "properties": {
-          "origin": {
+          "path": {
             "type": "string"
           },
-          "destination": {
+          "target": {
             "type": "string"
           },
           "onlyFor": {
@@ -95,11 +95,11 @@
               "type": "object",
               "unevaluatedProperties": false,
               "properties": {
-                "destination": {
+                "target": {
                   "type": "string"
                 }
               },
-              "required": ["destination"],
+              "required": ["target"],
               "allOf": [
                 {
                   "$ref": "#/$defs/platformConfig"
@@ -108,7 +108,7 @@
             }
           }
         },
-        "required": ["origin"]
+        "required": ["path"]
       }
     }
   }
