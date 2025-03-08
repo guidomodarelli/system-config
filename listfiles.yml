@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=$schema.json
-configs:
+paths:
   - origin: .antigen/bundles/guidomodarelli/anyframe
     destination: .antigen/bundles/guidomodarelli
   - origin: .config/awesome
