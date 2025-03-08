@@ -7,8 +7,10 @@
 		},
 		"linuxDistro": {
 			"type": "string",
-			"enum": ["arch", "debian"],
-			"description": "Linux distribution type"
+			"enum": ["all", "arch", "debian"],
+			"description": "Linux distribution type",
+			"$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions",
+			"default": "all"
 		},
 		"platformArray": {
 			"type": "array",
@@ -18,39 +20,44 @@
 			"uniqueItems": true
 		}
 	},
-	"type": "array",
-	"items": {
-		"type": "object",
-		"properties": {
-			"origin": {
-				"type": "string"
-			},
-			"destination": {
-				"type": "string"
-			},
-			"onlyFor": {
-				"$ref": "#/$defs/platformArray"
-			},
-			"overrides": {
-				"type": "array",
-				"items": {
-					"type": "object",
-					"properties": {
-						"platform": {
-							"$ref": "#/$defs/platform"
-						},
-						"linuxDistro": {
-							"$ref": "#/$defs/linuxDistro",
-							"description": "Only applicable when platform is 'linux'"
-						},
-						"destination": {
-							"type": "string"
-						}
+	"type": "object",
+	"properties": {
+		"configs": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"origin": {
+						"type": "string"
 					},
-					"required": ["platform", "destination"]
-				}
+					"destination": {
+						"type": "string"
+					},
+					"onlyFor": {
+						"$ref": "#/$defs/platformArray"
+					},
+					"overrides": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"platform": {
+									"$ref": "#/$defs/platform"
+								},
+								"linuxDistro": {
+									"$ref": "#/$defs/linuxDistro",
+									"description": "Only applicable when platform is 'linux'"
+								},
+								"destination": {
+									"type": "string"
+								}
+							},
+							"required": ["platform", "destination"]
+						}
+					}
+				},
+				"required": ["origin"]
 			}
-		},
-		"required": ["origin"]
+		}
 	}
 }
