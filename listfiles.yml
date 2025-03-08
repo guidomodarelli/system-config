@@ -19,7 +19,7 @@ configs:
     overrides:
       - platform: darwin
         destination: ~/Library/Application Support/lazygit
-  - origin: '.config/Code/User/*'
+  - origin: .config/Code/User/*
     destination: .config/Code/User
   - origin: .tmux.conf
   - origin: .zsh/.zsh
