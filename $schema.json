@@ -72,6 +72,25 @@
               "required": [
                 "platform",
                 "destination"
+              ],
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "platform": { "enum": ["linux"] }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "linuxDistro": { "$ref": "#/$defs/linuxDistro" }
+                    }
+                  },
+                  "else": {
+                    "not": {
+                      "required": ["linuxDistro"]
+                    }
+                  }
+                }
               ]
             }
           }
