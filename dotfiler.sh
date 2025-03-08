@@ -94,6 +94,5 @@ if [ "$EUID" = 0 ]; then
   exit 1
 fi
 
-check_command yq
-check_command jq
+check_commands yq jq
 main
