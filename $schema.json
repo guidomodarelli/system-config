@@ -32,9 +32,9 @@
   "additionalProperties": false,
   "unevaluatedProperties": false,
   "properties": {
-		"$schema": {
-			"type": "string"
-		},
+    "$schema": {
+      "type": "string"
+    },
     "paths": {
       "type": "array",
       "items": {
