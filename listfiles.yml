@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=$schema.json
+# yaml-language-server: $schema=schema.json
 paths:
   - origin: .antigen/bundles/guidomodarelli/anyframe
     destination: .antigen/bundles/guidomodarelli
