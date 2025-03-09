@@ -50,13 +50,13 @@ El sistema soporta configuraciones específicas para diferentes plataformas:
 
 3. **Creación de Enlaces Simbólicos**
 
-  La función `make_symlink` se encarga de:
-  - Comprobar que el destino no tenga un enlace ya existente y realizar una
-    copia de seguridad (con la extensión `.bak`) en caso de existir.
-  - Crear el enlace simbólico desde el archivo origen a la ruta de destino.
-  - Verificar los permisos del directorio destino y utilizar `sudo` en caso de
-    que el directorio de destino no pertenezca al usuario actual o no sea escribible.
-  - Informar al usuario cuando se utilizan permisos elevados para crear el enlace.
+- Para cada destino, verifica su estado actual:
+  - Si ya existe como enlace simbólico, lo elimina para reemplazarlo.
+  - Si existe como archivo o directorio regular, crea una copia de respaldo antes de proceder.
+  - Elimina cualquier respaldo anterior que sea un enlace simbólico.
+- Crea el enlace simbólico que apunta del origen al destino especificado.
+- Comprueba los permisos del directorio destino y, si no es escribible o no pertenece al usuario actual, utiliza `sudo` para ejecutar la operación.
+- Notifica al usuario cuando se emplean permisos elevados.
 
 4. **Ejemplo de Configuración YAML**
 
