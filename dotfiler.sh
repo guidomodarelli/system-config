@@ -77,16 +77,16 @@ first_letter() {
   echo "${1:0:1}"
 }
 
-get_darwin_files() {
-  yq '.paths[] | select(
-    (.excludeFor == null or .excludeFor[].platform != "darwin") and
-    (.onlyFor == null or .onlyFor[].platform == "darwin")
-  )' $LISTFILES | jq -c '.' | while read -r line; do
+get_files() {
+  local selector="$1"
+  local selector_override="$2"
+
+  yq ".paths[] | select($selector)" $LISTFILES | jq -c '.' | while read -r line; do
 
     path=$(echo "$line" | jq -r '.path')
 
     # Busca un override para platform = darwin
-    override_target=$(echo "$line" | jq -r '.overrides[]? | select(.platform == "darwin") | .target')
+    override_target=$(echo "$line" | jq -r ".overrides[]? | select($selector_override) | .target")
 
     # Si hay override para darwin, úsalo; si no, usa el target normal
     target=${override_target:-$(echo "$line" | jq -r '.target')}
@@ -105,6 +105,14 @@ get_darwin_files() {
 
     # Puedes agregar más lógica para procesar $path y $target aquí
   done
+
+}
+
+get_darwin_files() {
+  local selector='(.excludeFor == null or .excludeFor[].platform != "darwin") and (.onlyFor == null or .onlyFor[].platform == "darwin")'
+  local selector_override='.platform == "darwin"'
+
+  get_files "$selector" "$selector_override"
 }
 
 main() {
