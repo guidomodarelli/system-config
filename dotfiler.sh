@@ -95,7 +95,12 @@ build_path_obj() {
 
 get_abs_path() {
   local path="$1"
-  realpath "$ROOT_CONFIGS/$path"
+
+  if [ "$(first_letter "$path")" != "/" ] && [ "$(first_letter "$path")" != "~" ]; then
+    path="$ROOT_CONFIGS/$path"
+  fi
+
+  realpath "$path"
 }
 
 get_paths() {
@@ -129,10 +134,16 @@ get_paths() {
       path="$(echo "$path" | cut -d'*' -f1)"
       paths="$(find $(get_abs_path "$path") -maxdepth 1 -mindepth 1)"
       while IFS= read -r path; do
-        output=$(echo "$output" | jq -c ". + [$(build_path_obj "$path" "$target")]")
+        target="$target"/"$(basename "$path")"
+        path=$(get_abs_path "$path")
+        local path_obj=$(build_path_obj "$path" "$target")
+        output=$(echo "$output" | jq -c ". + [$path_obj]")
       done <<<"$paths"
     else
-      output=$(echo "$output" | jq -c ". + [$(build_path_obj $(get_abs_path "$path") "$target")]")
+      target="$target"/"$(basename "$path")"
+      path=$(get_abs_path "$path")
+      local path_obj=$(build_path_obj "$path" "$target")
+      output=$(echo "$output" | jq -c ". + [$path_obj]")
     fi
 
     echo "$output"
