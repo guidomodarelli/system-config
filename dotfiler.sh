@@ -59,8 +59,12 @@ make_symlink() {
   local target="$2"
 
   local SUDO=''
-  if [[ ! "$target" =~ "$HOME" ]]; then
+  local target_dir=$(dirname "$target")
+
+  # Check if we need sudo permissions (if directory is not writable or doesn't exist)
+  if [[ ! "$target" =~ "$HOME" ]] || [[ -d "$target_dir" && ! -w "$target_dir" ]] || [[ ! -d "$target_dir" && ! -w "$(dirname "$target_dir")" ]]; then
     SUDO='sudo'
+    printf "[ $(printYellow "NOTE") ] Using elevated permissions for $(printPath "$target")\n"
   fi
 
   # Remove any existing backup of the target if it's a symlink

@@ -54,8 +54,9 @@ El sistema soporta configuraciones específicas para diferentes plataformas:
   - Comprobar que el destino no tenga un enlace ya existente y realizar una
     copia de seguridad (con la extensión `.bak`) en caso de existir.
   - Crear el enlace simbólico desde el archivo origen a la ruta de destino.
-  - Utilizar `sudo` en caso de que el directorio de destino no pertenezca al
-    usuario actual.
+  - Verificar los permisos del directorio destino y utilizar `sudo` en caso de
+    que el directorio de destino no pertenezca al usuario actual o no sea escribible.
+  - Informar al usuario cuando se utilizan permisos elevados para crear el enlace.
 
 4. **Ejemplo de Configuración YAML**
 
