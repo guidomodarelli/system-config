@@ -114,6 +114,7 @@ get_paths() {
     fi
 
     # Puedes agregar más lógica para procesar $path y $target aquí
+    echo "[{\"path\":\"$path\",\"target\":\"$target\"}]"
   done
 
 }
