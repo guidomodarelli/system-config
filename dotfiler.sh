@@ -37,50 +37,52 @@ printPath() {
   echo "$(printCyan -u -- $path)"
 }
 
-createBak() {
+create_backup() {
   local path="$1"
 
-    # Remove .bak
-  if [[ -e "${path}.bak" ]]; then
-    $SUDO rm -r "${path}.bak"
-  fi
-
   $SUDO mv "${path}"{,.bak} 2>/dev/null
-
-  # This code is checking if a file or directory exists at the given path
-  if [[ ! -e "${path}.bak" ]]; then
-    return 1
-  fi
 
   printf "[ $(printGreen "BACK") ] Created $(printPath "$(ls -1 -d "${path}.bak")")\n"
 }
 
-create_symbolic_link() {
-  local paths="$1"
-  local dst_folder="$2"
+remove_old_symlink() {
+  local target="$1"
 
-  for path in ${paths[@]}; do
-    local abs_path="$(realpath "$path")"
-    local dest_abs_path="$dst_folder"/"$(basename "$abs_path")"
+  $SUDO rm "$target"
+  printf "[ $(printGreen "DEL") ] Removed old symlink $(printPath "$target")\n"
+}
 
-    local SUDO=''
-    if [[ ! "${dst_folder}" =~ "$USER" ]]; then
-      SUDO='sudo'
-    fi
+# This function creates a symbolic link from the source path to the target location
+# It handles existing files by creating backups and removes old symlinks if they exist
+make_symlink() {
+  local path="$1"
+  local target="$2"
 
-    # Create .bak
-    createBak "$dest_abs_path"
-    echo
+  local SUDO=''
+  if [[ ! "$target" =~ "$HOME" ]]; then
+    SUDO='sudo'
+  fi
 
-    # Create symbolic link
-    $SUDO ln -s "$abs_path" "$dest_abs_path"
-    printInfo "$(printPath "$abs_path") $(printBlue -b -- $POINTER) $(printPath "$(ls -1 -d "$dest_abs_path")")"
+  # Remove any existing backup of the target if it's a symlink
+  if [ -L "${target}.bak" ]; then
+    remove_old_symlink "${target}.bak"
+  fi
 
-    if [[ $SUDO = '' && ! -d "$dest_abs_path" ]]; then
-      mkdir -p $(dirname "$dest_abs_path")
-    fi
-    echo
-  done
+  # Remove old symlink if target already exists as a symbolic link
+  if [ -L "$target" ]; then
+    remove_old_symlink "$target"
+  elif [ -e "$target" ]; then
+    # Backup the existing file/directory before creating symlink
+    create_backup "$target"
+  fi
+
+  # Create parent directory for target if it doesn't exist
+  $SUDO mkdir -p $(dirname "$target")
+
+  # Create symbolic link
+  $SUDO ln -s "$path" "$target"
+
+  printInfo "$(printPath "$path") $(printBlue -b -- $POINTER) $(printPath "$(ls -1 -d "$target")")\n"
 }
 
 first_letter() {
@@ -193,29 +195,16 @@ get_darwin_paths() {
 }
 
 main() {
-  local files="$(cat listfiles)"
+  local files="$(get_linux_paths)"
   if is_darwin; then
-    files="$(cat listfiles.darwin)"
-    # https://stackoverflow.com/a/13785716
-    sudo chmod -R 755 /usr/local/share
+    files="$(get_darwin_paths)"
   fi
-  files="$(echo "$files" | grep -Ev "^\s*#")"
 
-  while IFS='=' read path target; do
-    path=./$ROOT_CONFIGS/"$path"
-    if [[ -z "$target" ]]; then
-      target="$HOME"
-    elif [ "$(first_letter "$target")" != "/" ]; then
-      target="$HOME"/"$target"
-    fi
-    local paths="$path"
-    if [[ -n "$(echo "$path" | grep "*")" ]]; then
-      path="$(echo "$path" | cut -d'*' -f1)"
-      paths="$(find "$path" -maxdepth 1 -mindepth 1)"
-    fi
-
-    create_symbolic_link "$paths" "$target"
-  done <<<"$files"
+  echo "$files" | jq -c '.[]' | while read -r line; do
+    path=$(echo "$line" | jq -r '.path')
+    target=$(echo "$line" | jq -r '.target')
+    make_symlink "$path" "$target"
+  done
 }
 
 if [ "$EUID" = 0 ]; then
