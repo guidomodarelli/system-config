@@ -96,8 +96,9 @@ build_path_obj() {
 get_paths() {
   local selector="$1"
   local selector_override="$2"
+  local output="[]"
 
-  yq ".paths[] | select($selector)" $LISTFILES | jq -c '.' | while read -r line; do
+  output="$(yq ".paths[] | select($selector)" $LISTFILES | jq -c '.' | while read -r line; do
 
     path=$(echo "$line" | jq -r '.path')
 
@@ -119,7 +120,6 @@ get_paths() {
       echo "-----------"
     fi
 
-    local output="[]"
     if [ -n "$(echo "$path" | grep -E "\*$")" ]; then
       path="$(echo "$path" | cut -d'*' -f1)"
       paths="$(find "$ROOT_CONFIGS/$path" -maxdepth 1 -mindepth 1)"
@@ -131,8 +131,9 @@ get_paths() {
     fi
 
     echo "$output"
-  done
+  done)"
 
+  echo "$output" | tail -1
 }
 
 get_linux_paths() {
