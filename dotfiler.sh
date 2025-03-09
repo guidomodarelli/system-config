@@ -93,6 +93,11 @@ build_path_obj() {
   echo "{\"path\":\"$path\",\"target\":\"$target\"}"
 }
 
+get_abs_path() {
+  local path="$1"
+  realpath "$ROOT_CONFIGS/$path"
+}
+
 get_paths() {
   local selector="$1"
   local selector_override="$2"
@@ -122,12 +127,12 @@ get_paths() {
 
     if [ -n "$(echo "$path" | grep -E "\*$")" ]; then
       path="$(echo "$path" | cut -d'*' -f1)"
-      paths="$(find "$ROOT_CONFIGS/$path" -maxdepth 1 -mindepth 1)"
+      paths="$(find $(get_abs_path "$path") -maxdepth 1 -mindepth 1)"
       while IFS= read -r path; do
         output=$(echo "$output" | jq -c ". + [$(build_path_obj "$path" "$target")]")
       done <<<"$paths"
     else
-      output=$(echo "$output" | jq -c ". + [$(build_path_obj "$ROOT_CONFIGS/$path" "$target")]")
+      output=$(echo "$output" | jq -c ". + [$(build_path_obj $(get_abs_path "$path") "$target")]")
     fi
 
     echo "$output"
