@@ -87,7 +87,7 @@ first_letter() {
   echo "${1:0:1}"
 }
 
-get_files() {
+get_paths() {
   local selector="$1"
   local selector_override="$2"
 
@@ -118,7 +118,7 @@ get_files() {
 
 }
 
-get_linux_files() {
+get_linux_paths() {
   local current_distro=$(get_linux_distro)
   local selector='(
     .excludeFor == null or (
@@ -139,10 +139,10 @@ get_linux_files() {
     .linuxDistro == null or .linuxDistro == "'$current_distro'"
   )'
 
-  get_files "$selector" "$selector_override"
+  get_paths "$selector" "$selector_override"
 }
 
-get_darwin_files() {
+get_darwin_paths() {
   local selector='(
     .excludeFor == null or .excludeFor[].platform != "darwin"
   ) and (
@@ -150,7 +150,7 @@ get_darwin_files() {
   )'
   local selector_override='.platform == "darwin"'
 
-  get_files "$selector" "$selector_override"
+  get_paths "$selector" "$selector_override"
 }
 
 main() {
