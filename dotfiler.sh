@@ -116,44 +116,49 @@ add_path_to_output() {
   echo "$output" | jq -c ". + [$path_obj]"
 }
 
+process_path_entry() {
+  local line="$1"
+  local selector_override="$2"
+  # Don't use local keyword here, we need to return the output
+  output="$3"
+
+  local path=$(echo "$line" | jq -r '.path')
+  local override_target=$(echo "$line" | jq -r ".overrides[]? | select($selector_override) | .target")
+  # Si hay override, úsalo; si no, usa el target normal
+  local target=${override_target:-$(echo "$line" | jq -r '.target')}
+
+  if [ "$target" = "null" ]; then
+    target="$HOME"
+  elif [ "$(first_letter "$target")" != "/" ] && [ "$(first_letter "$target")" != "~" ]; then
+    target="$HOME"/"$target"
+  fi
+
+  if is_debug; then
+    echo "Path: $(printPath $path)"
+    echo "Target: $(printPath $target)"
+    echo "-----------"
+  fi
+
+  if [ -n "$(echo "$path" | grep -E "\*$")" ]; then
+    path="$(echo "$path" | cut -d'*' -f1)"
+    paths="$(find $(get_abs_path "$path") -maxdepth 1 -mindepth 1)"
+    while IFS= read -r path; do
+      output=$(add_path_to_output "$path" "$target" "$output")
+    done <<<"$paths"
+  else
+    output=$(add_path_to_output "$path" "$target" "$output")
+  fi
+
+  echo "$output"
+}
+
 get_paths() {
   local selector="$1"
   local selector_override="$2"
   local output="[]"
 
   output="$(yq ".paths[] | select($selector)" $LISTFILES | jq -c '.' | while read -r line; do
-
-    path=$(echo "$line" | jq -r '.path')
-
-    # Busca un override para platform = darwin
-    override_target=$(echo "$line" | jq -r ".overrides[]? | select($selector_override) | .target")
-
-    # Si hay override para darwin, úsalo; si no, usa el target normal
-    target=${override_target:-$(echo "$line" | jq -r '.target')}
-
-    if [ "$target" = "null" ]; then
-      target="$HOME"
-    elif [ "$(first_letter "$target")" != "/" ] && [ "$(first_letter "$target")" != "~" ]; then
-      target="$HOME"/"$target"
-    fi
-
-    if is_debug; then
-      echo "Path: $(printPath $path)"
-      echo "Target: $(printPath $target)"
-      echo "-----------"
-    fi
-
-    if [ -n "$(echo "$path" | grep -E "\*$")" ]; then
-      path="$(echo "$path" | cut -d'*' -f1)"
-      paths="$(find $(get_abs_path "$path") -maxdepth 1 -mindepth 1)"
-      while IFS= read -r path; do
-        output=$(add_path_to_output "$path" "$target" "$output")
-      done <<<"$paths"
-    else
-      output=$(add_path_to_output "$path" "$target" "$output")
-    fi
-
-    echo "$output"
+    process_path_entry "$line" "$selector_override" "$output"
   done)"
 
   echo "$output" | tail -1
