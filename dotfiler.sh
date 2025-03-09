@@ -22,6 +22,16 @@ is_darwin() {
   return 1 # false
 }
 
+get_linux_distro() {
+  if [ -f "/etc/arch-release" ]; then
+    echo "arch"
+  elif [ -f "/etc/debian_version" ]; then
+    echo "debian"
+  else
+    echo "all"
+  fi
+}
+
 printPath() {
   local path="$1"
   echo "$(printCyan -u -- $path)"
@@ -106,6 +116,30 @@ get_files() {
     # Puedes agregar más lógica para procesar $path y $target aquí
   done
 
+}
+
+get_linux_files() {
+  local current_distro=$(get_linux_distro)
+  local selector='(
+    .excludeFor == null or (
+      .excludeFor[].platform != "linux" or (
+        .excludeFor[].platform == "linux" and .excludeFor[].linuxDistro != null
+          and .excludeFor[].linuxDistro != "'$current_distro'"
+      )
+    )
+  ) and (
+    .onlyFor == null or (
+      .onlyFor[].platform == "linux" and (
+        .onlyFor[].linuxDistro == null
+          or .onlyFor[].linuxDistro == "'$current_distro'"
+      )
+    )
+  )'
+  local selector_override='.platform == "linux" and (
+    .linuxDistro == null or .linuxDistro == "'$current_distro'"
+  )'
+
+  get_files "$selector" "$selector_override"
 }
 
 get_darwin_files() {

@@ -7,10 +7,9 @@
     },
     "linuxDistro": {
       "type": "string",
-      "enum": ["all", "arch", "debian"],
+      "enum": ["arch", "debian"],
       "description": "Linux distribution type",
-      "$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions",
-      "default": "all"
+      "$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions"
     },
     "platformConfig": {
       "type": "object",
