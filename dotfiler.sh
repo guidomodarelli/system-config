@@ -103,6 +103,17 @@ get_abs_path() {
   realpath "$path"
 }
 
+add_path_to_output() {
+  local path="$1"
+  local target="$2"
+  local output="$3"
+
+  target="$target"/"$(basename "$path")"
+  path=$(get_abs_path "$path")
+  local path_obj=$(build_path_obj "$path" "$target")
+  echo "$output" | jq -c ". + [$path_obj]"
+}
+
 get_paths() {
   local selector="$1"
   local selector_override="$2"
@@ -134,16 +145,10 @@ get_paths() {
       path="$(echo "$path" | cut -d'*' -f1)"
       paths="$(find $(get_abs_path "$path") -maxdepth 1 -mindepth 1)"
       while IFS= read -r path; do
-        target="$target"/"$(basename "$path")"
-        path=$(get_abs_path "$path")
-        local path_obj=$(build_path_obj "$path" "$target")
-        output=$(echo "$output" | jq -c ". + [$path_obj]")
+        output=$(add_path_to_output "$path" "$target" "$output")
       done <<<"$paths"
     else
-      target="$target"/"$(basename "$path")"
-      path=$(get_abs_path "$path")
-      local path_obj=$(build_path_obj "$path" "$target")
-      output=$(echo "$output" | jq -c ". + [$path_obj]")
+      output=$(add_path_to_output "$path" "$target" "$output")
     fi
 
     echo "$output"
