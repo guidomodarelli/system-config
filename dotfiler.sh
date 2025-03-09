@@ -87,6 +87,12 @@ first_letter() {
   echo "${1:0:1}"
 }
 
+build_path_obj() {
+  local path="$1"
+  local target="$2"
+  echo "{\"path\":\"$path\",\"target\":\"$target\"}"
+}
+
 get_paths() {
   local selector="$1"
   local selector_override="$2"
@@ -113,8 +119,18 @@ get_paths() {
       echo "-----------"
     fi
 
-    # Puedes agregar más lógica para procesar $path y $target aquí
-    echo "[{\"path\":\"$path\",\"target\":\"$target\"}]"
+    local output="[]"
+    if [ -n "$(echo "$path" | grep -E "\*$")" ]; then
+      path="$(echo "$path" | cut -d'*' -f1)"
+      paths="$(find "$ROOT_CONFIGS/$path" -maxdepth 1 -mindepth 1)"
+      while IFS= read -r path; do
+        output=$(echo "$output" | jq -c ". + [$(build_path_obj "$path" "$target")]")
+      done <<<"$paths"
+    else
+      output=$(echo "$output" | jq -c ". + [$(build_path_obj "$ROOT_CONFIGS/$path" "$target")]")
+    fi
+
+    echo "$output"
   done
 
 }
