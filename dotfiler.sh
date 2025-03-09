@@ -109,7 +109,11 @@ get_files() {
 }
 
 get_darwin_files() {
-  local selector='(.excludeFor == null or .excludeFor[].platform != "darwin") and (.onlyFor == null or .onlyFor[].platform == "darwin")'
+  local selector='(
+    .excludeFor == null or .excludeFor[].platform != "darwin"
+  ) and (
+    .onlyFor == null or .onlyFor[].platform == "darwin"
+  )'
   local selector_override='.platform == "darwin"'
 
   get_files "$selector" "$selector_override"
