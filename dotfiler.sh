@@ -7,6 +7,11 @@ source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/styleText.zsh"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/constants.zsh"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/check_command.zsh"
 
+# Create a temporary PowerShell script
+TMP_SCRIPT=$(mktemp -p /tmp wsl_symlink_XXXXXX.ps1)
+# Remove the temporary script when the script exits
+trap 'rm -f "$TMP_SCRIPT"' EXIT
+
 DEBUG=false
 is_debug() {
   if [ "$DEBUG" = true ]; then
@@ -121,10 +126,7 @@ make_symlink() {
     # -WindowStyle Hidden: Makes the PowerShell window not visible while the command runs.
     # -Verb RunAs: Runs the process with elevated privileges (as administrator).
     # -NoProfile: Prevents loading the PowerShell profile (default configuration files).
-    # FIXME: When the command ends, this script stops running. This is a known issue with WSL.
-    # TODO: I Propose to create a script in PowerShell that create all the symlinks and run it only for WSL paths.
-    # TODO: Or create a temporary script in /tmp with all the necessary commands to create the symlinks and run it. Then delete it.
-    powershell.exe -Command "Start-Process powershell -ArgumentList \"-NoProfile -Command New-Item -ItemType SymbolicLink -Path '$win_target' -Target '$path' -Force\" -Verb RunAs -WindowStyle Hidden" &
+    echo "New-Item -ItemType SymbolicLink -Path '$win_target' -Target '$path' -Force" >> "$TMP_SCRIPT"
   else
     $SUDO ln -s "$path" "$target"
   fi
@@ -135,6 +137,18 @@ make_symlink() {
 
 first_letter() {
   echo "${1:0:1}"
+}
+
+run_elevated_powershell_script() {
+  local tmp_script="$1"
+
+  cat "$tmp_script"
+
+  # Convert the path to Windows format
+  win_tmp_script=$(wslpath -w "$tmp_script")
+
+  # Run the script with elevated privileges and wait for it to complete
+  powershell.exe -Command "Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \"$win_tmp_script\"' -Verb RunAs -Wait -WindowStyle Hidden"
 }
 
 # Get Windows username when in WSL
@@ -305,4 +319,7 @@ fi
 check_commands yq jq
 USERNAME=$(get_windows_username)
 main
-# get_linux_paths | jq '.[]'
+
+run_elevated_powershell_script $TMP_SCRIPT
+
+echo "Done!"
