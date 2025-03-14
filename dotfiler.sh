@@ -116,14 +116,8 @@ make_symlink() {
     # Convert the target path to Windows format for cmd.exe
     local win_target=$(wslpath -w "$target" 2>/dev/null)
 
-    # Ensure we're in a valid Windows directory before running cmd.exe
-    cd /mnt/c/Windows >/dev/null 2>&1
-
     # Use PowerShell with elevated privileges
     powershell.exe -Command "Start-Process powershell -ArgumentList '-Command New-Item -ItemType SymbolicLink -Path \"$win_target\" -Target \"$path\"' -Verb RunAs"
-
-    # Return to previous directory
-    cd - >/dev/null 2>&1
   else
     $SUDO ln -s "$path" "$target"
   fi
