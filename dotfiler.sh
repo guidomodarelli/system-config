@@ -121,11 +121,7 @@ make_symlink() {
     # Convert the target path to Windows format for cmd.exe
     local win_target=$(wslpath -w "$target" 2>/dev/null)
 
-    # Use PowerShell with elevated privileges
-    # Start-Process powershell: Starts a new PowerShell instance. This is useful when you want to run commands with elevated privileges.
-    # -WindowStyle Hidden: Makes the PowerShell window not visible while the command runs.
-    # -Verb RunAs: Runs the process with elevated privileges (as administrator).
-    # -NoProfile: Prevents loading the PowerShell profile (default configuration files).
+    # Create a PowerShell script to create the symbolic link
     echo "New-Item -ItemType SymbolicLink -Path '$win_target' -Target '$path' -Force" >> "$TMP_SCRIPT"
   else
     $SUDO ln -s "$path" "$target"
@@ -148,6 +144,12 @@ run_elevated_powershell_script() {
   win_tmp_script=$(wslpath -w "$tmp_script")
 
   # Run the script with elevated privileges and wait for it to complete
+  # Use PowerShell with elevated privileges
+  # Start-Process powershell: Starts a new PowerShell instance. This is useful when you want to run commands with elevated privileges.
+  # -WindowStyle Hidden: Makes the PowerShell window not visible while the command runs.
+  # -Verb RunAs: Runs the process with elevated privileges (as administrator).
+  # -NoProfile: Prevents loading the PowerShell profile (default configuration files).
+  # -ExecutionPolicy Bypass: Allows running scripts without any restrictions.
   powershell.exe -Command "Start-Process powershell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \"$win_tmp_script\"' -Verb RunAs -Wait -WindowStyle Hidden"
 }
 
