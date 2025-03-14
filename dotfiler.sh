@@ -117,7 +117,11 @@ make_symlink() {
     local win_target=$(wslpath -w "$target" 2>/dev/null)
 
     # Use PowerShell with elevated privileges
-    powershell.exe -Command "Start-Process powershell -ArgumentList '-Command New-Item -ItemType SymbolicLink -Path \"$win_target\" -Target \"$path\"' -Verb RunAs"
+    # -WindowStyle Hidden: Makes the PowerShell window not visible while the command runs.
+    # Start-Process powershell: Starts a new PowerShell instance. This is useful when you want to run commands with elevated privileges.
+    # -Verb RunAs: Runs the process with elevated privileges (as administrator).
+    # -NoProfile: Prevents loading the PowerShell profile (default configuration files).
+    powershell.exe -Command "Start-Process powershell -ArgumentList \"-NoProfile -Command New-Item -ItemType SymbolicLink -Path '$win_target' -Target '$path' -Force\" -Verb RunAs -WindowStyle Hidden" &
   else
     $SUDO ln -s "$path" "$target"
   fi
