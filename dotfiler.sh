@@ -122,7 +122,8 @@ make_symlink() {
     # -Verb RunAs: Runs the process with elevated privileges (as administrator).
     # -NoProfile: Prevents loading the PowerShell profile (default configuration files).
     # FIXME: When the command ends, this script stops running. This is a known issue with WSL.
-    # I Propose to create a script in PowerShell that create all the symlinks and run it only for WSL paths.
+    # TODO: I Propose to create a script in PowerShell that create all the symlinks and run it only for WSL paths.
+    # TODO: Or create a temporary script in /tmp with all the necessary commands to create the symlinks and run it. Then delete it.
     powershell.exe -Command "Start-Process powershell -ArgumentList \"-NoProfile -Command New-Item -ItemType SymbolicLink -Path '$win_target' -Target '$path' -Force\" -Verb RunAs -WindowStyle Hidden" &
   else
     $SUDO ln -s "$path" "$target"
