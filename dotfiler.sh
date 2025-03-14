@@ -59,6 +59,25 @@ remove_old_symlink() {
   printf "[ $(printGreen "DEL") ] Removed old symlink $(printPath "$target")\n"
 }
 
+# Get the current WSL distribution name
+get_wsl_distro_name() {
+  if is_wsl; then
+    grep -oP '(?<=^NAME=").*(?=")' /etc/os-release | tr -d '\r\n'
+  fi
+}
+
+# Format path for Windows when in WSL
+format_wsl_windows_path() {
+  local path="$1"
+  local distro_name=$(get_wsl_distro_name)
+
+  # Add WSL prefix and replace forward slashes with backslashes
+  path="\\\\wsl\$\\$distro_name$path"
+  path="${path//\//\\}"
+
+  echo "$path"
+}
+
 # This function creates a symbolic link from the source path to the target location
 # It handles existing files by creating backups and removes old symlinks if they exist
 make_symlink() {
