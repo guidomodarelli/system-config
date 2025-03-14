@@ -96,7 +96,9 @@ first_letter() {
 build_path_obj() {
   local path="$1"
   local target="$2"
-  echo "{\"path\":\"$path\",\"target\":\"$target\"}"
+  # Build a JSON object using jq
+  json=$(jq -n --arg path "$path" --arg target "$target" '{path: $path, target: $target}')
+  echo "$json"
 }
 
 get_abs_path() {
