@@ -118,7 +118,7 @@ make_symlink() {
   if [[ $path =~ "\\\\wsl\$" ]]; then
     printInfo "Creating symlink for WSL: $(printPath "${path//\\/\\\\}")\n"
 
-    # Convert the target path to Windows format for cmd.exe
+    # Convert the target path to Windows format
     local win_target=$(wslpath -w "$target" 2>/dev/null)
 
     # Create a PowerShell script to create the symbolic link
