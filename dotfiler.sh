@@ -100,6 +100,29 @@ first_letter() {
   echo "${1:0:1}"
 }
 
+# Get Windows username when in WSL
+get_windows_username() {
+  if is_wsl; then
+    # Try to get Windows username using several methods
+    if command -v powershell.exe >/dev/null 2>&1; then
+      # Use PowerShell if available
+      powershell.exe -Command '$env:USERNAME' 2>/dev/null | tr -d '\r'
+    elif [ -f /mnt/c/Windows/System32/cmd.exe ]; then
+      # Use cmd.exe if available
+      /mnt/c/Windows/System32/cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n'
+    elif [ -n "$WSLENV" ] && [ -n "$USERNAME" ]; then
+      # Use WSL environment variable if available
+      echo "$USERNAME"
+    else
+      # Fallback to current user
+      echo "$USER"
+    fi
+  else
+    # Not in WSL, return current user
+    echo "$USER"
+  fi
+}
+
 build_path_obj() {
   local path="$1"
   local target="$2"
