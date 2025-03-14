@@ -6,6 +6,10 @@ paths:
     target: .config
   - path: .config/espanso
     target: .config
+    overrides:
+      - target: AppData/Roaming
+        platform: linux
+        wsl: true
   - path: .config/ranger
     target: .config
   - path: .config/rofi

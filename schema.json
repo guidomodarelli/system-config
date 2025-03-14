@@ -20,6 +20,10 @@
         },
         "linuxDistro": {
           "$ref": "#/$defs/linuxDistro"
+        },
+        "wsl": {
+          "type": "boolean",
+          "description": "Indicates whether this config is for WSL environments"
         }
       },
       "required": ["platform"],
@@ -36,12 +40,15 @@
             "properties": {
               "linuxDistro": {
                 "$ref": "#/$defs/linuxDistro"
+              },
+              "wsl": {
+                "type": "boolean"
               }
             }
           },
           "else": {
             "not": {
-              "required": ["linuxDistro"]
+              "required": ["linuxDistro", "wsl"]
             }
           }
         }

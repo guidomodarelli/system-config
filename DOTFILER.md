@@ -17,6 +17,8 @@ sistemas operativos como Darwin (macOS) y Linux.
     - `target` (opcional): El destino donde se creará el enlace simbólico. Si no
       se especifica, el destino por defecto es el directorio del usuario
       `$HOME`.
+      - Soporta variables de entorno como `$USER` o `$HOME` que serán evaluadas.
+      - Para rutas que comienzan con `/mnt/c/` en WSL, `$USER` será evaluado como el nombre de usuario de Windows.
     - Configuración específica por plataforma (ver abajo).
 
 ## Configuración por Plataforma
@@ -28,6 +30,7 @@ El sistema soporta configuraciones específicas para diferentes plataformas:
   - `linux`: Para sistemas Linux, con soporte específico para:
     - `arch`: Distribución Arch Linux.
     - `debian`: Distribución Debian/Ubuntu.
+    - `wsl`: Detecta si Linux está ejecutándose bajo Windows Subsystem for Linux.
 
 - **Directivas de Configuración por Plataforma**:
   - `onlyFor`: Define para qué plataformas específicas aplica este enlace.
@@ -38,7 +41,7 @@ El sistema soporta configuraciones específicas para diferentes plataformas:
 
 1. **Detección del Sistema Operativo**
 
-  Utiliza las funciones `is_darwin` y `get_linux_distro` para determinar en qué
+  Utiliza las funciones `is_darwin`, `is_wsl` y `get_linux_distro` para determinar en qué
   entorno se está ejecutando y aplicar las configuraciones adecuadas.
 
 2. **Procesamiento de las Configuraciones**
@@ -83,6 +86,20 @@ El sistema soporta configuraciones específicas para diferentes plataformas:
       onlyFor:
         - platform: linux
           linuxDistro: arch
+    - path: .config/wsl-specific-config
+      target: .config
+      onlyFor:
+        - platform: linux
+          wsl: true
+    - path: .ssh/config
+      target: /home/$USER/.ssh
+    - path: scripts
+      target: $HOME/bin
+    - path: windows/app-configs
+      target: /mnt/c/Users/$USER/AppData/Roaming
+      onlyFor:
+        - platform: linux
+          wsl: true
   ```
 
 5. **Modificación de Configuraciones**:
