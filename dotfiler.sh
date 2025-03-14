@@ -121,6 +121,7 @@ make_symlink() {
     # Start-Process powershell: Starts a new PowerShell instance. This is useful when you want to run commands with elevated privileges.
     # -Verb RunAs: Runs the process with elevated privileges (as administrator).
     # -NoProfile: Prevents loading the PowerShell profile (default configuration files).
+    # FIXME: When the command ends, this script stops running. This is a known issue with WSL.
     powershell.exe -Command "Start-Process powershell -ArgumentList \"-NoProfile -Command New-Item -ItemType SymbolicLink -Path '$win_target' -Target '$path' -Force\" -Verb RunAs -WindowStyle Hidden" &
   else
     $SUDO ln -s "$path" "$target"
