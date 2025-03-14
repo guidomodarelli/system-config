@@ -4,12 +4,6 @@ paths:
     target: .antigen/bundles/guidomodarelli
   - path: .config/awesome
     target: .config
-  - path: .config/espanso
-    target: .config
-    overrides:
-      - target: WSL://AppData/Roaming
-        platform: linux
-        wsl: true
   - path: .config/ranger
     target: .config
   - path: .config/rofi
@@ -43,3 +37,9 @@ paths:
     onlyFor:
       - platform: linux
         linuxDistro: arch
+  - path: .config/espanso
+    target: .config
+    overrides:
+      - target: WSL://AppData/Roaming
+        platform: linux
+        wsl: true
