@@ -11,6 +11,10 @@
       "description": "Linux distribution type",
       "$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions"
     },
+    "targetPath": {
+      "type": "string",
+      "description": "Target path for symlink."
+    },
     "platformConfig": {
       "type": "object",
       "unevaluatedProperties": false,
@@ -87,7 +91,7 @@
             "type": "string"
           },
           "target": {
-            "type": "string"
+            "$ref": "#/$defs/targetPath"
           },
           "onlyFor": {
             "$ref": "#/$defs/platformConfigArray"
@@ -100,17 +104,39 @@
             "items": {
               "type": "object",
               "unevaluatedProperties": false,
-              "properties": {
-                "target": {
-                  "type": "string"
-                }
-              },
-              "required": ["target"],
               "allOf": [
                 {
                   "$ref": "#/$defs/platformConfig"
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "platform": { "enum": ["linux"] },
+                      "wsl": { "const": true }
+                    },
+                    "required": ["platform", "wsl"]
+                  },
+                  "then": {
+                    "properties": {
+                      "target": {
+                        "type": "string",
+                        "pattern": "^WSL://",
+                        "description": "WSL environments must use WSL:// prefix"
+                      }
+                    }
+                  },
+                  "else": {
+                    "properties": {
+                      "target": {
+                        "type": "string",
+                        "pattern": "^(?!WSL://)",
+                        "description": "Non-WSL environments should not use WSL:// prefix"
+                      }
+                    }
+                  }
                 }
-              ]
+              ],
+              "required": ["target"]
             }
           }
         },

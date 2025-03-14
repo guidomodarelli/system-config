@@ -7,7 +7,7 @@ paths:
   - path: .config/espanso
     target: .config
     overrides:
-      - target: AppData/Roaming
+      - target: WSL://AppData/Roaming
         platform: linux
         wsl: true
   - path: .config/ranger

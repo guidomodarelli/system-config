@@ -167,6 +167,12 @@ add_path_to_output() {
 
   target="$target"/"$(basename "$path")"
   path=$(get_abs_path "$path")
+  if [[ "$target" == WSL://* ]]; then
+    target=${target//WSL:\/\//}
+    target="/mnt/c$target"
+    target="${target//$HOME/\/Users\/$USERNAME}"
+    path=$(format_wsl_windows_path "$path")
+  fi
   local path_obj=$(build_path_obj "$path" "$target")
   echo "$output" | jq -c ". + [$path_obj]"
 }
@@ -182,6 +188,8 @@ process_path_entry() {
 
   if [ "$target" = "null" ]; then
     target="$HOME"
+  elif [[ "$target" == WSL://* ]]; then
+    target="${target/WSL:\/\//WSL:\/\/$HOME/}"
   elif [ "$(first_letter "$target")" != "/" ] && [ "$(first_letter "$target")" != "~" ]; then
     target="$HOME"/"$target"
   fi
