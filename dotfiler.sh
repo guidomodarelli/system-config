@@ -49,7 +49,7 @@ create_backup() {
 
   $SUDO mv "${path}"{,.bak} 2>/dev/null
 
-  printf "[ $(printGreen "BACK") ] Created $(printPath "$(ls -1 -d "${path}.bak")")\n"
+  printf "[ $(printGreen "BACK") ] Created $(printPath "${path//\\/\\\\}.bak")\n"
 }
 
 remove_old_symlink() {
@@ -112,7 +112,7 @@ make_symlink() {
   # Create symbolic link
   $SUDO ln -s "$path" "$target"
 
-  printInfo "$(printPath "$path") $(printBlue -b -- $POINTER) $(printPath "$(ls -1 -d "$target")")\n"
+  printInfo "$(printPath "$target") $(printBlue -b -- $POINTER) $(printPath "${path//\\/\\\\}")\n"
 }
 
 first_letter() {
@@ -187,7 +187,7 @@ process_path_entry() {
   fi
 
   if is_debug; then
-    echo "Path: $(printPath $path)"
+    echo "Path: $(printPath "${path//\\/\\\\}")"
     echo "Target: $(printPath $target)"
     echo "-----------"
   fi
