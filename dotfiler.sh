@@ -123,12 +123,12 @@ first_letter() {
 get_windows_username() {
   if is_wsl; then
     # Try to get Windows username using several methods
-    if command -v powershell.exe >/dev/null 2>&1; then
-      # Use PowerShell if available
-      powershell.exe -Command '$env:USERNAME' 2>/dev/null | tr -d '\r'
-    elif [ -f /mnt/c/Windows/System32/cmd.exe ]; then
+    if [ -f /mnt/c/Windows/System32/cmd.exe ]; then
       # Use cmd.exe if available
       /mnt/c/Windows/System32/cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n'
+    elif command -v powershell.exe >/dev/null 2>&1; then
+      # Use PowerShell if available
+      powershell.exe -Command '$env:USERNAME' 2>/dev/null | tr -d '\r'
     elif [ -n "$WSLENV" ] && [ -n "$USERNAME" ]; then
       # Use WSL environment variable if available
       echo "$USERNAME"
