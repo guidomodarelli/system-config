@@ -117,8 +117,8 @@ make_symlink() {
     local win_target=$(wslpath -w "$target" 2>/dev/null)
 
     # Use PowerShell with elevated privileges
-    # -WindowStyle Hidden: Makes the PowerShell window not visible while the command runs.
     # Start-Process powershell: Starts a new PowerShell instance. This is useful when you want to run commands with elevated privileges.
+    # -WindowStyle Hidden: Makes the PowerShell window not visible while the command runs.
     # -Verb RunAs: Runs the process with elevated privileges (as administrator).
     # -NoProfile: Prevents loading the PowerShell profile (default configuration files).
     # FIXME: When the command ends, this script stops running. This is a known issue with WSL.
