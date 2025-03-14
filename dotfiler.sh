@@ -277,4 +277,5 @@ if [ "$EUID" = 0 ]; then
 fi
 
 check_commands yq jq
+USERNAME=$(get_windows_username)
 main
