@@ -110,7 +110,24 @@ make_symlink() {
   $SUDO mkdir -p $(dirname "$target")
 
   # Create symbolic link
-  $SUDO ln -s "$path" "$target"
+  if [[ $path =~ "\\\\wsl\$" ]]; then
+    printInfo "Creating symlink for WSL: $(printPath "${path//\\/\\\\}")\n"
+
+    # Convert the target path to Windows format for cmd.exe
+    local win_target=$(wslpath -w "$target" 2>/dev/null)
+
+    # Ensure we're in a valid Windows directory before running cmd.exe
+    cd /mnt/c/Windows >/dev/null 2>&1
+
+    # Use PowerShell with elevated privileges
+    powershell.exe -Command "Start-Process powershell -ArgumentList '-Command New-Item -ItemType SymbolicLink -Path \"$win_target\" -Target \"$path\"' -Verb RunAs"
+
+    # Return to previous directory
+    cd - >/dev/null 2>&1
+  else
+    $SUDO ln -s "$path" "$target"
+  fi
+
 
   printInfo "$(printPath "$target") $(printBlue -b -- $POINTER) $(printPath "${path//\\/\\\\}")\n"
 }
@@ -287,3 +304,4 @@ fi
 check_commands yq jq
 USERNAME=$(get_windows_username)
 main
+# get_linux_paths | jq '.[]'
