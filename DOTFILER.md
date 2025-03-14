@@ -37,6 +37,30 @@ El sistema soporta configuraciones específicas para diferentes plataformas:
   - `excludeFor`: Define qué plataformas deben excluir este enlace.
   - `overrides`: Permite modificar el `target` dependiendo de la plataforma.
 
+## Soporte para WSL (Windows Subsystem for Linux)
+
+El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
+
+- **Prefijo `WSL://`**:
+  - Cuando se especifica un `target` con el prefijo `WSL://`, el script reconoce que el destino debe estar en el sistema de archivos de Windows.
+  - El prefijo `WSL://` se convierte automáticamente a la ruta correcta en la estructura de `/mnt/c/`.
+  - Este prefijo solo puede usarse cuando la configuración tiene `platform: linux` y `wsl: true`.
+
+- **Ejemplo de uso**:
+  ```yaml
+  - path: .config/espanso
+    target: .config
+    overrides:
+      - target: WSL://AppData/Roaming
+        platform: linux
+        wsl: true
+  ```
+  En este ejemplo, en un entorno WSL, el directorio `.config/espanso` se enlazará a `/mnt/c/Users/<windows_username>/AppData/Roaming/espanso`.
+
+- **Formato interno**:
+  - Cuando se usa `WSL://`, el script formateará la ruta para que sea accesible desde el sistema Windows mediante la estructura `\\wsl$\<distro>\path`.
+  - Esto permite que las aplicaciones de Windows accedan a los archivos compartidos a través del sistema de archivos de WSL.
+
 ## Funcionamiento General del Script
 
 1. **Detección del Sistema Operativo**
