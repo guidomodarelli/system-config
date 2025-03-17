@@ -194,6 +194,26 @@ get_abs_path() {
   realpath "$path"
 }
 
+# Expand environment variables in a path string
+expand_env_vars() {
+  local path="$1"
+
+  # Replace $HOME with the actual home directory
+  path="${path//'$HOME'/$HOME}"
+  path="${path//\~/$HOME}"
+
+  # Replace $USER with the appropriate username
+  if [[ "$path" == /mnt/c/* ]] || [[ "$path" == WSL://* ]]; then
+    # For WSL paths, use Windows username
+    path="${path//'$USER'/$USERNAME}"
+  else
+    # For regular paths, use Linux username
+    path="${path//'$USER'/$USER}"
+  fi
+
+  echo "$path"
+}
+
 add_path_to_output() {
   local path="$1"
   local target="$2"
@@ -207,11 +227,14 @@ add_path_to_output() {
 
   path=$(get_abs_path "$path")
   if [[ "$target" == WSL://* ]]; then
+    # Convert WSL:// prefix to Windows path
     target=${target//WSL:\/\//}
-    target="/mnt/c$target"
-    target="${target//$HOME/\/Users\/$USERNAME}"
+    target="/mnt/c/Users/$USERNAME/$target"
+    # WSL paths should use Windows username
+    target=$(expand_env_vars "$target")
     path=$(format_wsl_windows_path "$path")
   fi
+
   local path_obj=$(build_path_obj "$path" "$target")
   echo "$output" | jq -c ". + [$path_obj]"
 }
@@ -228,10 +251,13 @@ process_path_entry() {
   if [ "$target" = "null" ]; then
     target="$HOME"
   elif [[ "$target" == WSL://* ]]; then
-    target="${target/WSL:\/\//WSL:\/\/$HOME/}"
+    target="${target/WSL:\/\//WSL:\/\/}"
   elif [ "$(first_letter "$target")" != "/" ] && [ "$(first_letter "$target")" != "~" ]; then
     target="$HOME"/"$target"
   fi
+
+  # Expand environment variables in target path
+  target=$(expand_env_vars "$target")
 
   if is_debug; then
     echo "Path: $(printPath "${path//\\/\\\\}")"

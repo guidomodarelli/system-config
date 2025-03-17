@@ -17,9 +17,12 @@ sistemas operativos como Darwin (macOS) y Linux.
     - `target` (opcional): El destino donde se creará el enlace simbólico. Si no
       se especifica, el destino por defecto es el directorio del usuario
       `$HOME`.
-      - Soporta variables de entorno como `$USER` o `$HOME` que serán evaluadas.
-      - Para rutas que comienzan con `/mnt/c/` en WSL, `$USER` será evaluado como el nombre de usuario de Windows.
-    - Configuración específica por plataforma (ver abajo).
+      - Soporta variables de entorno como `$USER` o `$HOME` que serán expandidas
+        al ejecutar el script.
+      - Para rutas que comienzan con `/mnt/c/` o utilizan el prefijo `WSL://` en WSL,
+        `$USER` será expandido al nombre de usuario de Windows.
+      - Para todas las demás rutas, `$USER` será expandido al nombre de usuario de Linux/macOS.
+      - También puedes usar `~` como alias para `$HOME`.
 
 ## Configuración por Plataforma
 
@@ -82,12 +85,12 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
     Por ejemplo, si tenemos:
     ```yaml
     - path: .config/settings/*
-      target: ~/.local/share/app-settings
+      target: .local/share/app-settings
     ```
     Y dentro de `.config/settings/` hay archivos `config.json` y `profile.ini`,
     se crearán dos enlaces:
-    - `~/.local/share/app-settings/config.json` → `/ruta/a/files/.config/settings/config.json`
-    - `~/.local/share/app-settings/profile.ini` → `/ruta/a/files/.config/settings/profile.ini`
+    - `.local/share/app-settings/config.json` → `/ruta/absoluta/files/.config/settings/config.json`
+    - `.local/share/app-settings/profile.ini` → `/ruta/absoluta/files/.config/settings/profile.ini`
 
 3. **Creación de Enlaces Simbólicos**
 
@@ -127,11 +130,11 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
         - platform: linux
           wsl: true
     - path: .ssh/config
-      target: /home/$USER/.ssh
-    - path: scripts
-      target: $HOME/bin
+      target: /home/$USER/.ssh  # Expandido al usuario Linux/macOS
+    - path: scripts/*
+      target: $HOME/bin  # Expandido al directorio home del usuario
     - path: windows/app-configs
-      target: /mnt/c/Users/$USER/AppData/Roaming
+      target: /mnt/c/Users/$USER/AppData/Roaming  # $USER es usuario de Windows en WSL
       onlyFor:
         - platform: linux
           wsl: true
