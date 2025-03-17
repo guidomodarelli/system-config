@@ -198,8 +198,13 @@ add_path_to_output() {
   local path="$1"
   local target="$2"
   local output="$3"
+  local is_wildcard="$4"
 
-  target="$target"/"$(basename "$path")"
+  # Only append basename if not a wildcard path
+  if [ "$is_wildcard" != "true" ]; then
+    target="$target"/"$(basename "$path")"
+  fi
+
   path=$(get_abs_path "$path")
   if [[ "$target" == WSL://* ]]; then
     target=${target//WSL:\/\//}
@@ -235,14 +240,24 @@ process_path_entry() {
   fi
 
   local output="[]"
-  if [ -n "$(echo "$path" | grep -E "\*$")" ]; then
-    path="$(echo "$path" | cut -d'*' -f1)"
-    paths="$(find $(get_abs_path "$path") -maxdepth 1 -mindepth 1)"
-    while IFS= read -r path; do
-      output=$(add_path_to_output "$path" "$target" "$output")
-    done <<<"$paths"
+  if [[ "$path" == *"*" ]]; then
+    # Get the directory path without the asterisk
+    local dir_path="${path%/*}"
+    local abs_dir_path=$(get_abs_path "$dir_path")
+
+    # Find all files and directories in the specified directory (first level only)
+    if [ -d "$abs_dir_path" ]; then
+      while IFS= read -r item; do
+        # For each item, create a symlink to the target directory
+        local item_name=$(basename "$item")
+        local item_target="$target/$item_name"
+        output=$(add_path_to_output "$item" "$target" "$output" "true")
+      done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
+    else
+      printWarning "Directory not found: $abs_dir_path"
+    fi
   else
-    output=$(add_path_to_output "$path" "$target" "$output")
+    output=$(add_path_to_output "$path" "$target" "$output" "false")
   fi
 
   echo "$output"

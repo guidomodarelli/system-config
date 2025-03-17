@@ -76,7 +76,18 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
     determinar qué enlaces crear.
   - Cuando el "`path`" termina con un asterisco (`*`), el script interpreta
     que se deben enlazar todos los archivos y directorios contenidos en la
-    carpeta indicada.
+    carpeta indicada (solo el primer nivel). Cada uno de los elementos encontrados
+    se enlaza individualmente manteniendo su nombre original en la carpeta destino.
+
+    Por ejemplo, si tenemos:
+    ```yaml
+    - path: .config/settings/*
+      target: ~/.local/share/app-settings
+    ```
+    Y dentro de `.config/settings/` hay archivos `config.json` y `profile.ini`,
+    se crearán dos enlaces:
+    - `~/.local/share/app-settings/config.json` → `/ruta/a/files/.config/settings/config.json`
+    - `~/.local/share/app-settings/profile.ini` → `/ruta/a/files/.config/settings/profile.ini`
 
 3. **Creación de Enlaces Simbólicos**
 
