@@ -17,7 +17,7 @@ paths:
     overrides:
       - platform: darwin
         target: Library/Application Support/lazygit
-  - path: .config/Code/User/*
+  - path: .config/Code/User/* # FIXME: This is not working
     target: .config/Code/User
     excludeFor:
       - platform: darwin
@@ -43,7 +43,7 @@ paths:
       - target: WSL://AppData/Roaming
         platform: linux
         wsl: true
-  - path: PowerShell/*
+  - path: PowerShell/*  # FIXME: This is not working
     target: WSL://OneDrive/Documents/PowerShell
     onlyFor:
       - platform: linux
