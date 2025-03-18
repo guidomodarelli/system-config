@@ -340,17 +340,29 @@ get_darwin_paths() {
   get_paths "$selector" "$selector_override"
 }
 
-main() {
-  local files="$(get_linux_paths)"
+get_paths_by_current_platform() {
   if is_darwin; then
-    files="$(get_darwin_paths)"
+    get_darwin_paths
+  else
+    get_linux_paths
   fi
+}
 
-  echo "$files" | jq -c '.[]' | while read -r line; do
+main() {
+  check_commands yq jq
+  USERNAME=$(get_windows_username)
+
+  local paths="$(get_paths_by_current_platform)"
+
+  echo "$paths" | jq -c '.[]' | while read -r line; do
     path=$(echo "$line" | jq -r '.path')
     target=$(echo "$line" | jq -r '.target')
     make_symlink "$path" "$target"
   done
+
+  run_elevated_powershell_script $TMP_SCRIPT
+
+  echo "Done!"
 }
 
 if [ "$EUID" = 0 ]; then
@@ -358,12 +370,6 @@ if [ "$EUID" = 0 ]; then
   exit 1
 fi
 
-check_commands yq jq
-USERNAME=$(get_windows_username)
 if ! is_debug; then
   main
-
-  run_elevated_powershell_script $TMP_SCRIPT
-
-  echo "Done!"
 fi
