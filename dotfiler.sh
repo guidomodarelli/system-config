@@ -248,12 +248,12 @@ process_path_entry() {
   # Si hay override, úsalo; si no, usa el target normal
   local target=${override_target:-$(echo "$line" | jq -r '.target')}
 
-  if [ "$target" = "null" ]; then
-    target="$HOME"
-  elif [[ "$target" == WSL://* ]]; then
-    target="${target/WSL:\/\//WSL:\/\/}"
-  elif [ "$(first_letter "$target")" != "/" ] && [ "$(first_letter "$target")" != "~" ]; then
-    target="$HOME"/"$target"
+  if [[ "$target" != WSL://* ]]; then
+    if [ "$target" = "null" ]; then
+      target="$HOME"
+    elif [ "$(first_letter "$target")" != "/" ] && [ "$(first_letter "$target")" != "~" ]; then
+      target="$HOME"/"$target"
+    fi
   fi
 
   # Expand environment variables in target path
