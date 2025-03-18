@@ -275,8 +275,6 @@ process_path_entry() {
     if [ -d "$abs_dir_path" ]; then
       while IFS= read -r item; do
         # For each item, create a symlink to the target directory
-        local item_name=$(basename "$item")
-        local item_target="$target/$item_name"
         output=$(add_path_to_output "$item" "$target" "$output" "true")
       done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
     else
