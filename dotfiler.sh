@@ -250,6 +250,8 @@ process_path_entry() {
 
   if [ "$target" = "null" ]; then
     target="$HOME"
+  elif [[ "$target" == WSL://* ]]; then
+    target="${target/WSL:\/\//WSL:\/\/}"
   elif [ "$(first_letter "$target")" != "/" ] && [ "$(first_letter "$target")" != "~" ]; then
     target="$HOME"/"$target"
   fi
