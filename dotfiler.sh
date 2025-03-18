@@ -218,12 +218,8 @@ add_path_to_output() {
   local path="$1"
   local target="$2"
   local output="$3"
-  local is_wildcard="$4"
 
-  # Only append basename if not a wildcard path
-  if [ "$is_wildcard" != "true" ]; then
-    target="$target"/"$(basename "$path")"
-  fi
+  target="$target"/"$(basename "$path")"
 
   path=$(get_abs_path "$path")
   if [[ "$target" == WSL://* ]]; then
@@ -277,14 +273,16 @@ process_path_entry() {
         # For each item, create a symlink to the target directory
         if is_debug; then
           echo "Item: $(printPath "${item//\\/\\\\}")"
+          echo "Target: $(printPath $target)"
+          echo "-----------"
         fi
-        output=$(add_path_to_output "$item" "$target" "$output" "true")
+        output=$(add_path_to_output "$item" "$target" "$output")
       done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
     else
       printWarning "Directory not found: $abs_dir_path"
     fi
   else
-    output=$(add_path_to_output "$path" "$target" "$output" "false")
+    output=$(add_path_to_output "$path" "$target" "$output")
   fi
 
   echo "$output"
