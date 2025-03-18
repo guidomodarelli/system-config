@@ -43,3 +43,8 @@ paths:
       - target: WSL://AppData/Roaming
         platform: linux
         wsl: true
+  - path: PowerShell/*
+    target: WSL://OneDrive/Documents/PowerShell
+    onlyFor:
+      - platform: linux
+        wsl: true
