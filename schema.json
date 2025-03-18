@@ -3,7 +3,8 @@
   "$defs": {
     "platform": {
       "type": "string",
-      "enum": ["darwin", "linux", "win32"]
+      "enum": ["darwin", "linux", "win32"],
+      "description": "Operating system platform identifier"
     },
     "linuxDistro": {
       "type": "string",
@@ -18,6 +19,7 @@
     "platformConfig": {
       "type": "object",
       "unevaluatedProperties": false,
+      "description": "Configuration specific to a particular platform or environment",
       "properties": {
         "platform": {
           "$ref": "#/$defs/platform"
@@ -76,47 +78,58 @@
       "items": {
         "$ref": "#/$defs/platform"
       },
-      "uniqueItems": true
+      "uniqueItems": true,
+      "description": "Array of platform identifiers"
     },
     "platformConfigArray": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/platformConfig"
       },
-      "uniqueItems": true
+      "uniqueItems": true,
+      "description": "Array of platform-specific configurations"
     }
   },
   "type": "object",
   "additionalProperties": false,
   "unevaluatedProperties": false,
+  "description": "System configuration schema for managing symlinks across different platforms",
   "properties": {
     "$schema": {
-      "type": "string"
+      "type": "string",
+      "description": "JSON Schema reference"
     },
     "paths": {
       "type": "array",
+      "description": "Collection of path configurations for symlinking",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "unevaluatedProperties": false,
+        "description": "Individual path configuration",
         "properties": {
           "path": {
-            "type": "string"
+            "type": "string",
+            "description": "Source path for the symlink"
           },
           "target": {
             "$ref": "#/$defs/targetPath"
           },
           "onlyFor": {
-            "$ref": "#/$defs/platformConfigArray"
+            "$ref": "#/$defs/platformConfigArray",
+            "description": "Restricts this path configuration to specific platforms or environments"
           },
           "excludeFor": {
-            "$ref": "#/$defs/platformConfigArray"
+            "$ref": "#/$defs/platformConfigArray",
+            "description": "Excludes this path configuration from specific platforms or environments"
           },
           "overrides": {
             "type": "array",
+            "description": "Platform-specific overrides for this path configuration",
             "items": {
               "type": "object",
               "unevaluatedProperties": false,
+              "description": "Platform-specific override",
               "allOf": [
                 {
                   "$ref": "#/$defs/platformConfig"
