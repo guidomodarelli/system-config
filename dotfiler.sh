@@ -302,7 +302,7 @@ get_paths() {
   echo "$output"
 }
 
-get_linux_paths() {
+retrieve_linux_paths() {
   local current_distro=$(get_linux_distro)
   local selector='(
     .excludeFor == null or (
@@ -329,7 +329,7 @@ get_linux_paths() {
   get_paths "$selector" "$selector_override"
 }
 
-get_darwin_paths() {
+retrieve_darwin_paths() {
   local selector='(
     .excludeFor == null or .excludeFor[].platform != "darwin"
   ) and (
@@ -340,11 +340,11 @@ get_darwin_paths() {
   get_paths "$selector" "$selector_override"
 }
 
-get_paths_by_current_platform() {
+retrieve_paths_for_platform() {
   if is_darwin; then
-    get_darwin_paths
+    retrieve_darwin_paths
   else
-    get_linux_paths
+    retrieve_linux_paths
   fi
 }
 
@@ -352,7 +352,7 @@ main() {
   check_commands yq jq
   USERNAME=$(get_windows_username)
 
-  local paths="$(get_paths_by_current_platform)"
+  local paths="$(retrieve_paths_for_platform)"
 
   echo "$paths" | jq -c '.[]' | while read -r line; do
     path=$(echo "$line" | jq -r '.path')
