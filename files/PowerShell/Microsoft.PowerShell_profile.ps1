@@ -253,34 +253,42 @@ function _git_log_prettily {
     }
 }
 
+$exa_options = "--group-directories-first --icons"
+
 function exa {
   if ($args.Count -eq 0) {
-    eza --group-directories-first --icons
+    & eza @($exa_options -split ' ')
   } else {
-    eza --group-directories-first --icons $args
+    & eza @(($exa_options -split ' ') + $args)
   }
 }
+
+$ll_options = "$exa_options --long --header --group"
 
 function ll {
   if ($args.Count -eq 0) {
-    exa --long --header --group
+    & eza @($ll_options -split ' ')
   } else {
-    exa --long --header --group $args
+    & eza @(($ll_options -split ' ') + $args)
   }
 }
+
+$la_options = "$ll_options --all"
 
 function la {
   if ($args.Count -eq 0) {
-    ll --all
+    & eza @($la_options -split ' ')
   } else {
-    ll --all $args
+    & eza @(($la_options -split ' ') + $args)
   }
 }
 
+$lt_options = "$ll_options --tree"
+
 function lt {
   if ($args.Count -eq 0) {
-    exa --tree --all
+    & eza @($lt_options -split ' ')
   } else {
-    exa --tree --all $args
+    & eza @(($lt_options -split ' ') + $args)
   }
 }
