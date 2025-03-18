@@ -252,3 +252,35 @@ function _git_log_prettily {
         git log --pretty=format:"%C(auto)%h%Creset -%C(auto)%d%Creset %s %C(green)(%cr) %C(bold blue)<%an>%Creset" $args
     }
 }
+
+function exa {
+  if ($args.Count -eq 0) {
+    eza --group-directories-first --icons
+  } else {
+    eza --group-directories-first --icons $args
+  }
+}
+
+function ll {
+  if ($args.Count -eq 0) {
+    exa --long --header --group
+  } else {
+    exa --long --header --group $args
+  }
+}
+
+function la {
+  if ($args.Count -eq 0) {
+    ll --all
+  } else {
+    ll --all $args
+  }
+}
+
+function lt {
+  if ($args.Count -eq 0) {
+    exa --tree --all
+  } else {
+    exa --tree --all $args
+  }
+}
