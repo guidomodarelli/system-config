@@ -33,7 +33,11 @@ El sistema soporta configuraciones específicas para diferentes plataformas:
   - `linux`: Para sistemas Linux, con soporte específico para:
     - `arch`: Distribución Arch Linux.
     - `debian`: Distribución Debian/Ubuntu.
-    - `wsl`: Detecta si Linux está ejecutándose bajo Windows Subsystem for Linux.
+  - `wsl`: Detecta automáticamente si está ejecutándose bajo Windows Subsystem for Linux. Esta opción:
+    - Se usa como un especificador de plataforma independiente con `wsl: true`.
+    - No puede combinarse con `platform` en la misma especificación (prohibido según schema.json).
+    - Debe usarse de forma exclusiva para configuraciones específicas de WSL.
+    - Se detecta utilizando métodos específicos como verificar `/proc/version` por patrones de WSL.
 
 - **Directivas de Configuración por Plataforma**:
   - `onlyFor`: Define para qué plataformas específicas aplica este enlace.
@@ -47,7 +51,7 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
 - **Prefijo `WSL://`**:
   - Cuando se especifica un `target` con el prefijo `WSL://`, el script reconoce que el destino debe estar en el sistema de archivos de Windows.
   - El prefijo `WSL://` se convierte automáticamente a la ruta correcta en la estructura de `/mnt/c/`.
-  - Este prefijo solo puede usarse cuando la configuración tiene `platform: linux` y `wsl: true`.
+  - Este prefijo solo puede usarse cuando la configuración tiene `wsl: true`.
 
 - **Ejemplo de uso**:
   ```yaml
@@ -55,7 +59,6 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
     target: .config
     overrides:
       - target: WSL://AppData/Roaming
-        platform: linux
         wsl: true
   ```
   En este ejemplo, en un entorno WSL, el directorio `.config/espanso` se enlazará a `/mnt/c/Users/<windows_username>/AppData/Roaming/espanso`.
@@ -127,17 +130,15 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
     - path: .config/wsl-specific-config
       target: .config
       onlyFor:
-        - platform: linux
-          wsl: true
+        - wsl: true
     - path: .ssh/config
       target: /home/$USER/.ssh  # Expandido al usuario Linux/macOS
     - path: scripts/*
       target: $HOME/bin  # Expandido al directorio home del usuario
     - path: windows/app-configs
-      target: /mnt/c/Users/$USER/AppData/Roaming  # $USER es usuario de Windows en WSL
+      target: WSL://AppData/Roaming  # $USER es usuario de Windows en WSL
       onlyFor:
-        - platform: linux
-          wsl: true
+        - wsl: true
   ```
 
 5. **Modificación de Configuraciones**:

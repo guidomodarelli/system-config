@@ -304,27 +304,29 @@ get_paths() {
 
 retrieve_linux_paths() {
   local current_distro=$(get_linux_distro)
+  local wsl_status=$(is_wsl)
+
+  # Main selector for path entries
   local selector='(
-    .excludeFor == null or (
+    .excludeFor == null or (.excludeFor[].wsl != null and .excludeFor[].wsl != '$wsl_status') or (
       .excludeFor[].platform != "linux" or (
         .excludeFor[].platform == "linux" and (
-          (.excludeFor[].linuxDistro != null and .excludeFor[].linuxDistro != "'$current_distro'") or
-          (.excludeFor[].wsl != null and .excludeFor[].wsl != '$(is_wsl)')
+          (.excludeFor[].linuxDistro != null and .excludeFor[].linuxDistro != "'$current_distro'")
         )
       )
     )
   ) and (
-    .onlyFor == null or (
+    .onlyFor == null or (.onlyFor[].wsl == null or .onlyFor[].wsl == '$wsl_status') or (
       .onlyFor[].platform == "linux" and (
-        (.onlyFor[].linuxDistro == null or .onlyFor[].linuxDistro == "'$current_distro'") and
-        (.onlyFor[].wsl == null or .onlyFor[].wsl == '$(is_wsl)')
+        (.onlyFor[].linuxDistro == null or .onlyFor[].linuxDistro == "'$current_distro'")
       )
     )
   )'
-  local selector_override='.platform == "linux" and (
-    (.linuxDistro == null or .linuxDistro == "'$current_distro'") and
-    (.wsl == null or .wsl == '$(is_wsl)')
-  )'
+
+  # Selector for overrides specific to this platform
+  local selector_override='((.platform == "linux") and
+    (.linuxDistro == null or .linuxDistro == "'$current_distro'")) or
+    (.wsl != null and .wsl == '$wsl_status')'
 
   get_paths "$selector" "$selector_override"
 }

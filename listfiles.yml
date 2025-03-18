@@ -41,10 +41,10 @@ paths:
     target: .config
     overrides:
       - target: WSL://AppData/Roaming
-        platform: linux
         wsl: true
   - path: PowerShell/*
-    target: WSL://OneDrive/Documents/PowerShell
-    onlyFor:
-      - platform: linux
+    overrides:
+      - target: WSL://OneDrive/Documents/PowerShell
         wsl: true
+    onlyFor:
+      - wsl: true

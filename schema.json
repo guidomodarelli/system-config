@@ -30,7 +30,6 @@
           "description": "Indicates whether this config is for WSL environments"
         }
       },
-      "required": ["platform"],
       "allOf": [
         {
           "if": {
@@ -38,23 +37,37 @@
               "platform": {
                 "enum": ["linux"]
               }
-            }
+            },
+            "required": ["platform"]
           },
           "then": {
             "properties": {
               "linuxDistro": {
                 "$ref": "#/$defs/linuxDistro"
-              },
-              "wsl": {
-                "type": "boolean"
               }
             }
           },
           "else": {
             "not": {
-              "required": ["linuxDistro", "wsl"]
+              "required": ["linuxDistro"]
             }
           }
+        },
+        {
+          "oneOf": [
+            {
+              "required": ["platform"],
+              "not": {
+                "required": ["wsl"]
+              }
+            },
+            {
+              "required": ["wsl"],
+              "not": {
+                "required": ["platform"]
+              }
+            }
+          ]
         }
       ]
     },
@@ -111,10 +124,9 @@
                 {
                   "if": {
                     "properties": {
-                      "platform": { "enum": ["linux"] },
                       "wsl": { "const": true }
                     },
-                    "required": ["platform", "wsl"]
+                    "required": ["wsl"]
                   },
                   "then": {
                     "properties": {
