@@ -283,7 +283,7 @@ function la {
   }
 }
 
-$lt_options = "$ll_options --tree"
+$lt_options = "$exa_options --tree"
 
 function lt {
   if ($args.Count -eq 0) {
