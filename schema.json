@@ -152,7 +152,39 @@
             }
           }
         },
-        "required": ["path"]
+        "required": ["path"],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "onlyFor": {
+                  "type": "array",
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "items": [
+                    {
+                      "type": "object",
+                      "required": ["wsl"],
+                      "properties": {
+                        "wsl": { "const": true }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": ["onlyFor"]
+            },
+            "then": {
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "pattern": "^WSL://"
+                }
+              },
+              "required": ["target"]
+            }
+          }
+        ]
       }
     }
   }

@@ -43,8 +43,6 @@ paths:
       - target: WSL://AppData/Roaming
         wsl: true
   - path: PowerShell/*
-    overrides:
-      - target: WSL://OneDrive/Documents/PowerShell
-        wsl: true
+    target: WSL://OneDrive/Documents/PowerShell
     onlyFor:
       - wsl: true

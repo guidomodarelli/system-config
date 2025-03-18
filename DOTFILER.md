@@ -52,6 +52,7 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
   - Cuando se especifica un `target` con el prefijo `WSL://`, el script reconoce que el destino debe estar en el sistema de archivos de Windows.
   - El prefijo `WSL://` se convierte automáticamente a la ruta correcta en la estructura de `/mnt/c/`.
   - Este prefijo solo puede usarse cuando la configuración tiene `wsl: true`.
+  - **Importante**: Cuando un elemento tiene `onlyFor` con exactamente un objeto que especifica `wsl: true`, el campo `target` es obligatorio y debe comenzar con el prefijo `WSL://`. Esta regla asegura que los archivos destinados exclusivamente para WSL utilicen la ruta correcta en Windows.
 
 - **Ejemplo de uso**:
   ```yaml
@@ -60,8 +61,14 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
     overrides:
       - target: WSL://AppData/Roaming
         wsl: true
+
+  # Este es un ejemplo donde onlyFor tiene solo un elemento con wsl:true
+  # Por lo tanto, target DEBE usar el prefijo WSL://
+  - path: windows/app-configs
+    target: WSL://AppData/Roaming  # El prefijo WSL:// es obligatorio en este caso
+    onlyFor:
+      - wsl: true
   ```
-  En este ejemplo, en un entorno WSL, el directorio `.config/espanso` se enlazará a `/mnt/c/Users/<windows_username>/AppData/Roaming/espanso`.
 
 - **Formato interno**:
   - Cuando se usa `WSL://`, el script formateará la ruta para que sea accesible desde el sistema Windows mediante la estructura `\\wsl$\<distro>\path`.
@@ -147,3 +154,18 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
   siguiendo la estructura definida en `schema.json`. Esto permite controlar con
   precisión qué archivos se enlazan y dónde, facilitando configuraciones
   específicas por plataforma.
+
+## Reglas de validación del esquema
+
+El archivo `schema.json` define las siguientes reglas importantes para la configuración:
+
+1. **Configuraciones de plataforma**:
+   - Las propiedades `platform` y `wsl` son mutuamente excluyentes
+   - La propiedad `linuxDistro` solo puede utilizarse cuando `platform` es `linux`
+
+2. **Reglas específicas para WSL**:
+   - En la sección `overrides`, cuando `wsl: true`, el campo `target` debe usar el prefijo `WSL://`
+   - Cuando un elemento tiene `onlyFor` con exactamente un objeto que especifica `wsl: true`, el campo `target` es obligatorio y debe comenzar con el prefijo `WSL://`
+   - Para entornos que no son WSL, el prefijo `WSL://` está prohibido
+
+Estas reglas aseguran que las configuraciones específicas para WSL y otras plataformas se mantengan correctas y consistentes.
