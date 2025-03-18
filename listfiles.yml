@@ -2,8 +2,6 @@
 paths:
   - path: .antigen/bundles/guidomodarelli/anyframe
     target: .antigen/bundles/guidomodarelli
-  - path: .config/awesome
-    target: .config
   - path: .config/ranger
     target: .config
   - path: .config/rofi
