@@ -29,9 +29,10 @@ is_darwin() {
 
 is_wsl() {
   if [ -n "$(grep -i microsoft /proc/version 2>/dev/null)" ] || [ -n "$(grep -i WSL /proc/version 2>/dev/null)" ]; then
-    return 0 # true
+    echo "true"
+  else
+    echo "false"
   fi
-  return 1 # false
 }
 
 get_linux_distro() {
@@ -66,7 +67,7 @@ remove_old_symlink() {
 
 # Get the current WSL distribution name
 get_wsl_distro_name() {
-  if is_wsl; then
+  if [ $(is_wsl) = "true" ]; then
     grep -oP '(?<=^NAME=").*(?=")' /etc/os-release | tr -d '\r\n'
   fi
 }
@@ -155,7 +156,7 @@ run_elevated_powershell_script() {
 
 # Get Windows username when in WSL
 get_windows_username() {
-  if is_wsl; then
+  if [ $(is_wsl) = "true" ]; then
     # Try to get Windows username using several methods
     if [ -f /mnt/c/Windows/System32/cmd.exe ]; then
       # Use cmd.exe if available
@@ -303,13 +304,12 @@ get_paths() {
 
 get_linux_paths() {
   local current_distro=$(get_linux_distro)
-  local is_wsl_env=$(is_wsl && echo "true" || echo "false")
   local selector='(
     .excludeFor == null or (
       .excludeFor[].platform != "linux" or (
         .excludeFor[].platform == "linux" and (
           (.excludeFor[].linuxDistro != null and .excludeFor[].linuxDistro != "'$current_distro'") or
-          (.excludeFor[].wsl != null and .excludeFor[].wsl != '$is_wsl_env')
+          (.excludeFor[].wsl != null and .excludeFor[].wsl != '$(is_wsl)')
         )
       )
     )
@@ -317,13 +317,13 @@ get_linux_paths() {
     .onlyFor == null or (
       .onlyFor[].platform == "linux" and (
         (.onlyFor[].linuxDistro == null or .onlyFor[].linuxDistro == "'$current_distro'") and
-        (.onlyFor[].wsl == null or .onlyFor[].wsl == '$is_wsl_env')
+        (.onlyFor[].wsl == null or .onlyFor[].wsl == '$(is_wsl)')
       )
     )
   )'
   local selector_override='.platform == "linux" and (
     (.linuxDistro == null or .linuxDistro == "'$current_distro'") and
-    (.wsl == null or .wsl == '$is_wsl_env')
+    (.wsl == null or .wsl == '$(is_wsl)')
   )'
 
   get_paths "$selector" "$selector_override"
