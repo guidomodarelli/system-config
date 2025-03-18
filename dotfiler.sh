@@ -12,7 +12,7 @@ TMP_SCRIPT=$(mktemp -p /tmp wsl_symlink_XXXXXX.ps1)
 # Remove the temporary script when the script exits
 trap 'rm -f "$TMP_SCRIPT"' EXIT
 
-DEBUG=false
+DEBUG=${DEBUG:-false}
 is_debug() {
   if [ "$DEBUG" = true ]; then
     return 0 # true
@@ -275,6 +275,9 @@ process_path_entry() {
     if [ -d "$abs_dir_path" ]; then
       while IFS= read -r item; do
         # For each item, create a symlink to the target directory
+        if is_debug; then
+          echo "Item: $(printPath "${item//\\/\\\\}")"
+        fi
         output=$(add_path_to_output "$item" "$target" "$output" "true")
       done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
     else
