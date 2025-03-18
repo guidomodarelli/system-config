@@ -360,8 +360,10 @@ fi
 
 check_commands yq jq
 USERNAME=$(get_windows_username)
-main
+if ! is_debug; then
+  main
 
-run_elevated_powershell_script $TMP_SCRIPT
+  run_elevated_powershell_script $TMP_SCRIPT
 
-echo "Done!"
+  echo "Done!"
+fi
