@@ -1,16 +1,16 @@
 [submodule "files/.config/nvim"]
-	path = files/nvim
+	path = configs/nvim
 	url = git@gitlab.com:guidomodarelli-groups/configs/nvim-config.git
 	branch = main
 [submodule "files/zsh"]
-	path = files/zsh
+	path = configs/zsh
 	url = git@gitlab.com:guidomodarelli-groups/configs/zsh-config.git
 	branch = main
 [submodule "files/.config/espanso"]
-	path = files/espanso
+	path = configs/espanso
 	url = git@gitlab.com:guidomodarelli-groups/configs/espanso-config.git
 	branch = main
 [submodule "files/.antigen/bundles/guidomodarelli/anyframe"]
-	path = files/anyframe
+	path = configs/anyframe
 	url = git@github.com:guidomodarelli/anyframe.git
 	branch = main

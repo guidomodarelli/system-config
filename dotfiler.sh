@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ROOT_DIR="$(git rev-parse --show-toplevel)"
-ROOT_CONFIGS="files"
-LISTFILES="listfiles.yml"
+ROOT_CONFIGS="configs"
+CONFIG_PATHS_FILE="config-paths.yml"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/styleText.zsh"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/constants.zsh"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/check_command.zsh"
@@ -296,7 +296,7 @@ get_paths() {
 
   while read -r line; do
     output=$(echo "$output" | jq -c ". + $(process_path_entry "$line" "$selector_override")")
-  done < <(yq ".paths[] | select($selector)" $LISTFILES | jq -c '.')
+  done < <(yq ".paths[] | select($selector)" $CONFIG_PATHS_FILE | jq -c '.')
 
 
   echo "$output"

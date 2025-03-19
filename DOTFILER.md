@@ -1,14 +1,14 @@
 # Descripción General
 
 El script `dotfiler.sh` se encarga de crear enlaces simbólicos (symlinks) desde
-archivos y directorios de la carpeta `files` hacia ubicaciones definidas en
+archivos y directorios de la carpeta `configs` hacia ubicaciones definidas en
 archivos de configuración, facilitando así la sincronización y gestión de
 configuraciones personales. Además, realiza ajustes específicos para diferentes
 sistemas operativos como Darwin (macOS) y Linux.
 
 ## Archivos de Configuración
 
-- **`listfiles.yml`**:
+- **`config-paths.yml`**:
   - Es un archivo YAML que define las asignaciones entre
     archivos/directorios origen y sus destinos en el sistema.
   - Utiliza un esquema JSON (`schema.json`) para validar la estructura.
@@ -99,8 +99,8 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
     ```
     Y dentro de `.config/settings/` hay archivos `config.json` y `profile.ini`,
     se crearán dos enlaces:
-    - `.local/share/app-settings/config.json` → `/ruta/absoluta/files/.config/settings/config.json`
-    - `.local/share/app-settings/profile.ini` → `/ruta/absoluta/files/.config/settings/profile.ini`
+    - `.local/share/app-settings/config.json` → `/ruta/absoluta/configs/.config/settings/config.json`
+    - `.local/share/app-settings/profile.ini` → `/ruta/absoluta/configs/.config/settings/profile.ini`
 
 3. **Creación de Enlaces Simbólicos**
 
@@ -150,7 +150,7 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
 
 5. **Modificación de Configuraciones**:
 
-  Para agregar o modificar enlaces, simplemente edita el archivo `listfiles.yml`
+  Para agregar o modificar enlaces, simplemente edita el archivo `config-paths.yml`
   siguiendo la estructura definida en `schema.json`. Esto permite controlar con
   precisión qué archivos se enlazan y dónde, facilitando configuraciones
   específicas por plataforma.
