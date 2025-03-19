@@ -2,10 +2,6 @@
 paths:
   - path: anyframe
     target: .antigen/bundles/guidomodarelli
-  - path: .config/rofi
-    target: .config
-    excludeFor:
-      - wsl: true
   - path: nvim
     target: .config
   - path: lazygit
