@@ -11,6 +11,6 @@
 	url = git@gitlab.com:guidomodarelli-groups/configs/espanso-config.git
 	branch = main
 [submodule "files/.antigen/bundles/guidomodarelli/anyframe"]
-	path = files/.antigen/bundles/guidomodarelli/anyframe
+	path = files/anyframe
 	url = git@github.com:guidomodarelli/anyframe.git
 	branch = main

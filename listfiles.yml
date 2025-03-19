@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=schema.json
 paths:
-  - path: .antigen/bundles/guidomodarelli/anyframe
+  - path: anyframe
     target: .antigen/bundles/guidomodarelli
   - path: .config/rofi
     target: .config
