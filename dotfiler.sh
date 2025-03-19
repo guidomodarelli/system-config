@@ -308,15 +308,15 @@ retrieve_linux_paths() {
 
   # Main selector for path entries
   local selector='(
-    .excludeFor == null or (.excludeFor[].wsl != null and .excludeFor[].wsl != '$wsl_status') or (
-      .excludeFor[].platform != "linux" or (
+    .excludeFor == null or (.excludeFor[].platform == null and .excludeFor[].wsl != null and .excludeFor[].wsl != '$wsl_status') or (
+      .excludeFor[].platform != null and .excludeFor[].platform != "linux" or (
         .excludeFor[].platform == "linux" and (
           (.excludeFor[].linuxDistro != null and .excludeFor[].linuxDistro != "'$current_distro'")
         )
       )
     )
   ) and (
-    .onlyFor == null or (.onlyFor[].wsl == null or .onlyFor[].wsl == '$wsl_status') or (
+    .onlyFor == null or (.onlyFor[].platform == null and .onlyFor[].wsl != null and .onlyFor[].wsl == '$wsl_status') or (
       .onlyFor[].platform == "linux" and (
         (.onlyFor[].linuxDistro == null or .onlyFor[].linuxDistro == "'$current_distro'")
       )
@@ -326,7 +326,7 @@ retrieve_linux_paths() {
   # Selector for overrides specific to this platform
   local selector_override='((.platform == "linux") and
     (.linuxDistro == null or .linuxDistro == "'$current_distro'")) or
-    (.wsl != null and .wsl == '$wsl_status')'
+    (.platform == null and .wsl != null and .wsl == '$wsl_status')'
 
   get_paths "$selector" "$selector_override"
 }
@@ -373,5 +373,5 @@ if [ "$EUID" = 0 ]; then
 fi
 
 if ! is_debug; then
-  main
+  retrieve_linux_paths | jq
 fi
