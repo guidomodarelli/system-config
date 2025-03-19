@@ -6,8 +6,8 @@ paths:
     target: .config
   - path: .config/rofi
     target: .config
-  - path: .config/scripts
-    target: .config
+    excludeFor:
+      - wsl: true
   - path: .config/nvim
     target: .config
   - path: .config/lazygit
