@@ -7,7 +7,7 @@
 	url = git@gitlab.com:guidomodarelli-groups/configs/zsh-config.git
 	branch = main
 [submodule "files/.config/espanso"]
-	path = files/.config/espanso
+	path = files/espanso
 	url = git@gitlab.com:guidomodarelli-groups/configs/espanso-config.git
 	branch = main
 [submodule "files/.antigen/bundles/guidomodarelli/anyframe"]

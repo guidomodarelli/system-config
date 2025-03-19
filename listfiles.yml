@@ -25,7 +25,7 @@ paths:
     onlyFor:
       - platform: linux
         linuxDistro: arch
-  - path: .config/espanso
+  - path: espanso
     target: .config
     overrides:
       - target: WSL://AppData/Roaming
