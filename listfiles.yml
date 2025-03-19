@@ -19,7 +19,7 @@ paths:
   - path: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
     target: .oh-my-zsh/themes
   - path: git/.gitconfig
-  - path: .curlrc
+  - path: curl/.curlrc
   - path: root/etc/pacman.conf
     target: /etc
     onlyFor:
