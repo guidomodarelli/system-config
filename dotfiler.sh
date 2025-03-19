@@ -373,5 +373,5 @@ if [ "$EUID" = 0 ]; then
 fi
 
 if ! is_debug; then
-  retrieve_linux_paths | jq
+  main
 fi
