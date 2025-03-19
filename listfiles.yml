@@ -2,8 +2,6 @@
 paths:
   - path: .antigen/bundles/guidomodarelli/anyframe
     target: .antigen/bundles/guidomodarelli
-  - path: .config/ranger
-    target: .config
   - path: .config/rofi
     target: .config
     excludeFor:
@@ -15,17 +13,13 @@ paths:
     overrides:
       - platform: darwin
         target: Library/Application Support/lazygit
-  - path: .tmux.conf
   - path: zsh/.zsh
   - path: zsh/.antigenrc
   - path: zsh/.zshrc
   - path: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
     target: .oh-my-zsh/themes
-  - path: .astylerc
   - path: git/.gitconfig
   - path: .curlrc
-  - path: .gdbinit
-  - path: .wezterm.lua
   - path: root/etc/pacman.conf
     target: /etc
     onlyFor:
