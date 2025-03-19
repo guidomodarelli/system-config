@@ -1,5 +1,5 @@
 [submodule "files/.config/nvim"]
-	path = files/.config/nvim
+	path = files/nvim
 	url = git@gitlab.com:guidomodarelli-groups/configs/nvim-config.git
 	branch = main
 [submodule "files/zsh"]

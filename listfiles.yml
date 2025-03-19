@@ -6,7 +6,7 @@ paths:
     target: .config
     excludeFor:
       - wsl: true
-  - path: .config/nvim
+  - path: nvim
     target: .config
   - path: lazygit
     target: .config
