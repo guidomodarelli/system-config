@@ -1,7 +1,5 @@
 # yaml-language-server: $schema=schema.json
 paths:
-  - path: anyframe
-    target: .antigen/bundles/guidomodarelli
   - path: nvim
     target: .config
   - path: lazygit
