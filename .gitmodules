@@ -1,7 +1,3 @@
-[submodule "files/.config/rofi"]
-	path = files/.config/rofi
-	url = git@gitlab.com:guidomodarelli-groups/configs/rofi-config.git
-	branch = main
 [submodule "files/.config/nvim"]
 	path = files/.config/nvim
 	url = git@gitlab.com:guidomodarelli-groups/configs/nvim-config.git
