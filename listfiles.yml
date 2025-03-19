@@ -8,7 +8,7 @@ paths:
       - wsl: true
   - path: .config/nvim
     target: .config
-  - path: .config/lazygit
+  - path: lazygit
     target: .config
     overrides:
       - platform: darwin
