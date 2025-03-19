@@ -15,10 +15,6 @@ paths:
     overrides:
       - platform: darwin
         target: Library/Application Support/lazygit
-  - path: .config/Code/User/*
-    target: .config/Code/User
-    excludeFor:
-      - platform: darwin
   - path: .tmux.conf
   - path: zsh/.zsh
   - path: zsh/.antigenrc
