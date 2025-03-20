@@ -150,8 +150,13 @@ install_ghq() {
   mkdir -p $HOME/ghq/projects
 }
 
+install_lazydocker() {
+  go_install github.com/jesseduffield/lazydocker@latest
+}
+
 install_go_dependencies() {
   install_ghq
+  install_lazydocker
 }
 
 install_VsCode() {
