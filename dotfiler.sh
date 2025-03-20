@@ -47,7 +47,7 @@ get_linux_distro() {
 
 printPath() {
   local path="$1"
-  echo "$(printCyan -u -- $path)"
+  echo "$(logCyan -u -- $path)"
 }
 
 create_backup() {
@@ -55,14 +55,14 @@ create_backup() {
 
   $SUDO mv "${path}"{,.bak} 2>/dev/null
 
-  printf "[ $(printGreen "BACK") ] Created $(printPath "${path//\\/\\\\}.bak")\n"
+  printf "[ $(logGreen "BACK") ] Created $(printPath "${path//\\/\\\\}.bak")\n"
 }
 
 remove_old_symlink() {
   local target="$1"
 
   $SUDO rm "$target"
-  printf "[ $(printGreen "DEL") ] Removed old symlink $(printPath "$target")\n"
+  printf "[ $(logGreen "DEL") ] Removed old symlink $(printPath "$target")\n"
 }
 
 # Get the current WSL distribution name
@@ -96,7 +96,7 @@ make_symlink() {
   # Check if we need sudo permissions (if directory is not writable or doesn't exist)
   if [[ ! "$target" =~ "$HOME" ]] || [[ -d "$target_dir" && ! -w "$target_dir" ]] || [[ ! -d "$target_dir" && ! -w "$(dirname "$target_dir")" ]]; then
     SUDO='sudo'
-    printf "[ $(printYellow "NOTE") ] Using elevated permissions for $(printPath "$target")\n"
+    printf "[ $(logYellow "NOTE") ] Using elevated permissions for $(printPath "$target")\n"
   fi
 
   # Remove any existing backup of the target if it's a symlink
@@ -117,7 +117,7 @@ make_symlink() {
 
   # Create symbolic link
   if [[ $path =~ "\\\\wsl\$" ]]; then
-    printInfo "Creating symlink for WSL: $(printPath "${path//\\/\\\\}")\n"
+    logInfo "Creating symlink for WSL: $(printPath "${path//\\/\\\\}")\n"
 
     # Convert the target path to Windows format
     local win_target=$(wslpath -w "$target" 2>/dev/null)
@@ -129,7 +129,7 @@ make_symlink() {
   fi
 
 
-  printInfo "$(printPath "$target") $(printBlue -b -- $POINTER) $(printPath "${path//\\/\\\\}")\n"
+  logInfo "$(printPath "$target") $(logBlue -b -- $POINTER) $(printPath "${path//\\/\\\\}")\n"
 }
 
 first_letter() {
@@ -280,7 +280,7 @@ process_path_entry() {
         output=$(add_path_to_output "$item" "$target" "$output")
       done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
     else
-      printWarning "Directory not found: $abs_dir_path"
+      logWarning "Directory not found: $abs_dir_path"
     fi
   else
     output=$(add_path_to_output "$path" "$target" "$output")
@@ -368,7 +368,7 @@ main() {
 }
 
 if [ "$EUID" = 0 ]; then
-  printError "Don't run as root!"
+  logError "Don't run as root!"
   exit 1
 fi
 
