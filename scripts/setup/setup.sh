@@ -372,6 +372,10 @@ install_neovim() {
   brew install neovim
 }
 
+install_sdkman() {
+  curl -s "https://get.sdkman.io" | bash
+}
+
 main() {
   if is_ubuntu; then
     sudo apt update
@@ -393,6 +397,7 @@ main() {
   install_zsh
   install_oh_my_zsh
   install_vagrant
+  install_sdkman
 
   # Go dependencies
   install_golang
