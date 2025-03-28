@@ -384,14 +384,14 @@ main() {
   install_essencials
   install_utilities
 
-	install_user_interface_apps
-	install_fonts
-	install_btop
-	install_xclip
-	install_exa
-	install_fd_find
-	install_lazygit
-	install_git_dependencies
+  install_user_interface_apps
+  install_fonts
+  install_btop
+  install_xclip
+  install_exa
+  install_fd_find
+  install_lazygit
+  install_git_dependencies
   install_antigen
   install_docker
   install_zsh
@@ -409,7 +409,7 @@ main() {
 
   install_homebrew
   install_neovim
-	install_LazyVim
+  install_LazyVim
 }
 
 if ! is_ubuntu && ! is_arch; then
