@@ -376,6 +376,10 @@ install_sdkman() {
   curl -s "https://get.sdkman.io" | bash
 }
 
+install_java_by_sdkman() {
+  sdk install java 17.0.14-tem
+}
+
 main() {
   if is_ubuntu; then
     sudo apt update
@@ -397,16 +401,20 @@ main() {
   install_zsh
   install_oh_my_zsh
   install_vagrant
-  install_sdkman
 
-  # Go dependencies
+  # Install SDKMAN! and dependencies
+  install_sdkman
+  install_java_by_sdkman
+
+  # Install Golang and dependencies
   install_golang
   install_go_dependencies
 
-  # NPM dependencies
+  # Install NVM and dependencies
   install_nvm
   # install_npm_dependencies
 
+  # Install Homebrew and dependencies
   install_homebrew
   install_neovim
   install_LazyVim
