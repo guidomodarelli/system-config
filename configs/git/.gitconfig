@@ -1,12 +1,10 @@
 [user]
-	email = guidomodarelli25@gmail.com
-	name = Guido Modarelli
-	signingkey = /home/guido/.ssh/id_ed25519.pub
+  email = guidomodarelli25@gmail.com
+  name = Guido Modarelli
+  signingkey = /home/guido/.ssh/id_ed25519.pub
 [core]
-	pager = delta
-	autocrlf = false
-[interactive]
-	diffFilter = delta --color-only
+  pager = delta
+  autocrlf = false
 [delta]
   navigate = true
   line-numbers = true
@@ -14,20 +12,20 @@
   diff-so-fancy = true
   side-by-side = true
 [merge]
-	conflictstyle = diff3
+  conflictstyle = diff3
 [diff]
-	colorMoved = default
+  colorMoved = default
   tool = difftastic
 [init]
-	defaultBranch = main
+  defaultBranch = main
 [commit]
-	gpgsign = true
+  gpgsign = true
 [gpg]
-	format = ssh
+  format = ssh
 [gpg "ssh"]
-	allowedSignersFile = /home/guido/.ssh/allowed_signers
+  allowedSignersFile = /home/guido/.ssh/allowed_signers
 [tag]
-	gpgSign = false
+  gpgSign = false
 [difftool]
   prompt = false
 [difftool "difftastic"]
