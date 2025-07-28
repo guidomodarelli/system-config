@@ -243,9 +243,10 @@ install_user_interface_apps() {
 install_exa() {
   if is_ubuntu; then
     EXA_VERSION=$(curl -s "https://api.github.com/repos/ogham/exa/releases/latest" | grep -Po '"tag_name": "v\K[0-9.]+')
-    curl -Lo exa.zip "https://github.com/ogham/exa/releases/latest/download/exa-linux-x86_64-v${EXA_VERSION}.zip"
-    sudo unzip -q exa.zip bin/exa -d /usr/local
-    rm -rf exa.zip
+    local EXA_ZIP="exa.zip"
+    curl -Lo "$EXA_ZIP" "https://github.com/ogham/exa/releases/latest/download/exa-linux-x86_64-v${EXA_VERSION}.zip"
+    sudo unzip -q "$EXA_ZIP" bin/exa -d /usr/local
+    rm -rf "$EXA_ZIP"
   elif is_arch; then
     sudo pacman -Sy --noconfirm exa
   fi
