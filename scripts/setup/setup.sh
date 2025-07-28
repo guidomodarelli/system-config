@@ -375,6 +375,8 @@ install_neovim() {
 
 install_sdkman() {
   curl -s "https://get.sdkman.io" | bash
+  source "$HOME/.sdkman/bin/sdkman-init.sh"
+  sdk version || true  # Check if SDKMAN! is installed correctly
 }
 
 install_java_by_sdkman() {
