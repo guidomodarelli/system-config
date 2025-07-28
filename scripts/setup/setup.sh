@@ -370,7 +370,7 @@ install_vagrant() {
 }
 
 install_neovim() {
-  brew install neovim
+  /home/linuxbrew/.linuxbrew/bin/brew install neovim
 }
 
 install_sdkman() {
