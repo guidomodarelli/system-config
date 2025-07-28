@@ -181,10 +181,6 @@ function Enable-HyperV {
   }
 }
 
-function Install-FlowLauncher {
-  Install-WingetPackages Flow-Launcher.Flow-Launcher
-}
-
 function Install-PowerToys {
   Install-WingetPackages Microsoft.PowerToys
 }
