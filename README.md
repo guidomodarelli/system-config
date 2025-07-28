@@ -21,7 +21,7 @@ Para asegurarte de que todos los submódulos estén inicializados y actualizados
 ejecuta el siguiente comando:
 
 ```sh
-git submodule update --init --recursive
+git submodule update --init --recursive --remote -f
 ```
 
 ## Instalación
