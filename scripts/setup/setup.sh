@@ -345,7 +345,6 @@ install_zsh() {
 
 install_essencials() {
   if is_ubuntu; then
-    sudo apt --fix-broken install
     sudo apt install -y build-essential gcc curl wget zip unzip python3.12-venv
   elif is_arch; then
     sudo pacman -Sy --noconfirm yay base-devel gcc curl wget zip unzip
@@ -386,6 +385,7 @@ install_java_by_sdkman() {
 main() {
   if is_ubuntu; then
     sudo apt update
+    sudo apt --fix-broken install
   fi
 
   install_essencials
