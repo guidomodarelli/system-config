@@ -88,15 +88,7 @@ install_nvm() {
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 }
 
-install_aicommits() {
-  # https://github.com/Nutlope/aicommits
-  npm install -g aicommits
-  # NOTE: aicommits config set OPENAI_KEY=<your token>
-  aicommits config set generate=3
-}
-
 install_npm_dependencies() {
-  install_aicommits
 }
 
 install_font() {
