@@ -185,6 +185,18 @@ function Install-PowerToys {
   Install-WingetPackages Microsoft.PowerToys
 }
 
+function Install-Zoom {
+  Install-WingetPackages Zoom.Zoom
+}
+
+function Install-Termius {
+  Install-WingetPackages Termius.Termius
+}
+
+function Install-Flameshot {
+  Install-WingetPackages Flameshot.Flameshot
+}
+
 function Main {
   Install-Python
   Install-WSL
@@ -208,6 +220,9 @@ function Main {
   Install-WhatsApp
   Install-Vagrant
   Install-PowerToys
+  Install-Zoom
+  Install-Termius
+  Install-Flameshot
 
   # Always run this function last
   Enable-HyperV
