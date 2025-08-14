@@ -1,0 +1,38 @@
+# espanso match file
+global_vars:
+  - name: long_date
+    type: date
+    params:
+      format: "%Y/%m/%d %H:%M"
+  - name: short_date
+    type: date
+    params:
+      format: "%Y/%m/%d"
+  - name: short_time
+    type: date
+    params:
+      format: "%H:%M"
+# For a complete introduction, visit the official docs at: https://espanso.org/docs/
+
+# You can use this file to define the base matches (aka snippets)
+# that will be available in every application when using espanso.
+
+# Matches are substitution rules: when you type the "trigger" string
+# it gets replaced by the "replace" string.
+matches:
+  # But matches can also be dynamic:
+
+  # Print the current date
+  - trigger: ";date"
+    force_clipboard: true
+    replace: "{{short_date}}"
+
+  # Print the current date
+  - trigger: ";ldate"
+    force_clipboard: true
+    replace: "{{long_date}}"
+
+  - trigger: ";time"
+    force_clipboard: true
+    replace: "{{short_time}}"
+  # And much more! For more information, visit the docs: https://espanso.org/docs/

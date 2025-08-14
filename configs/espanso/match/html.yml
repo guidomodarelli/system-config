@@ -1,0 +1,36 @@
+matches:
+  - regex: ":<(?P<tag>.*)>"
+    label: tag
+    force_clipboard: true
+    replace: "<{{tag}}>$|$</{{tag}}>"
+  - regex: ":<a"
+    label: link
+    force_clipboard: true
+    replace: "<a href=\"$|$\"></a>"
+  - regex: ":<table"
+    label: table
+    force_clipboard: true
+    replace: |
+      <table>
+        <thead>
+          <tr>
+            <th>$|$</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+          </tr>
+        </tbody>
+      </table>
+  - regex: ":<tr"
+    label: tr
+    force_clipboard: true
+    replace: "<tr>$|$</tr>"
+  - regex: ":<td"
+    label: td
+    force_clipboard: true 
+    replace: "<td>$|$</td>"
+  - regex: ":<th"
+    label: th
+    force_clipboard: true 
+    replace: "<th>$|$</th>"

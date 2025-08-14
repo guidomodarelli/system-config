@@ -1,0 +1,9 @@
+matches:
+  - trigger: ";det"
+    force_clipboard: true
+    replace: |
+      <details><summary>Details</summary>
+      <p>
+        $|$
+      </p>
+      </details>

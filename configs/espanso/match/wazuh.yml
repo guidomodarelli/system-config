@@ -1,0 +1,313 @@
+matches:
+  - triggers: [";gm", ";wt"]
+    label: "[Good Morning]"
+    force_clipboard: true
+    replace: "Good morning! Work thread :thread:"
+  - triggers: [";wz", ";wdev"]
+    label: "[Wazuh] Start"
+    force_clipboard: true
+    replace: "yarn start --no-base-path"
+  - triggers: [";wz", ";wfmt"]
+    label: "[Wazuh] Format"
+    force_clipboard: true
+    replace: "echo '' | awk '{print $2}' | xargs -I{} ./plugins/main/node_modules/.bin/prettier --write {} --config .prettierrc"
+  - triggers: [";wz", ";wdaily"]
+    label: "[Wazuh] Daily Report"
+    force_clipboard: true
+    replace: |
+      # Guido Modarelli - {{short_date}}
+
+      ## Development
+
+      ### Triage
+
+      *
+
+      ### Newly opened
+
+      *
+
+      ### Worked on
+
+      *
+
+      ### Reviews
+
+      *
+
+      ## Operational
+
+      ### Triage
+
+      *
+
+      ### Newly opened
+
+      *
+
+      ### Worked on
+
+      *
+
+      ### Reviews
+
+      *
+
+      ## Meetings
+
+      *
+
+      ## Miscellaneous
+
+      *
+
+  - triggers: [";wz", ";wnote"]
+    label: "[Wazuh] Note"
+    force_clipboard: true
+    replace: "{{note}}"
+    vars:
+      - name: note
+        type: choice
+        params:
+          values:
+            - label: WAITING FOR USER'S RESPONSE
+              id: Waiting for user's response
+  - triggers: [";wz", ";wobj"]
+    label: "[Wazuh] Objective"
+    force_clipboard: true
+    replace: "{{objective}}"
+    vars:
+      - name: objective
+        type: choice
+        params:
+          values:
+            - Community
+            - Quick win
+            - Testing Release
+  - triggers: [";wz", ";wc", ";wcobj"]
+    label: "[Community] Objective"
+    force_clipboard: true
+    replace: "Community"
+  - triggers: [";wz", ";wc", ";wcres"]
+    label: "[Community] Response"
+    force_clipboard: true
+    replace: '{{text}}'
+    vars:
+      - name: text
+        type: choice
+        params:
+          values:
+            - label: UNABLE TO REPLICATE
+              id: I'm unable to replicate the issue.
+            - label: DELAY
+              id: Apologies for the delay.
+            - label: SOLVED ISSUE?
+              id: Were you able to solve this issue? Let me know if you need further help.
+            - label: FUTURE VERSIONS
+              id: Will be implemented in future versions of Wazuh.
+            - label: LET ME REPLICATE THIS (only in Google Mailing list)
+              id: Let me replicate this and I will get back to you as soon as possible.
+  - triggers: [";wz", ";wc", ";wcmod"]
+    label: "[Community] Moderation"
+    force_clipboard: true
+    replace: '{{text}}'
+    vars:
+      - name: text
+        type: choice
+        params:
+          values:
+            - label: DUPLICATED
+              id: |
+                Hi $|$, it looks like this question has already been asked (or/and answered) in the following link: [link]. Please let's continue in the original thread to avoid duplicates and improve the visibility of the channel.
+            - label: SPAM
+              id: |
+                Hi $|$, your recent posts have been flagged as spam. Please refrain from posting irrelevant or repetitive content. Continued spamming may result in a ban. Thank you for understanding.
+            - label: WRONG CHANNEL
+              id: |
+                Hi $|$, it looks like your post would be more appropriate in the [Correct Channel]. Could you please repost it there? This helps keep our community organized and ensures you get the best responses. Thanks!
+            - label: ANSWER TO A THREAD
+              id: |
+                Hi $|$, it looks like your post is not a question but an answer to a thread. Please remember to keep the conversation in a thread for better visibility. You can remove this and move it to the aimed conversation.
+            - label: DISCUSSION RESPECTFUL AND CONSTRUCTIVE (Created by me)
+              id: |
+                Let's keep the discussion respectful and constructive. Inflammatory comments are not allowed. Please refer to [our guidelines] for more information.
+            - label: SENSITIVE INFORMATION
+              id: |
+                Hi $|$, this is a reminder to avoid sharing sensitive information in your posts. This helps keep your data secure and our community safe.
+
+                Examples of sensitive information include:
+
+                - API keys
+                - Passwords
+                - Public and private IP addresses
+                - Personal identification numbers (PINs)
+                - Social Security or national ID numbers
+                - Credit card numbers
+                - Bank account information
+                - Security questions and answers
+                - Access tokens
+                - Private encryption keys
+                - Personal contact details (like personal email addresses or phone numbers)
+
+                Thanks for your understanding!
+            - label: UNRELATED QUESTION
+              id: Please, let's open a new thread with this new query so all the community users can benefit from our answers.
+            - label: NON-RELATED TO WAZUH
+              id: It seems this falls outside the Wazuh expertise. As much as we want to help, we do recommend using official resources for this matter. For instance, <try to provide a link for such external resource if possible>
+  - triggers: [";wz", ";wc", ";wcguidelines"]
+    label: "[Community] Guidelines"
+    force_clipboard: true
+    replace: |
+      <guidelines>
+        ### General Guidelines
+        Ensure that your response adheres to the following principles:
+
+        - ✅ Clarity and Precision: Use clear and concise language to explain technical concepts. Avoid ambiguity and ensure that complex ideas are presented in an easily understandable manner.
+        - ✍️ Proper Syntax and Formatting:
+          - Proper formatting ensures code readability and comprehension.
+        - 🗣 Active Voice:
+          - Prefer active voice for clarity. For example, “The server encountered an error” is clearer than “An error was encountered by the server.”
+        - 🌎 Neutral English:
+          - Use standard English, free of regional dialects or colloquialisms, ensuring clarity for an international audience.
+        - 📝 Modal Verbs:
+          - Use modal verbs (e.g., *can*, *should*, *must*, *may*) to indicate possibilities, obligations, or recommendations. For example: “You *should* consider upgrading to the latest version.”
+        - 🎩 Formality:
+          - Maintain a formal tone throughout the response.
+        - 📚 Self-Contained Answers:
+          - Provide comprehensive, self-contained answers that address all aspects of the question without requiring additional context or follow-up explanations.
+        - 🔄 Proofread and Edit:
+          - Carefully proofread responses to eliminate grammatical errors, typos, and clarity issues.
+        - Human-like Engagement:
+          - Rephrase the output in a human-like manner. Ensure authenticity and human-like engagement.
+        - Focus on the root cause of the query in your response and avoid unnecessary information that could make it long and confusing. The answers should answer the query. For instance, 'the user has an issue with integrating Syslog logs with Wazuh'. It is irrelevant to explain how that works and paste the Forward syslog documentation. We need to provide troubleshooting steps to verify every step of the data flow.
+        - Focus on the big problem for the user, instead of the internal complexities and details of our product. It is necessary to guide the user through this process.
+        - Provide clear examples when giving instructions or suggestions. This enhances user understanding and increases the effectiveness of the guidance provided.
+
+        ---
+
+        ### Community Standards
+        - 💖 Demonstrate empathy and kindness toward others.
+        - 🗣 Communicate respectfully and assertively.
+        - ✨ Offer and accept constructive feedback gracefully.
+        - 🌟 Deliver trustworthy, well-tested information.
+        - 🌍 Focus on what benefits the broader community.
+
+        ---
+
+        ### Unacceptable Behavior
+        - 🛑 Sharing sensitive or personal information.
+        - ⚠️ Inflammatory, irrelevant, or duplicate content.
+        - Do not focus on irrelevant minutiae.
+
+        ---
+
+        ### Important Considerations
+        - 📌 Relevance: Ensure that your response is relevant to the user’s query.
+        - 📌 If the user is seeking something unconventional or out of the box, or that seems unrelated to Wazuh, try to understand the underlying reason for their inquiry. By doing so, we can understand the goal and offer the best approach or alternative that the user was not considering. For instance, a user wants to create a script to add a tag to agents, but we can offer the labels capability.
+        - 📌 If the user doesn't provide all the output needed to troubleshoot an issue, explain that to help them better, we need that output to determine the root cause of an issue.
+      </guidelines>
+
+    # vars:
+    #   - name: platform
+    #     type: choice
+    #     params:
+    #       values:
+    #         - label: Platform Slack
+    #           id: Slack
+    #         - label: Platform Google Mailing List
+    #           id: Google Mailing List
+    #         - label: Platform Discord
+    #           id: Discord
+    #         - label: Platform Reddit
+    #           id: Reddit
+    #         - label: Platform GitHub
+    #           id: GitHub
+    #         - label: Platform Twitter
+    #           id: Twitter
+
+  - triggers: [";wz", ";wc", ";wcclose"]
+    label: "[Community] Close"
+    force_clipboard: true
+    replace: "{{text}}"
+    vars:
+      - name: text
+        type: choice
+        params:
+          values:
+            - label: DELETED
+              id: The user deleted the comment.
+            - label: INACTIVITY
+              id: We are closing due to inactivity.
+            - label: HAS BEEN ANSWERED
+              id: The user has already been answered [here]($|$).
+            - label: HAS BEEN SOLVED
+              id: The user has already been solved.
+  - triggers: [";wz", ";wdoc", ";wdgen"]
+    label: "[Wazuh] Generate Doc"
+    force_clipboard: true
+    replace: |
+      OUTPUT=wazuh-doc_$(git branch --show-current).txt &&
+      fd . source/user-manual \
+        --type f \
+        --extension='rst' \
+        --exclude='release-notes/' \
+        --exclude='installation-guide/' \
+        --exclude='deployment-options/' |
+      xargs cat > $OUTPUT &&
+      mv $OUTPUT /mnt/c/Users/$USERNAME/OneDrive/Documents
+  - triggers: [";wz", ";wshowpass"]
+    label: "[Wazuh] Show Password"
+    force_clipboard: true
+    replace: sudo tar -O -xvf wazuh-install-files.tar wazuh-install-files/wazuh-passwords.txt
+  - triggers: [";wz", ";wvis"]
+    label: "[Wazuh] Visualizations"
+    force_clipboard: true
+    replace: |
+      <context>
+        En un entorno de seguridad informática con Wazuh (basado en OpenSearch), quiero definir un KPI que se exprese mediante un único valor numérico —sin gráficos— y que, a partir de los datos mostrados en  las imagenes (donde cada imagen representa un solo documento y existen muchísimos similares), identifique los campos más relevantes para generar métricas claras y útiles para el cliente final.
+
+        - El KPI debe ser **fácil de entender** y **relevante** para el cliente.
+        - Debe incluir una **breve descripción** de lo que representa el KPI y su **importancia**.
+        - El KPI debe ser **específico**, **medible**, **alcanzable**, **relevante** y **temporal** (SMART).
+        - El KPI debe ser **visualmente atractivo**, utilizando un formato claro y fácil de leer.
+        - El KPI debe basarse en una agregación de los datos de todos los documentos relevantes dentro de un período de tiempo específico.
+        - NO debe usar _Runtime fields_ ni _TSVB_.
+      </context>
+  - triggers: [";wz", ";wctx"]
+    label: "[Wazuh] General Context"
+    force_clipboard: true
+    replace: |
+      <context>
+        Antes de continuar, tené en cuenta este contexto:
+
+        1. **Wazuh** es tanto una **empresa de seguridad informática** como una **plataforma modular** que puede consumirse de dos formas:
+          - A través de **Wazuh Cloud**, su oferta **SaaS** (con trial de 14 días).
+          - Como un **stack desplegable** en infraestructura propia del cliente (on-premise o en la nube).
+        2. El stack de Wazuh está compuesto por varios **componentes estructurales**:
+          - **Wazuh Dashboard**: fork de **OpenSearch Dashboard** (*no es Kibana*).
+          - **Wazuh Indexer**: fork de **OpenSearch** (*no es el indexador de Elasticsearch*).
+          - **Wazuh Server**, **Wazuh CTI**, **Wazuh Core**, **Wazuh Agent**, entre otros.
+        3. Tanto **Wazuh Dashboard** como **Wazuh Indexer** se mantienen actualizados en sincronía con las versiones oficiales de **OpenSearch** y **OpenSearch Dashboard**, con adaptaciones internas según las necesidades del stack.
+        4. La plataforma unifica capacidades de **XDR y SIEM**, permitiendo detección de amenazas, recolección y correlación de logs, inteligencia de amenazas y control de endpoints.
+        5. Soporta despliegues en entornos **on-premises**, **virtualizados**, **contenerizados** y **cloud-based**, con una arquitectura flexible que puede ser distribuida.
+        6. Cuando menciono **Dashboard**, **Indexer**, **Server**, etc., me refiero a los **componentes estructurales** del stack de Wazuh.
+        7. Cuando hablo de **alertas** o **eventos**, me refiero a sucesos que **ocurren dentro de la plataforma Wazuh**, no a conceptos genéricos.
+        8. No estoy hablando del stack ELK (Elasticsearch, Logstash, Kibana), ni del Elasticsearch original, salvo que lo indique explícitamente.
+        9. Toda búsqueda, inferencia o análisis técnico debe asumir que **Wazuh Indexer** y **Wazuh Dashboard** son forks activos, mantenidos y adaptados del ecosistema **OpenSearch**.
+        10. Existen diferentes tipos de **Wazuh Agents** según el sistema operativo del endpoint donde se instalan. Actualmente se soportan:
+            - **Windows**: versiones **Windows 10**, **Windows 11** y también **Windows Server**.
+            - **Linux**: distribuciones como **Ubuntu**, **CentOS** y otras compatibles.
+            - **macOS**: versión **Ventura** o superior.
+        11. La versión actual de Wazuh es **v4.12**. Siempre que se consulte documentación, blog o contenido externo, se debe verificar que la información sea compatible con esta versión, y no estar obsoleta o limitada a versiones anteriores del stack.
+        12. Siempre que necesites ampliar, validar o enriquecer la información sobre Wazuh, consultá primero:
+            - La documentación oficial: https://documentation.wazuh.com/
+            - El blog oficial: https://wazuh.com/blog/
+        13. Ante errores visuales o fallas en carga de recursos (como imágenes, temas claro/oscuro, fuentes o archivos multimedia), se deben descartar primero problemas de caché o interferencia de firewall con los siguientes pasos:
+            - Abrir el navegador en modo incógnito.
+            - Acceder al Dashboard desde una IP alternativa.
+            - Abrir las DevTools → pestaña Network → activar “Disable cache”.
+            - Vaciar el **Storage** desde DevTools: eliminar Local Storage, Session Storage y Cookies.
+            - Verificar si un firewall o proxy intermedio podría estar sirviendo versiones cacheadas.
+
+        Usá este marco de referencia para interpretar lo que diga a continuación, tanto en términos técnicos como funcionales.
+      </context>

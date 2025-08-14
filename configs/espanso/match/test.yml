@@ -1,0 +1,46 @@
+matches:
+  - triggers: [";test", ";lgtm"]
+    label: "LGTM"
+    force_clipboard: true
+    replace: |
+      LGTM! {{green_circle}}
+  - triggers: [";test", ";check"]
+    label: "Code Review and Test"
+    force_clipboard: true
+    replace: |
+      {{legend}}
+
+      # 🧪 Test {{short_date}}
+
+      CR {{green_circle}}
+      TEST {{green_circle}}
+  - triggers: [";test", ";utest"]
+    label: "Unit Test"
+    force_clipboard: true
+    replace: |
+      <details><summary>{{black_circle}} $|$</summary>
+        <br />
+
+        > **CHROME** - {{black_circle}}
+        >
+        >
+
+        > **FIREFOX** - {{black_circle}}
+        >
+        >
+
+      </details>
+  - triggers: [";test", ";chr"]
+    label: "Chrome"
+    force_clipboard: true
+    replace: |
+        > **CHROME** - {{black_circle}}
+        >
+        >
+  - triggers: [";test", ";fir"]
+    label: "Firefox"
+    force_clipboard: true
+    replace: |
+        > **FIREFOX** - {{black_circle}}
+        >
+        >
