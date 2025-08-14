@@ -111,39 +111,62 @@ docker_images_table_formatter() {
 
 dd-show-ips() {
   logInfo "Showing Docker container IPs..."
-  docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker show ips " | awk '{print $2}' | xargs -I{} docker inspect --format '{{ range $name, $network := .NetworkSettings.Networks }}{{ $name }}: {{ $network.IPAddress }} {{ "\n" }}{{ end }}' {}
+  docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker show ips " | awk '{print $2}' | while IFS= read -r sel; do
+    echo "docker inspect $sel"
+    docker inspect --format '{{ range $name, $network := .NetworkSettings.Networks }}{{ $name }}: {{ $network.IPAddress }} {{ "\n" }}{{ end }}' "$sel"
+  done
 }
 
 dd-exec() {
   logInfo "Executing Docker containers..."
-  docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker exec " | awk '{print $2}' | xargs -I{} echo "docker exec -it {} " | anyframe-action-put
+  docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker exec " | awk '{print $2}' | while IFS= read -r sel; do
+    echo "docker exec -it $sel "
+  done | anyframe-action-put
 }
 
 dd-logs() {
-  docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker logs " | awk '{print $2}' | xargs -I{} docker logs -f {} 2>&1
+  docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker logs " | awk '{print $2}' | while IFS= read -r sel; do
+    echo "docker logs $sel"
+    docker logs -f "$sel" 2>&1
+  done
 }
 
 dd-start() {
   logInfo "Starting Docker containers..."
-  docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker start " | awk '{print $2}' | xargs -I{} docker start {}
+  docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker start " | awk '{print $2}' | while IFS= read -r sel; do
+    echo "docker start $sel"
+    docker start "$sel"
+  done
 }
 
 dd-restart() {
   logInfo "Restarting Docker containers..."
-  docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker restart " | awk '{print $2}' | xargs -I{} docker restart {}
+  docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker restart " | awk '{print $2}' | while IFS= read -r sel; do
+    echo "docker restart $sel"
+    docker restart "$sel"
+  done
 }
 
 dd-stop() {
   logInfo "Stopping Docker containers..."
-  docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker stop " | awk '{print $2}' | xargs -I{} docker stop {}
+  docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker stop " | awk '{print $2}' | while IFS= read -r sel; do
+    echo "docker stop $sel"
+    docker stop "$sel"
+  done
 }
 
 dd-rm() {
   logInfo "Removing Docker containers..."
-  docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm " | awk '{print $2}' | xargs -I{} docker rm -f {}
+  docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm " | awk '{print $2}' | while IFS= read -r sel; do
+    echo "docker rm -f $sel"
+    docker rm -f "$sel"
+  done
 }
 
 dd-rmi() {
   logInfo "Removing Docker images..."
-  docker_images_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm image " | awk '{print $3}' | xargs -I{} docker rmi {}
+  docker_images_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm image " | awk '{print $3}' | while IFS= read -r sel; do
+    echo "docker rmi $sel"
+    docker rmi "$sel"
+  done
 }
