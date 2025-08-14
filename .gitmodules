@@ -10,7 +10,3 @@
 	path = configs/espanso
 	url = git@gitlab.com:guidomodarelli-groups/configs/espanso-config.git
 	branch = main
-[submodule "configs/anyframe"]
-	path = configs/anyframe
-	url = git@github.com:guidomodarelli/anyframe.git
-	branch = main
