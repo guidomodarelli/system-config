@@ -1,0 +1,9 @@
+anyframe-source-git-branch -i \
+  | anyframe-selector-auto \
+  | awk '{print $1}' \
+  | anyframe-action-put
+
+# Local Variables:
+# mode: Shell-Script
+# End:
+# vim: ft=zsh
