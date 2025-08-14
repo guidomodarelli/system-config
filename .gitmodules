@@ -1,7 +1,3 @@
-[submodule "configs/nvim"]
-	path = configs/nvim
-	url = git@gitlab.com:guidomodarelli-groups/configs/nvim-config.git
-	branch = main
 [submodule "configs/zsh"]
 	path = configs/zsh
 	url = git@gitlab.com:guidomodarelli-groups/configs/zsh-config.git
