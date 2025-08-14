@@ -166,7 +166,7 @@ dd-rm() {
 
 dd-rmi() {
   logInfo "Removing Docker images..."
-  docker_images_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm image " | awk '{print $3}' | while IFS= read -r sel; do
+  docker_images_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm image " | awk '{print $2 ":" $3}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker rmi "; styleText -c cyan -b "$sel"; echo } >&2
     docker rmi "$sel"
   done
