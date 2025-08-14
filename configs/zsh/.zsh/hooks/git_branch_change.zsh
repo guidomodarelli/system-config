@@ -1,4 +1,5 @@
 # Auto ejecutar acciones al cambiar de rama de git
+source $ZSH_HOME/hooks/load_nvmrc.zsh
 autoload -U add-zsh-hook
 
 # Variable global para almacenar la rama anterior
@@ -12,7 +13,7 @@ git_branch_changed() {
 
     # Si la rama actual es diferente a la anterior
     if [[ -n "$current_branch" && "$current_branch" != "$PREVIOUS_GIT_BRANCH" ]]; then
-      echo "🔄 Cambiando de rama » $(logCyan -i -u $current_branch)"
+      # echo "🔄 Cambiando de rama » $(logCyan -i -u $current_branch)"
 
       # Aquí puedes agregar más acciones personalizadas:
       # - Instalar dependencias específicas de la rama
