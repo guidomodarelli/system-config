@@ -197,6 +197,10 @@ function Install-Flameshot {
   Install-WingetPackages Flameshot.Flameshot
 }
 
+function Install-7z {
+  Install-WingetPackages 7zip.7zip
+}
+
 function Main {
   Install-Python
   Install-WSL
@@ -223,6 +227,7 @@ function Main {
   Install-Zoom
   Install-Termius
   Install-Flameshot
+  Install-7z
 
   # Always run this function last
   Enable-HyperV
