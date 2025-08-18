@@ -30,45 +30,45 @@ choose_git_file() {
     awk '{print $2}'
 }
 
-gg-diff() {
+GGdiff() {
 	choose_git_file ".[MD]" "Git diff" |
     xargs -I{} git diff -- "{}"
 }
 
-gg-diff-cached() {
+GGdiff-cached() {
   choose_git_file "[MDRA]" "Git diff (CACHED)" |
     xargs -I{} git diff --cached -- "{}"
 }
 
-gg-add() {
+GGadd() {
   choose_git_file ".[MD?]" "Git add" |
     xargs -I{} git add -- "{}"
 }
 
-gg-restore() {
+GGrestore() {
   choose_git_file ".[MD]" "Git restore" |
     xargs -I{} git restore -- "{}"
 }
 
-gg-rm() {
+GGrm() {
   choose_git_file ".[?]" "Git remove" |
     xargs -I{} rm -rf -- "{}"
 }
 
-gg-restore-staged() {
+GGrestore-staged() {
   choose_git_file "[MDRA]" "Git restore (STAGED)" |
     xargs -I{} git restore --staged -- "{}"
 }
 
-gg-ls-assume-unchanged-files() {
+GGls-assume-unchanged-files() {
   git ls-files -v | grep '^[a-z]' | sed 's/^[a-z] //g'
 }
 
-gg-ls-skip-worktree-files() {
+GGls-skip-worktree-files() {
   git ls-files -v | grep '^S' | sed 's/^S //g'
 }
 
-gg-patch() {
+GGpatch() {
   local patch_file="$1"
 
   while [ -z "$patch_file" ]; do

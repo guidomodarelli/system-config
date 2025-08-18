@@ -89,7 +89,7 @@ list_docker_containers_status() {
   } | column -t -s ':'
 }
 
-dd-ps() {
+DDps() {
   output="$(printf "$(format_Header_Container_Id)@$(format_Header_Names)@$(format_Header_Status)@$(format_Header_Image)@$(format_Header_Ports)")"
   output+="$BREAK_LINE\n"
   local port_ranges="[0-9]+(-[0-9]+)?"
@@ -109,7 +109,7 @@ docker_images_table_formatter() {
   docker images --format "table $(format_Id)\t$(format_Repository)\t$(format_Tag)" | tail +2
 }
 
-dd-show-ips() {
+DDshow-ips() {
   logInfo "Showing Docker container IPs..."
   docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker show ips " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker inspect "; styleText -c cyan -b "$sel"; echo } >&2
@@ -117,7 +117,7 @@ dd-show-ips() {
   done
 }
 
-dd-exec() {
+DDexec() {
   logInfo "Executing Docker containers..."
   docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker exec " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker exec -it "; styleText -c cyan -b "$sel"; echo } >&2
@@ -125,14 +125,14 @@ dd-exec() {
   done | anyframe-action-put
 }
 
-dd-logs() {
+DDlogs() {
   docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker logs " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker logs "; styleText -c cyan -b "$sel"; echo } >&2
     docker logs -f "$sel" 2>&1
   done
 }
 
-dd-start() {
+DDstart() {
   logInfo "Starting Docker containers..."
   docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker start " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker start "; styleText -c cyan -b "$sel"; echo } >&2
@@ -140,7 +140,7 @@ dd-start() {
   done
 }
 
-dd-restart() {
+DDrestart() {
   logInfo "Restarting Docker containers..."
   docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker restart " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker restart "; styleText -c cyan -b "$sel"; echo } >&2
@@ -148,7 +148,7 @@ dd-restart() {
   done
 }
 
-dd-stop() {
+DDstop() {
   logInfo "Stopping Docker containers..."
   docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker stop " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker stop "; styleText -c cyan -b "$sel"; echo } >&2
@@ -156,7 +156,7 @@ dd-stop() {
   done
 }
 
-dd-rm() {
+DDrm() {
   logInfo "Removing Docker containers..."
   docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker rm -f "; styleText -c cyan -b "$sel"; echo } >&2
@@ -164,7 +164,7 @@ dd-rm() {
   done
 }
 
-dd-rmi() {
+DDrmi() {
   logInfo "Removing Docker images..."
   docker_images_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm image " | awk '{print $2 ":" $3}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker rmi "; styleText -c cyan -b "$sel"; echo } >&2
