@@ -1,4 +1,5 @@
 alias gfp="git fetch --force --prune --prune-tags --tags --jobs=8"
+alias gcnvm="git commit --no-verify -m"
 
 git_purge_history() {
   if [ -z "$1" ]; then
