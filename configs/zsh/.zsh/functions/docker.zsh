@@ -119,7 +119,7 @@ DDshow-ips() {
 
 DDexec() {
   logInfo "Executing Docker containers..."
-  docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker exec " | awk '{print $2}' | while IFS= read -r sel; do
+  docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker exec '" | awk '{print $2}' | while IFS= read -r sel; do
     echo "docker exec -it $sel "
   done | anyframe-action-put
 }
