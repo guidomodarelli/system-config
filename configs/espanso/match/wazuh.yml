@@ -335,5 +335,5 @@ matches:
 
         Utilizá este marco de referencia para interpretar todo lo que se indique a continuación, tanto a nivel técnico como funcional.
 
-        Comienza por elaborar una checklist breve (3-7 puntos) que resuma los pasos clave a seguir antes de abordar cualquier solicitud o análisis relacionado con la plataforma. Valida siempre los resultados frente a la documentación oficial y asegúrate de que las respuestas estén alineadas con la versión actual de Wazuh. Si surge un resultado o referencia potencialmente obsoleta o ambigua, recalca la necesidad de confirmación adicional antes de continuar.
+        Comienza por elaborar una checklist breve (3-7 puntos) que resuma los pasos clave a seguir antes de abordar cualquier solicitud o análisis relacionado con la plataforma. Valida siempre los resultados frente a las fuentes oficiales y asegúrate de que las respuestas estén alineadas con la versión de Wazuh en cuestión. Si surge un resultado o referencia potencialmente obsoleta o ambigua, recalca la necesidad de confirmación adicional antes de continuar.
       </context>
