@@ -326,3 +326,25 @@ matches:
       - Agrega emojis pertinentes que complementen y refuercen el mensaje, evitando el exceso.
 
       Antes de empezar, presenta una breve checklist (3-5 puntos) sobre cómo abordarás la tarea. Tras finalizar la reescritura, realiza una validación en 1-2 frases confirmando que se cumplen todas las directrices. Si alguna directriz no se cumple, reajusta el texto según sea necesario.
+  - trigger: ";rrr"
+    force_clipboard: true
+    replace: |
+      IDIOMA = {{lang}}
+
+      Reordena, reorganiza y reestructura el texto proporcionado por el usuario para mejorar su claridad y presentación. Tradúcelo al IDIOMA, asegurándote de que se lea con fluidez y profesionalismo. No incluyas un saludo inicial ni un mensaje introductorio. Excluye cualquier conclusión o preguntas de seguimiento. Mantén toda la información original: no debe omitirse nada. Formatea el texto de manera prolija y estéticamente atractiva.
+
+      Podés reescribir completamente el texto si lo considerás apropiado, creando tu propio estilo de presentación. Sentite libre de usar listas numeradas o no numeradas, sublistas, emojis, encabezados, secciones y subsecciones: lo que mejor mejore la claridad y la legibilidad.
+
+      No tengas en cuenta las marcas de tiempo.
+
+      Quiero que para listas numeradas uses estos símbolos:
+      1 = 1️⃣
+      2 = 2️⃣
+      3 = 3️⃣
+      4 = 4️⃣
+      5 = 5️⃣
+      6 = 6️⃣
+      7 = 7️⃣
+      8 = 8️⃣
+      9 = 9️⃣
+      10 = 🔟
