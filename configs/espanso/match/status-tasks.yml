@@ -1,117 +1,117 @@
 matches:
-  - triggers: ["@@", "@todo"]
+  - triggers: ["%task", "%todo"]
     force_clipboard: true
     label: "TODO"
     replace: "[📝 TO DO]"
-  - triggers: ["@@", "@wip"]
+  - triggers: ["%task", "%wip"]
     force_clipboard: true
     label: "Work in Progress"
     replace: "[🚧 WIP]"
-  - triggers: ["@@", "@done"]
+  - triggers: ["%task", "%done"]
     force_clipboard: true
     label: "Done"
     replace: "[✅ DONE]"
-  - triggers: ["@@", "@hold"]
+  - triggers: ["%task", "%hold"]
     force_clipboard: true
     label: "On Hold"
     replace: "[⏸️ ON HOLD]"
-  - triggers: ["@@", "@prev"]
+  - triggers: ["%task", "%prev"]
     force_clipboard: true
     label: "Pending Review"
     replace: "[👀 PENDING REVIEW]"
-  - triggers: ["@@", "@pfrev"]
+  - triggers: ["%task", "%pfrev"]
     force_clipboard: true
     label: "Pending Final Review"
     replace: "[👀 PENDING FINAL REVIEW]"
-  - triggers: ["@@", "@revreq"]
+  - triggers: ["%task", "%revreq"]
     force_clipboard: true
     label: "Review Requested"
     replace: "[👀 REVIEW REQUESTED]"
-  - triggers: ["@@", "@unrev"]
+  - triggers: ["%task", "%unrev"]
     force_clipboard: true
     label: "Under Review"
     replace: "[🔍 UNDER REVIEW]"
-  - triggers: ["@@", "@reqch"]
+  - triggers: ["%task", "%reqch"]
     force_clipboard: true
     label: "Request Changes"
     replace: "[🔄 REQUEST CHANGES]"
-  - triggers: ["@@", "@merge"]
+  - triggers: ["%task", "%merge"]
     force_clipboard: true
     label: "Ready to Merge"
     replace: "[🔀 READY TO MERGE]"
-  - triggers: ["@@", "@closed"]
+  - triggers: ["%task", "%closed"]
     force_clipboard: true
     label: "Closed"
     replace: "[🔒 CLOSED]"
-  - triggers: ["@@", "@block"]
+  - triggers: ["%task", "%block"]
     force_clipboard: true
     label: "Blocked"
     replace: "[⛔ BLOCKED]"
-  - triggers: ["@@", "@ans"]
+  - triggers: ["%task", "%ans"]
     force_clipboard: true
     label: "Answered Comments"
     replace: "[💬 ANSWERED COMMENTS]"
-  - triggers: ["@@", "@app"]
+  - triggers: ["%task", "%app"]
     force_clipboard: true
     label: "Approved PR"
     replace: "[🟢 APPROVED]"
-  - triggers: ["@@", "@comm"]
+  - triggers: ["%task", "%comm"]
     force_clipboard: true
     label: "Add Comments"
     replace: "[💬 ADDED COMMENTS]"
-  - triggers: ["@@", "@test"]
+  - triggers: ["%task", "%test"]
     force_clipboard: true
     label: "Tested"
     replace: "[🧪 TESTED]"
-  - triggers: ["@@", "@needtest"]
+  - triggers: ["%task", "%needtest"]
     force_clipboard: true
     label: "Need Testing"
     replace: "[🧪 NEED TESTING]"
-  - triggers: ["@@", "@doc"]
+  - triggers: ["%task", "%doc"]
     force_clipboard: true
     label: "Documented"
     replace: "[📚 DOCUMENTED]"
-  - triggers: ["@@", "@needdoc"]
+  - triggers: ["%task", "%needdoc"]
     force_clipboard: true
     label: "Need Documentation"
     replace: "[📚 NEED DOCUMENTATION]"
-  - triggers: ["@@", "@solved"]
+  - triggers: ["%task", "%solved"]
     force_clipboard: true
     label: "Solved Comments"
     replace: "[✅ SOLVED COMMENTS]"
-  - triggers: ["@@", "@failtest"]
+  - triggers: ["%task", "%failtest"]
     force_clipboard: true
     label: "Tests Failed"
     replace: "[❌ TESTS FAILED]"
-  - triggers: ["@@", "@fixtest"]
+  - triggers: ["%task", "%fixtest"]
     force_clipboard: true
     label: "Fix Tests"
     replace: "[🔧 FIX TESTS]"
-  - triggers: ["@@", "@wfs"]
+  - triggers: ["%task", "%wfs"]
     force_clipboard: true
     label: "Waiting for Solved"
     replace: "[⏳ WAITING FOR SOLVED]"
-  - triggers: ["@@", "@prmer"]
+  - triggers: ["%task", "%prmer"]
     force_clipboard: true
     label: "PR Merged"
     replace: "[🔀 PR MERGED]"
-  - triggers: ["@@", "@ans"]
+  - triggers: ["%task", "%ans"]
     force_clipboard: true
     label: "Community Answered"
     replace: "[👥 ANSWERED]"
-  - triggers: ["@@", "@closed"]
+  - triggers: ["%task", "%closed"]
     force_clipboard: true
     label: "Community Closed"
     replace: "[👥 CLOSED]"
-  - triggers: ["@@", "@notplan"]
+  - triggers: ["%task", "%notplan"]
     force_clipboard: true
     label: "Community Closed as Not Planned"
     replace: "[👥 CLOSED AS NOT PLANNED]"
-  - triggers: ["@@", "@askteam"]
+  - triggers: ["%task", "%askteam"]
     force_clipboard: true
     label: "Asked Team"
     replace: "[👥 ASKED TEAM]"
-  - triggers: ["@@", "@invest"]
+  - triggers: ["%task", "%invest"]
     force_clipboard: true
     label: "Investigating"
     replace: "[🔎 INVESTIGATING]"
