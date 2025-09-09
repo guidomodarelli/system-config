@@ -1,4 +1,4 @@
-cdx() {
+cx() {
   if [[ "$1" == "update" ]]; then
     npm install -g @openai/codex@latest
   else
