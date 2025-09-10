@@ -75,11 +75,11 @@ matches:
     force_clipboard: true
     label: "Need Documentation"
     replace: "[📚 NEED DOCUMENTATION]"
-  - triggers: ["%task", "%solved"]
+  - triggers: ["%task", "%sol"]
     force_clipboard: true
-    label: "Solved Comments"
-    replace: "[✅ SOLVED COMMENTS]"
-  - triggers: ["%task", "%failtest"]
+    label: "Solved"
+    replace: "[✅ SOLVED]"
+  - triggers: ["%task", "%Ftest"]
     force_clipboard: true
     label: "Tests Failed"
     replace: "[❌ TESTS FAILED]"
