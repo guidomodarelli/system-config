@@ -99,49 +99,38 @@ git_patch_create() {
   logInfo "Patch file created: $(logGreen -b "$patch_file")"
 }
 
-# === GG master selector ===
-# Lista funciones git helper con descripción, permite elegir y ejecutar una.
-# Uso: GG  (Enter para ejecutar la función seleccionada)
-# Paso opcional: GG -l  (solo lista en stdout, sin fzf)
-typeset -A __GIT_DESCRIPTIONS=(
-  [git_history_purge]="elimina completamente un archivo/directorio del historial de Git"
-  [git_rebase_sign_all]="rebase interactivo firmando todos los commits con GPG"
-  [git_deleted_files_restore]="restaura todos los archivos eliminados desde HEAD"
-  [git_files_select]="selector interactivo de archivos Git con filtros de estado"
-  [git_diff]="visualiza diferencias de archivos modificados/eliminados"
-  [git_diff_index]="visualiza diferencias de archivos en staging area"
-  [git_add_select]="añade archivos seleccionados al staging area"
-  [git_restore_select]="descarta cambios de archivos seleccionados"
-  [git_untracked_remove]="elimina archivos no rastreados del sistema de archivos"
-  [git_unstage]="quita archivos del staging area (unstage)"
-  [git_assume_unchanged_list]="lista archivos marcados como assume-unchanged"
-  [git_skip_worktree_list]="lista archivos marcados como skip-worktree"
-  [git_patch_create]="genera archivo patch desde diferencias seleccionadas"
-)
+# === GG master selector (funcional, sin associative array) ===
+__git_get_descriptions() {
+  cat <<'__EOF__'
+git_history_purge|elimina completamente un archivo/directorio del historial de Git
+git_rebase_sign_all|rebase interactivo firmando todos los commits con GPG
+git_deleted_files_restore|restaura todos los archivos eliminados desde HEAD
+git_files_select|selector interactivo de archivos Git con filtros de estado
+git_diff|visualiza diferencias de archivos modificados/eliminados
+git_diff_index|visualiza diferencias de archivos en staging area
+git_add_select|añade archivos seleccionados al staging area
+git_restore_select|descarta cambios de archivos seleccionados
+git_untracked_remove|elimina archivos no rastreados del sistema de archivos
+git_unstage|quita archivos del staging area (unstage)
+git_assume_unchanged_list|lista archivos marcados como assume-unchanged
+git_skip_worktree_list|lista archivos marcados como skip-worktree
+git_patch_create|genera archivo patch desde diferencias seleccionadas
+__EOF__
+}
 
-@G() {
-  if [[ "$1" == "-l" ]]; then
-    {
-      for k in ${(ok)__GIT_DESCRIPTIONS}; do
-        echo "$(logCyan $k)" "| $(logGray "# ${__GIT_DESCRIPTIONS[$k]}")"
-      done
-    } | column -t -s '|'
-    return 0
-  fi
+__git_list_functions() {
+  __git_get_descriptions | while IFS='|' read -r func desc; do
+    echo "$(logCyan $func)" "| $(logGray "# $desc")"
+  done | column -t -s '|'
+}
 
+__git_select_function() {
   # Generar listado coloreado para fzf (con soporte ANSI)
   local selected
-  selected=$({
-    for k in ${(ok)__GIT_DESCRIPTIONS}; do
-      echo "$(logCyan $k)" "| $(logGray "# ${__GIT_DESCRIPTIONS[$k]}")"
-    done
-  } | column -t -s '|' | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} GG > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'" | awk '{print $1}')
+  selected=$(__git_list_functions | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} GG > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'") || return 0
   [[ -z "$selected" ]] && return 0
-
   # Quitar códigos ANSI y extraer nombre (columna 1 antes de tab)
-  local clean=$(echo "$selected" | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
-  local func=${clean%%$'\t'*}
-
+  local func=$(echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
   if typeset -f "$func" >/dev/null; then
     echo "# Ejecutando: $func"
     "$func"
@@ -149,4 +138,13 @@ typeset -A __GIT_DESCRIPTIONS=(
     echo "Función no encontrada: $func" >&2
     return 1
   fi
+}
+
+@G() {
+  # Uso: @G -l (lista) | @G (interactivo)
+  if [[ "$1" == "-l" ]]; then
+    __git_list_functions
+    return 0
+  fi
+  __git_select_function
 }
