@@ -7,7 +7,9 @@ wzstart() {
 
 # --- Master selector (@W) ---
 __wazuh_get_descriptions() {
-  echo "wzstart|iniciar yarn start en contenedor wazuh/osd seleccionado"
+  cat <<'__EOF__'
+wzstart|iniciar yarn start en contenedor wazuh/osd seleccionado
+__EOF__
 }
 
 __wazuh_list_functions() {
@@ -17,10 +19,12 @@ __wazuh_list_functions() {
 }
 
 __wazuh_select_function() {
+  # Generar listado coloreado para fzf (con soporte ANSI)
   local selected
   selected=$(__wazuh_list_functions | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} WAZUH > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'")
   [[ -z "$selected" ]] && return 0
 
+  # Quitar códigos ANSI y extraer nombre (columna 1 antes de tab)
   local func=$(echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
   if typeset -f "$func" >/dev/null; then
     echo "# Ejecutando: $func"

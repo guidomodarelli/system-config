@@ -201,7 +201,7 @@ docker_images_remove() { @Drmi "$@"; }
   done
 }
 
-# --- Master selector (@D) (funcional, sin associative array) ---
+# --- Master selector (@D) ---
 __docker_get_descriptions() {
   cat <<'__EOF__'
 docker_containers_status_summary|resumen estado de contenedores
@@ -226,9 +226,12 @@ __docker_list_functions() {
 }
 
 __docker_select_function() {
+  # Generar listado coloreado para fzf (con soporte ANSI)
   local selected
   selected=$(__docker_list_functions | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} DOCKER > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'") || return 0
   [[ -z "$selected" ]] && return 0
+
+  # Quitar códigos ANSI y extraer nombre (columna 1 antes de tab)
   local func=$(echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
   if typeset -f "$func" >/dev/null; then
     echo "# Ejecutando: $func"

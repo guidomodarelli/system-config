@@ -99,7 +99,7 @@ git_patch_create() {
   logInfo "Patch file created: $(logGreen -b "$patch_file")"
 }
 
-# === GG master selector (funcional, sin associative array) ===
+# === GG master selector ===
 __git_get_descriptions() {
   cat <<'__EOF__'
 git_history_purge|elimina completamente un archivo/directorio del historial de Git
@@ -129,6 +129,7 @@ __git_select_function() {
   local selected
   selected=$(__git_list_functions | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} GG > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'") || return 0
   [[ -z "$selected" ]] && return 0
+
   # Quitar códigos ANSI y extraer nombre (columna 1 antes de tab)
   local func=$(echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
   if typeset -f "$func" >/dev/null; then
