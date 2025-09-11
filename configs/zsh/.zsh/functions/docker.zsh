@@ -225,7 +225,7 @@ __EOF__
     return 0
   fi
   local func
-  func=$(selector_fzf __docker_get_descriptions "${FZF_PREFIX_PROMPT:-} DOCKER >" 'Selecciona función (Enter ejecuta, ESC cancela)') || return 0
+  func=$(selector_fzf __docker_get_descriptions "DOCKER >") || return 0
   [[ -z "$func" ]] && return 0
   if typeset -f "$func" >/dev/null; then
     echo "# Ejecutando: $func"

@@ -20,6 +20,13 @@ selector_list() {
 
 selector_fzf() {
   local desc_fn="$1" prompt="$2" header="$3"
+  local default_header='Selecciona función (Enter ejecuta, ESC cancela)'
+  [[ -z "$header" ]] && header="$default_header"
+  # Si el prompt ya trae el prefijo no lo duplicamos
+  local prefix="${FZF_PREFIX_PROMPT:-}"
+  if [[ "$prompt" != ${prefix}* ]]; then
+    prompt="${prefix} ${prompt}"
+  fi
   local list
   list=$(selector_list "$desc_fn") || return 0
   local selected
