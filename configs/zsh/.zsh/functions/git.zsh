@@ -82,11 +82,63 @@ GGpatch() {
   printf "$(logCyan -b $POINTER) Add .txt extension for GitHub? [y/N] "
   read -r add_txt
   if [[ "$add_txt" =~ ^[Yy]$ ]]; then
-    patch_file="${patch_file}.txt"
+    patch_file="${patch_file}.patch.txt"
   fi
 
   choose_git_file ".[MD]" "Git create patch" |
     xargs -I{} git diff -- "{}" > "$patch_file"
 
   logInfo "Patch file created: $(logGreen -b "$patch_file")"
+}
+
+# === GG master selector ===
+# Lista funciones git helper con descripción, permite elegir y ejecutar una.
+# Uso: GG  (Enter para ejecutar la función seleccionada)
+# Paso opcional: GG -l  (solo lista en stdout, sin fzf)
+typeset -A __GG_DESC=(
+  [git_purge_history]="purga historial de un path"
+  [git_rebase_with_gpg_sign]="rebase interactivo firmando commits"
+  [git_restore_deleted_files]="restaura archivos borrados (HEAD)"
+  [choose_git_file]="helper selector de archivos git"
+  [GGdiff]="git diff archivos mod/borr"
+  [GGdiff-cached]="git diff --cached"
+  [GGadd]="git add archivos"
+  [GGrestore]="git restore archivos"
+  [GGrm]="rm archivos untracked"
+  [GGrestore-staged]="unstage cambios"
+  [GGls-assume-unchanged-files]="lista assume-unchanged"
+  [GGls-skip-worktree-files]="lista skip-worktree"
+  [GGpatch]="crear patch"
+)
+
+GG() {
+  if [[ "$1" == "-l" ]]; then
+    {
+      for k in ${(ok)__GG_DESC}; do
+        echo "$(logCyan $k)" "| $(logGray "# ${__GG_DESC[$k]}")"
+      done
+    } | column -t -s '|'
+    return 0
+  fi
+
+  # Generar listado coloreado para fzf (con soporte ANSI)
+  local selected
+  selected=$({
+    for k in ${(ok)__GG_DESC}; do
+      echo "$(logCyan $k)" "| $(logGray "# ${__GG_DESC[$k]}")"
+    done
+  } | column -t -s '|' | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-}GG > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' | awk '{print $1}')
+  [[ -z "$selected" ]] && return 0
+
+  # Quitar códigos ANSI y extraer nombre (columna 1 antes de tab)
+  local clean=$(echo "$selected" | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
+  local func=${clean%%$'\t'*}
+
+  if typeset -f "$func" >/dev/null; then
+    echo "# Ejecutando: $func"
+    "$func"
+  else
+    echo "Función no encontrada: $func" >&2
+    return 1
+  fi
 }
