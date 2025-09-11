@@ -218,7 +218,7 @@ typeset -A __DOCKER_DESCRIPTIONS=(
   [docker_images_remove]="eliminar imágenes seleccionadas"
 )
 
-@dd() {
+@D() {
   if [[ "$1" == "-l" ]]; then
     {
       for k in ${(ok)__DOCKER_DESCRIPTIONS}; do
