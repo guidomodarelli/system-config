@@ -107,7 +107,7 @@ typeset -A __GG_DESC=(
   [git_patch_create]="genera archivo patch desde diferencias seleccionadas"
 )
 
-GG() {
+@gg() {
   if [[ "$1" == "-l" ]]; then
     {
       for k in ${(ok)__GG_DESC}; do
@@ -123,7 +123,7 @@ GG() {
     for k in ${(ok)__GG_DESC}; do
       echo "$(logCyan $k)" "| $(logGray "# ${__GG_DESC[$k]}")"
     done
-  } | column -t -s '|' | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-}GG > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' | awk '{print $1}')
+  } | column -t -s '|' | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} GG > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'" | awk '{print $1}')
   [[ -z "$selected" ]] && return 0
 
   # Quitar códigos ANSI y extraer nombre (columna 1 antes de tab)
