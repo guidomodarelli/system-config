@@ -1,29 +1,29 @@
 alias gfp="git fetch --force --prune --prune-tags --tags --jobs=8"
 alias gcnvm="git commit --no-verify -m"
 
-git_purge_history() {
+git_history_purge() {
   if [ -z "$1" ]; then
-    echo "Usage: git_purge_history <path>"
+    echo "Usage: git_history_purge <path>"
     return 1
   fi
   git filter-repo --path "$1" --invert-paths --force
 }
 
-git_rebase_with_gpg_sign() {
+git_rebase_sign_all() {
   if [ -z "$1" ]; then
-    echo "Usage: git_rebase_with_gpg_sign <base-commit>"
+    echo "Usage: git_rebase_sign_all <base-commit>"
     return 1
   fi
   git rebase -i --exec "git commit --amend --no-edit --gpg-sign" "$1"
 }
 
-git_restore_deleted_files() {
-	git restore --source=HEAD --staged --worktree -- $(git ls-files -d)
+git_deleted_files_restore() {
+  git restore --source=HEAD --staged --worktree -- $(git ls-files -d)
 }
 
-choose_git_file() {
+git_files_select() {
   if [ -z "$1" ] || [ -z "$2" ]; then
-    echo "Usage: choose_git_file <status_filter> <prompt_text>"
+    echo "Usage: git_files_select <status_filter> <prompt_text>"
     return 1
   fi
   anyframe-source-git-status "$1" |
@@ -31,63 +31,59 @@ choose_git_file() {
     awk '{print $2}'
 }
 
-GGdiff() {
-	choose_git_file ".[MD]" "Git diff" |
+git_diff() {
+  git_files_select ".[MD]" "Git diff" |
     xargs -I{} git diff -- "{}"
 }
 
-GGdiff-cached() {
-  choose_git_file "[MDRA]" "Git diff (CACHED)" |
+git_diff_index() {
+  git_files_select "[MDRA]" "Git diff (INDEX)" |
     xargs -I{} git diff --cached -- "{}"
 }
 
-GGadd() {
-  choose_git_file ".[MD?]" "Git add" |
+git_add_select() {
+  git_files_select ".[MD?]" "Git add" |
     xargs -I{} git add -- "{}"
 }
 
-GGrestore() {
-  choose_git_file ".[MD]" "Git restore" |
+git_restore_select() {
+  git_files_select ".[MD]" "Git restore" |
     xargs -I{} git restore -- "{}"
 }
 
-GGrm() {
-  choose_git_file ".[?]" "Git remove" |
+git_untracked_remove() {
+  git_files_select ".[?]" "Git remove" |
     xargs -I{} rm -rf -- "{}"
 }
 
-GGrestore-staged() {
-  choose_git_file "[MDRA]" "Git restore (STAGED)" |
+git_unstage() {
+  git_files_select "[MDRA]" "Git unstage" |
     xargs -I{} git restore --staged -- "{}"
 }
 
-GGls-assume-unchanged-files() {
+git_assume_unchanged_list() {
   git ls-files -v | grep '^[a-z]' | sed 's/^[a-z] //g'
 }
 
-GGls-skip-worktree-files() {
+git_skip_worktree_list() {
   git ls-files -v | grep '^S' | sed 's/^S //g'
 }
 
-GGpatch() {
+git_patch_create() {
   local patch_file="$1"
-
   while [ -z "$patch_file" ]; do
     printf "$(logCyan -b $POINTER) Enter patch file name: $(logGray -i "(e.g. patch-file)") "
     read -r patch_file
   done
   patch_file="${patch_file}.patch"
-
   local add_txt=""
   printf "$(logCyan -b $POINTER) Add .txt extension for GitHub? [y/N] "
   read -r add_txt
   if [[ "$add_txt" =~ ^[Yy]$ ]]; then
     patch_file="${patch_file}.patch.txt"
   fi
-
-  choose_git_file ".[MD]" "Git create patch" |
-    xargs -I{} git diff -- "{}" > "$patch_file"
-
+  git_files_select ".[MD]" "Git create patch" |
+    xargs -I{} git diff -- "{}" >"$patch_file"
   logInfo "Patch file created: $(logGreen -b "$patch_file")"
 }
 
@@ -96,19 +92,19 @@ GGpatch() {
 # Uso: GG  (Enter para ejecutar la función seleccionada)
 # Paso opcional: GG -l  (solo lista en stdout, sin fzf)
 typeset -A __GG_DESC=(
-  [git_purge_history]="elimina completamente un archivo/directorio del historial de Git"
-  [git_rebase_with_gpg_sign]="rebase interactivo firmando todos los commits con GPG"
-  [git_restore_deleted_files]="restaura todos los archivos eliminados desde HEAD"
-  [choose_git_file]="selector interactivo de archivos Git con filtros de estado"
-  [GGdiff]="visualiza diferencias de archivos modificados/eliminados"
-  [GGdiff-cached]="visualiza diferencias de archivos en staging area"
-  [GGadd]="añade archivos seleccionados al staging area"
-  [GGrestore]="descarta cambios de archivos seleccionados"
-  [GGrm]="elimina archivos no rastreados del sistema de archivos"
-  [GGrestore-staged]="quita archivos del staging area (unstage)"
-  [GGls-assume-unchanged-files]="lista archivos marcados como assume-unchanged"
-  [GGls-skip-worktree-files]="lista archivos marcados como skip-worktree"
-  [GGpatch]="genera archivo patch desde diferencias seleccionadas"
+  [git_history_purge]="elimina completamente un archivo/directorio del historial de Git"
+  [git_rebase_sign_all]="rebase interactivo firmando todos los commits con GPG"
+  [git_deleted_files_restore]="restaura todos los archivos eliminados desde HEAD"
+  [git_files_select]="selector interactivo de archivos Git con filtros de estado"
+  [git_diff]="visualiza diferencias de archivos modificados/eliminados"
+  [git_diff_index]="visualiza diferencias de archivos en staging area"
+  [git_add_select]="añade archivos seleccionados al staging area"
+  [git_restore_select]="descarta cambios de archivos seleccionados"
+  [git_untracked_remove]="elimina archivos no rastreados del sistema de archivos"
+  [git_unstage]="quita archivos del staging area (unstage)"
+  [git_assume_unchanged_list]="lista archivos marcados como assume-unchanged"
+  [git_skip_worktree_list]="lista archivos marcados como skip-worktree"
+  [git_patch_create]="genera archivo patch desde diferencias seleccionadas"
 )
 
 GG() {
