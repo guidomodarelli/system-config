@@ -11,21 +11,16 @@ __wazuh_get_descriptions() {
 wzstart|iniciar yarn start en contenedor wazuh/osd seleccionado
 __EOF__
 }
-
-__wazuh_list_functions() {
-  __wazuh_get_descriptions | while IFS='|' read -r func desc; do
-    echo "$(logCyan $func)" "| $(logGray "# $desc")"
-  done | column -t -s '|'
-}
-
-__wazuh_select_function() {
-  # Generar listado coloreado para fzf (con soporte ANSI)
-  local selected
-  selected=$(__wazuh_list_functions | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} WAZUH > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'")
-  [[ -z "$selected" ]] && return 0
-
-  # Quitar códigos ANSI y extraer nombre (columna 1 antes de tab)
-  local func=$(echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
+@W() {
+  # Uso: @W          -> selector interactivo
+  #      @W -l       -> solo lista (tabla)
+  if [[ "$1" == "-l" ]]; then
+    selector_list __wazuh_get_descriptions
+    return 0
+  fi
+  local func
+  func=$(selector_fzf __wazuh_get_descriptions "${FZF_PREFIX_PROMPT:-} WAZUH >" 'Selecciona función (Enter ejecuta, ESC cancela)') || return 0
+  [[ -z "$func" ]] && return 0
   if typeset -f "$func" >/dev/null; then
     echo "# Ejecutando: $func"
     "$func"
@@ -33,15 +28,4 @@ __wazuh_select_function() {
     echo "Función no encontrada: $func" >&2
     return 1
   fi
-}
-
-@W() {
-  # Uso: @W          -> selector interactivo
-  #      @W -l       -> solo lista (tabla)
-  if [[ "$1" == "-l" ]]; then
-    __wazuh_list_functions
-    return 0
-  fi
-
-  __wazuh_select_function
 }

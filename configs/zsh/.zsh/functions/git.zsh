@@ -117,21 +117,15 @@ git_skip_worktree_list|lista archivos marcados como skip-worktree
 git_patch_create|genera archivo patch desde diferencias seleccionadas
 __EOF__
 }
-
-__git_list_functions() {
-  __git_get_descriptions | while IFS='|' read -r func desc; do
-    echo "$(logCyan $func)" "| $(logGray "# $desc")"
-  done | column -t -s '|'
-}
-
-__git_select_function() {
-  # Generar listado coloreado para fzf (con soporte ANSI)
-  local selected
-  selected=$(__git_list_functions | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} GG > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'") || return 0
-  [[ -z "$selected" ]] && return 0
-
-  # Quitar códigos ANSI y extraer nombre (columna 1 antes de tab)
-  local func=$(echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
+@G() {
+  # Uso: @G -l (lista) | @G (interactivo)
+  if [[ "$1" == "-l" ]]; then
+    selector_list __git_get_descriptions
+    return 0
+  fi
+  local func
+  func=$(selector_fzf __git_get_descriptions "${FZF_PREFIX_PROMPT:-} GG >" 'Selecciona función (Enter ejecuta, ESC cancela)') || return 0
+  [[ -z "$func" ]] && return 0
   if typeset -f "$func" >/dev/null; then
     echo "# Ejecutando: $func"
     "$func"
@@ -139,13 +133,4 @@ __git_select_function() {
     echo "Función no encontrada: $func" >&2
     return 1
   fi
-}
-
-@G() {
-  # Uso: @G -l (lista) | @G (interactivo)
-  if [[ "$1" == "-l" ]]; then
-    __git_list_functions
-    return 0
-  fi
-  __git_select_function
 }
