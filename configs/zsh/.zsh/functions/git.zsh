@@ -103,7 +103,7 @@ git_patch_create() {
 # Lista funciones git helper con descripción, permite elegir y ejecutar una.
 # Uso: GG  (Enter para ejecutar la función seleccionada)
 # Paso opcional: GG -l  (solo lista en stdout, sin fzf)
-typeset -A __GG_DESC=(
+typeset -A __GIT_DESCRIPTIONS=(
   [git_history_purge]="elimina completamente un archivo/directorio del historial de Git"
   [git_rebase_sign_all]="rebase interactivo firmando todos los commits con GPG"
   [git_deleted_files_restore]="restaura todos los archivos eliminados desde HEAD"
@@ -122,8 +122,8 @@ typeset -A __GG_DESC=(
 @G() {
   if [[ "$1" == "-l" ]]; then
     {
-      for k in ${(ok)__GG_DESC}; do
-        echo "$(logCyan $k)" "| $(logGray "# ${__GG_DESC[$k]}")"
+      for k in ${(ok)__GIT_DESCRIPTIONS}; do
+        echo "$(logCyan $k)" "| $(logGray "# ${__GIT_DESCRIPTIONS[$k]}")"
       done
     } | column -t -s '|'
     return 0
@@ -132,8 +132,8 @@ typeset -A __GG_DESC=(
   # Generar listado coloreado para fzf (con soporte ANSI)
   local selected
   selected=$({
-    for k in ${(ok)__GG_DESC}; do
-      echo "$(logCyan $k)" "| $(logGray "# ${__GG_DESC[$k]}")"
+    for k in ${(ok)__GIT_DESCRIPTIONS}; do
+      echo "$(logCyan $k)" "| $(logGray "# ${__GIT_DESCRIPTIONS[$k]}")"
     done
   } | column -t -s '|' | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} GG > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'" | awk '{print $1}')
   [[ -z "$selected" ]] && return 0
