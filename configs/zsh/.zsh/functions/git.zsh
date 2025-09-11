@@ -96,19 +96,19 @@ GGpatch() {
 # Uso: GG  (Enter para ejecutar la función seleccionada)
 # Paso opcional: GG -l  (solo lista en stdout, sin fzf)
 typeset -A __GG_DESC=(
-  [git_purge_history]="purga historial de un path"
-  [git_rebase_with_gpg_sign]="rebase interactivo firmando commits"
-  [git_restore_deleted_files]="restaura archivos borrados (HEAD)"
-  [choose_git_file]="helper selector de archivos git"
-  [GGdiff]="git diff archivos mod/borr"
-  [GGdiff-cached]="git diff --cached"
-  [GGadd]="git add archivos"
-  [GGrestore]="git restore archivos"
-  [GGrm]="rm archivos untracked"
-  [GGrestore-staged]="unstage cambios"
-  [GGls-assume-unchanged-files]="lista assume-unchanged"
-  [GGls-skip-worktree-files]="lista skip-worktree"
-  [GGpatch]="crear patch"
+  [git_purge_history]="elimina completamente un archivo/directorio del historial de Git"
+  [git_rebase_with_gpg_sign]="rebase interactivo firmando todos los commits con GPG"
+  [git_restore_deleted_files]="restaura todos los archivos eliminados desde HEAD"
+  [choose_git_file]="selector interactivo de archivos Git con filtros de estado"
+  [GGdiff]="visualiza diferencias de archivos modificados/eliminados"
+  [GGdiff-cached]="visualiza diferencias de archivos en staging area"
+  [GGadd]="añade archivos seleccionados al staging area"
+  [GGrestore]="descarta cambios de archivos seleccionados"
+  [GGrm]="elimina archivos no rastreados del sistema de archivos"
+  [GGrestore-staged]="quita archivos del staging area (unstage)"
+  [GGls-assume-unchanged-files]="lista archivos marcados como assume-unchanged"
+  [GGls-skip-worktree-files]="lista archivos marcados como skip-worktree"
+  [GGpatch]="genera archivo patch desde diferencias seleccionadas"
 )
 
 GG() {
