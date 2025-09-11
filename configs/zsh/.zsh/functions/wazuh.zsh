@@ -6,30 +6,21 @@ wzstart() {
 }
 
 # --- Master selector (@W) ---
-unset __WAZUH_DESCRIPTIONS
-typeset -A __WAZUH_DESCRIPTIONS=(
-  [wzstart]="iniciar yarn start en contenedor wazuh/osd seleccionado"
-)
+__wazuh_get_descriptions() {
+  echo "wzstart|iniciar yarn start en contenedor wazuh/osd seleccionado"
+}
 
-@W() {
-  # Uso: @W          -> selector interactivo
-  #      @W -l       -> solo lista (tabla)
-  if [[ "$1" == "-l" ]]; then
-    {
-      for k in ${(ok)__WAZUH_DESCRIPTIONS}; do
-        echo "$(logCyan $k)" "| $(logGray "# ${__WAZUH_DESCRIPTIONS[$k]}")"
-      done
-    } | column -t -s '|'
-    return 0
-  fi
+__wazuh_list_functions() {
+  __wazuh_get_descriptions | while IFS='|' read -r func desc; do
+    echo "$(logCyan $func)" "| $(logGray "# $desc")"
+  done | column -t -s '|'
+}
 
+__wazuh_select_function() {
   local selected
-  selected=$({
-    for k in ${(ok)__WAZUH_DESCRIPTIONS}; do
-      echo "$(logCyan $k)" "| $(logGray "# ${__WAZUH_DESCRIPTIONS[$k]}")"
-    done
-  } | column -t -s '|' | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} WAZUH > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'")
+  selected=$(__wazuh_list_functions | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} WAZUH > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'")
   [[ -z "$selected" ]] && return 0
+
   local func=$(echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
   if typeset -f "$func" >/dev/null; then
     echo "# Ejecutando: $func"
@@ -38,4 +29,15 @@ typeset -A __WAZUH_DESCRIPTIONS=(
     echo "Función no encontrada: $func" >&2
     return 1
   fi
+}
+
+@W() {
+  # Uso: @W          -> selector interactivo
+  #      @W -l       -> solo lista (tabla)
+  if [[ "$1" == "-l" ]]; then
+    __wazuh_list_functions
+    return 0
+  fi
+
+  __wazuh_select_function
 }
