@@ -34,3 +34,18 @@ selector_fzf() {
   [[ -z "$selected" ]] && return 0
   echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g'
 }
+
+# selector_exec <func_name>
+# Ejecuta la función si existe, mostrando mensaje estándar.
+# Devuelve 0 si ejecutó o no había función seleccionada, 1 si no existe.
+selector_exec() {
+  local func="$1"
+  [[ -z "$func" ]] && return 0
+  if typeset -f "$func" >/dev/null; then
+    echo "# Ejecutando: $func"
+    "$func"
+  else
+    echo "Función no encontrada: $func" >&2
+    return 1
+  fi
+}

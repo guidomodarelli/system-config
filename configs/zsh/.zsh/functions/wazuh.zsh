@@ -20,12 +20,5 @@ __EOF__
   fi
   local func
   func=$(selector_fzf __wazuh_get_descriptions "WAZUH >") || return 0
-  [[ -z "$func" ]] && return 0
-  if typeset -f "$func" >/dev/null; then
-    echo "# Ejecutando: $func"
-    "$func"
-  else
-    echo "Función no encontrada: $func" >&2
-    return 1
-  fi
+  selector_exec "$func"
 }
