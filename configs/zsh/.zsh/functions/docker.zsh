@@ -201,41 +201,35 @@ docker_images_remove() { @Drmi "$@"; }
   done
 }
 
-# --- Master selector (@dd) ---
-unset __DOCKER_DESCRIPTIONS
-typeset -A __DOCKER_DESCRIPTIONS=(
-  [docker_containers_status_summary]="resumen estado de contenedores"
-  [docker_ps_table]="tabla docker ps formateada"
-  [docker_container_table_formatter]="tabla base contenedores (IDs)"
-  [docker_image_table_formatter]="tabla base imágenes"
-  [docker_containers_show_ips]="mostrar IPs de contenedores"
-  [docker_container_exec_select]="preparar comando exec interactivo"
-  [docker_logs_follow]="seguir logs de un contenedor"
-  [docker_containers_start]="iniciar contenedores seleccionados"
-  [docker_containers_restart]="reiniciar contenedores seleccionados"
-  [docker_containers_stop]="detener contenedores seleccionados"
-  [docker_containers_remove]="eliminar contenedores seleccionados"
-  [docker_images_remove]="eliminar imágenes seleccionadas"
-)
+# --- Master selector (@D) (funcional, sin associative array) ---
+__docker_get_descriptions() {
+  cat <<'__EOF__'
+docker_containers_status_summary|resumen estado de contenedores
+docker_ps_table|tabla docker ps formateada
+docker_container_table_formatter|tabla base contenedores (IDs)
+docker_image_table_formatter|tabla base imágenes
+docker_containers_show_ips|mostrar IPs de contenedores
+docker_container_exec_select|preparar comando exec interactivo
+docker_logs_follow|seguir logs de un contenedor
+docker_containers_start|iniciar contenedores seleccionados
+docker_containers_restart|reiniciar contenedores seleccionados
+docker_containers_stop|detener contenedores seleccionados
+docker_containers_remove|eliminar contenedores seleccionados
+docker_images_remove|eliminar imágenes seleccionadas
+__EOF__
+}
 
-@D() {
-  if [[ "$1" == "-l" ]]; then
-    {
-      for k in ${(ok)__DOCKER_DESCRIPTIONS}; do
-        echo "$(logCyan $k)" "| $(logGray "# ${__DOCKER_DESCRIPTIONS[$k]}")"
-      done
-    } | column -t -s '|'
-    return 0
-  fi
+__docker_list_functions() {
+  __docker_get_descriptions | while IFS='|' read -r func desc; do
+    echo "$(logCyan $func)" "| $(logGray "# $desc")"
+  done | column -t -s '|'
+}
+
+__docker_select_function() {
   local selected
-  selected=$({
-    for k in ${(ok)__DOCKER_DESCRIPTIONS}; do
-      echo "$(logCyan $k)" "| $(logGray "# ${__DOCKER_DESCRIPTIONS[$k]}")"
-    done
-  } | column -t -s '|' | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} DOCKER > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'" | awk '{print $1}')
+  selected=$(__docker_list_functions | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} DOCKER > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'") || return 0
   [[ -z "$selected" ]] && return 0
-  local clean=$(echo "$selected" | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
-  local func=${clean%%$'\t'*}
+  local func=$(echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')
   if typeset -f "$func" >/dev/null; then
     echo "# Ejecutando: $func"
     "$func"
@@ -243,4 +237,13 @@ typeset -A __DOCKER_DESCRIPTIONS=(
     echo "Función no encontrada: $func" >&2
     return 1
   fi
+}
+
+@D() {
+  # Uso: @D -l (lista) | @D (interactivo)
+  if [[ "$1" == "-l" ]]; then
+    __docker_list_functions
+    return 0
+  fi
+  __docker_select_function
 }
