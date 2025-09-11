@@ -117,6 +117,7 @@ git_skip_worktree_list|lista archivos marcados como skip-worktree
 git_patch_create|genera archivo patch desde diferencias seleccionadas
 __EOF__
 }
+
 @G() {
   # Uso: @G -l (lista) | @G (interactivo)
   if [[ "$1" == "-l" ]]; then

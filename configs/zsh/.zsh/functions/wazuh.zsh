@@ -11,9 +11,9 @@ __wazuh_get_descriptions() {
 wzstart|iniciar yarn start en contenedor wazuh/osd seleccionado
 __EOF__
 }
+
 @W() {
-  # Uso: @W          -> selector interactivo
-  #      @W -l       -> solo lista (tabla)
+  # Uso: @W -l (lista) | @W (interactivo)
   if [[ "$1" == "-l" ]]; then
     selector_list __wazuh_get_descriptions
     return 0

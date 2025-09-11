@@ -218,6 +218,7 @@ docker_containers_remove|eliminar contenedores seleccionados
 docker_images_remove|eliminar imágenes seleccionadas
 __EOF__
 }
+
 @D() {
   # Uso: @D -l (lista) | @D (interactivo)
   if [[ "$1" == "-l" ]]; then
