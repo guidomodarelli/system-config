@@ -296,7 +296,7 @@ function lt {
 # FZF configuration
 $FZF_DEFAULT_HEADER_WITH_MULTI = '(Multi-select) Select items with TAB and ENTER to confirm'
 $FZF_DEFAULT_HEADER_WITH_SINGLE = '(Single-select) Select item with ENTER to confirm'
-$FZF_PREFIX_PROMPT = '🔍 '
+$FZF_PREFIX_PROMPT = '🔍'
 $FZF_DEFAULT_BIND = 'ctrl-a:select-all,ctrl-d:deselect-all,ctrl-t:toggle-all'
 $FZF_COLOR_MOLOKAI = 'bg+:#293739,bg:#1B1D1E,border:#808080,spinner:#E6DB74,hl:#7E8E91,fg:#F8F8F2,header:#7E8E91,info:#A6E22E,pointer:#A6E22E,marker:#F92672,fg+:#F8F8F2,prompt:#F92672,hl+:#F92672'
 
