@@ -100,11 +100,11 @@ list_docker_containers_status() {
 }
 
 docker_ps_table() {
-  DDps "$@"
+  @Dps "$@"
 }
 
-# Provide actual body (moved from DDps)
-DDps() {
+# Provide actual body (moved from @Dps)
+@Dps() {
   output="$(printf "$(format_Header_Container_Id)@$(format_Header_Names)@$(format_Header_Status)@$(format_Header_Image)@$(format_Header_Ports)")"
   output+="$BREAK_LINE\n"
   local port_ranges="[0-9]+(-[0-9]+)?"
@@ -132,32 +132,32 @@ docker_images_table_formatter() {
   docker images --format "table $(format_Id)\t$(format_Repository)\t$(format_Tag)" | tail +2
 }
 
-docker_containers_show_ips() { DDshow-ips "$@"; }
-DDshow-ips() {
+docker_containers_show_ips() { @Dshow-ips "$@"; }
+@Dshow-ips() {
   docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker show ips " | awk '{print $2}' | while IFS= read -r sel; do
     { logInfo "Showing Docker container IPs from $(styleText -c cyan -b "$sel")"; echo } >&2
     docker inspect --format '{{ range $name, $network := .NetworkSettings.Networks }}{{ $name }}: {{ $network.IPAddress }} {{ "\n" }}{{ end }}' "$sel"
   done
 }
 
-docker_container_exec_select() { DDexec "$@"; }
-DDexec() {
+docker_container_exec_select() { @Dexec "$@"; }
+@Dexec() {
   logInfo "Executing Docker containers..."
   docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker exec '" | awk '{print $2}' | while IFS= read -r sel; do
     echo "docker exec -it $sel "
   done | anyframe-action-put
 }
 
-docker_logs_follow() { DDlogs "$@"; }
-DDlogs() {
+docker_logs_follow() { @Dlogs "$@"; }
+@Dlogs() {
   docker_table_formatter | fzf --prompt="$FZF_PREFIX_PROMPT docker logs " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker logs "; styleText -c cyan -b "$sel"; echo } >&2
     docker logs -f "$sel" 2>&1
   done
 }
 
-docker_containers_start() { DDstart "$@"; }
-DDstart() {
+docker_containers_start() { @Dstart "$@"; }
+@Dstart() {
   logInfo "Starting Docker containers..."
   docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker start " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker start "; styleText -c cyan -b "$sel"; echo } >&2
@@ -165,8 +165,8 @@ DDstart() {
   done
 }
 
-docker_containers_restart() { DDrestart "$@"; }
-DDrestart() {
+docker_containers_restart() { @Drestart "$@"; }
+@Drestart() {
   logInfo "Restarting Docker containers..."
   docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker restart " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker restart "; styleText -c cyan -b "$sel"; echo } >&2
@@ -174,8 +174,8 @@ DDrestart() {
   done
 }
 
-docker_containers_stop() { DDstop "$@"; }
-DDstop() {
+docker_containers_stop() { @Dstop "$@"; }
+@Dstop() {
   logInfo "Stopping Docker containers..."
   docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker stop " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker stop "; styleText -c cyan -b "$sel"; echo } >&2
@@ -183,8 +183,8 @@ DDstop() {
   done
 }
 
-docker_containers_remove() { DDrm "$@"; }
-DDrm() {
+docker_containers_remove() { @Drm "$@"; }
+@Drm() {
   logInfo "Removing Docker containers..."
   docker_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm " | awk '{print $2}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker rm -f "; styleText -c cyan -b "$sel"; echo } >&2
@@ -192,8 +192,8 @@ DDrm() {
   done
 }
 
-docker_images_remove() { DDrmi "$@"; }
-DDrmi() {
+docker_images_remove() { @Drmi "$@"; }
+@Drmi() {
   logInfo "Removing Docker images..."
   docker_images_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm image " | awk '{print $2 ":" $3}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker rmi "; styleText -c cyan -b "$sel"; echo } >&2
@@ -202,8 +202,8 @@ DDrmi() {
 }
 
 # --- Master selector (@dd) ---
-unset __DD_DESC
-typeset -A __DD_DESC=(
+unset __DOCKER_DESCRIPTIONS
+typeset -A __DOCKER_DESCRIPTIONS=(
   [docker_containers_status_summary]="resumen estado de contenedores"
   [docker_ps_table]="tabla docker ps formateada"
   [docker_container_table_formatter]="tabla base contenedores (IDs)"
@@ -221,16 +221,16 @@ typeset -A __DD_DESC=(
 @dd() {
   if [[ "$1" == "-l" ]]; then
     {
-      for k in ${(ok)__DD_DESC}; do
-        echo "$(logCyan $k)" "| $(logGray "# ${__DD_DESC[$k]}")"
+      for k in ${(ok)__DOCKER_DESCRIPTIONS}; do
+        echo "$(logCyan $k)" "| $(logGray "# ${__DOCKER_DESCRIPTIONS[$k]}")"
       done
     } | column -t -s '|'
     return 0
   fi
   local selected
   selected=$({
-    for k in ${(ok)__DD_DESC}; do
-      echo "$(logCyan $k)" "| $(logGray "# ${__DD_DESC[$k]}")"
+    for k in ${(ok)__DOCKER_DESCRIPTIONS}; do
+      echo "$(logCyan $k)" "| $(logGray "# ${__DOCKER_DESCRIPTIONS[$k]}")"
     done
   } | column -t -s '|' | fzf --ansi --prompt "${FZF_PREFIX_PROMPT:-} DOCKER > " --header 'Selecciona función (Enter ejecuta, ESC cancela)' --query="'" | awk '{print $1}')
   [[ -z "$selected" ]] && return 0
