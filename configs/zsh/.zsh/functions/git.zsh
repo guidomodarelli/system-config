@@ -1,6 +1,7 @@
 alias gfp="git fetch --force --prune --prune-tags --tags --jobs=8"
 alias gcnvm="git commit --no-verify -m"
 
+@Ghistory_purge() { git_history_purge "$@"; }
 git_history_purge() {
   if [ -z "$1" ]; then
     echo "Usage: git_history_purge <path>"
@@ -9,6 +10,7 @@ git_history_purge() {
   git filter-repo --path "$1" --invert-paths --force
 }
 
+@Grebase_sign_all() { git_rebase_sign_all "$@"; }
 git_rebase_sign_all() {
   if [ -z "$1" ]; then
     echo "Usage: git_rebase_sign_all <base-commit>"
@@ -17,6 +19,7 @@ git_rebase_sign_all() {
   git rebase -i --exec "git commit --amend --no-edit --gpg-sign" "$1"
 }
 
+@Gdeleted_files_restore() { git_deleted_files_restore "$@"; }
 git_deleted_files_restore() {
   git restore --source=HEAD --staged --worktree -- $(git ls-files -d)
 }
@@ -31,44 +34,53 @@ git_files_select() {
     awk '{print $2}'
 }
 
+@Gdiff() { git_diff "$@"; }
 git_diff() {
   git_files_select ".[MD]" "Git diff" |
     xargs -I{} git diff -- "{}"
 }
 
+@Gdiff_index() { git_diff_index "$@"; }
 git_diff_index() {
   git_files_select "[MDRA]" "Git diff (INDEX)" |
     xargs -I{} git diff --cached -- "{}"
 }
 
+@Gadd_select() { git_add_select "$@"; }
 git_add_select() {
   git_files_select ".[MD?]" "Git add" |
     xargs -I{} git add -- "{}"
 }
 
+@Grestore_select() { git_restore_select "$@"; }
 git_restore_select() {
   git_files_select ".[MD]" "Git restore" |
     xargs -I{} git restore -- "{}"
 }
 
+@Guntracked_remove() { git_untracked_remove "$@"; }
 git_untracked_remove() {
   git_files_select ".[?]" "Git remove" |
     xargs -I{} rm -rf -- "{}"
 }
 
+@Gunstage() { git_unstage "$@"; }
 git_unstage() {
   git_files_select "[MDRA]" "Git unstage" |
     xargs -I{} git restore --staged -- "{}"
 }
 
+@Gassume_unchanged_list() { git_assume_unchanged_list "$@"; }
 git_assume_unchanged_list() {
   git ls-files -v | grep '^[a-z]' | sed 's/^[a-z] //g'
 }
 
+@Gskip_worktree_list() { git_skip_worktree_list "$@"; }
 git_skip_worktree_list() {
   git ls-files -v | grep '^S' | sed 's/^S //g'
 }
 
+@Gpatch_create() { git_patch_create "$@"; }
 git_patch_create() {
   local patch_file="$1"
   while [ -z "$patch_file" ]; do
@@ -107,7 +119,7 @@ typeset -A __GG_DESC=(
   [git_patch_create]="genera archivo patch desde diferencias seleccionadas"
 )
 
-@gg() {
+@G() {
   if [[ "$1" == "-l" ]]; then
     {
       for k in ${(ok)__GG_DESC}; do
