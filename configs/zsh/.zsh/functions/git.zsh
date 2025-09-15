@@ -1,6 +1,16 @@
 alias gfp="git fetch --force --prune --prune-tags --tags --jobs=8"
 alias gcnvm="git commit --no-verify -m"
 
+__git_branch_suggestions() {
+  local current
+  local -a branches
+
+  current=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  branches=($(git for-each-ref --format='%(refname:short)' refs/heads 2>/dev/null | grep -v "^$current$"))
+
+  _describe -t branches 'local branches' branches
+}
+
 @Ghistory_purge() { git_history_purge "$@"; }
 git_history_purge() {
   if [ -z "$1" ]; then
@@ -157,6 +167,19 @@ git_branch_delete_local_remote() {
 
   logInfo "Branch local eliminada: $(logGreen -b "$branch")"
 }
+
+_git_branch_delete_local_remote_completions() {
+  _arguments -C \
+    '(-f --force)'{-f,--force}'[force deletion (also protected branches)]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:branch:->branch' \
+    '*:args:->args' && return 0
+
+  __git_branch_suggestions
+}
+
+compdef _git_branch_delete_local_remote_completions git_branch_delete_local_remote
+compdef _git_branch_delete_local_remote_completions @Gbranch_delete_local_remote
 
 # === GG master selector ===
 __git_get_descriptions() {
