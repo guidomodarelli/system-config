@@ -209,5 +209,5 @@ __EOF__
   fi
   local func
   func=$(selector_fzf __git_get_descriptions "GIT >") || return 0
-  selector_exec "$func"
+  echo "$func" | anyframe-action-put
 }

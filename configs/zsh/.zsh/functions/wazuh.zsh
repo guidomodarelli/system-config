@@ -20,5 +20,5 @@ __EOF__
   fi
   local func
   func=$(selector_fzf __wazuh_get_descriptions "WAZUH >") || return 0
-  selector_exec "$func"
+  echo "$func" | anyframe-action-put
 }

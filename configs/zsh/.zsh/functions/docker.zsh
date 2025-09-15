@@ -227,5 +227,5 @@ __EOF__
   fi
   local func
   func=$(selector_fzf __docker_get_descriptions "DOCKER >") || return 0
-  selector_exec "$func"
+  echo "$func" | anyframe-action-put
 }
