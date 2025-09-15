@@ -99,6 +99,65 @@ git_patch_create() {
   logInfo "Patch file created: $(logGreen -b "$patch_file")"
 }
 
+@Gbranch_delete_local_remote() { git_branch_delete_local_remote "$@"; }
+git_branch_delete_local_remote() {
+  local force=0
+  while [[ "$1" == -* ]]; do
+    case "$1" in
+      -f|--force) force=1 ;;
+      -h|--help)
+        echo "Uso: git_branch_delete_local_remote [-f|--force] [branch]"
+        echo "Sin 'branch' abre selector interactivo."
+        return 0
+        ;;
+      *) echo "Flag desconocido: $1" ; return 1 ;;
+    esac
+    shift
+  done
+
+  local branch="$1"
+  if [ -z "$branch" ]; then
+    local current="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    branch="$(git branch --format='%(refname:short)' | grep -v "^${current}$" | fzf --prompt 'Borrar branch > ' 2>/dev/null)"
+  fi
+  [ -z "$branch" ] && { echo "Cancelado."; return 1; }
+
+  local current="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+  if [ "$branch" = "$current" ]; then
+    echo "No se puede borrar la branch actual: $branch"
+    return 1
+  fi
+
+  if [[ "$branch" == "main" || "$branch" == "master" ]]; then
+    if [ $force -eq 0 ]; then
+      echo "Branch protegida ($branch). Use --force para eliminar."
+      return 1
+    fi
+  fi
+
+  if [ $force -eq 1 ]; then
+    git branch -D "$branch" || return 1
+  else
+    git branch -d "$branch" || return 1
+  fi
+
+  local upstream
+  upstream="$(git rev-parse --abbrev-ref --symbolic-full-name "${branch}@{upstream}" 2>/dev/null)"
+  if [ -n "$upstream" ]; then
+    local remote="${upstream%%/*}"
+    local remotebranch="${upstream#*/}"
+    git push "$remote" --delete "$remotebranch" 2>/dev/null && \
+      logInfo "Remota eliminada: $(logGreen -b "$remote/$remotebranch")"
+  else
+    if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+      git push origin --delete "$branch" 2>/dev/null && \
+        logInfo "Remota eliminada: $(logGreen -b "origin/$branch")"
+    fi
+  fi
+
+  logInfo "Branch local eliminada: $(logGreen -b "$branch")"
+}
+
 # === GG master selector ===
 __git_get_descriptions() {
   cat <<'__EOF__'
@@ -115,6 +174,7 @@ git_unstage|quita archivos del staging area (unstage)
 git_assume_unchanged_list|lista archivos marcados como assume-unchanged
 git_skip_worktree_list|lista archivos marcados como skip-worktree
 git_patch_create|genera archivo patch desde diferencias seleccionadas
+git_branch_delete_local_remote|elimina una branch local y su remota asociada (usa --force para main/master)
 __EOF__
 }
 
