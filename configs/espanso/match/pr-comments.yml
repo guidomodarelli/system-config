@@ -1,0 +1,6 @@
+matches:
+  - triggers: ["%CC", "%CTR"]
+    label: "Translate"
+    force_clipboard: true
+    replace: |
+      This text does not support translation. Please use the `i18n` library instead for internationalization.
