@@ -5,3 +5,8 @@ cx() {
     codex -m gpt-5-codex -c model_reasoning_effort="high" --sandbox workspace-write --ask-for-approval on-failure --search "$@"
   fi
 }
+
+# Dangerous alias for codex
+cxd() {
+  cx --dangerously-bypass-approvals-and-sandbox "$@"
+}
