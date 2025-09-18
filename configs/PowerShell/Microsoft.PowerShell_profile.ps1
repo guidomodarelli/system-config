@@ -8,6 +8,22 @@
 function global:grep { & grep.exe --color=auto --exclude-dir=".bzr" --exclude-dir="CVS" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" --exclude-dir=".idea" --exclude-dir=".tox" --exclude-dir=".venv" --exclude-dir="venv" $args }
 function rg { & rg.exe --glob "!.git/*" $args }
 
+# Helper to run Codex with the same defaults as the Zsh function
+function cx {
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]] $Arguments
+    )
+
+    if ($Arguments.Length -gt 0 -and $Arguments[0] -eq 'update') {
+        & npm install -g '@openai/codex@latest'
+        return
+    }
+
+    $search = $Arguments -join ' '
+    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --search $search
+}
+
 #  ██████  ██ ████████
 # ██       ██    ██
 # ██   ███ ██    ██
