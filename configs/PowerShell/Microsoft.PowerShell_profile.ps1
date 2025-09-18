@@ -265,119 +265,6 @@ function _git_log_prettily {
     }
 }
 
-# ███████ ██   ██  █████
-# ██       ██ ██  ██   ██
-# █████     ███   ███████
-# ██       ██ ██  ██   ██
-# ███████ ██   ██ ██   ██
-
-$eza_options = "--group-directories-first --icons"
-
-function exa {
-  if ($args.Count -eq 0) {
-    & eza @($eza_options -split ' ')
-  } else {
-    & eza @(($eza_options -split ' ') + $args)
-  }
-}
-
-$ll_options = "$eza_options --long --header --group"
-
-function ll {
-  if ($args.Count -eq 0) {
-    & eza @($ll_options -split ' ')
-  } else {
-    & eza @(($ll_options -split ' ') + $args)
-  }
-}
-
-$la_options = "$ll_options --all"
-
-function la {
-  if ($args.Count -eq 0) {
-    & eza @($la_options -split ' ')
-  } else {
-    & eza @(($la_options -split ' ') + $args)
-  }
-}
-
-$lt_options = "$eza_options --tree"
-
-function lt {
-  if ($args.Count -eq 0) {
-    & eza @($lt_options -split ' ')
-  } else {
-    & eza @(($lt_options -split ' ') + $args)
-  }
-}
-
-# ███████ ███████ ███████
-# ██         ███  ██
-# █████     ███   █████
-# ██       ███    ██
-# ██      ███████ ██
-
-# FZF configuration
-$FZF_HEADER_MULTI_SELECT_PROMPT = '(Multi-select) Select items with TAB and ENTER to confirm'
-$FZF_HEADER_SINGLE_SELECT_PROMPT = '(Single-select) Select item with ENTER to confirm'
-$FZF_PREFIX_PROMPT = '🔍  '
-$FZF_DEFAULT_BIND = 'ctrl-a:select-all,ctrl-d:deselect-all,ctrl-t:toggle-all'
-$FZF_COLOR_MOLOKAI = 'bg+:#293739,bg:#1B1D1E,border:#808080,spinner:#E6DB74,hl:#7E8E91,fg:#F8F8F2,header:#7E8E91,info:#A6E22E,pointer:#A6E22E,marker:#F92672,fg+:#F8F8F2,prompt:#F92672,hl+:#F92672'
-
-# Set FZF pointer and marker symbols (these need to be defined)
-$POINTER = '➤'
-$MARKER = '✓'
-
-# Set FZF default options
-$env:FZF_DEFAULT_OPTS = "--color=`"$FZF_COLOR_MOLOKAI`" --ansi --cycle --border=rounded --prompt=`"$FZF_PREFIX_PROMPT`" --pointer=$POINTER --marker=$MARKER --header=`"$FZF_HEADER_SINGLE_SELECT_PROMPT`" --multi=0 --bind=`"$FZF_DEFAULT_BIND`""
-
-function Invoke-FzfSelection {
-    param(
-        [Parameter(Mandatory = $true)][string[]]$Items,
-        [string]$PromptText = '',
-        [switch]$Multi
-    )
-
-    if (-not $Items -or $Items.Count -eq 0) {
-        return @()
-    }
-
-    $fzfCommand = Get-Command fzf -ErrorAction SilentlyContinue
-    if (-not $fzfCommand) {
-        Write-Warning 'fzf is not available on PATH; interactive selection is skipped.'
-        return @()
-    }
-
-    $prompt = if ([string]::IsNullOrWhiteSpace($PromptText)) {
-        $FZF_PREFIX_PROMPT
-    } else {
-        "$FZF_PREFIX_PROMPT$PromptText "
-    }
-
-    $fzfArgs = @('--ansi', '--prompt', $prompt)
-    if ($Multi) {
-        $fzfArgs += '--multi'
-        if ($FZF_HEADER_MULTI_SELECT_PROMPT) {
-            $fzfArgs += @('--header', $FZF_HEADER_MULTI_SELECT_PROMPT)
-        }
-    } elseif ($FZF_HEADER_SINGLE_SELECT_PROMPT) {
-        $fzfArgs += @('--header', $FZF_HEADER_SINGLE_SELECT_PROMPT)
-    }
-
-    try {
-        $selection = $Items | & $fzfCommand.Source @fzfArgs
-    } catch {
-        Write-Warning "fzf invocation failed: $_"
-        return @()
-    }
-
-    if ($LASTEXITCODE -ne 0) {
-        return @()
-    }
-
-    return $selection
-}
-
 function ConvertFrom-GitPathLiteral {
     param([string]$PathText)
 
@@ -752,3 +639,116 @@ Set-Alias -Name gassume_unchanged_list -Value git_assume_unchanged_list
 Set-Alias -Name gskip_worktree_list -Value git_skip_worktree_list
 Set-Alias -Name gpatch_create -Value git_patch_create
 Set-Alias -Name gbranch_delete_local_remote -Value git_branch_delete_local_remote
+
+# ███████ ██   ██  █████
+# ██       ██ ██  ██   ██
+# █████     ███   ███████
+# ██       ██ ██  ██   ██
+# ███████ ██   ██ ██   ██
+
+$eza_options = "--group-directories-first --icons"
+
+function exa {
+  if ($args.Count -eq 0) {
+    & eza @($eza_options -split ' ')
+  } else {
+    & eza @(($eza_options -split ' ') + $args)
+  }
+}
+
+$ll_options = "$eza_options --long --header --group"
+
+function ll {
+  if ($args.Count -eq 0) {
+    & eza @($ll_options -split ' ')
+  } else {
+    & eza @(($ll_options -split ' ') + $args)
+  }
+}
+
+$la_options = "$ll_options --all"
+
+function la {
+  if ($args.Count -eq 0) {
+    & eza @($la_options -split ' ')
+  } else {
+    & eza @(($la_options -split ' ') + $args)
+  }
+}
+
+$lt_options = "$eza_options --tree"
+
+function lt {
+  if ($args.Count -eq 0) {
+    & eza @($lt_options -split ' ')
+  } else {
+    & eza @(($lt_options -split ' ') + $args)
+  }
+}
+
+# ███████ ███████ ███████
+# ██         ███  ██
+# █████     ███   █████
+# ██       ███    ██
+# ██      ███████ ██
+
+# FZF configuration
+$FZF_HEADER_MULTI_SELECT_PROMPT = '(Multi-select) Select items with TAB and ENTER to confirm'
+$FZF_HEADER_SINGLE_SELECT_PROMPT = '(Single-select) Select item with ENTER to confirm'
+$FZF_PREFIX_PROMPT = '🔍  '
+$FZF_DEFAULT_BIND = 'ctrl-a:select-all,ctrl-d:deselect-all,ctrl-t:toggle-all'
+$FZF_COLOR_MOLOKAI = 'bg+:#293739,bg:#1B1D1E,border:#808080,spinner:#E6DB74,hl:#7E8E91,fg:#F8F8F2,header:#7E8E91,info:#A6E22E,pointer:#A6E22E,marker:#F92672,fg+:#F8F8F2,prompt:#F92672,hl+:#F92672'
+
+# Set FZF pointer and marker symbols (these need to be defined)
+$POINTER = '➤'
+$MARKER = '✓'
+
+# Set FZF default options
+$env:FZF_DEFAULT_OPTS = "--color=`"$FZF_COLOR_MOLOKAI`" --ansi --cycle --border=rounded --prompt=`"$FZF_PREFIX_PROMPT`" --pointer=$POINTER --marker=$MARKER --header=`"$FZF_HEADER_SINGLE_SELECT_PROMPT`" --multi=0 --bind=`"$FZF_DEFAULT_BIND`""
+
+function Invoke-FzfSelection {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Items,
+        [string]$PromptText = '',
+        [switch]$Multi
+    )
+
+    if (-not $Items -or $Items.Count -eq 0) {
+        return @()
+    }
+
+    $fzfCommand = Get-Command fzf -ErrorAction SilentlyContinue
+    if (-not $fzfCommand) {
+        Write-Warning 'fzf is not available on PATH; interactive selection is skipped.'
+        return @()
+    }
+
+    $prompt = if ([string]::IsNullOrWhiteSpace($PromptText)) {
+        $FZF_PREFIX_PROMPT
+    } else {
+        "$FZF_PREFIX_PROMPT$PromptText "
+    }
+
+    $fzfArgs = @('--ansi', '--prompt', $prompt)
+    if ($Multi) {
+        $fzfArgs += '--multi'
+        if ($FZF_HEADER_MULTI_SELECT_PROMPT) {
+            $fzfArgs += @('--header', $FZF_HEADER_MULTI_SELECT_PROMPT)
+        }
+    } elseif ($FZF_HEADER_SINGLE_SELECT_PROMPT) {
+        $fzfArgs += @('--header', $FZF_HEADER_SINGLE_SELECT_PROMPT)
+    }
+
+    try {
+        $selection = $Items | & $fzfCommand.Source @fzfArgs
+    } catch {
+        Write-Warning "fzf invocation failed: $_"
+        return @()
+    }
+
+    if ($LASTEXITCODE -ne 0) {
+        return @()
+    }
+
+    return $selection
+}
