@@ -1,3 +1,19 @@
+# ██████  ███████ ███████  █████  ██    ██ ██      ████████ ███████
+# ██   ██ ██      ██      ██   ██ ██    ██ ██         ██    ██
+# ██   ██ █████   █████   ███████ ██    ██ ██         ██    ███████
+# ██   ██ ██      ██      ██   ██ ██    ██ ██         ██         ██
+# ██████  ███████ ██      ██   ██  ██████  ███████    ██    ███████
+
+# Grep with color and exclusions
+function global:grep { & grep.exe --color=auto --exclude-dir=".bzr" --exclude-dir="CVS" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" --exclude-dir=".idea" --exclude-dir=".tox" --exclude-dir=".venv" --exclude-dir="venv" $args }
+function rg { & rg.exe --glob "!.git/*" $args }
+
+#  ██████  ██ ████████
+# ██       ██    ██
+# ██   ███ ██    ██
+# ██    ██ ██    ██
+#  ██████  ██    ██
+
 # Git aliases for PowerShell
 
 # Helper functions for Git commands that need branch names
@@ -240,10 +256,6 @@ function gwtls { git worktree list $args }
 function gwtmv { git worktree move $args }
 function gwtrm { git worktree remove $args }
 
-# Grep with color and exclusions
-function global:grep { & grep.exe --color=auto --exclude-dir=".bzr" --exclude-dir="CVS" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" --exclude-dir=".idea" --exclude-dir=".tox" --exclude-dir=".venv" --exclude-dir="venv" $args }
-function rg { & rg.exe --glob "!.git/*" $args }
-
 # Common function for _git_log_prettily
 function _git_log_prettily {
     if ($args.Count -eq 0) {
@@ -253,17 +265,23 @@ function _git_log_prettily {
     }
 }
 
-$exa_options = "--group-directories-first --icons"
+# ███████ ██   ██  █████
+# ██       ██ ██  ██   ██
+# █████     ███   ███████
+# ██       ██ ██  ██   ██
+# ███████ ██   ██ ██   ██
+
+$eza_options = "--group-directories-first --icons"
 
 function exa {
   if ($args.Count -eq 0) {
-    & eza @($exa_options -split ' ')
+    & eza @($eza_options -split ' ')
   } else {
-    & eza @(($exa_options -split ' ') + $args)
+    & eza @(($eza_options -split ' ') + $args)
   }
 }
 
-$ll_options = "$exa_options --long --header --group"
+$ll_options = "$eza_options --long --header --group"
 
 function ll {
   if ($args.Count -eq 0) {
@@ -283,7 +301,7 @@ function la {
   }
 }
 
-$lt_options = "$exa_options --tree"
+$lt_options = "$eza_options --tree"
 
 function lt {
   if ($args.Count -eq 0) {
@@ -292,6 +310,12 @@ function lt {
     & eza @(($lt_options -split ' ') + $args)
   }
 }
+
+# ███████ ███████ ███████
+# ██         ███  ██
+# █████     ███   █████
+# ██       ███    ██
+# ██      ███████ ██
 
 # FZF configuration
 $FZF_HEADER_MULTI_SELECT_PROMPT = '(Multi-select) Select items with TAB and ENTER to confirm'
