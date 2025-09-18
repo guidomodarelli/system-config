@@ -21,7 +21,7 @@ function cx {
     }
 
     $search = $Arguments -join ' '
-    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --full-auto --search $search
+    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --sandbox workspace-write --ask-for-approval never --search $search
 }
 
 #  ██████  ██ ████████
