@@ -1,14 +1,20 @@
-wzstart() {
+__wzstart_exec() {
+  local extra_flag="$1"  # e.g. " --no-base-path" o vacío
   logInfo "Executing Docker containers..."
   docker_table_formatter | grep -v "runner" | grep -E "(osd-dev|dashboard)" | fzf --prompt="$FZF_PREFIX_PROMPT docker exec " --query "'" | awk '{print $2}' | while IFS= read -r sel; do
-    echo "clear; docker exec -it $sel yarn start --no-base-path"
+    echo "clear; docker exec -it $sel yarn start${extra_flag}"
   done | anyframe-action-put
 }
+
+wzstart() { __wzstart_exec " --no-base-path"; }
+
+wzstart-base-path() { __wzstart_exec ""; }
 
 # --- Master selector (@W) ---
 __wazuh_get_descriptions() {
   cat <<'__EOF__'
 wzstart|iniciar yarn start en contenedor wazuh/osd seleccionado
+wzstart-base-path|iniciar yarn start (con base path) en contenedor wazuh/osd seleccionado
 __EOF__
 }
 
@@ -20,5 +26,5 @@ __EOF__
   fi
   local func
   func=$(selector_fzf __wazuh_get_descriptions "WAZUH >") || return 0
-  echo "$func" | anyframe-action-put
+  eval "$func"
 }
