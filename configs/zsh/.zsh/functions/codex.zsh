@@ -6,7 +6,7 @@ cx() {
   fi
 }
 
-# Dangerous alias for codex
+# Dangerous alias for codex (bypass approvals & sandbox)
 cxd() {
-  cx --dangerously-bypass-approvals-and-sandbox "$@"
+  codex -m gpt-5-codex -c model_reasoning_effort="high" --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search "$@"
 }

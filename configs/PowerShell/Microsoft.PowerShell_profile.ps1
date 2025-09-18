@@ -24,14 +24,20 @@ function cx {
     & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --sandbox workspace-write --ask-for-approval on-failure --search $search
 }
 
-# Dangerous alias for codex
+# Dangerous alias for codex (bypass approvals & sandbox)
 function cxd {
     param(
         [Parameter(ValueFromRemainingArguments = $true)]
         [string[]] $Arguments
     )
 
-    & cx @('--dangerously-bypass-approvals-and-sandbox') @Arguments
+    if ($Arguments.Length -gt 0 -and $Arguments[0] -eq 'update') {
+        & npm install -g '@openai/codex@latest'
+        return
+    }
+
+    $search = $Arguments -join ' '
+    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search $search
 }
 
 #  ██████  ██ ████████
