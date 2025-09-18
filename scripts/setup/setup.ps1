@@ -201,6 +201,10 @@ function Install-7z {
   Install-WingetPackages 7zip.7zip
 }
 
+function Install-Volta {
+  Install-WingetPackages Volta.Volta
+}
+
 function Main {
   Install-Python
   Install-WSL
@@ -228,6 +232,7 @@ function Main {
   Install-Termius
   Install-Flameshot
   Install-7z
+  Install-Volta
 
   # Always run this function last
   Enable-HyperV
