@@ -330,3 +330,425 @@ $MARKER = '✓'
 
 # Set FZF default options
 $env:FZF_DEFAULT_OPTS = "--color=`"$FZF_COLOR_MOLOKAI`" --ansi --cycle --border=rounded --prompt=`"$FZF_PREFIX_PROMPT`" --pointer=$POINTER --marker=$MARKER --header=`"$FZF_HEADER_SINGLE_SELECT_PROMPT`" --multi=0 --bind=`"$FZF_DEFAULT_BIND`""
+
+function Invoke-FzfSelection {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Items,
+        [string]$PromptText = '',
+        [switch]$Multi
+    )
+
+    if (-not $Items -or $Items.Count -eq 0) {
+        return @()
+    }
+
+    $fzfCommand = Get-Command fzf -ErrorAction SilentlyContinue
+    if (-not $fzfCommand) {
+        Write-Warning 'fzf is not available on PATH; interactive selection is skipped.'
+        return @()
+    }
+
+    $prompt = if ([string]::IsNullOrWhiteSpace($PromptText)) {
+        $FZF_PREFIX_PROMPT
+    } else {
+        "$FZF_PREFIX_PROMPT$PromptText "
+    }
+
+    $fzfArgs = @('--ansi', '--prompt', $prompt)
+    if ($Multi) {
+        $fzfArgs += '--multi'
+        if ($FZF_HEADER_MULTI_SELECT_PROMPT) {
+            $fzfArgs += @('--header', $FZF_HEADER_MULTI_SELECT_PROMPT)
+        }
+    } elseif ($FZF_HEADER_SINGLE_SELECT_PROMPT) {
+        $fzfArgs += @('--header', $FZF_HEADER_SINGLE_SELECT_PROMPT)
+    }
+
+    try {
+        $selection = $Items | & $fzfCommand.Source @fzfArgs
+    } catch {
+        Write-Warning "fzf invocation failed: $_"
+        return @()
+    }
+
+    if ($LASTEXITCODE -ne 0) {
+        return @()
+    }
+
+    return $selection
+}
+
+function ConvertFrom-GitPathLiteral {
+    param([string]$PathText)
+
+    if ([string]::IsNullOrWhiteSpace($PathText)) {
+        return $PathText
+    }
+
+    $resolved = $PathText.Trim()
+
+    if ($resolved.StartsWith('"') -and $resolved.EndsWith('"')) {
+        $resolved = $resolved.Substring(1, $resolved.Length - 2)
+        $resolved = [System.Text.RegularExpressions.Regex]::Unescape($resolved)
+    }
+
+    return $resolved
+}
+
+function Get-GitStatusEntries {
+    $statusLines = git status --short --untracked-files=all 2> $null
+    if (-not $statusLines) {
+        return @()
+    }
+
+    $entries = @()
+
+    foreach ($line in $statusLines) {
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.Length -lt 3) {
+            continue
+        }
+
+        $rawStatus = $line.Substring(0, 2)
+        $normalizedStatus = $rawStatus -replace ' ', '.'
+        $pathFragment = $line.Substring(3)
+
+        $resolvedPath = $pathFragment
+        if ($resolvedPath -match '\s->\s') {
+            $resolvedPath = ($resolvedPath -split '\s+->\s+')[-1]
+        }
+        $resolvedPath = ConvertFrom-GitPathLiteral $resolvedPath
+
+        $entries += [PSCustomObject]@{
+            Status = $rawStatus
+            NormalizedStatus = $normalizedStatus
+            PathFragment = $pathFragment
+            ResolvedPath = $resolvedPath
+            Display = "{0} {1}" -f $normalizedStatus, $pathFragment
+        }
+    }
+
+    return $entries
+}
+
+function gcnvm {
+    param(
+        [Parameter(Mandatory = $true, Position = 0)][string]$Message,
+        [Parameter(ValueFromRemainingArguments = $true)][string[]]$AdditionalArgs
+    )
+
+    $arguments = @('--no-verify', '-m', $Message)
+    if ($AdditionalArgs) {
+        $arguments += $AdditionalArgs
+    }
+
+    git commit @arguments
+}
+
+function git_history_purge {
+    param([Parameter(Mandatory = $true, Position = 0)][string]$Path)
+
+    git filter-repo --path $Path --invert-paths --force
+}
+
+function git_rebase_sign_all {
+    param([Parameter(Mandatory = $true, Position = 0)][string]$BaseCommit)
+
+    git rebase -i --exec 'git commit --amend --no-edit --gpg-sign' $BaseCommit
+}
+
+function git_deleted_files_restore {
+    $deletedFiles = git ls-files -d 2> $null
+    if (-not $deletedFiles) {
+        Write-Host 'No deleted files detected.' -ForegroundColor Yellow
+        return
+    }
+
+    git restore --source=HEAD --staged --worktree -- $deletedFiles
+}
+
+function git_files_select {
+    param(
+        [Parameter(Mandatory = $true, Position = 0)][string]$StatusFilter,
+        [Parameter(Mandatory = $true, Position = 1)][string]$PromptText
+    )
+
+    $entries = Get-GitStatusEntries
+    if (-not $entries) {
+        Write-Host 'No Git changes found.' -ForegroundColor Yellow
+        return @()
+    }
+
+    $filtered = $entries | Where-Object { $_.NormalizedStatus -match $StatusFilter }
+    if (-not $filtered) {
+        Write-Host "No files match filter '$StatusFilter'." -ForegroundColor Yellow
+        return @()
+    }
+
+    $lookup = @{}
+    foreach ($entry in $filtered) {
+        $lookup[$entry.Display] = $entry
+    }
+
+    $selection = Invoke-FzfSelection -Items ($filtered.Display) -PromptText $PromptText -Multi
+    if (-not $selection) {
+        return @()
+    }
+
+    $selectionList = if ($selection -is [System.Array]) { $selection } else { @($selection) }
+
+    $paths = foreach ($item in $selectionList) {
+        if ($lookup.ContainsKey($item)) {
+            $lookup[$item].ResolvedPath
+        }
+    }
+
+    return $paths | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+}
+
+function git_diff {
+    $files = git_files_select '.[MD]' 'Git diff'
+    if (-not $files) {
+        return
+    }
+
+    git diff -- $files
+}
+
+function git_diff_index {
+    $files = git_files_select '[MDRA]' 'Git diff (INDEX)'
+    if (-not $files) {
+        return
+    }
+
+    git diff --cached -- $files
+}
+
+function git_add_select {
+    $files = git_files_select '.[MD?]' 'Git add'
+    if (-not $files) {
+        return
+    }
+
+    git add -- $files
+}
+
+function git_restore_select {
+    $files = git_files_select '.[MD]' 'Git restore'
+    if (-not $files) {
+        return
+    }
+
+    git restore -- $files
+}
+
+function git_untracked_remove {
+    $files = git_files_select '.[?]' 'Git remove'
+    if (-not $files) {
+        return
+    }
+
+    foreach ($path in $files) {
+        if (Test-Path -LiteralPath $path) {
+            Remove-Item -LiteralPath $path -Recurse -Force
+        }
+    }
+}
+
+function git_unstage {
+    $files = git_files_select '[MDRA]' 'Git unstage'
+    if (-not $files) {
+        return
+    }
+
+    git restore --staged -- $files
+}
+
+function git_assume_unchanged_list {
+    git ls-files -v | Where-Object { $_ -match '^[a-z]' } | ForEach-Object { $_.Substring(2) }
+}
+
+function git_skip_worktree_list {
+    git ls-files -v | Where-Object { $_ -match '^S' } | ForEach-Object { $_.Substring(2) }
+}
+
+function git_patch_create {
+    param([string]$PatchName)
+
+    $name = $PatchName
+    while ([string]::IsNullOrWhiteSpace($name)) {
+        $name = Read-Host 'Enter patch file name (e.g. patch-file)'
+    }
+
+    $patchFile = "$name.patch"
+    $addTxt = Read-Host 'Add .txt extension for GitHub? [y/N]'
+    if ($addTxt -match '^[Yy]$') {
+        $patchFile = "$patchFile.txt"
+    }
+
+    $files = git_files_select '.[MD]' 'Git create patch'
+    if (-not $files) {
+        Write-Host 'No files selected. Patch not created.' -ForegroundColor Yellow
+        return
+    }
+
+    $diffOutput = git diff -- $files
+    if (-not $diffOutput) {
+        Write-Host 'No diff output generated. Patch not created.' -ForegroundColor Yellow
+        return
+    }
+
+    Set-Content -LiteralPath $patchFile -Value $diffOutput -Encoding UTF8
+    Write-Host "Patch file created: $patchFile" -ForegroundColor Green
+}
+
+function git_branch_delete_local_remote {
+    [CmdletBinding()]
+    param(
+        [Alias('f')][switch]$Force,
+        [Alias('h')][switch]$Help,
+        [Parameter(Position = 0)][string]$Branch
+    )
+
+    if ($Help) {
+        Write-Host "Uso: git_branch_delete_local_remote [-Force] [branch]" -ForegroundColor Cyan
+        Write-Host "Sin 'branch' abre selector interactivo." -ForegroundColor Cyan
+        return
+    }
+
+    $currentBranch = git rev-parse --abbrev-ref HEAD 2> $null
+
+    if (-not $Branch) {
+        $branches = git branch --format='%(refname:short)' 2> $null | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+        $candidates = $branches | Where-Object { $_ -ne $currentBranch }
+        if (-not $candidates) {
+            Write-Host 'No other branches available.' -ForegroundColor Yellow
+            return
+        }
+
+        $selection = Invoke-FzfSelection -Items $candidates -PromptText 'Borrar branch > '
+        if (-not $selection) {
+            Write-Host 'Cancelado.' -ForegroundColor Yellow
+            return
+        }
+
+        $Branch = if ($selection -is [System.Array]) { $selection[0] } else { $selection }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Branch)) {
+        Write-Host 'Cancelado.' -ForegroundColor Yellow
+        return
+    }
+
+    if ($Branch -eq $currentBranch) {
+        Write-Host "No se puede borrar la branch actual: $Branch" -ForegroundColor Red
+        return
+    }
+
+    if (($Branch -eq 'main' -or $Branch -eq 'master') -and -not $Force) {
+        Write-Host "Branch protegida ($Branch). Use -Force para eliminar." -ForegroundColor Red
+        return
+    }
+
+    $deleteArgs = if ($Force) { @('-D', $Branch) } else { @('-d', $Branch) }
+    git branch @deleteArgs
+    if ($LASTEXITCODE -ne 0) {
+        return
+    }
+
+    $upstream = git rev-parse --abbrev-ref --symbolic-full-name "$Branch@{upstream}" 2> $null
+    if ($upstream) {
+        $parts = $upstream -split '/', 2
+        if ($parts.Count -eq 2) {
+            $remote = $parts[0]
+            $remoteBranch = $parts[1]
+            git push $remote --delete $remoteBranch 2> $null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Remota eliminada: $remote/$remoteBranch" -ForegroundColor Cyan
+            }
+        }
+    } else {
+        git ls-remote --exit-code origin "refs/heads/$Branch" > $null 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            git push origin --delete $Branch 2> $null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Remota eliminada: origin/$Branch" -ForegroundColor Cyan
+            }
+        }
+        $LASTEXITCODE = 0
+    }
+
+    Write-Host "Branch local eliminada: $Branch" -ForegroundColor Green
+}
+
+function __git_get_descriptions {
+    @(
+        [PSCustomObject]@{ Command = 'git_history_purge'; Description = 'elimina completamente un archivo/directorio del historial de Git' }
+        [PSCustomObject]@{ Command = 'git_rebase_sign_all'; Description = 'rebase interactivo firmando todos los commits con GPG' }
+        [PSCustomObject]@{ Command = 'git_deleted_files_restore'; Description = 'restaura todos los archivos eliminados desde HEAD' }
+        [PSCustomObject]@{ Command = 'git_files_select'; Description = 'selector interactivo de archivos Git con filtros de estado' }
+        [PSCustomObject]@{ Command = 'git_diff'; Description = 'visualiza diferencias de archivos modificados/eliminados' }
+        [PSCustomObject]@{ Command = 'git_diff_index'; Description = 'visualiza diferencias de archivos en staging area' }
+        [PSCustomObject]@{ Command = 'git_add_select'; Description = 'añade archivos seleccionados al staging area' }
+        [PSCustomObject]@{ Command = 'git_restore_select'; Description = 'descarta cambios de archivos seleccionados' }
+        [PSCustomObject]@{ Command = 'git_untracked_remove'; Description = 'elimina archivos no rastreados del sistema de archivos' }
+        [PSCustomObject]@{ Command = 'git_unstage'; Description = 'quita archivos del staging area (unstage)' }
+        [PSCustomObject]@{ Command = 'git_assume_unchanged_list'; Description = 'lista archivos marcados como assume-unchanged' }
+        [PSCustomObject]@{ Command = 'git_skip_worktree_list'; Description = 'lista archivos marcados como skip-worktree' }
+        [PSCustomObject]@{ Command = 'git_patch_create'; Description = 'genera archivo patch desde diferencias seleccionadas' }
+        [PSCustomObject]@{ Command = 'git_branch_delete_local_remote'; Description = 'elimina una branch local y su remota asociada (usa -Force para main/master)' }
+    )
+}
+
+function gg {
+    param([Alias('l')][switch]$List)
+
+    $entries = __git_get_descriptions
+
+    if ($List) {
+        $entries | ForEach-Object {
+            Write-Host ("{0,-35} {1}" -f $_.Command, $_.Description)
+        }
+        return
+    }
+
+    $items = foreach ($entry in $entries) {
+        $display = "{0,-35} {1}" -f $entry.Command, $entry.Description
+        [PSCustomObject]@{ Display = $display; Command = $entry.Command }
+    }
+
+    $selection = Invoke-FzfSelection -Items ($items.Display) -PromptText 'GIT >'
+    if (-not $selection) {
+        return
+    }
+
+    $selectedDisplay = if ($selection -is [System.Array]) { $selection[0] } else { $selection }
+    $commandMatch = $items | Where-Object { $_.Display -eq $selectedDisplay } | Select-Object -First 1
+    if (-not $commandMatch) {
+        return
+    }
+
+    $commandText = "$($commandMatch.Command) "
+
+    try {
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($commandText)
+        return
+    } catch {
+        # PSReadLine may be unavailable (e.g., in non-interactive hosts).
+    }
+
+    Write-Host $commandText
+}
+
+Set-Alias -Name ghistory_purge -Value git_history_purge
+Set-Alias -Name grebase_sign_all -Value git_rebase_sign_all
+Set-Alias -Name gdeleted_files_restore -Value git_deleted_files_restore
+Set-Alias -Name gdiff -Value git_diff
+Set-Alias -Name gdiff_index -Value git_diff_index
+Set-Alias -Name gadd_select -Value git_add_select
+Set-Alias -Name grestore_select -Value git_restore_select
+Set-Alias -Name guntracked_remove -Value git_untracked_remove
+Set-Alias -Name gunstage -Value git_unstage
+Set-Alias -Name gassume_unchanged_list -Value git_assume_unchanged_list
+Set-Alias -Name gskip_worktree_list -Value git_skip_worktree_list
+Set-Alias -Name gpatch_create -Value git_patch_create
+Set-Alias -Name gbranch_delete_local_remote -Value git_branch_delete_local_remote
