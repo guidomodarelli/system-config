@@ -784,3 +784,160 @@ function Invoke-FzfSelection {
 
     return $selection
 }
+
+function Select-GhqRepositoryPath {
+    param(
+        [string]$PromptLabel = 'GHQ',
+        [string]$DefaultQuery = ''
+    )
+
+    $ghqCommand = Get-Command ghq -ErrorAction SilentlyContinue
+    if (-not $ghqCommand) {
+        Write-Warning "ghq is not available on PATH; install it (for example, 'scoop install ghq')."
+        return $null
+    }
+
+    $fzfCommand = Get-Command fzf -ErrorAction SilentlyContinue
+    if (-not $fzfCommand) {
+        Write-Warning 'fzf is not available on PATH; ghq picker requires fzf.'
+        return $null
+    }
+
+    try {
+        $repoList = & $ghqCommand.Source list 2> $null
+    } catch {
+        Write-Warning "Failed to execute 'ghq list': $_"
+        return $null
+    }
+
+    if (-not $repoList) {
+        Write-Warning 'No ghq repositories found.'
+        return $null
+    }
+
+    $items = @()
+    foreach ($repo in $repoList) {
+        if (-not [string]::IsNullOrWhiteSpace($repo)) {
+            $items += $repo.Trim()
+        }
+    }
+
+    if (-not $items) {
+        Write-Warning 'No ghq repositories found.'
+        return $null
+    }
+
+    $promptSuffix = if ([string]::IsNullOrWhiteSpace($PromptLabel)) { '[GHQ] ' } else { "[$PromptLabel] " }
+    $fzfArgs = @('--ansi', '--prompt', "$FZF_PREFIX_PROMPT$promptSuffix")
+    if (-not [string]::IsNullOrWhiteSpace($DefaultQuery)) {
+        $fzfArgs += @('--query', $DefaultQuery)
+    }
+
+    try {
+        $selection = $items | & $fzfCommand.Source @fzfArgs
+    } catch {
+        Write-Warning "fzf invocation failed: $_"
+        return $null
+    }
+
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($selection)) {
+        return $null
+    }
+
+    $selectedRelative = ($selection -split '\r?\n')[0].Trim()
+    if ([string]::IsNullOrWhiteSpace($selectedRelative)) {
+        return $null
+    }
+
+    try {
+        $rootOutput = & $ghqCommand.Source root 2> $null
+    } catch {
+        Write-Warning "Failed to determine ghq root: $_"
+        return $null
+    }
+
+    $roots = @()
+    foreach ($entry in $rootOutput) {
+        if (-not [string]::IsNullOrWhiteSpace($entry)) {
+            $roots += $entry.Trim()
+        }
+    }
+
+    if (-not $roots) {
+        Write-Warning 'ghq root returned no paths.'
+        return $null
+    }
+
+    $primaryRoot = $roots[0]
+    $targetPath = [System.IO.Path]::Combine($primaryRoot, $selectedRelative)
+
+    return $targetPath
+}
+
+function Invoke-GhqRepositoryJump {
+    param(
+        [string]$PromptLabel = 'GHQ',
+        [string]$DefaultQuery = ''
+    )
+
+    $targetPath = Select-GhqRepositoryPath -PromptLabel $PromptLabel -DefaultQuery $DefaultQuery
+    if (-not $targetPath) {
+        return
+    }
+
+    try {
+        Set-Location -LiteralPath $targetPath
+    } catch {
+        Write-Warning "Unable to change directory to '$targetPath': $($_.Exception.Message)"
+    }
+}
+
+function Invoke-GhqRepositoryGlobal {
+    Invoke-GhqRepositoryJump -PromptLabel 'Global' -DefaultQuery '!work/ '
+}
+
+function Invoke-GhqRepositoryWork {
+    Invoke-GhqRepositoryJump -PromptLabel 'Work' -DefaultQuery 'work/ !forks '
+}
+
+function Invoke-GhqRepositoryProjects {
+    Invoke-GhqRepositoryJump -PromptLabel 'Projects' -DefaultQuery 'projects/ '
+}
+
+function Invoke-GhqCommandFromKeyHandler {
+    param(
+        [Parameter(Mandatory = $true)][string]$CommandText
+    )
+
+    $psConsoleReadLineType = [Microsoft.PowerShell.PSConsoleReadLine] -as [type]
+    if (-not $psConsoleReadLineType) {
+        Invoke-Expression $CommandText
+        return
+    }
+
+    try {
+        [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($CommandText)
+        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+    } catch {
+        Invoke-Expression $CommandText
+    }
+}
+
+$psConsoleReadLineType = [Microsoft.PowerShell.PSConsoleReadLine] -as [type]
+if ($psConsoleReadLineType) {
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+g' -BriefDescription 'GHQ Global' -LongDescription 'Jump to ghq repository (excluding work/*)' -ScriptBlock {
+        param($key, $arg)
+        Invoke-GhqCommandFromKeyHandler -CommandText 'Invoke-GhqRepositoryGlobal'
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+w' -BriefDescription 'GHQ Work' -LongDescription 'Jump to work ghq repositories' -ScriptBlock {
+        param($key, $arg)
+        Invoke-GhqCommandFromKeyHandler -CommandText 'Invoke-GhqRepositoryWork'
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+p' -BriefDescription 'GHQ Projects' -LongDescription 'Jump to personal/project ghq repositories' -ScriptBlock {
+        param($key, $arg)
+        Invoke-GhqCommandFromKeyHandler -CommandText 'Invoke-GhqRepositoryProjects'
+    }
+}
