@@ -904,23 +904,41 @@ function Invoke-GhqRepositoryProjects {
     Invoke-GhqRepositoryJump -PromptLabel 'Projects' -DefaultQuery 'projects/ '
 }
 
-function Invoke-GhqCommandFromKeyHandler {
+function Invoke-GhqKeyHandler {
     param(
-        [Parameter(Mandatory = $true)][string]$CommandText
+        [string]$PromptLabel,
+        [string]$DefaultQuery
     )
 
     $psConsoleReadLineType = [Microsoft.PowerShell.PSConsoleReadLine] -as [type]
-    if (-not $psConsoleReadLineType) {
-        Invoke-Expression $CommandText
-        return
+    $didRevert = $false
+
+    if ($psConsoleReadLineType) {
+        try {
+            [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+            $didRevert = $true
+        } catch {
+            $didRevert = $false
+        }
     }
 
-    try {
-        [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-        [Microsoft.PowerShell.PSConsoleReadLine]::Insert($CommandText)
-        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
-    } catch {
-        Invoke-Expression $CommandText
+    Invoke-GhqRepositoryJump -PromptLabel $PromptLabel -DefaultQuery $DefaultQuery
+
+    if ($psConsoleReadLineType) {
+        try {
+            if ($didRevert) {
+                [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+            } else {
+                $invokePromptMethod = $psConsoleReadLineType.GetMethod('InvokePrompt', [Type[]]@())
+                if ($invokePromptMethod) {
+                    [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+                } else {
+                    [Microsoft.PowerShell.PSConsoleReadLine]::Repaint()
+                }
+            }
+        } catch {
+            try { [Microsoft.PowerShell.PSConsoleReadLine]::Repaint() } catch { }
+        }
     }
 }
 
@@ -928,16 +946,16 @@ $psConsoleReadLineType = [Microsoft.PowerShell.PSConsoleReadLine] -as [type]
 if ($psConsoleReadLineType) {
     Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+g' -BriefDescription 'GHQ Global' -LongDescription 'Jump to ghq repository (excluding work/*)' -ScriptBlock {
         param($key, $arg)
-        Invoke-GhqCommandFromKeyHandler -CommandText 'Invoke-GhqRepositoryGlobal'
+        Invoke-GhqKeyHandler -PromptLabel 'Global' -DefaultQuery '!work/ '
     }
 
     Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+w' -BriefDescription 'GHQ Work' -LongDescription 'Jump to work ghq repositories' -ScriptBlock {
         param($key, $arg)
-        Invoke-GhqCommandFromKeyHandler -CommandText 'Invoke-GhqRepositoryWork'
+        Invoke-GhqKeyHandler -PromptLabel 'Work' -DefaultQuery 'work/ !forks '
     }
 
     Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+p' -BriefDescription 'GHQ Projects' -LongDescription 'Jump to personal/project ghq repositories' -ScriptBlock {
         param($key, $arg)
-        Invoke-GhqCommandFromKeyHandler -CommandText 'Invoke-GhqRepositoryProjects'
+        Invoke-GhqKeyHandler -PromptLabel 'Projects' -DefaultQuery 'projects/ '
     }
 }
