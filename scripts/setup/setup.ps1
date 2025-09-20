@@ -39,6 +39,16 @@ function Install-Choco {
   }
 }
 
+function Install-Scoop {
+  if (-Not (Test-Path "$env:USERPROFILE\scoop\shims\scoop.ps1")) {
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+    Write-SuccessMessage "Scoop has been installed successfully."
+  } else {
+    Write-WarningMessage "Scoop is already installed."
+  }
+}
+
 function Install-ChocoPackages {
   param (
     [string[]]$packages
@@ -205,7 +215,13 @@ function Install-Volta {
   Install-WingetPackages Volta.Volta
 }
 
+function Install-Ghq {
+  scoop install ghq
+}
+
 function Main {
+  Install-Scoop
+  Install-Ghq
   Install-Python
   Install-WSL
   Install-Choco
