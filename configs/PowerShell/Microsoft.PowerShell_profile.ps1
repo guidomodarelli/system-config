@@ -20,8 +20,8 @@ function cx {
         return
     }
 
-    $search = $Arguments -join ' '
-    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --sandbox workspace-write --ask-for-approval on-failure --search $search
+    $params = $Arguments -join ' '
+    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --sandbox workspace-write --ask-for-approval on-failure --search $params
 }
 
 # Dangerous alias for codex (bypass approvals & sandbox)
@@ -31,13 +31,19 @@ function cxd {
         [string[]] $Arguments
     )
 
-    if ($Arguments.Length -gt 0 -and $Arguments[0] -eq 'update') {
-        & npm install -g '@openai/codex@latest'
-        return
-    }
+    $params = $Arguments -join ' '
+    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="medium"' --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search $params
+}
 
-    $search = $Arguments -join ' '
-    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search $search
+# Dangerous alias for codex with high reasoning (bypass approvals & sandbox)
+function cxhd {
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]] $Arguments
+    )
+
+    $params = $Arguments -join ' '
+    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search $params
 }
 
 #  ██████  ██ ████████

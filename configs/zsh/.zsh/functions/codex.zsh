@@ -8,5 +8,10 @@ cx() {
 
 # Dangerous alias for codex (bypass approvals & sandbox)
 cxd() {
+  codex -m gpt-5-codex -c model_reasoning_effort="medium" --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search "$@"
+}
+
+# Dangerous alias for codex with high reasoning (bypass approvals & sandbox)
+cxhd() {
   codex -m gpt-5-codex -c model_reasoning_effort="high" --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search "$@"
 }
