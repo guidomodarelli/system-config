@@ -791,6 +791,13 @@ function Invoke-FzfSelection {
     return $selection
 }
 
+#  ██████  ██   ██  ██████
+# ██       ██   ██ ██    ██
+# ██   ███ ███████ ██    ██
+# ██    ██ ██   ██ ██ ▄▄ ██
+#  ██████  ██   ██  ██████
+#                      ▀▀
+
 function Select-GhqRepositoryPath {
     param(
         [string]$PromptLabel = 'GHQ',
