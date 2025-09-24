@@ -256,15 +256,7 @@ matches:
             - label: SUGGEST A DESCRIPTIVE TEST NAME
               id: Help me suggest a descriptive test name in snake case for the function I provide below that reflects what is being verified in the function. You should start with "should".
             - label: SUGGEST A DESCRIPTIVE ISSUE TITLE
-              id: Help me suggest a descriptive issue title for the description I provide below.
-            - label: SUGGEST A SHORT DESCRIPTION BRANCH NAME
-              id: Help me suggest a short description for the description I provide below. Output in kebab-case.
-            - label: SUGGEST A CHANGELOG MESSAGE
-              id: Help me suggest a descriptive changelog message for the description I provide below.
-            - label: SUGGEST A TITLE FOR YOUTUBE VIDEO
-              id: Help me suggest an attention-grabbing, clickbait-worthy title for a YouTube video based on the description I provide below. Make it compelling and impossible to ignore.
-            - label: SUGGEST A DESCRIPTION FOR A YOUTUBE VIDEO
-              id: Help me suggest a description for a YouTube video based on the description I provide below. Make it compelling and impossible to ignore.
+              id: Help me suggest a descriptive issue title for the description I provide below. The title should be concise and summarize the main problem or feature request.
   - trigger: ";craft"
     force_clipboard: true
     replace: |
