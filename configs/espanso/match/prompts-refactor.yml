@@ -1,0 +1,41 @@
+matches:
+  - trigger: ";ref"
+    force_clipboard: true
+    label: Name all elements clearly
+    replace: |-
+      Name all elements clearly, coherently, concisely, completely, and self-explanatorily, avoiding abbreviations and single-letter names even in arrow functions. Each name must be understandable by itself, without requiring additional comments to understand its purpose.
+  - trigger: ";ref"
+    force_clipboard: true
+    label: Improve code comments
+    replace: |-
+      Improve code comments by making them more detailed, clear, and informative. Ensure that comments explain the purpose and functionality of the code, providing context where necessary. Avoid redundant comments that simply restate the code itself.
+  - trigger: ";ref"
+    force_clipboard: true
+    label: Refactor code for readability
+    replace: |-
+      Refactor the code to enhance its readability and maintainability. This includes restructuring complex functions into smaller, more manageable ones, improving indentation and spacing, and using consistent naming conventions throughout the codebase.
+  - trigger: ";ref"
+    force_clipboard: true
+    label: Optimize code performance
+    replace: |-
+      Optimize the code for better performance by identifying and eliminating inefficiencies. This may involve reducing time complexity, minimizing memory usage, and leveraging more efficient algorithms or data structures where appropriate.
+  - trigger: ";ref"
+    force_clipboard: true
+    label: Ensure code follows best practices
+    replace: |-
+      Ensure that the code adheres to industry best practices and coding standards. This includes following established design patterns, ensuring proper error handling, and maintaining a clean and organized code structure.
+  - trigger: ";ref"
+    force_clipboard: true
+    label: Add unit tests
+    replace: |-
+      Add comprehensive unit tests to the codebase to ensure that all functions and methods are properly tested. This includes writing tests for edge cases, validating input and output, and ensuring that the code behaves as expected under various conditions.
+  - trigger: ";ref"
+    force_clipboard: true
+    label: Update documentation
+    replace: |-
+      Update the project documentation to reflect any changes made during the refactoring process. This includes updating README files, API documentation, and any other relevant materials to ensure they accurately describe the current state of the codebase.
+  - trigger: ";ref"
+    force_clipboard: true
+    label: Format code
+    replace: |-
+      Format the code. Ensure that all files in the codebase follow a consistent style guide. This includes proper indentation, spacing, and line breaks to enhance readability and maintain a clean code appearance.
