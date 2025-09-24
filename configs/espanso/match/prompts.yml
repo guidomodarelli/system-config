@@ -85,24 +85,24 @@ global_vars:
     params:
       echo: '- DO NOT output anything but the rewritten text.
 
-       - DO NOT put quotes around the rewritten text.
-       '
+        - DO NOT put quotes around the rewritten text.
+        '
   - name: act_as_copywriter
     type: echo
     params:
       echo: '{{new_instructions}}
 
-       {{rewritten_text}}
+        {{rewritten_text}}
 
-       - I would like you to act as a copywriter and rewrite or improve a given text for me.
-       '
+        - I would like you to act as a copywriter and rewrite or improve a given text for me.
+        '
 
 matches:
   - trigger: ";ts"
     force_clipboard: true
     replace: '{{new_instructions}}
 
-       {{rewritten_text}}
+      {{rewritten_text}}
 
       - Reply with the translation only
 
