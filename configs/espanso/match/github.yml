@@ -7,3 +7,33 @@ matches:
         $|$
       </p>
       </details>
+  - triggers: ["%alert", "%note"]
+    force_clipboard: true
+    replace: |
+      > [!NOTE]
+      >
+      > $|$
+  - triggers: ["%alert", "%tip"]
+    force_clipboard: true
+    replace: |
+      > [!TIP]
+      >
+      > $|$
+  - triggers: ["%alert", "%warn"]
+    force_clipboard: true
+    replace: |
+      > [!WARNING]
+      >
+      > $|$
+  - triggers: ["%alert", "%imp"]
+    force_clipboard: true
+    replace: |
+      > [!IMPORTANT]
+      >
+      > $|$
+  - triggers: ["%alert", "%cau"]
+    force_clipboard: true
+    replace: |
+      > [!CAUTION]
+      >
+      > $|$
