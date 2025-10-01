@@ -360,9 +360,11 @@ install_essencials() {
 install_utilities() {
   if is_ubuntu; then
     sudo apt update
-    sudo apt install -y jq yq fzf ripgrep bat zoxide
+    sudo apt install -y jq fzf ripgrep bat zoxide
+    sudo snap install yq # https://github.com/mikefarah/yq
   elif is_arch; then
-    sudo pacman -Sy --noconfirm jq yq fzf ripgrep bat zoxide
+    sudo pacman -Sy --noconfirm jq fzf ripgrep bat zoxide
+    sudo pacman -Sy --noconfirm go-yq # https://github.com/mikefarah/yq?tab=readme-ov-file#arch-linux
   fi
 }
 
