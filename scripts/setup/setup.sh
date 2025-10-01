@@ -361,7 +361,7 @@ install_utilities() {
   if is_ubuntu; then
     sudo apt update
     sudo apt install -y jq fzf ripgrep bat zoxide
-    sudo snap install yq # https://github.com/mikefarah/yq
+    sudo snap install yq # https://github.com/mikefarah/yq?tab=readme-ov-file#linux-via-snap
   elif is_arch; then
     sudo pacman -Sy --noconfirm jq fzf ripgrep bat zoxide
     sudo pacman -Sy --noconfirm go-yq # https://github.com/mikefarah/yq?tab=readme-ov-file#arch-linux
