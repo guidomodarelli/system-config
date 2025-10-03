@@ -1,5 +1,5 @@
-model = "gpt-5-codex"
-model_reasoning_effort = "medium"
+model = "gpt-5"
+model_reasoning_effort = "high"
 
 # https://github.com/openai/codex/blob/main/docs/config.md#sandbox_mode
 # same as `--sandbox danger-full-access`
