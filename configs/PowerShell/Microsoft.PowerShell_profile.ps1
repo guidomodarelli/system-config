@@ -19,7 +19,7 @@ function cx {
     )
 
     if ($Args.Count -gt 0 -and $Args[0] -eq 'update') {
-        & npm install -g '@openai/codex@latest'
+        npm install -g '@openai/codex@latest'
         return
     }
 
