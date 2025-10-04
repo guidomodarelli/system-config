@@ -52,6 +52,11 @@ _cx() {
   local curcontext="$curcontext" state line
   typeset -A opt_args
 
+  # Si ya se eligió 'update' como primer argumento, no sugerir nada más.
+  if [[ ${words[2]} == update ]]; then
+    return 0
+  fi
+
   # Primera posición: siempre tratada como estado 'first' (para sugerir 'update')
   _arguments -C \
     '1:first arg:->first' \
