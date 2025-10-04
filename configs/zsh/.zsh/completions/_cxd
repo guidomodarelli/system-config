@@ -1,0 +1,8 @@
+#compdef cxd
+
+# Try to autoload _cx (defined in separate completion file)
+autoload -Uz _cx 2>/dev/null || true
+
+_cxd() { _cx "$@"; }
+
+_cxd "$@"

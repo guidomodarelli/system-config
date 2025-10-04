@@ -35,17 +35,6 @@ function cxd {
     & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="medium"' --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search $params
 }
 
-# Dangerous alias for codex with high reasoning (bypass approvals & sandbox)
-function cxhd {
-    param(
-        [Parameter(ValueFromRemainingArguments = $true)]
-        [string[]] $Arguments
-    )
-
-    $params = $Arguments -join ' '
-    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search $params
-}
-
 #  ██████  ██ ████████
 # ██       ██    ██
 # ██   ███ ██    ██

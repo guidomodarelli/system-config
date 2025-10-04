@@ -1,17 +1,57 @@
+# Unified implementation: cx handles both safe and yolo modes.
 cx() {
-  if [[ "$1" == "update" ]]; then
-    npm install -g @openai/codex@latest
+  # Added flag parsing: -m <model>, -re <reasoning_effort>
+  local model="gpt-5"
+  local reasoning="high"
+  local yolo=""         # empty -> safe mode; set -> yolo mode
+  local rest=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      update)
+        npm install -g @openai/codex@latest
+        return
+        ;;
+      -m)
+        shift
+        [[ -n "$1" ]] && model="$1"
+        shift
+        ;;
+      -re)
+        shift
+        [[ -n "$1" ]] && reasoning="$1"
+        shift
+        ;;
+      --yolo)          # internal flag used by cxd
+        yolo=1
+        shift
+        ;;
+      --)
+        shift
+        rest+=("$@")
+        break
+        ;;
+      *)
+        rest+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  local cmd=(codex -m "$model" -c model_reasoning_effort="$reasoning")
+  if [[ -n "$yolo" ]]; then
+    cmd+=(--yolo)
   else
-    codex -m gpt-5-codex -c model_reasoning_effort="high" --sandbox workspace-write --ask-for-approval on-failure --search "$@"
+    cmd+=(--sandbox workspace-write --ask-for-approval on-failure)
   fi
+  cmd+=(--search "${rest[@]}")
+  "${cmd[@]}"
 }
 
 # Dangerous alias for codex (bypass approvals & sandbox)
 cxd() {
-  codex -m gpt-5-codex -c model_reasoning_effort="medium" --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search "$@"
+  cx --yolo "$@"
 }
 
-# Dangerous alias for codex with high reasoning (bypass approvals & sandbox)
-cxhd() {
-  codex -m gpt-5-codex -c model_reasoning_effort="high" --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search "$@"
-}
+# Completions: reuse same completion function for both.
+compdef _cx cx cxd

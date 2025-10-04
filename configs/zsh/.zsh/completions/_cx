@@ -1,0 +1,40 @@
+#compdef cx
+
+# Completion for cx
+# Supports:
+#   update (as first positional)
+#   -m <model>
+#   -re <reasoning>
+# Remaining args treated as query tokens.
+
+_cx() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  local -a models reasoning_levels
+  models=(
+    gpt-5
+    gpt-5-codex
+  )
+  reasoning_levels=(low medium high)
+
+  # If first arg is 'update', stop completing further (no more args)
+  if (( CURRENT == 2 )) && [[ $words[2] == update ]]; then
+    return 0
+  fi
+
+  _arguments -C \
+    '1::first arg:->first' \
+    '(-m)-m[Model to use]:model:(( '${models[@]}' ))' \
+    '(-re)-re[Reasoning effort]:effort:(( '${reasoning_levels[@]}' ))' \
+    '*:query word:_files' && return 0
+
+  case $state in
+    first)
+      # Offer 'update' or start query words
+      _values 'first argument' update
+      ;;
+  esac
+}
+
+_cx "$@"
