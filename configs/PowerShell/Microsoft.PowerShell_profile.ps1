@@ -8,32 +8,82 @@
 function global:grep { & grep.exe --color=auto --exclude-dir=".bzr" --exclude-dir="CVS" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" --exclude-dir=".idea" --exclude-dir=".tox" --exclude-dir=".venv" --exclude-dir="venv" $args }
 function rg { & rg.exe --glob "!.git/*" $args }
 
-# Helper to run Codex with the same defaults as the Zsh function
+# --- Codex unified (replica de lógica Zsh) ------------------------------------
+
+# Unified implementation: cx handles both safe and yolo modes.
 function cx {
+    [CmdletBinding()]
     param(
         [Parameter(ValueFromRemainingArguments = $true)]
-        [string[]] $Arguments
+        [string[]] $Args
     )
 
-    if ($Arguments.Length -gt 0 -and $Arguments[0] -eq 'update') {
+    if ($Args.Count -gt 0 -and $Args[0] -eq 'update') {
         & npm install -g '@openai/codex@latest'
         return
     }
 
-    $params = $Arguments -join ' '
-    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="high"' --sandbox workspace-write --ask-for-approval on-failure --search $params
+    $model = 'gpt-5'
+    $reasoning = 'high'
+    $yolo = $false
+    $rest = New-Object System.Collections.Generic.List[string]
+
+    for ($i = 0; $i -lt $Args.Count; $i++) {
+        switch ($Args[$i]) {
+            '-m' {
+                if ($i + 1 -lt $Args.Count) {
+                    $model = $Args[$i + 1]
+                    $i++
+                }
+            }
+            '-re' {
+                if ($i + 1 -lt $Args.Count) {
+                    $reasoning = $Args[$i + 1]
+                    $i++
+                }
+            }
+            '--yolo' {
+                $yolo = $true
+            }
+            '--' {
+                if ($i + 1 -lt $Args.Count) {
+                    for ($j = $i + 1; $j -lt $Args.Count; $j++) {
+                        $rest.Add($Args[$j])
+                    }
+                }
+                break
+            }
+            default {
+                $rest.Add($Args[$i])
+            }
+        }
+    }
+
+    $cmd = @('codex','-m', $model,'-c',"model_reasoning_effort=$reasoning")
+    if ($yolo) {
+        $cmd += '--yolo'
+    } else {
+        $cmd += @('--sandbox','workspace-write','--ask-for-approval','on-failure')
+    }
+    $cmd += '--search'
+    if ($rest.Count -gt 0) {
+        $cmd += $rest.ToArray()
+    }
+
+    & $cmd[0] $cmd[1..($cmd.Count-1)]
 }
 
 # Dangerous alias for codex (bypass approvals & sandbox)
 function cxd {
+    [CmdletBinding()]
     param(
         [Parameter(ValueFromRemainingArguments = $true)]
-        [string[]] $Arguments
+        [string[]] $Args
     )
-
-    $params = $Arguments -join ' '
-    & codex -m 'gpt-5-codex' -c 'model_reasoning_effort="medium"' --dangerously-bypass-approvals-and-sandbox --sandbox workspace-write --search $params
+    cx --yolo @Args
 }
+
+# --- Fin Codex unified -------------------------------------------------------
 
 #  ██████  ██ ████████
 # ██       ██    ██
