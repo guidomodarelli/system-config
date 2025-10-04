@@ -7,32 +7,61 @@
 #   -re <reasoning>
 # Remaining args treated as query tokens.
 
+_cx_models() {
+  echo "gpt-5
+gpt-5-codex"
+}
+
+_cx_reasoning() {
+  echo "low
+medium
+high"
+}
+
+_cx_model_select() {
+  local -a items
+  items=($(_cx_models))
+  if (( $+commands[fzf] )); then
+    local sel
+    sel=$(printf '%s\n' "${items[@]}" | fzf --no-multi --prompt="Modelo> " --exit-0 --select-1 --query="${PREFIX}")
+    if [[ -n $sel ]]; then
+      compadd -- "$sel"
+      return 0
+    fi
+  fi
+  compadd -a items
+}
+
+_cx_reasoning_select() {
+  local -a items
+  items=($(_cx_reasoning))
+  if (( $+commands[fzf] )); then
+    local sel
+    sel=$(printf '%s\n' "${items[@]}" | fzf --no-multi --prompt="Reasoning> " --exit-0 --select-1 --query="${PREFIX}")
+    if [[ -n $sel ]]; then
+      compadd -- "$sel"
+      return 0
+    fi
+  fi
+  compadd -a items
+}
+
 _cx() {
   local curcontext="$curcontext" state line
   typeset -A opt_args
 
-  local -a models reasoning_levels
-  models=(
-    gpt-5
-    gpt-5-codex
-  )
-  reasoning_levels=(low medium high)
-
-  # If first arg is 'update', stop completing further (no more args)
-  if (( CURRENT == 2 )) && [[ $words[2] == update ]]; then
-    return 0
-  fi
-
+  # Primera posición: siempre tratada como estado 'first' (para sugerir 'update')
   _arguments -C \
-    '1::first arg:->first' \
-    '(-m)-m[Model to use]:model:(( '${models[@]}' ))' \
-    '(-re)-re[Reasoning effort]:effort:(( '${reasoning_levels[@]}' ))' \
-    '*:query word:_files' && return 0
+    '1:first arg:->first' \
+    '-m[Model to use]:model:_cx_model_select' \
+    '-re[Reasoning effort]:effort:_cx_reasoning_select' \
+    '*:query token:' && return 0
 
   case $state in
     first)
-      # Offer 'update' or start query words
-      _values 'first argument' update
+      # Sugerir 'update'; si el usuario ya escribió algo, se filtra automáticamente.
+      compadd update
+      return 0
       ;;
   esac
 }
