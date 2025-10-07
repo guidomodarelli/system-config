@@ -1,3 +1,18 @@
+# Git Configuration File
+#
+# This file contains global Git configuration settings including:
+# - User information and SSH signing key for commit verification
+# - Delta as the default pager for enhanced diff viewing with line numbers and side-by-side mode
+# - Difftastic as an alternative diff tool for structural diffs
+# - Commit signing enabled with SSH format
+# - Main as the default branch name
+#
+# Using Difftastic:
+# 1. Use `git dft` (alias for difftool) to compare files with difftastic
+# 2. Example: `git dft HEAD~1 HEAD` - compare last commit with previous
+# 3. Example: `git dft` - show unstaged changes with difftastic
+# 4. Example: `git dft --cached` - show staged changes with difftastic
+# 5. Difftastic provides syntax-aware diffs focusing on structural changes
 [user]
   email = guidomodarelli25@gmail.com
   name = Guido Modarelli
