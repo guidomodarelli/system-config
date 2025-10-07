@@ -269,6 +269,10 @@ install_homebrew() {
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 
+_brew() {
+  /home/linuxbrew/.linuxbrew/bin/brew "$@"
+}
+
 install_fd_find() {
   if is_ubuntu; then
     sudo apt install -y fd-find
@@ -377,7 +381,7 @@ install_vagrant() {
 }
 
 install_neovim() {
-  /home/linuxbrew/.linuxbrew/bin/brew install neovim
+  _brew install neovim
 }
 
 install_sdkman() {
@@ -388,6 +392,14 @@ install_sdkman() {
 
 install_java_by_sdkman() {
   sdk install java 17.0.14-tem
+}
+
+install_difftastic() {
+  if is_ubuntu; then
+    _brew install difftastic
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm difftastic
+  fi
 }
 
 main() {
