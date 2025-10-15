@@ -224,36 +224,57 @@ function Install-AutoHotkey {
 }
 
 function Main {
+  # Package Managers
   Install-Scoop
-  Install-Ghq
-  Install-Python
-  Install-WSL
   Install-Choco
-  Install-Fonts
-  Install-Espanso
-  Install-VsCode
-  Install-Vlc
-  Install-ObsStudio
+
+  # Development Tools
   Install-Git
   Install-Lazygit
   Install-GitDelta
+  Install-Ghq
+  Install-VsCode
+  Install-Volta
+
+  # Programming Languages & Environments
+  Install-Python
+  Install-WSL
+
+  # Command Line Utilities
   Install-FdFind
   Install-Curl
   Install-Fzf
   Install-RipGrep
-  Install-Bitwarden
   Install-Bat
   Install-Eza
+
+  # Fonts
+  Install-Fonts
+
+  # Productivity Tools
+  Install-Espanso
+  Install-PowerToys
+  Install-AutoHotkey
+  Install-Flameshot
+
+  # Media & Entertainment
+  Install-Vlc
+  Install-ObsStudio
+
+  # Communication
   Install-Telegram
   Install-WhatsApp
-  Install-Vagrant
-  Install-PowerToys
   Install-Zoom
-  Install-Termius
-  Install-Flameshot
+
+  # Security & Password Management
+  Install-Bitwarden
+
+  # Utilities
   Install-7z
-  Install-Volta
-  Install-AutoHotkey
+  Install-Termius
+
+  # Virtualization
+  Install-Vagrant
 
   # Always run this function last
   Enable-HyperV
