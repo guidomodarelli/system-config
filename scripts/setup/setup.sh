@@ -391,7 +391,7 @@ install_git() {
   fi
 }
 
-install_git_dependencies() {
+install_git_and_dependencies() {
   install_git
 
   install_git_delta
@@ -539,7 +539,7 @@ main() {
   install_exa
   install_fd_find
   install_lazygit
-  install_git_dependencies
+  install_git_and_dependencies
   install_antigen
   install_docker
   install_oh_my_zsh
