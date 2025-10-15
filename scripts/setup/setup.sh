@@ -228,6 +228,7 @@ install_font_iosevka_term_pkg() {
 
 install_fonts() {
   is_windows && return
+
   install_font_jetbrains_mono_pkg
   install_font_dejavu_pkg
   install_font_cascadia_code_pkg
@@ -455,6 +456,7 @@ install_utilities() {
 
 install_vagrant() {
   is_windows && return
+
   if is_ubuntu; then
     wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
