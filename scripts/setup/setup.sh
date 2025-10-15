@@ -438,6 +438,7 @@ main() {
     sudo apt --fix-broken install
   fi
 
+  install_zsh
   install_essencials
   install_utilities
 
@@ -451,7 +452,6 @@ main() {
   install_git_dependencies
   install_antigen
   install_docker
-  install_zsh
   install_oh_my_zsh
   install_vagrant
 
