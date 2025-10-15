@@ -316,7 +316,7 @@ install_xclip() {
 
 install_git_delta() {
   if is_ubuntu; then
-    sudo apt install -y git-delta
+    _brew install git-delta
   elif is_arch; then
     sudo pacman -Sy --noconfirm git-delta
   fi
