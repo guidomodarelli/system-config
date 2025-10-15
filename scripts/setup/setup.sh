@@ -413,6 +413,16 @@ install_yq() {
   fi
 }
 
+ensure_sudo() {
+  command -v sudo >/dev/null 2>&1 || return
+  if [ -z "${SUDO_KEEPALIVE_PID:-}" ]; then
+    sudo -v
+    ( while true; do sudo -n true; sleep 60; done ) &
+    SUDO_KEEPALIVE_PID=$!
+    trap 'kill $SUDO_KEEPALIVE_PID 2>/dev/null' EXIT
+  fi
+}
+
 main() {
   if is_ubuntu; then
     sudo apt update
@@ -461,6 +471,7 @@ if ! is_ubuntu && ! is_arch; then
 fi
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  ensure_sudo
   if [[ -n "$1" ]]; then
     echo "Running $0 $@"
     "$@"
