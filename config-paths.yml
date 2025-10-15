@@ -28,3 +28,7 @@ paths:
     target: WSL://OneDrive/Documents/PowerShell
     onlyFor:
       - wsl: true
+  - path: AutoHotkey/*
+    target: WSL://OneDrive/Desktop
+    onlyFor:
+      - wsl: true
