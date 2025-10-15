@@ -387,8 +387,12 @@ install_neovim() {
 
 install_sdkman() {
   curl -s "https://get.sdkman.io" | bash
-  source "$HOME/.sdkman/bin/sdkman-init.sh"
-  sdk version || true  # Check if SDKMAN! is installed correctly
+  if [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]; then
+    source "$HOME/.sdkman/bin/sdkman-init.sh"
+    sdk version || true
+  else
+    echo "ERROR: SDKMAN installation failed; skipping SDKMAN commands."
+  fi
 }
 
 install_java_by_sdkman() {
