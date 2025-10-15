@@ -219,6 +219,10 @@ function Install-Ghq {
   scoop install ghq
 }
 
+function Install-AutoHotkey {
+  Install-WingetPackages AutoHotkey.AutoHotkey
+}
+
 function Main {
   Install-Scoop
   Install-Ghq
@@ -249,6 +253,7 @@ function Main {
   Install-Flameshot
   Install-7z
   Install-Volta
+  Install-AutoHotkey
 
   # Always run this function last
   Enable-HyperV
