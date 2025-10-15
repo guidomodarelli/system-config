@@ -287,6 +287,8 @@ install_peek() {
 }
 
 install_user_interface_apps() {
+  is_windows && return
+
   install_vlc
   install_wezterm
   install_rofi
