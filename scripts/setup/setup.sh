@@ -426,20 +426,10 @@ install_essentials() {
 }
 
 install_jq() { if is_ubuntu; then sudo apt install -y jq; elif is_arch; then sudo pacman -Sy --noconfirm jq; fi }
-install_fzf_pkg() { if is_ubuntu; then sudo apt install -y fzf; elif is_arch; then sudo pacman -Sy --noconfirm fzf; fi }
-install_ripgrep_pkg() { if is_ubuntu; then sudo apt install -y ripgrep; elif is_arch; then sudo pacman -Sy --noconfirm ripgrep; fi }
-install_bat_pkg() { if is_ubuntu; then sudo apt install -y bat; elif is_arch; then sudo pacman -Sy --noconfirm bat; fi }
-install_zoxide_pkg() { if is_ubuntu; then sudo apt install -y zoxide; elif is_arch; then sudo pacman -Sy --noconfirm zoxide; fi }
-
-install_utilities() {
-  if is_ubuntu; then sudo apt update; fi
-  install_jq
-  install_fzf_pkg
-  install_ripgrep_pkg
-  install_bat_pkg
-  install_zoxide_pkg
-}
-
+install_fzf() { if is_ubuntu; then sudo apt install -y fzf; elif is_arch; then sudo pacman -Sy --noconfirm fzf; fi }
+install_ripgrep() { if is_ubuntu; then sudo apt install -y ripgrep; elif is_arch; then sudo pacman -Sy --noconfirm ripgrep; fi }
+install_batcat() { if is_ubuntu; then sudo apt install -y bat; elif is_arch; then sudo pacman -Sy --noconfirm bat; fi }
+install_zoxide() { if is_ubuntu; then sudo apt install -y zoxide; elif is_arch; then sudo pacman -Sy --noconfirm zoxide; fi }
 
 install_vagrant() {
   is_windows && return
@@ -509,34 +499,49 @@ main() {
     sudo apt --fix-broken install
   fi
 
-  install_zsh
+  # IMPORTANT: Install essential packages first
   install_essentials
+
+  # Install other dependencies that might be needed for subsequent installations
   install_golang
   install_homebrew
   install_sdkman
   install_nvm
 
-  install_utilities
+  # Shell environment
+  install_zsh
+  install_antigen
+  install_oh_my_zsh
 
-  install_neovim
-  install_yq
-  install_fonts
-  install_btop
-  install_xclip
+  # CLI utilities
+  install_jq
+  install_fzf
+  install_ripgrep
+  install_batcat
+  install_zoxide
   install_exa
   install_fd_find
-  install_lazygit
+  install_yq
+  install_btop
+  install_xclip
+
+  # Git tools
   install_git
   install_git_delta
   install_git_filter_repo
-  install_antigen
-  install_docker
-  install_oh_my_zsh
+  install_lazygit
+  install_ghq
+
+  # Development tools
+  install_neovim
+  install_LazyVim
   install_vagrant
   install_java_17-tem
-  install_ghq
+  install_docker
   install_lazydocker
-  install_LazyVim
+
+  # Fonts
+  install_fonts
 }
 
 if ! is_ubuntu && ! is_arch; then
