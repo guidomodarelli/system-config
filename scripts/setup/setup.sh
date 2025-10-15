@@ -366,10 +366,8 @@ install_utilities() {
   if is_ubuntu; then
     sudo apt update
     sudo apt install -y jq fzf ripgrep bat zoxide
-    sudo snap install yq # https://github.com/mikefarah/yq?tab=readme-ov-file#linux-via-snap
   elif is_arch; then
     sudo pacman -Sy --noconfirm jq fzf ripgrep bat zoxide
-    sudo pacman -Sy --noconfirm go-yq # https://github.com/mikefarah/yq?tab=readme-ov-file#arch-linux
   fi
 }
 
@@ -404,6 +402,14 @@ install_difftastic() {
     _brew install difftastic
   elif is_arch; then
     sudo pacman -Sy --noconfirm difftastic
+  fi
+}
+
+install_yq() {
+  if is_ubuntu; then
+    _brew install yq # https://github.com/mikefarah/yq?tab=readme-ov-file#macos--linux-via-homebrew
+  elif is_arch; then
+    sudo pacman -Sy --noconfirm go-yq # https://github.com/mikefarah/yq?tab=readme-ov-file#arch-linux
   fi
 }
 
@@ -446,6 +452,7 @@ main() {
   install_homebrew
   install_neovim
   install_LazyVim
+  install_yq
 }
 
 if ! is_ubuntu && ! is_arch; then
