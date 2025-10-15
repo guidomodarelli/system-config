@@ -296,7 +296,7 @@ get_paths() {
 
   while read -r line; do
     output=$(echo "$output" | jq -c ". + $(process_path_entry "$line" "$selector_override")")
-  done < <(yq ".paths[] | select($selector)" $CONFIG_PATHS_FILE | jq -c '.')
+  done < <(yq eval -o=json ".paths[] | select($selector)" "$CONFIG_PATHS_FILE" | jq -c '.')
 
 
   echo "$output"
