@@ -178,20 +178,19 @@ install_golang() {
   rm -rf $FILE
 }
 
-go_install() {
-  local package="$1"
-  /usr/local/go/bin/go install "$package"
+_go() {
+  /usr/local/go/bin/go "$@"
 }
 
 install_ghq() {
-  go_install github.com/x-motemen/ghq@latest
+  _go install github.com/x-motemen/ghq@latest
 
   mkdir -p $HOME/ghq/work
   mkdir -p $HOME/ghq/projects
 }
 
 install_lazydocker() {
-  go_install github.com/jesseduffield/lazydocker@latest
+  _go install github.com/jesseduffield/lazydocker@latest
 }
 
 install_go_dependencies() {
