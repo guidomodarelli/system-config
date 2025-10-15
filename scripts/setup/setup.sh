@@ -363,7 +363,7 @@ install_zsh() {
   fi
 }
 
-install_essencials() {
+install_essentials() {
   if is_ubuntu; then
     sudo apt install -y build-essential gcc curl wget zip unzip python3-venv
   elif is_arch; then
@@ -439,7 +439,7 @@ main() {
   fi
 
   install_zsh
-  install_essencials
+  install_essentials
   install_utilities
 
   install_user_interface_apps
