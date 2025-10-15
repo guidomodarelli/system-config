@@ -193,11 +193,6 @@ install_lazydocker() {
   _go install github.com/jesseduffield/lazydocker@latest
 }
 
-install_golang_dependencies() {
-  install_ghq
-  install_lazydocker
-}
-
 install_VsCode() {
   is_windows && return
 
@@ -390,13 +385,6 @@ install_git() {
   fi
 }
 
-install_git_and_dependencies() {
-  install_git
-
-  install_git_delta
-  install_git_filter_repo
-}
-
 install_zsh() {
   if command -v zsh >/dev/null 2>&1; then
     echo "zsh already installed; skipping package installation"
@@ -480,7 +468,7 @@ install_sdkman() {
   fi
 }
 
-install_java_by_sdkman() {
+install_java_17-tem() {
   # Requiere que sdkman ya esté cargado en la sesión
   if command -v sdk >/dev/null 2>&1; then
     sdk install java 17.0.14-tem
@@ -525,37 +513,29 @@ main() {
   install_essentials
   install_golang
   install_homebrew
+  install_sdkman
+  install_nvm
 
   install_utilities
 
-  # Install Homebrew and dependencies
   install_neovim
   install_yq
-
-  install_user_interface_apps
   install_fonts
   install_btop
   install_xclip
   install_exa
   install_fd_find
   install_lazygit
-  install_git_and_dependencies
+  install_git
+  install_git_delta
+  install_git_filter_repo
   install_antigen
   install_docker
   install_oh_my_zsh
   install_vagrant
-
-  # Install SDKMAN! and dependencies
-  install_sdkman
-  install_java_by_sdkman
-
-  # Install Golang and dependencies
-  install_golang_dependencies
-
-  # Install NVM and dependencies
-  install_nvm
-  # install_npm_dependencies
-
+  install_java_17-tem
+  install_ghq
+  install_lazydocker
   install_LazyVim
 }
 
