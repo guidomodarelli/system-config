@@ -54,6 +54,35 @@ install_oh_my_zsh() {
   sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 }
 
+install_docker_ce() {
+  is_ubuntu || return
+  sudo apt-get install -y docker-ce
+}
+install_docker_ce_cli() {
+  is_ubuntu || return
+  sudo apt-get install -y docker-ce-cli
+}
+install_containerd_io() {
+  is_ubuntu || return
+  sudo apt-get install -y containerd.io
+}
+install_docker_buildx_plugin() {
+  is_ubuntu || return
+  sudo apt-get install -y docker-buildx-plugin
+}
+install_docker_compose_plugin() {
+  is_ubuntu || return
+  sudo apt-get install -y docker-compose-plugin
+}
+install_docker_arch_engine() {
+  is_arch || return
+  sudo pacman -Sy --noconfirm docker
+}
+install_docker_arch_compose() {
+  is_arch || return
+  sudo pacman -Sy --noconfirm docker-compose
+}
+
 install_docker() {
   if is_ubuntu; then
     # Add Docker's official GPG key:
@@ -69,9 +98,14 @@ install_docker() {
       $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
       sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     sudo apt-get update
-    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    install_docker_ce
+    install_docker_ce_cli
+    install_containerd_io
+    install_docker_buildx_plugin
+    install_docker_compose_plugin
   elif is_arch; then
-    sudo pacman -Sy --noconfirm docker docker-compose
+    install_docker_arch_engine
+    install_docker_arch_compose
   fi
   sleep 3
   sudo systemctl start docker.service
@@ -175,15 +209,31 @@ install_VsCode() {
   fi
 }
 
+install_font_jetbrains_mono_pkg() {
+  if is_ubuntu; then sudo apt install -y fonts-jetbrains-mono; elif is_arch; then sudo pacman -Sy --noconfirm ttf-jetbrains-mono; fi
+}
+install_font_dejavu_pkg() {
+  if is_ubuntu; then sudo apt install -y fonts-dejavu; elif is_arch; then sudo pacman -Sy --noconfirm ttf-dejavu-nerd; fi
+}
+install_font_cascadia_code_pkg() {
+  if is_ubuntu; then sudo apt install -y fonts-cascadia-code; elif is_arch; then sudo pacman -Sy --noconfirm ttf-cascadia-mono-nerd; fi
+}
+install_font_victor_mono_pkg() {
+  if is_arch; then sudo pacman -Sy --noconfirm ttf-victor-mono-nerd; fi
+}
+install_font_iosevka_term_pkg() {
+  if is_arch; then sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd; fi
+  # Ubuntu ya usa función separada para IosevkaTermCurly (fuente manual)
+}
+
 install_fonts() {
   is_windows && return
-
-  if is_ubuntu; then
-    sudo apt install -y fonts-jetbrains-mono fonts-dejavu fonts-cascadia-code
-    # TODO: install Iosevka & Victor Mono
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd ttf-jetbrains-mono ttf-victor-mono-nerd ttf-dejavu-nerd ttf-cascadia-mono-nerd
-  fi
+  install_font_jetbrains_mono_pkg
+  install_font_dejavu_pkg
+  install_font_cascadia_code_pkg
+  install_font_victor_mono_pkg
+  install_font_iosevka_term_pkg
+  # install_font_IosevkaTermCurly  # si se desea instalar la versión manual en Ubuntu
 }
 
 install_vlc() {
@@ -363,29 +413,54 @@ install_zsh() {
   fi
 }
 
+install_build_essential() { is_ubuntu && sudo apt install -y build-essential; }
+install_gcc() { if is_ubuntu; then sudo apt install -y gcc; elif is_arch; then sudo pacman -Sy --noconfirm gcc; fi }
+install_curl_pkg() { if is_ubuntu; then sudo apt install -y curl; elif is_arch; then sudo pacman -Sy --noconfirm curl; fi }
+install_wget_pkg() { if is_ubuntu; then sudo apt install -y wget; elif is_arch; then sudo pacman -Sy --noconfirm wget; fi }
+install_zip_pkg() { if is_ubuntu; then sudo apt install -y zip; elif is_arch; then sudo pacman -Sy --noconfirm zip; fi }
+install_unzip_pkg() { if is_ubuntu; then sudo apt install -y unzip; elif is_arch; then sudo pacman -Sy --noconfirm unzip; fi }
+install_python3_venv() { is_ubuntu && sudo apt install -y python3-venv; }
+install_yay() { is_arch && sudo pacman -Sy --noconfirm yay || true; }
+install_base_devel() { is_arch && sudo pacman -Sy --noconfirm base-devel || true; }
+
 install_essentials() {
-  if is_ubuntu; then
-    sudo apt install -y build-essential gcc curl wget zip unzip python3-venv
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm yay base-devel gcc curl wget zip unzip
-  fi
+  install_build_essential
+  install_gcc
+  install_curl_pkg
+  install_wget_pkg
+  install_zip_pkg
+  install_unzip_pkg
+  install_python3_venv
+  install_yay
+  install_base_devel
 }
 
+install_jq() { if is_ubuntu; then sudo apt install -y jq; elif is_arch; then sudo pacman -Sy --noconfirm jq; fi }
+install_fzf_pkg() { if is_ubuntu; then sudo apt install -y fzf; elif is_arch; then sudo pacman -Sy --noconfirm fzf; fi }
+install_ripgrep_pkg() { if is_ubuntu; then sudo apt install -y ripgrep; elif is_arch; then sudo pacman -Sy --noconfirm ripgrep; fi }
+install_bat_pkg() { if is_ubuntu; then sudo apt install -y bat; elif is_arch; then sudo pacman -Sy --noconfirm bat; fi }
+install_zoxide_pkg() { if is_ubuntu; then sudo apt install -y zoxide; elif is_arch; then sudo pacman -Sy --noconfirm zoxide; fi }
+
 install_utilities() {
-  if is_ubuntu; then
-    sudo apt update
-    sudo apt install -y jq fzf ripgrep bat zoxide
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm jq fzf ripgrep bat zoxide
-  fi
+  if is_ubuntu; then sudo apt update; fi
+  install_jq
+  install_fzf_pkg
+  install_ripgrep_pkg
+  install_bat_pkg
+  install_zoxide_pkg
 }
+
 
 install_vagrant() {
   is_windows && return
-
-  wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-  sudo apt update && sudo apt install -y vagrant
+  if is_ubuntu; then
+    wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+    sudo apt update && sudo apt install -y vagrant
+  elif is_arch; then
+    # Opcional: implementar instalación en Arch (ej: sudo pacman -Sy --noconfirm vagrant)
+    echo "Vagrant no implementado para Arch en este script."
+  fi
 }
 
 install_neovim() {
@@ -398,12 +473,17 @@ install_sdkman() {
     source "$HOME/.sdkman/bin/sdkman-init.sh"
     sdk version || true
   else
-    echo "ERROR: SDKMAN installation failed; skipping SDKMAN commands."
+    echo "ERROR: SDKMAN no se instaló correctamente."
   fi
 }
 
 install_java_by_sdkman() {
-  sdk install java 17.0.14-tem
+  # Requiere que sdkman ya esté cargado en la sesión
+  if command -v sdk >/dev/null 2>&1; then
+    sdk install java 17.0.14-tem
+  else
+    echo "sdk no disponible; omitiendo instalación de Java."
+  fi
 }
 
 install_difftastic() {
