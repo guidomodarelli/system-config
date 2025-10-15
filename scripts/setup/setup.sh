@@ -193,7 +193,7 @@ install_lazydocker() {
   _go install github.com/jesseduffield/lazydocker@latest
 }
 
-install_go_dependencies() {
+install_golang_dependencies() {
   install_ghq
   install_lazydocker
 }
@@ -524,6 +524,7 @@ main() {
   install_zsh
 
   install_essentials
+  install_golang
   install_utilities
 
   # Install Homebrew and dependencies
@@ -549,8 +550,7 @@ main() {
   install_java_by_sdkman
 
   # Install Golang and dependencies
-  install_golang
-  install_go_dependencies
+  install_golang_dependencies
 
   # Install NVM and dependencies
   install_nvm
