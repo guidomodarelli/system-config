@@ -522,13 +522,13 @@ main() {
   fi
 
   install_zsh
-
   install_essentials
   install_golang
+  install_homebrew
+
   install_utilities
 
   # Install Homebrew and dependencies
-  install_homebrew
   install_neovim
   install_yq
 
