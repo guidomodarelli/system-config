@@ -89,6 +89,7 @@ install_nvm() {
 }
 
 install_npm_dependencies() {
+  echo "Installing npm dependencies"
 }
 
 install_font() {
