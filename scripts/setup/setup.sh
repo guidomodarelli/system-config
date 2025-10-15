@@ -439,8 +439,14 @@ main() {
   fi
 
   install_zsh
+
   install_essentials
   install_utilities
+
+  # Install Homebrew and dependencies
+  install_homebrew
+  install_neovim
+  install_yq
 
   install_user_interface_apps
   install_fonts
@@ -467,11 +473,7 @@ main() {
   install_nvm
   # install_npm_dependencies
 
-  # Install Homebrew and dependencies
-  install_homebrew
-  install_neovim
   install_LazyVim
-  install_yq
 }
 
 if ! is_ubuntu && ! is_arch; then
