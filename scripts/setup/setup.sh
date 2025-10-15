@@ -346,12 +346,21 @@ install_git_dependencies() {
 }
 
 install_zsh() {
-  if is_ubuntu; then
-    sudo apt install -y zsh
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm zsh
+  if command -v zsh >/dev/null 2>&1; then
+    echo "zsh already installed; skipping package installation"
+  else
+    if is_ubuntu; then
+      sudo apt install -y zsh
+    elif is_arch; then
+      sudo pacman -Sy --noconfirm zsh
+    fi
   fi
-  chsh -s $(which zsh)
+
+  local desired_shell
+  desired_shell="$(command -v zsh || true)"
+  if [ -n "$desired_shell" ] && [ "$SHELL" != "$desired_shell" ]; then
+    sudo chsh -s "$desired_shell" "$USER"
+  fi
 }
 
 install_essencials() {
