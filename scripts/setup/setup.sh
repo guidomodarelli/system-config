@@ -171,7 +171,7 @@ install_espanso() {
 
 install_golang() {
   # https://go.dev/dl/
-  local GO_VERSION="1.23.6"
+  local GO_VERSION="1.25.3"
   local FILE="go${GO_VERSION}.linux-amd64.tar.gz"
   curl -LO https://go.dev/dl/$FILE
   sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $FILE
