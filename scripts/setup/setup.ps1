@@ -180,14 +180,35 @@ function Install-Vagrant {
   Install-WingetPackages Hashicorp.Vagrant
 }
 
+function Test-HyperVAvailability {
+  try {
+    $feature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -ErrorAction Stop
+    return $feature.State -ne 'NotPresent'
+  } catch {
+    return $false
+  }
+}
+
 function Enable-HyperV {
   Write-InfoMessage "Enabling Hyper-V..."
-  # https://learn.microsoft.com/es-es/windows-server/virtualization/hyper-v/get-started/Install-Hyper-V?pivots=windows#enable-hyper-v-using-powershell
+  if (-not (Test-HyperVAvailability)) {
+    Write-WarningMessage "Hyper-V is not available on this Windows edition."
+    return
+  }
   try {
-    Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
-    Write-SuccessMessage "Hyper-V has been enabled successfully."
+    $feature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -ErrorAction Stop
+    if ($feature.State -eq 'Enabled') {
+      Write-WarningMessage "Hyper-V is already enabled."
+      return
+    }
+    $result = Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All -NoRestart -ErrorAction Stop
+    if ($result.RestartNeeded) {
+      Write-SuccessMessage "Hyper-V has been enabled successfully. A restart is required to complete the installation."
+    } else {
+      Write-SuccessMessage "Hyper-V has been enabled successfully."
+    }
   } catch {
-    Write-ErrorMessage "Failed to enable Hyper-V. Please check your system settings."
+    Write-ErrorMessage ("Failed to enable Hyper-V. {0}" -f $_.Exception.Message)
   }
 }
 
