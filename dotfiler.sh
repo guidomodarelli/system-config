@@ -69,6 +69,19 @@ remove_old_symlink() {
 # Get the current WSL distribution name
 get_wsl_distro_name() {
   if [ $(is_wsl) = "true" ]; then
+    if [ -n "$WSL_DISTRO_NAME" ]; then
+      echo "$WSL_DISTRO_NAME"
+      return 0
+    fi
+
+  local win_root
+  win_root=$(wslpath -w / 2>/dev/null)
+  local distro_regex='^\\\\wsl(\\\\.localhost)?\\\\([^\\\\]+)\\\\'
+  if [[ $win_root =~ $distro_regex ]]; then
+      echo "${BASH_REMATCH[2]}"
+      return 0
+    fi
+
     grep -oP '(?<=^NAME=").*(?=")' /etc/os-release | tr -d '\r\n'
   fi
 }
