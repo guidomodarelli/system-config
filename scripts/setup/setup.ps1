@@ -216,7 +216,7 @@ function Install-Volta {
 }
 
 function Install-Ghq {
-  scoop install ghq
+  Install-WingetPackages x-motemen.ghq
 }
 
 function Install-AutoHotkey {
