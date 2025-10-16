@@ -225,7 +225,7 @@ function Install-AutoHotkey {
 
 function Main {
   # Package Managers
-  Install-Scoop
+  # Install-Scoop
   Install-Choco
 
   # Development Tools
