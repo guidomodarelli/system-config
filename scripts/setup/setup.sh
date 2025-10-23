@@ -483,6 +483,14 @@ install_yq() {
   fi
 }
 
+install_win32yank() {
+  # Install win32yank in WSL
+  sudo apt install wget -y
+  wget https://github.com/equalsraf/win32yank/releases/download/v0.1.1/win32yank-x64.zip
+  unzip win32yank-x64.zip -d ~/.local/bin/
+  chmod +x ~/.local/bin/win32yank.exe
+}
+
 ensure_sudo() {
   command -v sudo >/dev/null 2>&1 || return
   if [ -z "${SUDO_KEEPALIVE_PID:-}" ]; then
@@ -524,6 +532,8 @@ main() {
   install_yq
   install_btop
   install_xclip
+  install_difftastic
+  install_win32yank
 
   # Git tools
   install_git
