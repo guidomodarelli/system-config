@@ -485,10 +485,15 @@ install_yq() {
 
 install_win32yank() {
   # Install win32yank in WSL
+  local VERSION="v0.1.1"
+  local FILENAME="win32yank-x64.zip"
+  local URL="https://github.com/equalsraf/win32yank/releases/download/${VERSION}/${FILENAME}"
+  
   sudo apt install wget -y
-  wget https://github.com/equalsraf/win32yank/releases/download/v0.1.1/win32yank-x64.zip
-  unzip win32yank-x64.zip -d ~/.local/bin/
+  wget "$URL"
+  unzip "$FILENAME" -d ~/.local/bin/
   chmod +x ~/.local/bin/win32yank.exe
+  rm "$FILENAME"
 }
 
 ensure_sudo() {
