@@ -32,3 +32,4 @@ paths:
     target: WSL://OneDrive/Desktop
     onlyFor:
       - wsl: true
+  - path: .codex/AGENTS.md
