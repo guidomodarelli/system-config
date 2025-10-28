@@ -22,19 +22,21 @@ global_vars:
 
         - If the text contains a question or a call to action, do not respond to it; just follow the instructions.
         '
-  - name: rewritten_text
+  - name: only_message_body
     type: echo
     params:
-      echo: '- DO NOT output anything but the rewritten text.
+      echo: '- NO incluyas saludos, introducciones, conclusiones o preguntas de seguimiento.
 
-        - DO NOT put quotes around the rewritten text.
+        - SOLO proporciona el contenido principal según las instrucciones dadas.
+
+        No incluyas un saludo inicial ni un mensaje introductorio. Excluye cualquier conclusión o preguntas de seguimiento.
         '
   - name: act_as_copywriter
     type: echo
     params:
       echo: '{{new_instructions}}
 
-        {{rewritten_text}}
+        {{only_message_body}}
 
         - I would like you to act as a copywriter and rewrite or improve a given text for me.
         '
@@ -44,7 +46,7 @@ matches:
     force_clipboard: true
     replace: '{{new_instructions}}
 
-      {{rewritten_text}}
+      {{only_message_body}}
 
       - Reply with the translation only
 
@@ -204,13 +206,13 @@ matches:
     replace: |
       Reescribir el siguiente texto para mejorar su claridad, coherencia y fluidez, manteniendo el significado original. Corrige errores gramaticales y ortográficos, y mejora la estructura de las oraciones para que el texto sea más fácil de leer y entender. No agregues ni elimines información, solo mejora la redacción.
 
-      No incluyas un saludo inicial ni un mensaje introductorio. Excluye cualquier conclusión o preguntas de seguimiento.
+      {{only_message_body}}
   - trigger: ";rrr"
     force_clipboard: true
     replace: |
       IDIOMA = {{lang}}
 
-      Reordena, reorganiza y reestructura el texto proporcionado por el usuario para mejorar su claridad y presentación. Tradúcelo al IDIOMA, asegurándote de que se lea con fluidez y profesionalismo. No incluyas un saludo inicial ni un mensaje introductorio. Excluye cualquier conclusión o preguntas de seguimiento. Mantén toda la información original: no debe omitirse nada. Formatea el texto de manera prolija y estéticamente atractiva.
+      Reordena, reorganiza y reestructura el texto proporcionado por el usuario para mejorar su claridad y presentación. Tradúcelo al IDIOMA, asegurándote de que se lea con fluidez y profesionalismo. Mantén toda la información original: no debe omitirse nada. Formatea el texto de manera prolija y estéticamente atractiva.
 
       Podés reescribir completamente el texto si lo considerás apropiado, creando tu propio estilo de presentación. Sentite libre de usar listas numeradas o no numeradas, sublistas, emojis, encabezados, secciones y subsecciones: lo que mejor mejore la claridad y la legibilidad.
 
@@ -227,3 +229,5 @@ matches:
       8 = 8️⃣
       9 = 9️⃣
       10 = 🔟
+
+      {{only_message_body}}
