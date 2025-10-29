@@ -29,7 +29,9 @@ global_vars:
 
         - SOLO proporciona el contenido principal según las instrucciones dadas.
 
-        No incluyas un saludo inicial ni un mensaje introductorio. Excluye cualquier conclusión o preguntas de seguimiento.
+        - Excluye cualquier saludo inicial, mensaje introductorio o preguntas de seguimiento.
+
+
         '
   - name: act_as_copywriter
     type: echo
@@ -53,8 +55,9 @@ matches:
       - I would like you to translate the following text to {{lang}}, or echo text as is if already in {{lang}}. Respect the original text format.
 
 
-
       [TEXT TO TRANSLATE]:
+
+
 
       '
 
@@ -71,6 +74,7 @@ matches:
       [TEXT TO REWRITE]:
 
 
+
       '
   - trigger: ";rew"
     force_clipboard: true
@@ -83,6 +87,7 @@ matches:
 
 
       [TEXT TO REWRITE]:
+
 
 
       '
@@ -159,15 +164,6 @@ matches:
               id: Change the style as if it were written by a third person, but directed directly towards me. Letter addressed to me in an informal manner. Do not add any initial introduction or final greeting.
             - label: ORGANIZE KEY POINTS
               id: From this conversation, extract and organize the key points grouped by topics, next steps, conclusions, and any additional relevant notes.
-
-      - name: lang
-        type: choice
-        params:
-          values:
-            - label: 1. Spanish
-              id: Spanish
-            - label: 2. English
-              id: English
 
   - trigger: ";winfile"
     force_clipboard: true
