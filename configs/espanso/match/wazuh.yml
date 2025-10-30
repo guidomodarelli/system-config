@@ -11,7 +11,8 @@ matches:
     label: "[Wazuh] Format"
     force_clipboard: true
     replace: |
-      BRANCH=$(git branch | grep -v $(git branch --show-current) | sed -E 's/\\*?[ ]+//g' | grep -vE '[0-9]+-' | fzf --prompt='Select branch to format against: ')
+      command -v fzf >/dev/null 2>&1 || echo "Warning: fzf is not installed" && \
+      BRANCH=$(git branch | grep -v $(git branch --show-current) | sed -E 's/\\*?[ ]+//g' | grep -vE '[0-9]+-' | fzf --prompt='Select branch to format against: ') && \
       git diff --name-only $(git merge-base HEAD $BRANCH) HEAD | xargs -I{} bash -c 'cd $(git rev-parse --show-toplevel) && npx prettier --write {} --config .prettierrc'
   - triggers: [";wz", ";wdaily"]
     label: "[Wazuh] Daily Report"
