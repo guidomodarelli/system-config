@@ -1,5 +1,4 @@
 # Generic selector utilities (shared by git/docker/wazuh selectors)
-# Dependencias asumidas: logCyan, logGray, styleText, fzf, column
 # API:
 # selector_list <descriptions_fn>
 #   Llama a la función <descriptions_fn> que debe emitir lineas 'func|descripcion'
