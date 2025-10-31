@@ -30,7 +30,7 @@ selector_fzf() {
   local list
   list=$(selector_list "$desc_fn") || return 0
   local selected
-  selected=$(echo "$list" | fzf --ansi --prompt "${prompt} " --header "$header" --query="'")
+  selected=$(echo "$list" | fzf --ansi --prompt "${prompt} " --header "$header" --query="'" --height="${FZF_DROPDOWN_HEIGHT:-55%}" --layout=reverse --border=rounded)
   [[ -z "$selected" ]] && return 0
   echo "$selected" | awk '{print $1}' | sed -E 's!\x1B\[[0-9;]*[A-Za-z]!!g'
 }
