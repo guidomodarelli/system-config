@@ -99,11 +99,10 @@ list_docker_containers_status() {
   } | column -t -s ':'
 }
 
-docker_ps_table() {
+docker_ps() {
   @Dps "$@"
 }
 
-# Provide actual body (moved from @Dps)
 @Dps() {
   output="$(printf "$(format_Header_Container_Id)&$(format_Header_Names)&$(format_Header_Status)&$(format_Header_Image)&$(format_Header_Ports)")"
   output+="$BREAK_LINE\n"
@@ -119,16 +118,14 @@ docker_ps_table() {
 docker_container_table_formatter() {
   docker_table_formatter "$@"
 }
-# Actual body (moved from docker_table_formatter)
-docker_table_formatter() {
+@Dcontainers() {
   docker ps -a --format "table $(format_Id)\t$(format_Names)\t$(format_Status)\t$(format_Image)" | tail +2
 }
 
 docker_image_table_formatter() {
   docker_images_table_formatter "$@"
 }
-# Actual body (moved from docker_images_table_formatter)
-docker_images_table_formatter() {
+@Dimages() {
   docker images --format "table $(format_Id)\t$(format_Repository)\t$(format_Tag)" | tail +2
 }
 
@@ -205,7 +202,7 @@ docker_images_remove() { @Drmi "$@"; }
 __docker_get_descriptions() {
   cat <<'__EOF__'
 docker_containers_status_summary|resumen estado de contenedores
-docker_ps_table|tabla docker ps formateada
+docker_ps|tabla docker ps formateada
 docker_container_table_formatter|tabla base contenedores (IDs)
 docker_image_table_formatter|tabla base imágenes
 docker_containers_show_ips|mostrar IPs de contenedores
