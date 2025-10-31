@@ -10,7 +10,7 @@
 
     BRANCH=$(git branch | grep -v $(git branch --show-current) | sed -E 's!\\*?[ ]+!!g' | grep -vE '[0-9]+-' | fzf --prompt='Select branch to format against: ')
 
-    git diff --name-only $(git merge-base HEAD $BRANCH) HEAD | xargs -I{} $BIN_PRETTIER --write {} --config .prettierrc
+    git diff --name-status $(git merge-base HEAD $BRANCH) HEAD | grep -vE "^D" | xargs -I{} $BIN_PRETTIER --write {} --config .prettierrc
 
   popd
 }
