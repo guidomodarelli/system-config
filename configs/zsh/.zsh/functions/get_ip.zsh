@@ -1,4 +1,4 @@
-ip4() {
+ipv4() {
   ip -f inet -4 -json a | jq -r '
     .[]                                       # recorre cada interfaz
     | select(.ifname | test("^eth[0-9]+$"))   # solo eth + número
