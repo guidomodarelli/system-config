@@ -32,5 +32,5 @@ selector_fzf() {
   local selected
   selected=$(echo "$list" | fzf --ansi --prompt "${prompt} " --header "$header" --query="'")
   [[ -z "$selected" ]] && return 0
-  echo "$selected" | awk '{print $1}' | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g'
+  echo "$selected" | awk '{print $1}' | sed -E 's¦\x1B\[[0-9;]*[A-Za-z]¦¦g'
 }

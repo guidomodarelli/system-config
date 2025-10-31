@@ -34,13 +34,13 @@ shift $(expr $OPTIND - 1)
 git branch $git_option \
 | {
   if [[ "$include_current_branch" == "1" ]]; then
-    sed 's/^\*//'
+    sed 's¦^\*¦¦'
   else
     # remove current branch name
     grep -v '^\*'
   fi
 } \
-| sed 's/^  *//'
+| sed 's¦^  *¦¦'
 
 # Local Variables:
 # mode: Shell-Script

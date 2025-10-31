@@ -63,4 +63,4 @@ paths=(
 	$ANDROID_HOME/emulator
 )
 
-export PATH=$PATH:$(echo ${paths[@]} | sed 's/ /:/g')
+export PATH=$PATH:$(echo ${paths[@]} | sed 's¦ ¦:¦g')

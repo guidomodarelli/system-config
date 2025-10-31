@@ -11,5 +11,5 @@ matches:
   - trigger: ";retext"
     replace: "{{text_only_regex}}"
   - trigger: ";tts"
-    replace: TEXT='' ; edge-tts --write-media "$(echo $TEXT | head -1).mp3" --voice es-US-AlonsoNeural --pitch=-10Hz --rate=+25% --text "$(echo $TEXT | sed 's;**;;g' | sed "s~{{text_only_regex}}~~g" | sed 's~^#+ ~~g')"
+    replace: TEXT='' ; edge-tts --write-media "$(echo $TEXT | head -1).mp3" --voice es-US-AlonsoNeural --pitch=-10Hz --rate=+25% --text "$(echo $TEXT | sed 's¦**¦¦g' | sed "s¦{{text_only_regex}}¦¦g" | sed 's¦^#+ ¦¦g')"
 
