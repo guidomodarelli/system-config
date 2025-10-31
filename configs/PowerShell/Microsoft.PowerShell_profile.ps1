@@ -65,7 +65,7 @@ function cx {
     } else {
         $cmd += @('--sandbox','workspace-write','--ask-for-approval','on-failure')
     }
-    $cmd += '--search'
+    $cmd += '--enable web_search_request'
     if ($rest.Count -gt 0) {
         $cmd += $rest.ToArray()
     }

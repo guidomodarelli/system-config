@@ -44,7 +44,7 @@ cx() {
   else
     cmd+=(--sandbox workspace-write --ask-for-approval on-failure)
   fi
-  cmd+=(--search "${rest[@]}")
+  cmd+=(--enable web_search_request "${rest[@]}")
   "${cmd[@]}"
 }
 
