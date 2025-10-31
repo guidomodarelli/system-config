@@ -7,6 +7,13 @@
 # selector_fzf <descriptions_fn> <prompt> <header>
 #   Devuelve el nombre limpio de la función seleccionada (stdout) o vacío si cancelado.
 
+# Prints a formatted list of functions and their descriptions using a descriptor function.
+# Arguments:
+#   $1 - Name of a function that outputs lines in the format "function_name|description".
+# Output:
+#   Prints a colorized, column-aligned list of function names and descriptions.
+# Returns:
+#   0 if successful, 1 if the descriptor function is not found.
 selector_list() {
   local desc_fn="$1"
   if ! typeset -f "$desc_fn" >/dev/null; then
