@@ -82,12 +82,12 @@ git_unstage() {
 
 @Gassume_unchanged_list() { git_assume_unchanged_list "$@"; }
 git_assume_unchanged_list() {
-  git ls-files -v | grep '^[a-z]' | sed 's¦^[a-z] ¦¦g'
+  git ls-files -v | grep '^[a-z]' | sed 's!^[a-z] !!g'
 }
 
 @Gskip_worktree_list() { git_skip_worktree_list "$@"; }
 git_skip_worktree_list() {
-  git ls-files -v | grep '^S' | sed 's¦^S ¦¦g'
+  git ls-files -v | grep '^S' | sed 's!^S !!g'
 }
 
 @Gpatch_create() { git_patch_create "$@"; }

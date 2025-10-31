@@ -3,11 +3,11 @@
 #   Regulaer expressions for grep
 
 # replace / with \/
-local base_path="$(git rev-parse --show-cdup | sed 's¦/¦\\/¦g')"
-local sed_replace='s¦"¦¦g¦ s¦\\303\\241¦á¦g¦ s¦\\303\\251¦é¦g¦ s¦\\303\\255¦í¦g¦ s¦\\303\\263¦ó¦g¦ s¦\\303\\272¦ú¦g¦ s¦\\303\\261¦ñ¦g¦ s¦\\302\\277¦¿¦g¦'
+local base_path="$(git rev-parse --show-cdup | sed 's!/!\\/!g')"
+local sed_replace='s!"!!g! s!\\303\\241!á!g! s!\\303\\251!é!g! s!\\303\\255!í!g! s!\\303\\263!ó!g! s!\\303\\272!ú!g! s!\\303\\261!ñ!g! s!\\302\\277!¿!g!'
 
 git status --porcelain |
-  sed "s¦^\(..\) ¦\1\t${base_path}¦" |  # convert file path to relative path
+  sed "s!^\(..\) !\1\t${base_path}!" |  # convert file path to relative path
   sed -E "$sed_replace" |
   grep "^$1"
 

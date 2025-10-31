@@ -10,7 +10,7 @@ if [[ -n "$buffer" ]]; then
     # buffer ends with space
     :
   else
-    local trim_buffer="$(echo $buffer | sed 's¦^  *¦¦' | sed 's¦  *$¦¦')"
+    local trim_buffer="$(echo $buffer | sed 's!^  *!!' | sed 's!  *$!!')"
     local last_argument="${trim_buffer##* }"
 
     # get dirname

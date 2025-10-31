@@ -112,7 +112,7 @@ docker_ps_table() {
   local default_ipv4_address="0.0.0.0"
   local ipv6_address="\[?::\]?:$port_ranges->$port_ranges(/$protocol)?"
   output+="$(docker ps -a --format "$(format_Id)&$(format_Names)&$(format_Status)&$(format_Image)&$(format_Ports) $BREAK_LINE" |
-    sed -E "s¦$ipv6_address¦¦g; s¦([, ]+)+¦ ¦g; s¦,\n¦¦g; s¦${default_ipv4_address}:¦¦g")"
+    sed -E "s!$ipv6_address!!g; s!([, ]+)+! !g; s!,\n!!g; s!${default_ipv4_address}:!!g")"
   echo "$output" | column -t -s '&'
 }
 
