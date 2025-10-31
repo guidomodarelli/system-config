@@ -6,11 +6,13 @@ __wzstart_exec() {
   done | anyframe-action-put
 }
 
+@WWstart() { wzstart "$@"; }
 wzstart() { __wzstart_exec " --no-base-path"; }
 
+@WWstart-with-base-path() { wzstart-base-path "$@"; }
 wzstart-base-path() { __wzstart_exec ""; }
 
-# --- Master selector (@W) ---
+# --- Master selector (@WW) ---
 __wazuh_get_descriptions() {
   cat <<'__EOF__'
 wzstart|iniciar yarn start en contenedor wazuh/osd seleccionado
@@ -18,8 +20,8 @@ wzstart-base-path|iniciar yarn start (con base path) en contenedor wazuh/osd sel
 __EOF__
 }
 
-@W() {
-  # Uso: @W -l (lista) | @W (interactivo)
+@WW() {
+  # Uso: @WW -l (lista) | @WW (interactivo)
   if [[ "$1" == "-l" ]]; then
     selector_list __wazuh_get_descriptions
     return 0
