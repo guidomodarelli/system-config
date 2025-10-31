@@ -105,15 +105,15 @@ docker_ps_table() {
 
 # Provide actual body (moved from @Dps)
 @Dps() {
-  output="$(printf "$(format_Header_Container_Id)@$(format_Header_Names)@$(format_Header_Status)@$(format_Header_Image)@$(format_Header_Ports)")"
+  output="$(printf "$(format_Header_Container_Id)&$(format_Header_Names)&$(format_Header_Status)&$(format_Header_Image)&$(format_Header_Ports)")"
   output+="$BREAK_LINE\n"
   local port_ranges="[0-9]+(-[0-9]+)?"
   local protocol="(tcp|udp)"
   local default_ipv4_address="0.0.0.0"
   local ipv6_address="\[?::\]?:$port_ranges->$port_ranges(/$protocol)?"
-  output+="$(docker ps -a --format "$(format_Id)@$(format_Names)@$(format_Status)@$(format_Image)@$(format_Ports) $BREAK_LINE" |
+  output+="$(docker ps -a --format "$(format_Id)&$(format_Names)&$(format_Status)&$(format_Image)&$(format_Ports) $BREAK_LINE" |
     sed -E "s¦$ipv6_address¦¦g; s¦([, ]+)+¦ ¦g; s¦,\n¦¦g; s¦${default_ipv4_address}:¦¦g")"
-  echo "$output" | column -t -s '@'
+  echo "$output" | column -t -s '&'
 }
 
 docker_container_table_formatter() {
