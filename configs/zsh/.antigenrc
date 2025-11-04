@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Ensure antigen is available (download once if missing)
 if [ ! -e "$HOME"/antigen.zsh ]; then
 	curl -L git.io/antigen >antigen.zsh
 fi
@@ -18,6 +19,7 @@ antigen bundle kutsan/zsh-system-clipboard
 antigen bundle $HOME/system-config/configs/anyframe --no-local-clone
 antigen bundle zsh-users/zsh-autosuggestions
 antigen bundle zsh-users/zsh-completions
+# Keep syntax highlighting last for best latency
 antigen bundle zsh-users/zsh-syntax-highlighting
 
 # Tell antigen that you're done
