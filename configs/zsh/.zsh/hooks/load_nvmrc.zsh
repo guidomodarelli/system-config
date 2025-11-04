@@ -1,19 +1,16 @@
-# Auto usar nvm al entrar a un directorio con .nvmrc
+# Auto usar nvm al entrar a un directorio con .nvmrc (silencioso y perezoso)
 autoload -U add-zsh-hook
 
 load_nvmrc() {
-  if [[ -f .nvmrc ]]; then
-    echo "🔍 Archivo $(logYellow .nvmrc) encontrado"
-    local node_version=$(nvm version) # Obtiene la versión actual de Node
-    local nvmrc_version=$(cat .nvmrc)
-
-    echo "📋 Versión requerida: $(logGreen -i $nvmrc_version)"
-    echo "🔄 Verificando versión de Node.js..."
-    # Si la versión de Node actual no coincide con .nvmrc
-    if [[ "$node_version" != "$(nvm version "$nvmrc_version")" ]]; then
-      echo "🚀 Cargando Node.js $(logGreen -i v$nvmrc_version)..."
-      nvm use || nvm install
-    fi
+  [[ -f .nvmrc ]] || return 0
+  # Defer a los stubs de nvm: se cargará solo cuando se invoque
+  local current required
+  required=$(< .nvmrc)
+  # Si nvm aún no está cargado, la primera llamada lo inicializa
+  current=$(nvm version 2>/dev/null)
+  if [[ "$current" != "$(nvm version "$required" 2>/dev/null)" ]]; then
+    echo "🚀 Cargando Node.js $(logGreen -i v$required)..."
+    nvm use --silent >/dev/null 2>&1 || nvm install --silent >/dev/null 2>&1 || true
   fi
 }
 
