@@ -1,15 +1,30 @@
 # See https://smarttech101.com/zsh-highlighting-autosuggestion-themes-binding-alias-fzf/
-ZSH_HOME=$HOME/.zsh
+ZSH_HOME="$HOME/.zsh"
 ZSH_THEME="murilasso"
-ZSH=$HOME/.oh-my-zsh
+ZSH="$HOME/.oh-my-zsh"
 
-source $HOME/.antigenrc
+# ---- Early startup optimizations (must run before plugin manager) ----
+# Cache and compdump paths used by Oh My Zsh's completion init
+export ZSH_CACHE_DIR="${ZSH_CACHE_DIR:-$HOME/.cache/oh-my-zsh}"
+export ZSH_COMPDUMP="$ZSH_CACHE_DIR/zcompdump-$HOST-$ZSH_VERSION"
+export ZSH_DISABLE_COMPFIX=true
+
+# Load completion styles and fpath BEFORE oh-my-zsh runs compinit
+if [ -f "$ZSH_HOME/completions.zsh" ]; then
+  source "$ZSH_HOME/completions.zsh"
+fi
+
+# ---- Plugins via Antigen And Oh My Zsh ----
+source "$HOME/.antigenrc"
 source $ZSH/oh-my-zsh.sh
 
-files="$(cd "$ZSH_HOME" && find . -type f | grep -E "^.+\.zsh$" | sort)"
+# ---- Load the rest of user config ----
+# Source all .zsh files from ~/.zsh except the early-loaded completions.zsh
+if [ -d "$ZSH_HOME" ]; then
+  while read file; do
+    [ "$(basename "$file")" = "completions.zsh" ] && continue
+    fullpath=$(cd "$ZSH_HOME" && realpath "$file")
 
-while read file; do
-  fullpath=$(cd "$ZSH_HOME" && realpath "$file")
-
-  source "$fullpath"
-done <<<"$files"
+    source "$fullpath"
+  done < <(cd "$ZSH_HOME" && find . -type f -name "*.zsh" -print | sort)
+fi
