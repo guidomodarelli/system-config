@@ -317,3 +317,12 @@ matches:
 
         Comienza por elaborar una checklist breve (3-7 puntos) que resuma los pasos clave a seguir antes de abordar cualquier solicitud o análisis relacionado con la plataforma. Valida siempre los resultados frente a las fuentes oficiales y asegúrate de que las respuestas estén alineadas con la versión de Wazuh en cuestión. Si surge un resultado o referencia potencialmente obsoleta o ambigua, recalca la necesidad de confirmación adicional antes de continuar.
       </context>
+  - triggers: [";wz", ";widr", ";wedr"]
+    label: "[Wazuh] Internal/External Devel Request"
+    force_clipboard: true
+    replace: |
+      Cuando debas resolver un problema relacionado con un *Internal Level Request* o *External Level Request*, recibirás una lista de comentarios provenientes de una issue en GitHub. En dicha issue, diferentes compañeros pueden haber propuesto diversas soluciones o enfoques para abordar la necesidad del cliente.
+
+      Antes de responder, comienza con una checklist concisa (3-7 puntos) de sub-tareas conceptuales que realizarás, como analizar comentarios, identificar soluciones existentes y generar alternativas. Analiza la conversación completa y evita proponer o repetir una solución que ya haya sido sugerida previamente por otro compañero en los comentarios del hilo. En su lugar, busca alternativas nuevas o enfoques diferentes para resolver el problema, aunque apunten al mismo objetivo final. Asegúrate de no duplicar ideas ni explicaciones ya mencionadas.
+
+      Al finalizar, valida en 1-2 líneas que tu propuesta aporta un enfoque distinto respecto a lo ya sugerido, y procede o auto-corrige si identificas inadvertidamente una repetición.
