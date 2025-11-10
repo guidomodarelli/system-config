@@ -174,7 +174,7 @@ matches:
     replace: |
       {{act_as_copywriter}}
 
-      [HOW TO REWRITE]: Reescribir el siguiente texto para mejorar su claridad, coherencia y fluidez, manteniendo el significado original. Corrige errores gramaticales y ortográficos, y mejora la estructura de las oraciones para que el texto sea más fácil de leer y entender. No agregues ni elimines información, solo mejora la redacción.
+      [HOW TO REWRITE]: Reescribir el siguiente texto para mejorar su claridad, coherencia y fluidez, manteniendo el significado original y el estilo de lenguaje (formal/informal/coloquial). Corrige errores gramaticales y ortográficos, y mejora la estructura de las oraciones para que el texto sea más fácil de leer y entender. No agregues ni elimines información, solo mejora la redacción.
 
       {{only_message_body}}
 
