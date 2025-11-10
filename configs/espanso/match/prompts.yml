@@ -149,7 +149,7 @@ matches:
 
   - trigger: ";sug"
     force_clipboard: true
-    replace: >
+    replace: |
       {{act_as_copywriter}}
 
       [HOW TO REWRITE]: {{how_to_rewrite}}
@@ -169,8 +169,9 @@ matches:
               id: Help me suggest a descriptive issue title for the description I provide below. The title should be concise and summarize the main problem or feature request.
   - trigger: ";res"
     force_clipboard: true
-    replace: >
+    replace: |
       {{act_as_copywriter}}
+
       [HOW TO REWRITE]: Reescribir el siguiente texto para mejorar su claridad, coherencia y fluidez, manteniendo el significado original. Corrige errores gramaticales y ortográficos, y mejora la estructura de las oraciones para que el texto sea más fácil de leer y entender. No agregues ni elimines información, solo mejora la redacción.
 
       {{only_message_body}}
