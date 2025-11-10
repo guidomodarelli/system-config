@@ -32,7 +32,6 @@ global_vars:
       echo: |-
         {{new_instructions}}
         - I would like you to act as a copywriter and rewrite or improve a given text for me.
-        {{only_message_body}}
 
 matches:
   - trigger: ";ts"
@@ -50,6 +49,7 @@ matches:
     replace: |
       {{act_as_copywriter}}
       - Reply in English
+      {{only_message_body}}
 
       [HOW TO REWRITE]: {{FIX_GRAMMAR}}
 
@@ -59,6 +59,7 @@ matches:
     replace: |
       {{act_as_copywriter}}
       - Reply in {{lang}}
+      {{only_message_body}}
 
       [HOW TO REWRITE]: {{how_to_rewrite}}
 
@@ -151,6 +152,7 @@ matches:
     force_clipboard: true
     replace: |
       {{act_as_copywriter}}
+      {{only_message_body}}
 
       [HOW TO REWRITE]: {{how_to_rewrite}}
       - Only output the suggestings, no explanations.
