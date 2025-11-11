@@ -183,7 +183,7 @@ matches:
     force_clipboard: true
     replace: |
       IDIOMA = {{lang}}
-      Reordena, reorganiza y reestructura el texto proporcionado por el usuario para mejorar su claridad y presentación. Tradúcelo al IDIOMA, asegurándote de que se lea con fluidez y profesionalismo. Mantén toda la información original: no debe omitirse nada. Formatea el texto de manera prolija y estéticamente atractiva.
+      Reordena, reorganiza y reestructura el texto proporcionado por el usuario para mejorar su claridad y presentación. Tradúcelo al IDIOMA, asegurándote de que se lea con fluidez y profesionalismo, conservando el estilo de lenguaje (formal/informal/coloquial). Mantén toda la información original: no debe omitirse nada. Formatea el texto de manera prolija y estéticamente atractiva.
       [NOTE]: Podés reescribir completamente el texto si lo considerás apropiado, creando tu propio estilo de presentación. Sentite libre de usar listas numeradas o no numeradas, sublistas, emojis, encabezados, secciones y subsecciones: lo que mejor mejore la claridad y la legibilidad.
       - No tengas en cuenta las marcas de tiempo.
       - Quiero que para listas numeradas uses estos símbolos:
