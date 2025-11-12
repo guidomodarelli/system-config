@@ -1,25 +1,25 @@
 matches:
-  - triggers: [";wstatus", ";prev"]
+  - triggers: [";sts", ";pr"]
     label: "Pending Review"
     force_clipboard: true
-    replace: |
+    replace: |-
       :github: PENDING REVIEW 👀
       -
-  - triggers: [";wstatus", ";change"]
+  - triggers: [";sts", ";change"]
     label: "Request Changes"
     force_clipboard: true
-    replace: |
+    replace: |-
       :github: REQUEST CHANGES 🔧
       -
-  - triggers: [";wstatus", ";pfrev"]
+  - triggers: [";sts", ";pfr"]
     label: "Pending Final Review"
     force_clipboard: true
-    replace: |
-      :github: PENDING FINAL REVIEW 👀 (✅☑️ 1 of 2 approvals)
+    replace: |-
+      :github: PENDING FINAL REVIEW 👀 (✅ of ✅✅ approvals)
       -
-  - triggers: [";wstatus", ";mer"]
+  - triggers: [";sts", ";mer"]
     label: "Ready to Merge"
     force_clipboard: true
-    replace: |
+    replace: |-
       :github: READY TO MERGE 🔀
       -
