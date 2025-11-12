@@ -3,11 +3,11 @@ global_vars:
     type: echo
     params:
       echo: "'"
-  - name: text_only_regex
+  - name: special_chars_regex
     type: echo
     params:
       echo: '[^\w\s&()\[\]{}<>$%#@_=+\.,áéíóúÁÉÍÓÚñÑ\"*\!¡¿?—:;{{single_quote}}-]'
 matches:
   - trigger: ";tts"
-    replace: TEXT='' ; edge-tts --write-media "$(echo $TEXT | head -1).mp3" --voice es-US-AlonsoNeural --pitch=-10Hz --rate=+25% --text "$(echo $TEXT | sed 's!**!!g' | sed "s!{{text_only_regex}}!!g" | sed 's!^#+ !!g')"
+    replace: TEXT='' ; edge-tts --write-media "$(echo $TEXT | head -1).mp3" --voice es-US-AlonsoNeural --pitch=-10Hz --rate=+25% --text "$(echo $TEXT | sed 's!**!!g' | sed "s!{{special_chars_regex}}!!g" | sed 's!^#+ !!g')"
 
