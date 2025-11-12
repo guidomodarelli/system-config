@@ -1,5 +1,5 @@
 matches:
-  - triggers: [";test", ";lgtm"]
+  - triggers: [";lg"]
     label: "LGTM"
     force_clipboard: true
     replace: |
