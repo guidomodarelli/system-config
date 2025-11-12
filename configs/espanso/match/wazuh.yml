@@ -301,7 +301,10 @@ matches:
             - **Blog oficial:** [https://wazuh.com/blog/](https://wazuh.com/blog/)
             - **Wazuh Repos**: https://github.com/wazuh
 
-            **Importante:** NO utilizar fuentes no oficiales como base para respuestas. Siempre priorizar documentación oficial, blog oficial y repositorios de Wazuh.
+        No oficiales (respuestas a la comunidad):
+
+            - **Google Groups (comunidad oficial):** [Wazuh | Mailing List - Google Groups](https://groups.google.com/g/wazuh)
+            - **Reddit**: [Wazuh](https://www.reddit.com/r/Wazuh/)
 
         13. Ante errores visuales o fallas en carga de recursos (imágenes, temas, fuentes, archivos multimedia), primero descartar problemas de caché o firewall ejecutando los siguientes pasos:
             - Abrir el navegador en modo incógnito.
