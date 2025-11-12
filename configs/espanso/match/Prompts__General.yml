@@ -16,7 +16,7 @@ global_vars:
     params:
       echo: |-
         [INSTRUCTIONS]:
-  - name: new_instructions
+  - name: base_instructions
     type: echo
     params:
       echo: |-
@@ -35,14 +35,14 @@ global_vars:
     type: echo
     params:
       echo: |-
-        {{new_instructions}}
+        {{base_instructions}}
         - I would like you to act as a copywriter and rewrite or improve a given text for me.
 
 matches:
   - trigger: ";ts"
     force_clipboard: true
     replace: |
-      {{new_instructions}}
+      {{base_instructions}}
       - Reply with the translation only
       - I would like you to translate the following text to {{lang}}, or echo text as is if already in {{lang}}. Respect the original text format.
       {{content_only_instructions}}
