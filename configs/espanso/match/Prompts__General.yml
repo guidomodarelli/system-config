@@ -204,9 +204,9 @@ matches:
       {{instructions__open}}
       {{base_instructions}}
       - Reorder, reorganize and restructure the text provided by the user to improve its clarity and presentation. Translate it to {{lang}}, ensuring it reads fluently and professionally, preserving the language style (formal/informal/colloquial). Keep all original information: nothing should be omitted. Format the text in a neat and aesthetically appealing way.
-      <note>
-      - You can completely rewrite the text if you consider it appropriate, creating your own presentation style. Feel free to use numbered or unnumbered lists, sublists, emojis, headings, sections and subsections: whatever best improves clarity and readability.
-      </note>
+        <note>
+          - You can completely rewrite the text if you consider it appropriate, creating your own presentation style. Feel free to use numbered or unnumbered lists, sublists, emojis, headings, sections and subsections: whatever best improves clarity and readability.
+        </note>
       - Ignore timestamps.
       - I want you to use these symbols for numbered lists:
         - 1 = 1️⃣
