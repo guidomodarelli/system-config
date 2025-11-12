@@ -147,12 +147,14 @@ matches:
     force_clipboard: true
     replace: |
       Traducí:
-        - Sólo quiero la traducción
-        - Elimina \ / : * ? " < > |
-        - Reemplaza vocales por sus equivalentes sin acento
-        - Máximo 56 carácteres
-        - Respeta el formato del texto original
+      - Sólo quiero la traducción
+      - Elimina \ / : * ? " < > |
+      - Reemplaza vocales por sus equivalentes sin acento
+      - Máximo 56 carácteres
+      - Respeta el formato del texto original
+      {{content_only_instructions}}
 
+      [TEXTO]:
   - trigger: ";sug"
     force_clipboard: true
     replace: |
