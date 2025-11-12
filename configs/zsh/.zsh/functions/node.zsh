@@ -6,7 +6,16 @@
 
   cd $(git rev-parse --show-toplevel)
 
-  BIN_PRETTIER=$(find . -type f,l -name "prettier" | sort | grep 'node_modules/.bin/prettier' | head -n 1)
+  # Try to find prettierd first, fallback to prettier
+  BIN_PRETTIER=$(command -v prettierd)
+  if [ -z "$BIN_PRETTIER" ]; then
+    BIN_PRETTIER=$(find . -type f,l -name "prettier" | sort | grep 'node_modules/.bin/prettier' | head -n 1)
+  fi
+
+  if [ -z "$BIN_PRETTIER" ]; then
+    echo "Error: Neither prettierd nor prettier found"
+    return 1
+  fi
 
   BRANCH=$(git branch | grep -v $(git branch --show-current) | sed -E 's!\\*?[ ]+!!g' | grep -vE '[0-9]+-' | fzf --prompt='Select branch to format against: ')
 
