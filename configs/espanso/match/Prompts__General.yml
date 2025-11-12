@@ -32,12 +32,6 @@ global_vars:
        - NO incluyas saludos, introducciones, conclusiones o preguntas de seguimiento.
        - SOLO proporciona el contenido principal según las instrucciones dadas.
        - Excluye cualquier saludo inicial, mensaje introductorio o preguntas de seguimiento.
-  - name: act_as_copywriter
-    type: echo
-    params:
-      echo: |-
-        {{base_instructions}}
-        - I would like you to act as a copywriter and rewrite or improve a given text for me.
 
 matches:
   - trigger: ";ts"
@@ -53,7 +47,7 @@ matches:
   - trigger: ";gra"
     force_clipboard: true
     replace: |
-      {{act_as_copywriter}}
+      {{base_instructions}}
       - Reply in English
       {{content_only_instructions}}
 
@@ -63,7 +57,7 @@ matches:
   - trigger: ";rew"
     force_clipboard: true
     replace: |
-      {{act_as_copywriter}}
+      {{base_instructions}}
       - Reply in {{lang}}
       {{content_only_instructions}}
 
@@ -159,7 +153,7 @@ matches:
   - trigger: ";sug"
     force_clipboard: true
     replace: |
-      {{act_as_copywriter}}
+      {{base_instructions}}
       {{content_only_instructions}}
 
       [HOW TO REWRITE]: {{how_to_rewrite}}
@@ -180,7 +174,7 @@ matches:
   - trigger: ";res"
     force_clipboard: true
     replace: |
-      {{act_as_copywriter}}
+      {{base_instructions}}
 
       [HOW TO REWRITE]: Reescribir el siguiente texto para mejorar su claridad, coherencia y fluidez, manteniendo el significado original y el estilo de lenguaje (formal/informal/coloquial). Corrige errores gramaticales y ortográficos, y mejora la estructura de las oraciones para que el texto sea más fácil de leer y entender. No agregues ni elimines información, solo mejora la redacción.
 
