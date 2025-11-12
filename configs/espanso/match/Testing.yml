@@ -30,14 +30,14 @@ matches:
         >
 
       </details>
-  - triggers: [";test", ";chr"]
+  - triggers: [";test", ";tcc"]
     label: "Chrome"
     force_clipboard: true
     replace: |
         > **CHROME** - {{black_circle}}
         >
         >
-  - triggers: [";test", ";fir"]
+  - triggers: [";test", ";tff"]
     label: "Firefox"
     force_clipboard: true
     replace: |
