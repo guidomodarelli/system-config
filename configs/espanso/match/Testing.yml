@@ -2,12 +2,12 @@ matches:
   - triggers: [";lg"]
     label: "LGTM"
     force_clipboard: true
-    replace: |
+    replace: |-
       LGTM! {{green_circle}}
   - triggers: [";test", ";check"]
     label: "Code Review and Test"
     force_clipboard: true
-    replace: |
+    replace: |-
       {{legend}}
 
       # 🧪 Test {{short_date}}
@@ -17,7 +17,7 @@ matches:
   - triggers: [";test", ";utest"]
     label: "Unit Test"
     force_clipboard: true
-    replace: |
+    replace: |-
       <details><summary>{{black_circle}} $|$</summary>
         <br />
 
@@ -33,14 +33,14 @@ matches:
   - triggers: [";test", ";tcc"]
     label: "Chrome"
     force_clipboard: true
-    replace: |
+    replace: |-
         > **CHROME** - {{black_circle}}
         >
         >
   - triggers: [";test", ";tff"]
     label: "Firefox"
     force_clipboard: true
-    replace: |
+    replace: |-
         > **FIREFOX** - {{black_circle}}
         >
         >
