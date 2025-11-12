@@ -10,4 +10,3 @@ global_vars:
 matches:
   - trigger: ";tts"
     replace: TEXT='' ; edge-tts --write-media "$(echo $TEXT | head -1).mp3" --voice es-US-AlonsoNeural --pitch=-10Hz --rate=+25% --text "$(echo $TEXT | sed 's!**!!g' | sed "s!{{special_chars_regex}}!!g" | sed 's!^#+ !!g')"
-
