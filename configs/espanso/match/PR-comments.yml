@@ -1,5 +1,5 @@
 matches:
-  - triggers: ["%CC", "%CTR"]
+  - triggers: ["%%PR", "%PRi18"]
     label: "Translate"
     force_clipboard: true
     replace: |
