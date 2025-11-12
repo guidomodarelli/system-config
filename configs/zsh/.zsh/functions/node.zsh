@@ -10,6 +10,6 @@
 
   BRANCH=$(git branch | grep -v $(git branch --show-current) | sed -E 's!\\*?[ ]+!!g' | grep -vE '[0-9]+-' | fzf --prompt='Select branch to format against: ')
 
-  git diff --name-status $(git merge-base HEAD $BRANCH) HEAD | grep -vE "^(D|R)" | awk '{ print $2 }' | xargs -I{} $BIN_PRETTIER --write {} --config .prettierrc
-  git diff --name-status $(git merge-base HEAD $BRANCH) HEAD | grep -E "^R" | awk '{ print $3 }' | xargs -I{} $BIN_PRETTIER --write {} --config .prettierrc
+  git diff --name-status $(git merge-base HEAD $BRANCH) HEAD | grep -vE "^(D|R)" | awk '{ print $2 }' | xargs -I{} $BIN_PRETTIER --write {} --config .prettierrc --ignore-unknown
+  git diff --name-status $(git merge-base HEAD $BRANCH) HEAD | grep -E "^R" | awk '{ print $3 }' | xargs -I{} $BIN_PRETTIER --write {} --config .prettierrc --ignore-unknown
 }
