@@ -12,8 +12,8 @@ matches:
 
       # 🧪 Test {{short_date}}
 
-      CR {{green_circle}}
-      TEST {{green_circle}}
+      CR {{black_circle}}
+      TEST {{black_circle}}
   - triggers: [";test", ";utest"]
     label: "Unit Test"
     force_clipboard: true
