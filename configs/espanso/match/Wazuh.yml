@@ -64,10 +64,6 @@ matches:
             - Community
             - Quick win
             - Testing Release
-  - triggers: [";wz", ";wc", ";wcobj"]
-    label: "[Community] Objective"
-    force_clipboard: true
-    replace: "Community"
   - triggers: [";wz", ";wc", ";wcres"]
     label: "[Community] Response"
     force_clipboard: true
