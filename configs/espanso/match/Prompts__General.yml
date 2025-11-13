@@ -232,16 +232,15 @@ matches:
     replace: |
       {{instructions__open}}
       {{base_instructions}}
-      - Reply in {{lang}}
       {{content_only_instructions}}
       {{instructions__close}}
 
       [HOW TO REWRITE]: Rewrite the following text to improve its clarity,
-          coherence and flow, maintaining the original meaning and language
-          style (formal/informal/colloquial). Correct grammatical and spelling
-          errors, and improve sentence structure to make the text easier to read
-          and understand. Do not add or remove information, only improve the
-          writing.
+            coherence and flow, maintaining the original meaning and language
+            style (formal/informal/colloquial). Translate it to {{lang}}. Correct grammatical and spelling
+            errors, and improve sentence structure to make the text easier to read
+            and understand. Do not add or remove information, only improve the
+            writing.
 
       [TEXT]:
   - trigger: ";rrr"
