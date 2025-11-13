@@ -506,6 +506,10 @@ ensure_sudo() {
   fi
 }
 
+install_prettierd() {
+  _brew install prettierd
+}
+
 main() {
   if is_ubuntu; then
     sudo apt update
@@ -539,6 +543,7 @@ main() {
   install_xclip
   install_difftastic
   install_win32yank
+  install_prettierd
 
   # Git tools
   install_git
