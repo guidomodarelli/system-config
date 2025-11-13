@@ -1,7 +1,7 @@
 # Unified implementation: cx handles both safe and yolo modes.
 cx() {
   # Added flag parsing: -m <model>, -re <reasoning_effort>
-  local model="gpt-5"
+  local model="gpt-5-codex-mini"
   local reasoning="high"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local rest=()

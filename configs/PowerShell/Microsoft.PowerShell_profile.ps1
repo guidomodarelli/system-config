@@ -23,7 +23,7 @@ function cx {
         return
     }
 
-    $model = 'gpt-5'
+    $model = 'gpt-5-codex-mini'
     $reasoning = 'high'
     $yolo = $false
     $rest = New-Object System.Collections.Generic.List[string]
