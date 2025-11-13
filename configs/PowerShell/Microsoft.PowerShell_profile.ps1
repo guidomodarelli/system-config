@@ -24,7 +24,7 @@ function cx {
     }
 
     $model = 'gpt-5.1-codex-mini'
-    $reasoning = 'high'
+    $reasoning = 'medium'
     $yolo = $false
     $rest = New-Object System.Collections.Generic.List[string]
 
