@@ -123,7 +123,7 @@ docker_container_table_formatter() {
 }
 
 docker_image_table_formatter() {
-  docker_images_table_formatter "$@"
+  @Dimages "$@"
 }
 @Dimages() {
   docker images --format "table $(format_Id)\t$(format_Repository)\t$(format_Tag)" | tail +2
@@ -192,7 +192,7 @@ docker_containers_remove() { @Drm "$@"; }
 docker_images_remove() { @Drmi "$@"; }
 @Drmi() {
   logInfo "Removing Docker images..."
-  docker_images_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm image " | awk '{print $2 ":" $3}' | while IFS= read -r sel; do
+  docker_image_table_formatter | fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm image " | awk '{print $2 ":" $3}' | while IFS= read -r sel; do
     { styleText -c yellow -b -i "docker rmi "; styleText -c cyan -b "$sel"; echo } >&2
     docker rmi "$sel"
   done
