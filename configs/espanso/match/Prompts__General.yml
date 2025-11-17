@@ -83,12 +83,14 @@ matches:
         params:
           values:
             - label: MAKE EASY FOR AUDIENCE
-              id: Rewrite the content so it can be presented to an audience.
+              id: |-
+                Rewrite the content so it can be presented to an audience.
                 Make it informal, without complex words.
             - label: MOTIVATION LETTER
-              id: Create a motivation letter considering the following job
-                description. Just write the body of the letter. It should be short
-                and informal.
+              id: |-
+                Create a motivation letter considering the following job
+                description. Just write the body of the letter. It should be
+                short and informal.
             - label: FIX GRAMMAR
               id: '{{FIX_GRAMMAR}}'
             - label: ITEMIFY
@@ -96,22 +98,26 @@ matches:
             - label: EMOJIFY
               id: Emojify.
             - label: CLARITY
-              id: Change tone to straightforward. Text should be direct, clear,
+              id: |-
+                Change tone to straightforward. Text should be direct, clear,
                 and not ambiguous.
             - label: REPHRASE
-              id: Rephrase to improve writing, flow, readability and coherence.
+              id: |-
+                Rephrase to improve writing, flow, readability and coherence.
                 Fix grammar and spelling.
             - label: EXPAND
               id: Make text longer.
             - label: SHORTEN
               id: Make text shorter.
             - label: ADD HEADINGS
-              id: Add headings, subheadings, bullet points, and other formatting
+              id: |-
+                Add headings, subheadings, bullet points, and other formatting
                 elements for readability.
             - label: ADD EXAMPLES
               id: Add a list of examples only.
             - label: ILLUSTRATE
-              id: Add examples, anecdotes, and other storytelling elements to
+              id: |-
+                Add examples, anecdotes, and other storytelling elements to
                 illustrate points.
             - label: GET TITLES
               id: Suggesting a list of 10 titles about this content.
@@ -146,12 +152,14 @@ matches:
             - label: FEMALE AUDIENCE
               id: Change the style to target a female audience.
             - label: REFINE
-              id: Improve sentences structure and flow, as well as coherence and
+              id: |-
+                Improve sentences structure and flow, as well as coherence and
                 relevance by adding or removing information.
             - label: ENRICH
               id: Enhance vocabulary and tone.
             - label: HUMANIZE
-              id: I want you to perform text "Humanization". Rewrite each
+              id: |-
+                I want you to perform text "Humanization". Rewrite each
                 sentence, increasing its perplexity and burstiness. Perplexity
                 measures the complexity of text. Separately, burstiness compares
                 the variations of sentences. Humans tend to write with greater
@@ -165,15 +173,18 @@ matches:
                 short sentences and rewrite the above text so that it is not
                 detected as AI content by AI content detectors.
             - label: ADD A TITLE
-              id: Add a simple and short title. It should not include colons.
+              id: |-
+                Add a simple and short title. It should not include colons.
                 Only display the title.
             - label: ADDRESSED TO ME
-              id: Change the style as if it were written by a third person, but
+              id: |-
+                Change the style as if it were written by a third person, but
                 directed directly towards me. Letter addressed to me in an
                 informal manner. Do not add any initial introduction or final
                 greeting.
             - label: ORGANIZE KEY POINTS
-              id: From this conversation, extract and organize the key points
+              id: |-
+                From this conversation, extract and organize the key points
                 grouped by topics, next steps, conclusions, and any additional
                 relevant notes.
 
