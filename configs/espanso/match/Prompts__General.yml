@@ -206,12 +206,12 @@ matches:
       {{content_only_instructions}}
       {{instructions__close}}
 
-      [HOW TO REWRITE]: {{how_to_rewrite}}
+      [HOW TO REWRITE]: {{suggestion_type}}
       - Only output the suggestions, no explanations.
 
       [TEXT]:
     vars:
-      - name: how_to_rewrite
+      - name: suggestion_type
         type: choice
         params:
           values:
