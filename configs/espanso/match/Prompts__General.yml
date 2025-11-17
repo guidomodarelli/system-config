@@ -43,10 +43,13 @@ matches:
     replace: |
       {{instructions__open}}
       {{response_rules}}
-      - Reply with the translation only
+      {{instructions__close}}
+
+      <main-instruction>
       - I would like you to translate the following text to {{lang}}, or echo
         text as is if already in {{lang}}. Respect the original text format.
-      {{instructions__close}}
+      - Reply with the translation only
+      </main-instruction>
 
       [TEXT]:
 
@@ -70,7 +73,6 @@ matches:
       {{response_rules}}
       - Reply in {{lang}}
       {{instructions__close}}
-
 
       <main-instruction>
       {{how_to_rewrite}}
@@ -193,14 +195,17 @@ matches:
     replace: |
       {{instructions__open}}
       {{response_rules}}
-      Translate:
-      - Translate the text to {{lang}}.
-      - I only want the translation
-      - Remove \ / : * ? " < > |
-      - Replace accented vowels with their non-accented equivalents
-      - Maximum 56 characters
-      - Respect the original text format
       {{instructions__close}}
+
+      <main-instruction>
+      Translate:
+        - Translate the text to {{lang}}.
+        - I only want the translation
+        - Remove \ / : * ? " < > |
+        - Replace accented vowels with their non-accented equivalents
+        - Maximum 56 characters
+        - Respect the original text format
+      </main-instruction>
 
       [TEXT]:
   - trigger: ";sug"
@@ -270,6 +275,9 @@ matches:
     replace: |
       {{instructions__open}}
       {{response_rules}}
+      {{instructions__close}}
+
+      <main-instruction>
       - Reorder, reorganize and restructure the text provided by the user to
         improve its clarity and presentation. Translate it to {{lang}}, ensuring
         it reads fluently and professionally, preserving the language style
@@ -277,7 +285,7 @@ matches:
         should be omitted. Format the text in a neat and aesthetically appealing
         way.
         <note>
-          - You can completely rewrite the text if you consider it appropriate,
+        - You can completely rewrite the text if you consider it appropriate,
             creating your own presentation style. Feel free to use numbered or
             unnumbered lists, sublists, emojis, headings, sections and
             subsections: whatever best improves clarity and readability.
@@ -294,6 +302,6 @@ matches:
         - 8 = 8️⃣
         - 9 = 9️⃣
         - 10 = 🔟
-      {{instructions__close}}
+      </main-instruction>
 
       [TEXT]:
