@@ -36,6 +36,10 @@ global_vars:
         - Respond ONLY with the requested content according to the given
           instructions, without any explanations, commentary, greetings,
           introductions, conclusions, or follow-up questions.
+  - name: reply_in
+    type: echo
+    params:
+      echo: Translate the text to {{lang}}
 
 matches:
   - trigger: ";ts"
@@ -58,7 +62,7 @@ matches:
     replace: |
       {{instructions__open}}
       {{response_rules}}
-      - Reply in English
+      {{reply_in}}.
       {{instructions__close}}
 
       <main-instruction>
@@ -71,7 +75,7 @@ matches:
     replace: |
       {{instructions__open}}
       {{response_rules}}
-      - Reply in {{lang}}
+      - {{reply_in}}.
       {{instructions__close}}
 
       <main-instruction>
@@ -199,7 +203,7 @@ matches:
 
       <main-instruction>
       Translate:
-        - Translate the text to {{lang}}.
+        - {{reply_in}}
         - I only want the translation
         - Remove \ / : * ? " < > |
         - Replace accented vowels with their non-accented equivalents
@@ -263,7 +267,7 @@ matches:
       <main-instruction>
       Rewrite the following text to improve its clarity, coherence and flow,
       maintaining the original meaning and language style
-      (formal/informal/colloquial). Translate it to {{lang}}. Correct
+      (formal/informal/colloquial). {{reply_in}}. Correct
       grammatical and spelling errors, and improve sentence structure to make
       the text easier to read and understand. Do not add or remove information,
       only improve the writing.
@@ -279,7 +283,7 @@ matches:
 
       <main-instruction>
       - Reorder, reorganize and restructure the text provided by the user to
-        improve its clarity and presentation. Translate it to {{lang}}, ensuring
+        improve its clarity and presentation. {{reply_in}}, ensuring
         it reads fluently and professionally, preserving the language style
         (formal/informal/colloquial). Keep all original information: nothing
         should be omitted. Format the text in a neat and aesthetically appealing
