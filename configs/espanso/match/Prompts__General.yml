@@ -298,7 +298,7 @@ matches:
       </main-instruction>
 
       [TEXT]:
-  - trigger: ";int"
+  - trigger: ";ent"
     force_clipboard: true
     replace: |
       {{instructions__open}}
