@@ -298,3 +298,15 @@ matches:
       </main-instruction>
 
       [TEXT]:
+  - trigger: ";int"
+    force_clipboard: true
+    replace: |
+      {{instructions__open}}
+      {{response_rules}}
+      {{instructions__close}}
+
+      <main-instruction>
+      Rewrite the text with a more conversational and energetic tone for a live interview, maintaining technical soundness and adding warmth and closeness.
+      </main-instruction>
+
+      [TEXT]:
