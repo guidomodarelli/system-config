@@ -306,7 +306,7 @@ matches:
       {{instructions__close}}
 
       <main-instruction>
-      Rewrite the text with a more conversational and energetic tone for a live interview, maintaining technical soundness and adding warmth and closeness.
+      Rewrite the text with a more conversational tone for a live interview, maintaining technical soundness and adding warmth and closeness.
       </main-instruction>
 
       [TEXT]:
