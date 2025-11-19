@@ -39,7 +39,7 @@ global_vars:
   - name: reply_in
     type: echo
     params:
-      echo: Translate the text to {{lang}}, and reply with the translation only in {{lang}}
+      echo: Translate the text to {{lang}}, and reply with the translation only
 
 matches:
   - trigger: ";ts"
