@@ -15,26 +15,36 @@ global_vars:
           id: Spanish
         - label: 2. English
           id: English
+  - name: rules__tag
+    type: echo
+    params:
+      echo: |-
+        rules
   - name: rules__tag--begin
     type: echo
     params:
       echo: |-
-        <rules>
+        <{{rules__tag}}>
   - name: rules__tag--end
     type: echo
     params:
       echo: |-
-        </rules>
+        </{{rules__tag}}>
+  - name: task__tag
+    type: echo
+    params:
+      echo: |-
+        task
   - name: task__tag--begin
     type: echo
     params:
       echo: |-
-        <task>
+        <{{task__tag}}>
   - name: task__tag--end
     type: echo
     params:
       echo: |-
-        </task>
+        </{{task__tag}}>
   - name: rules__instructions
     type: echo
     params:
