@@ -45,7 +45,7 @@ global_vars:
     params:
       echo: |-
         </{{task__tag}}>
-  - name: rules__instructions
+  - name: rules__content
     type: echo
     params:
       echo: |-
@@ -66,7 +66,7 @@ matches:
     force_clipboard: true
     replace: |
       {{rules__tag__begin}}
-      {{rules__instructions}}
+      {{rules__content}}
       {{rules__tag__end}}
 
       {{task__tag__begin}}
@@ -80,7 +80,7 @@ matches:
     force_clipboard: true
     replace: |
       {{rules__tag__begin}}
-      {{rules__instructions}}
+      {{rules__content}}
       {{reply_in}}.
       {{rules__tag__end}}
 
@@ -93,7 +93,7 @@ matches:
     force_clipboard: true
     replace: |
       {{rules__tag__begin}}
-      {{rules__instructions}}
+      {{rules__content}}
       - {{reply_in}}.
       {{rules__tag__end}}
 
@@ -217,7 +217,7 @@ matches:
     force_clipboard: true
     replace: |
       {{rules__tag__begin}}
-      {{rules__instructions}}
+      {{rules__content}}
       {{rules__tag__end}}
 
       {{task__tag__begin}}
@@ -234,7 +234,7 @@ matches:
     force_clipboard: true
     replace: |
       {{rules__tag__begin}}
-      {{rules__instructions}}
+      {{rules__content}}
       {{rules__tag__end}}
 
       {{task__tag__begin}}
@@ -279,7 +279,7 @@ matches:
     force_clipboard: true
     replace: |
       {{rules__tag__begin}}
-      {{rules__instructions}}
+      {{rules__content}}
       {{rules__tag__end}}
 
       {{task__tag__begin}}
@@ -296,7 +296,7 @@ matches:
     force_clipboard: true
     replace: |
       {{rules__tag__begin}}
-      {{rules__instructions}}
+      {{rules__content}}
       {{rules__tag__end}}
 
       {{task__tag__begin}}
@@ -320,7 +320,7 @@ matches:
     force_clipboard: true
     replace: |
       {{rules__tag__begin}}
-      {{rules__instructions}}
+      {{rules__content}}
       {{rules__tag__end}}
 
       {{task__tag__begin}}
