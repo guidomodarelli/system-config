@@ -60,6 +60,11 @@ global_vars:
     type: echo
     params:
       echo: Translate the text to {{lang}}, and reply with the translation only
+  - name: user__text
+    type: echo
+    params:
+      echo: |-
+        [TEXT]:
 
 matches:
   - trigger: ";ts"
@@ -74,7 +79,8 @@ matches:
         text as is if already in {{lang}}. Respect the original text format.
       - Reply with the translation only
       {{task__tag_end}}
-      [TEXT]:
+
+      {{user__text}}
 
   - trigger: ";gra"
     force_clipboard: true
@@ -88,7 +94,7 @@ matches:
       {{FIX_GRAMMAR}}
       {{task__tag_end}}
 
-      [TEXT]:
+      {{user__text}}
   - trigger: ";rew"
     force_clipboard: true
     replace: |
@@ -101,7 +107,7 @@ matches:
       {{how_to_rewrite}}
       {{task__tag_end}}
 
-      [TEXT]:
+      {{user__text}}
     vars:
       - name: how_to_rewrite
         type: choice
@@ -229,7 +235,7 @@ matches:
         - Respect the original text format
       {{task__tag_end}}
 
-      [TEXT]:
+      {{user__text}}
   - trigger: ";sug"
     force_clipboard: true
     replace: |
@@ -241,7 +247,7 @@ matches:
       {{suggestion_type}}
       {{task__tag_end}}
 
-      [TEXT]:
+      {{user__text}}
     vars:
       - name: suggestion_type
         type: choice
@@ -291,7 +297,7 @@ matches:
       only improve the writing.
       {{task__tag_end}}
 
-      [TEXT]:
+      {{user__text}}
   - trigger: ";rrr"
     force_clipboard: true
     replace: |
@@ -315,7 +321,7 @@ matches:
       - Ignore timestamps.
       {{task__tag_end}}
 
-      [TEXT]:
+      {{user__text}}
   - trigger: ";ent"
     force_clipboard: true
     replace: |
@@ -327,4 +333,4 @@ matches:
       Rewrite the text with a more conversational tone for a live interview, maintaining technical soundness and adding warmth and closeness.
       {{task__tag_end}}
 
-      [TEXT]:
+      {{user__text}}
