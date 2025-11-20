@@ -56,7 +56,7 @@ global_vars:
         - Respond ONLY with the requested content according to the given
           instructions, without any explanations, commentary, greetings,
           introductions, conclusions, or follow-up questions.
-  - name: reply_in
+  - name: task__translate
     type: echo
     params:
       echo: Translate the text to {{lang}}, and reply with the translation only
@@ -77,7 +77,7 @@ matches:
       {{task__tag_begin}}
       - I would like you to translate the following text to {{lang}}, or echo
         text as is if already in {{lang}}. Respect the original text format.
-      - Reply with the translation only
+      - {{task__translate}}
       {{task__tag_end}}
 
       {{user__text}}
@@ -87,7 +87,7 @@ matches:
     replace: |
       {{rules__tag_begin}}
       {{rules__content}}
-      {{reply_in}}.
+      {{task__translate}}.
       {{rules__tag_end}}
 
       {{task__tag_begin}}
@@ -100,7 +100,7 @@ matches:
     replace: |
       {{rules__tag_begin}}
       {{rules__content}}
-      - {{reply_in}}.
+      - {{task__translate}}.
       {{rules__tag_end}}
 
       {{task__tag_begin}}
@@ -228,7 +228,7 @@ matches:
 
       {{task__tag_begin}}
       Translate:
-        - {{reply_in}}
+        - {{task__translate}}
         - Remove \ / : * ? " < > |
         - Replace accented vowels with their non-accented equivalents
         - Maximum 56 characters
@@ -291,7 +291,7 @@ matches:
       {{task__tag_begin}}
       Rewrite the following text to improve its clarity, coherence and flow,
       maintaining the original meaning and language style
-      (formal/informal/colloquial). {{reply_in}}. Correct
+      (formal/informal/colloquial). {{task__translate}}. Correct
       grammatical and spelling errors, and improve sentence structure to make
       the text easier to read and understand. Do not add or remove information,
       only improve the writing.
@@ -307,7 +307,7 @@ matches:
 
       {{task__tag_begin}}
       - Reorder, reorganize and restructure the text provided by the user to
-        improve its clarity and presentation. {{reply_in}}, ensuring
+        improve its clarity and presentation. {{task__translate}}, ensuring
         it reads fluently and professionally, preserving the language style
         (formal/informal/colloquial). Keep all original information: nothing
         should be omitted. Format the text in a neat and aesthetically appealing
