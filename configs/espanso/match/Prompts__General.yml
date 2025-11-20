@@ -19,12 +19,12 @@ global_vars:
     type: echo
     params:
       echo: |-
-        <instructions>
+        <rules>
   - name: rules__tag--close
     type: echo
     params:
       echo: |-
-        </instructions>
+        </rules>
   - name: rules__instructions
     type: echo
     params:
