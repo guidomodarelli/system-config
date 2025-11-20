@@ -217,7 +217,7 @@ matches:
             - label: HAS BEEN ANSWERED
               id: The user has already been answered [here]($|$).
             - label: HAS BEEN SOLVED
-              id: The user has already been solved.
+              id: The issue has already been solved.
   - triggers: [";wz", ";wdoc", ";wdgen"]
     label: "[Wazuh] Generate Doc"
     force_clipboard: true
@@ -240,7 +240,7 @@ matches:
     force_clipboard: true
     replace: |
       <context>
-        En un entorno de seguridad informática con Wazuh (basado en OpenSearch), quiero definir un KPI que se exprese mediante un único valor numérico —sin gráficos— y que, a partir de los datos mostrados en  las imagenes (donde cada imagen representa un solo documento y existen muchísimos similares), identifique los campos más relevantes para generar métricas claras y útiles para el cliente final.
+        En un entorno de seguridad informática con Wazuh (basado en OpenSearch), quiero definir un KPI que se exprese mediante un único valor numérico —sin gráficos— y que, a partir de los datos mostrados en las imágenes (donde cada imagen representa un solo documento y existen muchísimos similares), identifique los campos más relevantes para generar métricas claras y útiles para el cliente final.
 
         - El KPI debe ser **fácil de entender** y **relevante** para el cliente.
         - Debe incluir una **breve descripción** de lo que representa el KPI y su **importancia**.
