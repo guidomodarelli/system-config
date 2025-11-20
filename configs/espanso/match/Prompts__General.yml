@@ -15,12 +15,12 @@ global_vars:
           id: Spanish
         - label: 2. English
           id: English
-  - name: rules__open
+  - name: rules__tag--open
     type: echo
     params:
       echo: |-
         <instructions>
-  - name: rules__close
+  - name: rules__tag--close
     type: echo
     params:
       echo: |-
@@ -45,9 +45,9 @@ matches:
   - trigger: ";ts"
     force_clipboard: true
     replace: |
-      {{rules__open}}
+      {{rules__tag--open}}
       {{response_rules}}
-      {{rules__close}}
+      {{rules__tag--close}}
 
       <main-instruction>
       - I would like you to translate the following text to {{lang}}, or echo
@@ -60,10 +60,10 @@ matches:
   - trigger: ";gra"
     force_clipboard: true
     replace: |
-      {{rules__open}}
+      {{rules__tag--open}}
       {{response_rules}}
       {{reply_in}}.
-      {{rules__close}}
+      {{rules__tag--close}}
 
       <main-instruction>
       {{FIX_GRAMMAR}}
@@ -73,10 +73,10 @@ matches:
   - trigger: ";rew"
     force_clipboard: true
     replace: |
-      {{rules__open}}
+      {{rules__tag--open}}
       {{response_rules}}
       - {{reply_in}}.
-      {{rules__close}}
+      {{rules__tag--close}}
 
       <main-instruction>
       {{how_to_rewrite}}
@@ -197,9 +197,9 @@ matches:
   - trigger: ";winfile"
     force_clipboard: true
     replace: |
-      {{rules__open}}
+      {{rules__tag--open}}
       {{response_rules}}
-      {{rules__close}}
+      {{rules__tag--close}}
 
       <main-instruction>
       Translate:
@@ -215,9 +215,9 @@ matches:
   - trigger: ";sug"
     force_clipboard: true
     replace: |
-      {{rules__open}}
+      {{rules__tag--open}}
       {{response_rules}}
-      {{rules__close}}
+      {{rules__tag--close}}
 
       <main-instruction>
       {{suggestion_type}}
@@ -260,9 +260,9 @@ matches:
   - trigger: ";res"
     force_clipboard: true
     replace: |
-      {{rules__open}}
+      {{rules__tag--open}}
       {{response_rules}}
-      {{rules__close}}
+      {{rules__tag--close}}
 
       <main-instruction>
       Rewrite the following text to improve its clarity, coherence and flow,
@@ -277,9 +277,9 @@ matches:
   - trigger: ";rrr"
     force_clipboard: true
     replace: |
-      {{rules__open}}
+      {{rules__tag--open}}
       {{response_rules}}
-      {{rules__close}}
+      {{rules__tag--close}}
 
       <main-instruction>
       - Reorder, reorganize and restructure the text provided by the user to
@@ -301,9 +301,9 @@ matches:
   - trigger: ";ent"
     force_clipboard: true
     replace: |
-      {{rules__open}}
+      {{rules__tag--open}}
       {{response_rules}}
-      {{rules__close}}
+      {{rules__tag--close}}
 
       <main-instruction>
       Rewrite the text with a more conversational tone for a live interview, maintaining technical soundness and adding warmth and closeness.
