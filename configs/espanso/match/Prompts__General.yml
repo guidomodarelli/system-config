@@ -223,7 +223,6 @@ matches:
       {{task__tag__begin}}
       Translate:
         - {{reply_in}}
-        - I only want the translation
         - Remove \ / : * ? " < > |
         - Replace accented vowels with their non-accented equivalents
         - Maximum 56 characters
