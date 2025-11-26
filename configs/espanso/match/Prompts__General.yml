@@ -65,6 +65,16 @@ global_vars:
     params:
       echo: |-
         [TEXT]:
+  - name: lang_style
+    type: choice
+    params:
+      values:
+        - label: FORMAL
+          id: formal
+        - label: INFORMAL
+          id: informal
+        - label: COLLOQUIAL
+          id: colloquial
 
 matches:
   - trigger: ";ts"
@@ -289,12 +299,11 @@ matches:
       {{rules__tag_end}}
 
       {{task__tag_begin}}
-      Rewrite the following text to improve its clarity, coherence and flow,
-      maintaining the original meaning and language style
-      (formal/informal/colloquial). {{task__translate}}. Correct
-      grammatical and spelling errors, and improve sentence structure to make
-      the text easier to read and understand. Do not add or remove information,
-      only improve the writing.
+      Rewrite the following text to improve clarity, coherence, and flow while
+      maintaining the original meaning and preserving the language style
+      {{lang_style}}. {{task__translate}}. Correct any grammatical and spelling
+      errors, and enhance sentence structure to make the text easier to read and
+      understand. Do not add or remove information; only improve the writing.
       {{task__tag_end}}
 
       {{user__text}}
@@ -306,12 +315,13 @@ matches:
       {{rules__tag_end}}
 
       {{task__tag_begin}}
-      - Reorder, reorganize and restructure the text provided by the user to
-        improve its clarity and presentation. {{task__translate}}, ensuring
-        it reads fluently and professionally, preserving the language style
-        (formal/informal/colloquial). Keep all original information: nothing
-        should be omitted. Format the text in a neat and aesthetically appealing
-        way.
+      - Reorder, reorganize, and restructure the text to improve clarity and
+      presentation.
+      - {{task__translate}}, ensuring fluent readability while preserving the
+      {{lang_style}} language style.
+      - Retain all original information—nothing should be added or omitted.
+      - Format the text in a clean, aesthetically appealing way for better
+      comprehension.
         <note>
         - You can completely rewrite the text if you consider it appropriate,
             creating your own presentation style. Feel free to use numbered or
