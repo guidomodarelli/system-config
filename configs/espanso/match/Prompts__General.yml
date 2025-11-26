@@ -219,7 +219,7 @@ matches:
                 grouped by topics, next steps, conclusions, and any additional
                 relevant notes.
 
-  - trigger: ";winfile"
+  - trigger: ";wf"
     force_clipboard: true
     replace: |
       {{rules__tag_begin}}
