@@ -488,7 +488,7 @@ install_win32yank() {
   local VERSION="v0.1.1"
   local FILENAME="win32yank-x64.zip"
   local URL="https://github.com/equalsraf/win32yank/releases/download/${VERSION}/${FILENAME}"
-  
+
   sudo apt install wget -y
   wget "$URL"
   unzip "$FILENAME" -d ~/.local/bin/
@@ -504,10 +504,6 @@ ensure_sudo() {
     SUDO_KEEPALIVE_PID=$!
     trap 'kill $SUDO_KEEPALIVE_PID 2>/dev/null' EXIT
   fi
-}
-
-install_prettierd() {
-  _brew install prettierd
 }
 
 main() {
@@ -543,7 +539,6 @@ main() {
   install_xclip
   install_difftastic
   install_win32yank
-  install_prettierd
 
   # Git tools
   install_git
