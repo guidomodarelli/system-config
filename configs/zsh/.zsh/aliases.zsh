@@ -1,7 +1,7 @@
 ### General
 alias rg="rg --glob \"!.git/*\""
 alias so=source
-alias gtop=grt
+alias gt=grt
 
 if command -v nvim >/dev/null 2>&1; then
 	alias v=nvim
