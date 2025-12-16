@@ -458,15 +458,6 @@ install_sdkman() {
   fi
 }
 
-install_java_17-tem() {
-  # Requiere que sdkman ya esté cargado en la sesión
-  if command -v sdk >/dev/null 2>&1; then
-    sdk install java 17.0.14-tem
-  else
-    echo "sdk no disponible; omitiendo instalación de Java."
-  fi
-}
-
 install_difftastic() {
   if is_ubuntu; then
     _brew install difftastic
@@ -551,7 +542,6 @@ main() {
   install_neovim
   install_LazyVim
   install_vagrant
-  install_java_17-tem
   install_docker
   install_lazydocker
 
