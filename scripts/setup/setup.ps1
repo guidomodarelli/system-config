@@ -212,10 +212,6 @@ function Install-PowerToys {
   Install-WingetPackages Microsoft.PowerToys
 }
 
-function Install-Zoom {
-  Install-WingetPackages Zoom.Zoom
-}
-
 function Install-Flameshot {
   Install-WingetPackages Flameshot.Flameshot
 }
@@ -276,7 +272,6 @@ function Main {
 
   # Communication
   Install-WhatsApp
-  Install-Zoom
 
   # Security & Password Management
   Install-Bitwarden
