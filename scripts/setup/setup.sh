@@ -501,7 +501,7 @@ main() {
   # Install other dependencies that might be needed for subsequent installations
   install_golang
   install_homebrew
-  install_sdkman
+  # install_sdkman
   install_nvm
 
   # Shell environment
