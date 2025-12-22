@@ -66,7 +66,7 @@ function Choco-InstallOrUpgrade {
   }
 }
 
-function Install-WingetPackages {
+function Winget-Install {
   param (
     [string[]]$appIds
   )
@@ -94,63 +94,63 @@ function _espanso {
 }
 
 function Install-Espanso {
-  Install-WingetPackages Espanso.Espanso
+  Winget-Install Espanso.Espanso
 
   _espanso service register
   _espanso start
 }
 
 function Install-Git {
-  Install-WingetPackages Git.Git
+  Winget-Install Git.Git
 }
 
 function Install-VsCode {
-  Install-WingetPackages Microsoft.VisualStudioCode
+  Winget-Install Microsoft.VisualStudioCode
 }
 
 function Install-Vlc {
-  Install-WingetPackages VideoLAN.VLC
+  Winget-Install VideoLAN.VLC
 }
 
 function Install-ObsStudio {
-  Install-WingetPackages OBSProject.OBSStudio
+  Winget-Install OBSProject.OBSStudio
 }
 
 function Install-Lazygit {
-  Install-WingetPackages JesseDuffield.lazygit
+  Winget-Install JesseDuffield.lazygit
 }
 
 function Install-GitDelta {
-  Install-WingetPackages dandavison.delta
+  Winget-Install dandavison.delta
 }
 
 function Install-FdFind {
-  Install-WingetPackages sharkdp.fd
+  Winget-Install sharkdp.fd
 }
 
 function Install-Curl {
-  Install-WingetPackages cURL.cURL
+  Winget-Install cURL.cURL
 }
 
 function Install-Fzf {
-  Install-WingetPackages junegunn.fzf
+  Winget-Install junegunn.fzf
 }
 
 function Install-RipGrep {
-  Install-WingetPackages BurntSushi.ripgrep.GNU
+  Winget-Install BurntSushi.ripgrep.GNU
 }
 
 function Install-Bitwarden {
-  Install-WingetPackages Bitwarden.Bitwarden
+  Winget-Install Bitwarden.Bitwarden
 }
 
 function Install-Bat {
-  Install-WingetPackages sharkdp.bat
+  Winget-Install sharkdp.bat
 }
 
 function Install-Eza {
   # https://eza.rocks/
-  Install-WingetPackages eza-community.eza
+  Winget-Install eza-community.eza
 }
 
 function Install-WSL {
@@ -165,15 +165,15 @@ function Install-WSL {
 }
 
 function Install-Python {
-  Install-WingetPackages 9PNRBTZXMB4Z
+  Winget-Install 9PNRBTZXMB4Z
 }
 
 function Install-WhatsApp {
-  Install-WingetPackages 9NKSQGP7F2NH
+  Winget-Install 9NKSQGP7F2NH
 }
 
 function Install-Vagrant {
-  Install-WingetPackages Hashicorp.Vagrant
+  Winget-Install Hashicorp.Vagrant
 }
 
 function Test-HyperVAvailability {
@@ -209,27 +209,27 @@ function Enable-HyperV {
 }
 
 function Install-PowerToys {
-  Install-WingetPackages Microsoft.PowerToys
+  Winget-Install Microsoft.PowerToys
 }
 
 function Install-Flameshot {
-  Install-WingetPackages Flameshot.Flameshot
+  Winget-Install Flameshot.Flameshot
 }
 
 function Install-7z {
-  Install-WingetPackages 7zip.7zip
+  Winget-Install 7zip.7zip
 }
 
 function Install-Volta {
-  Install-WingetPackages Volta.Volta
+  Winget-Install Volta.Volta
 }
 
 function Install-Ghq {
-  Install-WingetPackages x-motemen.ghq
+  Winget-Install x-motemen.ghq
 }
 
 function Install-AutoHotkey {
-  Install-WingetPackages AutoHotkey.AutoHotkey
+  Winget-Install AutoHotkey.AutoHotkey
 }
 
 function Main {
