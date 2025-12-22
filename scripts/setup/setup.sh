@@ -458,14 +458,6 @@ install_sdkman() {
   fi
 }
 
-install_difftastic() {
-  if is_ubuntu; then
-    _brew install difftastic
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm difftastic
-  fi
-}
-
 install_yq() {
   if is_ubuntu; then
     _brew install yq # https://github.com/mikefarah/yq?tab=readme-ov-file#macos--linux-via-homebrew
@@ -528,7 +520,6 @@ main() {
   install_yq
   install_btop
   install_xclip
-  install_difftastic
   install_win32yank
 
   # Git tools
