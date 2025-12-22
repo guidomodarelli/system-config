@@ -221,6 +221,8 @@ function Install-7z {
 }
 
 function Install-Mise-In-Place {
+  # https://github.com/jdx/mise?tab=readme-ov-file#what-is-it
+  # Like asdf (or nvm or pyenv but for any language)
   Winget-Install jdx.mise
 }
 
