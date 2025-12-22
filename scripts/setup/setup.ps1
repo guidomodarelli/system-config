@@ -168,10 +168,6 @@ function Install-Python {
   Install-WingetPackages 9PNRBTZXMB4Z
 }
 
-function Install-Telegram {
-  Install-WingetPackages Telegram.TelegramDesktop
-}
-
 function Install-WhatsApp {
   Install-WingetPackages 9NKSQGP7F2NH
 }
@@ -283,7 +279,6 @@ function Main {
   Install-ObsStudio
 
   # Communication
-  Install-Telegram
   Install-WhatsApp
   Install-Zoom
 
