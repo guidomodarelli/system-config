@@ -532,7 +532,7 @@ main() {
   # Development tools
   install_neovim
   install_LazyVim
-  install_vagrant
+  # install_vagrant
   install_docker
   install_lazydocker
 
