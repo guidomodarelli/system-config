@@ -216,10 +216,6 @@ function Install-Zoom {
   Install-WingetPackages Zoom.Zoom
 }
 
-function Install-Termius {
-  Install-WingetPackages Termius.Termius
-}
-
 function Install-Flameshot {
   Install-WingetPackages Flameshot.Flameshot
 }
@@ -287,7 +283,6 @@ function Main {
 
   # Utilities
   Install-7z
-  Install-Termius
 
   # Virtualization
   Install-Vagrant
