@@ -220,8 +220,8 @@ function Install-7z {
   Winget-Install 7zip.7zip
 }
 
-function Install-Volta {
-  Winget-Install Volta.Volta
+function Install-Mise-In-Place {
+  Winget-Install jdx.mise
 }
 
 function Install-Ghq {
@@ -243,7 +243,7 @@ function Main {
   Install-GitDelta
   Install-Ghq
   Install-VsCode
-  Install-Volta
+  Install-Mise-In-Place
 
   # Programming Languages & Environments
   Install-Python
