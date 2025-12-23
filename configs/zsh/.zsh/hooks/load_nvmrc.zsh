@@ -6,6 +6,7 @@ load_nvmrc() {
   # Defer a los stubs de nvm: se cargará solo cuando se invoque
   local current required
   required=$(< .nvmrc)
+  required=${required#v}
   # Si nvm aún no está cargado, la primera llamada lo inicializa
   current=$(nvm version 2>/dev/null)
   if [[ "$current" != "$(nvm version "$required" 2>/dev/null)" ]]; then
