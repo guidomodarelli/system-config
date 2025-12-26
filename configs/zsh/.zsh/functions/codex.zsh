@@ -1,7 +1,7 @@
 # Unified implementation: cx handles both safe and yolo modes.
 cx() {
   # Added flag parsing: -m <model>, -re <reasoning_effort>
-  local model="gpt-5.1-codex-mini"
+  local model="gpt-5.2-codex"
   local reasoning="medium"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local rest=()
@@ -45,6 +45,7 @@ cx() {
     cmd+=(--sandbox workspace-write --ask-for-approval on-failure)
   fi
   cmd+=(--enable web_search_request "${rest[@]}")
+  echo "Running: ${cmd[*]}"
   "${cmd[@]}"
 }
 

@@ -23,7 +23,7 @@ function cx {
         return
     }
 
-    $model = 'gpt-5.1-codex-mini'
+    $model = 'gpt-5.2-codex'
     $reasoning = 'medium'
     $yolo = $false
     $rest = New-Object System.Collections.Generic.List[string]
@@ -69,6 +69,8 @@ function cx {
     if ($rest.Count -gt 0) {
         $cmd += $rest.ToArray()
     }
+
+    Write-Host "Running: $($cmd -join ' ')"
 
     & $cmd[0] $cmd[1..($cmd.Count-1)]
 }
