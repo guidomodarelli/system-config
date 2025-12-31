@@ -198,6 +198,26 @@ docker_images_remove() { @Drmi "$@"; }
   done
 }
 
+docker_network_remove() { @Drmn "$@"; }
+@Drmn() {
+  logInfo "Removing Docker networks..."
+  docker network ls --format "table {{.ID}}\t{{.Name}}\t{{.Driver}}\t{{.Scope}}" | tail +2 |
+    fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm network " | awk '{print $2}' | while IFS= read -r sel; do
+      { styleText -c yellow -b -i "docker network rm "; styleText -c cyan -b "$sel"; echo } >&2
+      docker network rm "$sel"
+    done
+}
+
+docker_volumes_remove() { @Drmv "$@"; }
+@Drmv() {
+  logInfo "Removing Docker volumes..."
+  docker volume ls --format "table {{.Name}}\t{{.Driver}}\t{{.Scope}}" | tail +2 |
+    fzf_multi --prompt="$FZF_PREFIX_PROMPT docker rm volume " | awk '{print $1}' | while IFS= read -r sel; do
+      { styleText -c yellow -b -i "docker volume rm "; styleText -c cyan -b "$sel"; echo } >&2
+      docker volume rm "$sel"
+    done
+}
+
 # --- Master selector (@D) ---
 __docker_get_descriptions() {
   cat <<'__EOF__'
@@ -213,6 +233,8 @@ docker_containers_restart|reiniciar contenedores seleccionados
 docker_containers_stop|detener contenedores seleccionados
 docker_containers_remove|eliminar contenedores seleccionados
 docker_images_remove|eliminar imágenes seleccionadas
+docker_network_remove|eliminar redes seleccionadas
+docker_volumes_remove|eliminar volúmenes seleccionados
 __EOF__
 }
 
