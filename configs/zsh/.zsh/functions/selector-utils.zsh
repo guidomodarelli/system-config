@@ -1,4 +1,4 @@
-# Generic selector utilities (shared by git/docker/wazuh selectors)
+# Generic selector utilities (shared by git/docker selectors)
 # API:
 # selector_list <descriptions_fn>
 #   Llama a la función <descriptions_fn> que debe emitir lineas 'func|descripcion'
