@@ -1,0 +1,1 @@
+export PATH=/home/guido/.opencode/bin:$PATH
