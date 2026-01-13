@@ -467,6 +467,8 @@ install_yq() {
 }
 
 install_win32yank() {
+  ! is_windows && return
+
   # Install win32yank in WSL
   local VERSION="v0.1.1"
   local FILENAME="win32yank-x64.zip"
