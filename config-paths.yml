@@ -14,11 +14,6 @@ paths:
     target: .oh-my-zsh/themes
   - path: git/.gitconfig
   - path: curl/.curlrc
-  - path: root/etc/pacman.conf
-    target: /etc
-    onlyFor:
-      - platform: linux
-        linuxDistro: arch
   - path: espanso
     target: .config
     overrides:

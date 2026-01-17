@@ -20,16 +20,6 @@ is_ubuntu() {
   return 1  # false
 }
 
-is_arch() {
-  if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    if [[ "$ID" == *"arch"* ]] || [[ "$ID_LIKE" == *"arch"* ]]; then
-      return 0  # true
-    fi
-  fi
-  return 1  # false
-}
-
 install_LazyVim() {
   # Make a backup of your current Neovim files:
   ## remove previous backup if exists
@@ -74,14 +64,6 @@ install_docker_compose_plugin() {
   is_ubuntu || return
   sudo apt-get install -y docker-compose-plugin
 }
-install_docker_arch_engine() {
-  is_arch || return
-  sudo pacman -Sy --noconfirm docker
-}
-install_docker_arch_compose() {
-  is_arch || return
-  sudo pacman -Sy --noconfirm docker-compose
-}
 
 install_docker() {
   if is_ubuntu; then
@@ -103,9 +85,6 @@ install_docker() {
     install_containerd_io
     install_docker_buildx_plugin
     install_docker_compose_plugin
-  elif is_arch; then
-    install_docker_arch_engine
-    install_docker_arch_compose
   fi
   sleep 3
   sudo systemctl start docker.service
@@ -198,25 +177,17 @@ install_VsCode() {
 
   if is_ubuntu; then
     sudo snap install --classic code
-  elif is_arch; then
-    yay -S --noconfirm --needed visual-studio-code-bin
   fi
 }
 
 install_font_jetbrains_mono_pkg() {
-  if is_ubuntu; then sudo apt install -y fonts-jetbrains-mono; elif is_arch; then sudo pacman -Sy --noconfirm ttf-jetbrains-mono; fi
+  if is_ubuntu; then sudo apt install -y fonts-jetbrains-mono; fi
 }
 install_font_dejavu_pkg() {
-  if is_ubuntu; then sudo apt install -y fonts-dejavu; elif is_arch; then sudo pacman -Sy --noconfirm ttf-dejavu-nerd; fi
+  if is_ubuntu; then sudo apt install -y fonts-dejavu; fi
 }
 install_font_cascadia_code_pkg() {
-  if is_ubuntu; then sudo apt install -y fonts-cascadia-code; elif is_arch; then sudo pacman -Sy --noconfirm ttf-cascadia-mono-nerd; fi
-}
-install_font_victor_mono_pkg() {
-  if is_arch; then sudo pacman -Sy --noconfirm ttf-victor-mono-nerd; fi
-}
-install_font_iosevka_term_pkg() {
-  if is_arch; then sudo pacman -Sy --noconfirm ttf-iosevkaterm-nerd; fi
+  if is_ubuntu; then sudo apt install -y fonts-cascadia-code; fi
   # Ubuntu ya usa función separada para IosevkaTermCurly (fuente manual)
 }
 
@@ -226,8 +197,6 @@ install_fonts() {
   install_font_jetbrains_mono_pkg
   install_font_dejavu_pkg
   install_font_cascadia_code_pkg
-  install_font_victor_mono_pkg
-  install_font_iosevka_term_pkg
   # install_font_IosevkaTermCurly  # si se desea instalar la versión manual en Ubuntu
 }
 
@@ -236,8 +205,6 @@ install_vlc() {
 
   if is_ubuntu; then
     sudo apt install -y vlc
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm vlc
   fi
 }
 
@@ -246,8 +213,6 @@ install_wezterm() {
 
   if is_ubuntu; then
     sudo apt install -y wezterm
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm wezterm
   fi
 }
 
@@ -256,8 +221,6 @@ install_rofi() {
 
   if is_ubuntu; then
     sudo apt install -y rofi
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm rofi
   fi
 }
 
@@ -266,8 +229,6 @@ install_obs_studio() {
 
   if is_ubuntu; then
     sudo apt install -y obs-studio
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm obs-studio
   fi
 }
 
@@ -276,8 +237,6 @@ install_peek() {
 
   if is_ubuntu; then
     sudo apt install -y peek
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm peek
   fi
 }
 
@@ -300,16 +259,12 @@ install_exa() {
     curl -Lo "$EXA_ZIP" "https://github.com/ogham/exa/releases/latest/download/exa-linux-x86_64-v${EXA_VERSION}.zip"
     sudo unzip -oq "$EXA_ZIP" bin/exa -d /usr/local
     rm -rf "$EXA_ZIP"
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm exa
   fi
 }
 
 install_eza() {
   if is_ubuntu; then
     sudo apt install -y eza
-  elif is_arch; then
-    yay -S --noconfirm --needed eza
   fi
 }
 
@@ -328,16 +283,12 @@ install_fd_find() {
     if [ ! -f $LOCAL_BINARIES/fd ]; then
       ln -s $(which fdfind) $LOCAL_BINARIES/fd
     fi
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm fd
   fi
 }
 
 install_lazygit() {
   if is_ubuntu; then
     sudo snap install lazygit
-  elif is_arch; then
-    yay -S --noconfirm --needed lazygit-git
   fi
 }
 
@@ -346,8 +297,6 @@ install_btop() {
 
   if is_ubuntu; then
     sudo apt install -y btop
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm btop
   fi
 }
 
@@ -356,32 +305,24 @@ install_xclip() {
 
   if is_ubuntu; then
     sudo apt install -y xclip
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm xclip
   fi
 }
 
 install_git_delta() {
   if is_ubuntu; then
     _brew install git-delta
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm git-delta
   fi
 }
 
 install_git_filter_repo() {
   if is_ubuntu; then
     sudo apt install -y git-filter-repo
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm git-filter-repo
   fi
 }
 
 install_git() {
   if is_ubuntu; then
     sudo apt install -y git
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm git
   fi
 }
 
@@ -391,8 +332,6 @@ install_zsh() {
   else
     if is_ubuntu; then
       sudo apt install -y zsh
-    elif is_arch; then
-      sudo pacman -Sy --noconfirm zsh
     fi
   fi
 
@@ -404,14 +343,12 @@ install_zsh() {
 }
 
 install_build_essential() { is_ubuntu && sudo apt install -y build-essential; }
-install_gcc() { if is_ubuntu; then sudo apt install -y gcc; elif is_arch; then sudo pacman -Sy --noconfirm gcc; fi }
-install_curl_pkg() { if is_ubuntu; then sudo apt install -y curl; elif is_arch; then sudo pacman -Sy --noconfirm curl; fi }
-install_wget_pkg() { if is_ubuntu; then sudo apt install -y wget; elif is_arch; then sudo pacman -Sy --noconfirm wget; fi }
-install_zip_pkg() { if is_ubuntu; then sudo apt install -y zip; elif is_arch; then sudo pacman -Sy --noconfirm zip; fi }
-install_unzip_pkg() { if is_ubuntu; then sudo apt install -y unzip; elif is_arch; then sudo pacman -Sy --noconfirm unzip; fi }
+install_gcc() { if is_ubuntu; then sudo apt install -y gcc; fi }
+install_curl_pkg() { if is_ubuntu; then sudo apt install -y curl; fi }
+install_wget_pkg() { if is_ubuntu; then sudo apt install -y wget; fi }
+install_zip_pkg() { if is_ubuntu; then sudo apt install -y zip; fi }
+install_unzip_pkg() { if is_ubuntu; then sudo apt install -y unzip; fi }
 install_python3_venv() { is_ubuntu && sudo apt install -y python3-venv; }
-install_yay() { is_arch && sudo pacman -Sy --noconfirm yay || true; }
-install_base_devel() { is_arch && sudo pacman -Sy --noconfirm base-devel || true; }
 
 install_essentials() {
   install_build_essential
@@ -421,15 +358,13 @@ install_essentials() {
   install_zip_pkg
   install_unzip_pkg
   install_python3_venv
-  install_yay
-  install_base_devel
 }
 
-install_jq() { if is_ubuntu; then sudo apt install -y jq; elif is_arch; then sudo pacman -Sy --noconfirm jq; fi }
-install_fzf() { if is_ubuntu; then sudo apt install -y fzf; elif is_arch; then sudo pacman -Sy --noconfirm fzf; fi }
-install_ripgrep() { if is_ubuntu; then sudo apt install -y ripgrep; elif is_arch; then sudo pacman -Sy --noconfirm ripgrep; fi }
-install_batcat() { if is_ubuntu; then sudo apt install -y bat; elif is_arch; then sudo pacman -Sy --noconfirm bat; fi }
-install_zoxide() { if is_ubuntu; then sudo apt install -y zoxide; elif is_arch; then sudo pacman -Sy --noconfirm zoxide; fi }
+install_jq() { if is_ubuntu; then sudo apt install -y jq; fi }
+install_fzf() { if is_ubuntu; then sudo apt install -y fzf; fi }
+install_ripgrep() { if is_ubuntu; then sudo apt install -y ripgrep; fi }
+install_batcat() { if is_ubuntu; then sudo apt install -y bat; fi }
+install_zoxide() { if is_ubuntu; then sudo apt install -y zoxide; fi }
 
 install_vagrant() {
   is_windows && return
@@ -438,9 +373,6 @@ install_vagrant() {
     wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
     sudo apt update && sudo apt install -y vagrant
-  elif is_arch; then
-    # Opcional: implementar instalación en Arch (ej: sudo pacman -Sy --noconfirm vagrant)
-    echo "Vagrant no implementado para Arch en este script."
   fi
 }
 
@@ -461,8 +393,6 @@ install_sdkman() {
 install_yq() {
   if is_ubuntu; then
     _brew install yq # https://github.com/mikefarah/yq?tab=readme-ov-file#macos--linux-via-homebrew
-  elif is_arch; then
-    sudo pacman -Sy --noconfirm go-yq # https://github.com/mikefarah/yq?tab=readme-ov-file#arch-linux
   fi
 }
 
@@ -542,7 +472,7 @@ main() {
   install_fonts
 }
 
-if ! is_ubuntu && ! is_arch; then
+if ! is_ubuntu; then
   echo "Unsupported OS"
   exit 1
 fi

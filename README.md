@@ -9,7 +9,7 @@ configuración.
 Antes de comenzar con la instalación, asegúrate de cumplir con los siguientes
 requisitos:
 
-- **Sistema operativo**: Linux (basado en Arch o en Ubuntu) o Windows.
+- **Sistema operativo**: Linux (basado en Debian/Ubuntu) o Windows.
 - **Privilegios de administrador**: Necesarios para ejecutar ciertos comandos y
   scripts.
 - **Conexión a Internet**: Para descargar dependencias y herramientas

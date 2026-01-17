@@ -31,7 +31,6 @@ El sistema soporta configuraciones específicas para diferentes plataformas:
 - **Plataformas admitidas**:
   - `darwin`: Para sistemas macOS.
   - `linux`: Para sistemas Linux, con soporte específico para:
-    - `arch`: Distribución Arch Linux.
     - `debian`: Distribución Debian/Ubuntu.
   - `wsl`: Detecta automáticamente si está ejecutándose bajo Windows Subsystem for Linux. Esta opción:
     - Se usa como un especificador de plataforma independiente con `wsl: true`.
@@ -129,11 +128,6 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
       target: .config/Code/User
       excludeFor:
         - platform: darwin
-    - path: root/etc/pacman.conf
-      target: /etc
-      onlyFor:
-        - platform: linux
-          linuxDistro: arch
     - path: .config/wsl-specific-config
       target: .config
       onlyFor:

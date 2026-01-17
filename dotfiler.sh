@@ -37,9 +37,7 @@ is_wsl() {
 }
 
 get_linux_distro() {
-  if [ -f "/etc/arch-release" ]; then
-    echo "arch"
-  elif [ -f "/etc/debian_version" ]; then
+  if [ -f "/etc/debian_version" ]; then
     echo "debian"
   else
     echo "all"
