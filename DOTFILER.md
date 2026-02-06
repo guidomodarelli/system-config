@@ -117,13 +117,10 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
 
   ```yaml
   paths:
-    - path: .config/nvim
+    - path: .zshrc
+      target: $HOME
+    - path: .config/espanso
       target: .config
-    - path: .config/lazygit
-      target: .config
-      overrides:
-        - platform: darwin
-          target: Library/Application Support/lazygit
     - path: .config/Code/User/*
       target: .config/Code/User
       excludeFor:

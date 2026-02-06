@@ -31,17 +31,16 @@ Para ejecutar el script completo, simplemente ejecuta:
 ### Ejecutar una función específica
 
 Para ejecutar una función específica, usa el nombre de la función como
-argumento. Por ejemplo, para instalar LazyVim, ejecuta:
+argumento. Por ejemplo, para instalar Docker, ejecuta:
 
 ```bash
-./setup.sh install_LazyVim
+./setup.sh install_docker
 ```
 
 ### Funciones Disponibles
 
 El script incluye las siguientes funciones:
 
-- `install_LazyVim`: Instala y configura LazyVim.
 - `install_oh_my_zsh`: Instala Oh My Zsh.
 - `install_docker`: Instala Docker y Docker Compose.
 - `install_antigen`: Instala Antigen para la gestión de plugins de Zsh.
@@ -67,7 +66,6 @@ El script incluye las siguientes funciones:
 - `install_eza`: Instala Eza.
 - `install_homebrew`: Instala Homebrew.
 - `install_fd_find`: Instala fd (find alternative).
-- `install_lazygit`: Instala LazyGit.
 - `install_btop`: Instala Btop.
 - `install_xclip`: Instala Xclip.
 - `install_git_delta`: Instala Git Delta.
@@ -77,7 +75,6 @@ El script incluye las siguientes funciones:
 - `install_zsh`: Instala Zsh.
 - `install_essencials`: Instala herramientas esenciales.
 - `install_utilities`: Instala utilidades varias.
-- `install_neovim`: Instala NeoVim.
 - `main`: Punto de entrada de la aplicación.
 
 ### Autocompletado

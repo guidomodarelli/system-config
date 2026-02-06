@@ -1,19 +1,11 @@
 # yaml-language-server: $schema=schema.json
 paths:
-  - path: nvim
-    target: .config
-  - path: lazygit
-    target: .config
-    overrides:
-      - platform: darwin
-        target: Library/Application Support/lazygit
   - path: zsh/.zsh
   - path: zsh/.antigenrc
   - path: zsh/.zshrc
   - path: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
     target: .oh-my-zsh/themes
   - path: git/.gitconfig
-  - path: curl/.curlrc
   - path: espanso
     target: .config
     overrides:
@@ -21,10 +13,6 @@ paths:
         wsl: true
   - path: PowerShell/*
     target: WSL://OneDrive/Documents/PowerShell
-    onlyFor:
-      - wsl: true
-  - path: AutoHotkey/*
-    target: WSL://OneDrive/Desktop
     onlyFor:
       - wsl: true
   - path: .codex/AGENTS.md

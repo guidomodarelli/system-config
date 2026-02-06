@@ -20,26 +20,6 @@ is_ubuntu() {
   return 1  # false
 }
 
-install_LazyVim() {
-  # Make a backup of your current Neovim files:
-  ## remove previous backup if exists
-  rm -rf ~/.config/nvim.bak ~/.local/share/nvim.bak ~/.local/state/nvim.bak ~/.cache/nvim.bak
-
-  ## required
-  mv ~/.config/nvim{,.bak}
-
-  ## optional but recommended
-  mv ~/.local/share/nvim{,.bak}
-  mv ~/.local/state/nvim{,.bak}
-  mv ~/.cache/nvim{,.bak}
-
-  # Clone the starter
-  git clone https://github.com/LazyVim/starter ~/.config/nvim
-
-  # Remove the .git folder, so you can add it to your own repo later
-  rm -rf ~/.config/nvim/.git
-}
-
 install_oh_my_zsh() {
   sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 }
@@ -286,12 +266,6 @@ install_fd_find() {
   fi
 }
 
-install_lazygit() {
-  if is_ubuntu; then
-    sudo snap install lazygit
-  fi
-}
-
 install_btop() {
   is_windows && return
 
@@ -376,10 +350,6 @@ install_vagrant() {
   fi
 }
 
-install_neovim() {
-  _brew install neovim
-}
-
 install_sdkman() {
   curl -s "https://get.sdkman.io" | bash
   if [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]; then
@@ -458,12 +428,9 @@ main() {
   install_git
   install_git_delta
   install_git_filter_repo
-  install_lazygit
   install_ghq
 
   # Development tools
-  install_neovim
-  install_LazyVim
   # install_vagrant
   install_docker
   install_lazydocker

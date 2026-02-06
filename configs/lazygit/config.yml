@@ -1,5 +1,0 @@
-git:
-  paging:
-    # externalDiffCommand: difft --color=always --syntax-highlight=off --graph-limit 30000000
-    colorArg: always
-    pager: delta --dark --paging=never --side-by-side --diff-so-fancy
