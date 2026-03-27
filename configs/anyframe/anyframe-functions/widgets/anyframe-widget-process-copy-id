@@ -1,9 +1,0 @@
-anyframe-source-process -u $USER \
-  | anyframe-selector-auto \
-  | awk '{print $1}' \
-  | xclip -selection clipboard
-
-# Local Variables:
-# mode: Shell-Script
-# End:
-# vim: ft=zsh

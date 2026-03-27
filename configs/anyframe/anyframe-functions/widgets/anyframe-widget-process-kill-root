@@ -1,9 +1,0 @@
-anyframe-source-process \
-  | anyframe-selector-auto \
-  | awk '{print $1}' \
-  | anyframe-action-execute sudo kill -9
-
-# Local Variables:
-# mode: Shell-Script
-# End:
-# vim: ft=zsh

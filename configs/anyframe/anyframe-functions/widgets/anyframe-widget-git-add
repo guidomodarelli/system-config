@@ -1,9 +1,0 @@
-anyframe-source-git-status ".[MD?]" \
-  | anyframe-selector-auto \
-  | awk '{print $2}' \
-  | anyframe-action-execute git add --
-
-# Local Variables:
-# mode: Shell-Script
-# End:
-# vim: ft=zsh

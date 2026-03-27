@@ -1,8 +1,0 @@
-# require ghq (https://github.com/motemen/ghq)
-
-ghq list
-
-# Local Variables:
-# mode: Shell-Script
-# End:
-# vim: ft=zsh

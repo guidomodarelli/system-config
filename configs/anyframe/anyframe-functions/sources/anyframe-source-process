@@ -1,6 +1,0 @@
-ps -o pid,command --no-headers "$@"
-
-# Local Variables:
-# mode: Shell-Script
-# End:
-# vim: ft=zsh
