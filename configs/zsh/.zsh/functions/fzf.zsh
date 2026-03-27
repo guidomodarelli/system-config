@@ -12,6 +12,12 @@ fzf_multi() {
 }
 
 # Navega a un subdirectorio utilizando fzf para la selección interactiva.
+fcd() {
+  local dir="${1:-.}"
+
+  cdf "$dir"
+}
+
 cdf() {
   local base_dir="${1:-.}"
 
@@ -47,7 +53,7 @@ cdf() {
   local selection
   selection=$(
     cd "$resolved_base" || return 1
-    fd --type d --min-depth 1 --strip-cwd-prefix --color=never \
+    fd --type d --min-depth 1 --strip-cwd-prefix --color=never --exclude Cache --exclude Containers \
       | sort \
       | fzf --prompt "$prompt" --header "$header" \
             --preview 'ls -a --color=always -- {}' \

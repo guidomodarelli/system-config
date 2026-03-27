@@ -11,6 +11,11 @@ __git_branch_suggestions() {
   _describe -t branches 'local branches' branches
 }
 
+@Gclean() { git_clean "$@"; }
+git_clean() {
+  git clean -xdf --dry-run | awk '{ print $3 }' | grep -v node_modules | xargs -I{} rm -rf {}
+}
+
 @Ghistory_purge() { git_history_purge "$@"; }
 git_history_purge() {
   if [ -z "$1" ]; then

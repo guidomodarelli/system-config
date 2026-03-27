@@ -1,15 +1,15 @@
 # Unified implementation: cx handles both safe and yolo modes.
 cx() {
   # Added flag parsing: -m <model>, -re <reasoning_effort>
-  local model="gpt-5.2-codex"
-  local reasoning="medium"
+  local model="gpt-5.4"
+  local reasoning="xhigh"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local rest=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       update)
-        npm install -g @openai/codex@latest
+        brew upgrade codex
         return
         ;;
       -m)
@@ -44,7 +44,7 @@ cx() {
   else
     cmd+=(--sandbox workspace-write --ask-for-approval on-failure)
   fi
-  cmd+=(--enable web_search_request "${rest[@]}")
+  cmd+=(--search "${rest[@]}")
   echo "Running: ${cmd[*]}"
   "${cmd[@]}"
 }
