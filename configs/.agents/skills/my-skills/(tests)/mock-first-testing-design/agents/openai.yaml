@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mock-First Testing Design"
+  short_description: "Guard testing with mocks and sound design"
+  default_prompt: "Use $mock-first-testing-design to decide whether to mock, inject dependencies, or refactor without adding test-only production code."

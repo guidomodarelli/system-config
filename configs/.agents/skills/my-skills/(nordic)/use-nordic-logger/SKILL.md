@@ -1,12 +1,13 @@
 ---
 name: use-nordic-logger
-description: Replaces console.* with nordic/logger in MELI/Nordic codebases (api routes, middleware, services, SSR) and follows local LoggerFactory patterns. Use when adding or updating logging or when refactoring console usage.
+description: Replaces console.* with nordic/logger in MELI/Nordic codebases (api routes, middleware, services, SSR) and follows local LoggerFactory patterns. Use when adding or updating logging, when refactoring console usage, or when fixing lint warnings or errors triggered by the `no-console` rule.
 ---
 
 # Use Nordic Logger
 
 ## Quick start
 
+- Trigger this skill when ESLint or another linter reports a `no-console` warning or error.
 - Create a module logger with `LoggerFactory` from `nordic/logger` (one per file).
 - Replace `console.*` with `logger.<level>` calls; keep levels consistent (`error` for failures, `info` for expected flows).
 - Log specific, actionable messages with safe context (operation, identifiers, request metadata) when relevant.
