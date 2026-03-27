@@ -10,9 +10,8 @@
 : "${CX_FZF_HEIGHT:=20%}"   # Altura de fzf (override: export CX_FZF_HEIGHT=40%)
 
 _cx_models() {
-  echo "gpt-5.2
-gpt-5.2-codex
-gpt-5.2-codex-max"
+  echo "gpt-5.4
+gpt-5.3-codex"
 }
 
 _cx_reasoning() {
