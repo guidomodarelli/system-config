@@ -1,0 +1,1 @@
+export MELI_API_KEY="default"
