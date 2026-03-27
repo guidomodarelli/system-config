@@ -36,6 +36,17 @@ if [ -f "$GOOGLE_CLOUD_HOME/completion.zsh.inc" ]; then . "$GOOGLE_CLOUD_HOME/co
 
 ### HOMEBREW
 export HOMEBREW_CURLRC=1
+if [[ $(uname) = "Darwin" ]]; then
+  if [[ -x "/opt/homebrew/bin/brew" ]]; then
+    export HOMEBREW_PREFIX="/opt/homebrew"
+  elif [[ -x "/usr/local/bin/brew" ]]; then
+    export HOMEBREW_PREFIX="/usr/local"
+  fi
+
+  if [[ -n "${HOMEBREW_PREFIX:-}" ]]; then
+    export PATH="$HOMEBREW_PREFIX/bin:$HOMEBREW_PREFIX/sbin:$PATH"
+  fi
+fi
 if [[ $(uname) = "Linux" ]]; then
 	eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null)"
 fi
