@@ -8,7 +8,7 @@ sistemas operativos como Darwin (macOS) y Linux.
 
 ## Archivos de Configuración
 
-- **`config-paths.yml`**:
+- **`symlinks.yml`**:
   - Es un archivo YAML que define las asignaciones entre
     archivos/directorios origen y sus destinos en el sistema.
   - Utiliza un esquema JSON (`schema.json`) para validar la estructura.
@@ -141,7 +141,7 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
 
 5. **Modificación de Configuraciones**:
 
-  Para agregar o modificar enlaces, simplemente edita el archivo `config-paths.yml`
+  Para agregar o modificar enlaces, simplemente edita el archivo `symlinks.yml`
   siguiendo la estructura definida en `schema.json`. Esto permite controlar con
   precisión qué archivos se enlazan y dónde, facilitando configuraciones
   específicas por plataforma.

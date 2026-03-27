@@ -2,7 +2,7 @@
 
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 ROOT_CONFIGS="configs"
-CONFIG_PATHS_FILE="config-paths.yml"
+CONFIG_PATHS_FILE="symlinks.yml"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/styleText.zsh"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/constants.zsh"
 source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/check_command.zsh"
