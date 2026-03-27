@@ -8,7 +8,7 @@
     },
     "linuxDistro": {
       "type": "string",
-      "enum": ["debian"],
+      "enum": ["arch", "debian"],
       "description": "Linux distribution type (Debian/Ubuntu)",
       "$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions"
     },
