@@ -37,6 +37,8 @@ if [ -f "$GOOGLE_CLOUD_HOME/completion.zsh.inc" ]; then . "$GOOGLE_CLOUD_HOME/co
 ### HOMEBREW
 export HOMEBREW_CURLRC=1
 if [[ $(uname) = "Darwin" ]]; then
+	export PATH="$HOME/Library/Python/3.9/bin:$PATH"
+
   if [[ -x "/opt/homebrew/bin/brew" ]]; then
     export HOMEBREW_PREFIX="/opt/homebrew"
   elif [[ -x "/usr/local/bin/brew" ]]; then
