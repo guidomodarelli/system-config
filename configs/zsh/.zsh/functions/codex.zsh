@@ -2,7 +2,7 @@
 cx() {
   # Added flag parsing: -m <model>, -re <reasoning_effort>
   local model="gpt-5.4"
-  local reasoning="xhigh"
+  local reasoning="medium"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local rest=()
 
