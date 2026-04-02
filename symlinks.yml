@@ -16,3 +16,4 @@ paths:
     onlyFor:
       - wsl: true
   - path: .codex/AGENTS.md
+    target: .codex/
