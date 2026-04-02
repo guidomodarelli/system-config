@@ -10,7 +10,6 @@
 - Sigue las mejores prácticas de la industria y los estándares de codificación.
 
 # Procedimiento y Validación
-- Antes de comenzar, presenta un checklist conciso (3-7 ítems conceptuales) con los pasos que realizarás para la refactorización. Usa esto como hoja de ruta.
 - Tras realizar cada edición significativa de código, valida en 1-2 líneas si la acción cumple el objetivo (ej: si la duplicidad fue eliminada, si los módulos son cohesionados) y procede o corrige si no se logra.
 
 # Planning and Verification
