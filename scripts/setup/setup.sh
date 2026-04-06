@@ -20,6 +20,14 @@ is_ubuntu() {
   return 1  # false
 }
 
+is_darwin() {
+  if [[ "$(uname)" == "Darwin" ]]; then
+    return 0  # true
+  else
+    return 1  # false
+  fi
+}
+
 install_oh_my_zsh() {
   sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 }
@@ -74,15 +82,22 @@ install_docker() {
 }
 
 install_antigen() {
-  curl -L git.io/antigen >$HOME/antigen.zsh
+  local repo_root
+  # TODO: use git rev-parse to get the repo root instead of assuming the script is in scripts/setup
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  local antigen_source="$repo_root/third-party/antigen/antigen.zsh"
+
+  if [ ! -f "$antigen_source" ]; then
+    echo "Antigen source not found at $antigen_source" >&2
+    return 1
+  fi
+
+  cp "$antigen_source" "$HOME/antigen.zsh"
 }
 
 install_nvm() {
+  # TODO: try to get the latest version of nvm from GitHub instead of hardcoding it
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-}
-
-install_npm_dependencies() {
-  echo "Installing npm dependencies"
 }
 
 install_font() {
@@ -109,19 +124,9 @@ install_font_IosevkaTermCurly() {
 install_espanso() {
   is_windows && return
 
-  # https://espanso.org/docs/install/linux/#appimage-x11
+  # https://espanso.org/docs/install/mac/#install-using-homebrew
 
-  # Create the $HOME/opt destination folder
-  mkdir -p ~/opt
-  # Download the AppImage inside it
-  wget -O ~/opt/Espanso.AppImage 'https://github.com/federico-terzi/espanso/releases/download/v2.2.1/Espanso-X11.AppImage'
-  # Make it executable
-  chmod u+x ~/opt/Espanso.AppImage
-  # Create the "espanso" command alias
-  sudo ~/opt/Espanso.AppImage env-path register
-
-  # At this point, you are ready to use espanso by registering it first as a Systemd service and then starting it with:
-
+  _brew install --cask espanso
   # Register espanso as a systemd service (required only once)
   espanso service register
 
@@ -130,6 +135,7 @@ install_espanso() {
 
 install_golang() {
   # https://go.dev/dl/
+  # TODO: try to get the latest version of Go from the website instead of hardcoding it
   local GO_VERSION="1.25.3"
   local FILE="go${GO_VERSION}.linux-amd64.tar.gz"
   curl -LO https://go.dev/dl/$FILE
@@ -142,14 +148,10 @@ _go() {
 }
 
 install_ghq() {
-  _go install github.com/x-motemen/ghq@latest
+  _brew install ghq # https://formulae.brew.sh/formula/ghq
 
   mkdir -p $HOME/ghq/work
   mkdir -p $HOME/ghq/projects
-}
-
-install_lazydocker() {
-  _go install github.com/jesseduffield/lazydocker@latest
 }
 
 install_VsCode() {
@@ -161,14 +163,13 @@ install_VsCode() {
 }
 
 install_font_jetbrains_mono_pkg() {
-  if is_ubuntu; then sudo apt install -y fonts-jetbrains-mono; fi
+  _brew install --cask font-jetbrains-mono
 }
 install_font_dejavu_pkg() {
-  if is_ubuntu; then sudo apt install -y fonts-dejavu; fi
+  _brew install --cask font-dejavu-sans-mono-nerd-font
 }
 install_font_cascadia_code_pkg() {
-  if is_ubuntu; then sudo apt install -y fonts-cascadia-code; fi
-  # Ubuntu ya usa función separada para IosevkaTermCurly (fuente manual)
+  _brew install --cask font-cascadia-code
 }
 
 install_fonts() {
@@ -177,75 +178,10 @@ install_fonts() {
   install_font_jetbrains_mono_pkg
   install_font_dejavu_pkg
   install_font_cascadia_code_pkg
-  # install_font_IosevkaTermCurly  # si se desea instalar la versión manual en Ubuntu
-}
-
-install_vlc() {
-  is_windows && return
-
-  if is_ubuntu; then
-    sudo apt install -y vlc
-  fi
-}
-
-install_wezterm() {
-  is_windows && return
-
-  if is_ubuntu; then
-    sudo apt install -y wezterm
-  fi
-}
-
-install_rofi() {
-  is_windows && return
-
-  if is_ubuntu; then
-    sudo apt install -y rofi
-  fi
-}
-
-install_obs_studio() {
-  is_windows && return
-
-  if is_ubuntu; then
-    sudo apt install -y obs-studio
-  fi
-}
-
-install_peek() {
-  is_windows && return
-
-  if is_ubuntu; then
-    sudo apt install -y peek
-  fi
-}
-
-install_user_interface_apps() {
-  is_windows && return
-
-  install_vlc
-  install_wezterm
-  install_rofi
-  install_obs_studio
-  install_peek
-  install_VsCode
-  install_espanso
-}
-
-install_exa() {
-  if is_ubuntu; then
-    EXA_VERSION=$(curl -s "https://api.github.com/repos/ogham/exa/releases/latest" | grep -Po '"tag_name": "v\K[0-9.]+')
-    local EXA_ZIP="exa.zip"
-    curl -Lo "$EXA_ZIP" "https://github.com/ogham/exa/releases/latest/download/exa-linux-x86_64-v${EXA_VERSION}.zip"
-    sudo unzip -oq "$EXA_ZIP" bin/exa -d /usr/local
-    rm -rf "$EXA_ZIP"
-  fi
 }
 
 install_eza() {
-  if is_ubuntu; then
-    sudo apt install -y eza
-  fi
+  _brew install eza # https://formulae.brew.sh/formula/eza
 }
 
 install_homebrew() {
@@ -253,25 +189,18 @@ install_homebrew() {
 }
 
 _brew() {
-  /home/linuxbrew/.linuxbrew/bin/brew "$@"
+  if is_ubuntu; then
+    /home/linuxbrew/.linuxbrew/bin/brew "$@"
+  elif is_darwin; then
+     /opt/homebrew/bin/brew "$@"
+   else
+     echo "Unsupported OS for brew" >&2
+     return 1
+  fi
 }
 
 install_fd_find() {
-  if is_ubuntu; then
-    sudo apt install -y fd-find
-    mkdir -p $LOCAL_BINARIES
-    if [ ! -f $LOCAL_BINARIES/fd ]; then
-      ln -s $(which fdfind) $LOCAL_BINARIES/fd
-    fi
-  fi
-}
-
-install_btop() {
-  is_windows && return
-
-  if is_ubuntu; then
-    sudo apt install -y btop
-  fi
+  _brew install fd
 }
 
 install_xclip() {
@@ -279,12 +208,6 @@ install_xclip() {
 
   if is_ubuntu; then
     sudo apt install -y xclip
-  fi
-}
-
-install_git_delta() {
-  if is_ubuntu; then
-    _brew install git-delta
   fi
 }
 
@@ -304,9 +227,7 @@ install_zsh() {
   if command -v zsh >/dev/null 2>&1; then
     echo "zsh already installed; skipping package installation"
   else
-    if is_ubuntu; then
-      sudo apt install -y zsh
-    fi
+    _brew install zsh
   fi
 
   local desired_shell
@@ -334,19 +255,29 @@ install_essentials() {
   install_python3_venv
 }
 
-install_jq() { if is_ubuntu; then sudo apt install -y jq; fi }
-install_fzf() { if is_ubuntu; then sudo apt install -y fzf; fi }
-install_ripgrep() { if is_ubuntu; then sudo apt install -y ripgrep; fi }
-install_batcat() { if is_ubuntu; then sudo apt install -y bat; fi }
-install_zoxide() { if is_ubuntu; then sudo apt install -y zoxide; fi }
+install_jq() {
+  _brew install jq # https://stedolan.github.io/jq/
+}
 
-install_vagrant() {
-  is_windows && return
+install_fzf() {
+  _brew install fzf # https://github.com/junegunn/fzf
+}
 
-  if is_ubuntu; then
-    wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-    sudo apt update && sudo apt install -y vagrant
+install_ripgrep() {
+  _brew install ripgrep # https://github.com/BurntSushi/ripgrep
+}
+
+install_zoxide() {
+  _brew install zoxide # https://github.com/ajeetdsouza/zoxide
+}
+
+install_ggrep() {
+  _brew install grep # https://formulae.brew.sh/formula/grep (GNU grep provides ggrep)
+  if is_darwin; then
+    local brew_prefix
+    brew_prefix="$(_brew --prefix)"
+    _brew link --overwrite grep
+    ln -sf "${brew_prefix}/bin/ggrep" "${brew_prefix}/bin/grep"
   fi
 }
 
@@ -359,11 +290,8 @@ install_sdkman() {
     echo "ERROR: SDKMAN no se instaló correctamente."
   fi
 }
-
 install_yq() {
-  if is_ubuntu; then
-    _brew install yq # https://github.com/mikefarah/yq?tab=readme-ov-file#macos--linux-via-homebrew
-  fi
+  _brew install yq # https://github.com/mikefarah/yq
 }
 
 install_win32yank() {
@@ -415,18 +343,17 @@ main() {
   install_jq
   install_fzf
   install_ripgrep
-  install_batcat
   install_zoxide
-  install_exa
+  install_ggrep
+  install_eza
   install_fd_find
   install_yq
-  install_btop
   install_xclip
   install_win32yank
+  install_espanso
 
   # Git tools
   install_git
-  install_git_delta
   install_git_filter_repo
   install_ghq
 
@@ -438,11 +365,6 @@ main() {
   # Fonts
   install_fonts
 }
-
-if ! is_ubuntu; then
-  echo "Unsupported OS"
-  exit 1
-fi
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   ensure_sudo
