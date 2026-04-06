@@ -65,7 +65,7 @@ function cx {
     } else {
         $cmd += @('--sandbox','workspace-write','--ask-for-approval','on-failure')
     }
-    $cmd += '--enable web_search_request'
+    $cmd += @('--enable', 'web_search_request')
     if ($rest.Count -gt 0) {
         $cmd += $rest.ToArray()
     }
@@ -97,7 +97,17 @@ function cxd {
 
 # Helper functions for Git commands that need branch names
 function git_current_branch {
-    (git symbolic-ref --short HEAD 2> $null) -or (git rev-parse --short HEAD 2> $null)
+    $branch = git symbolic-ref --short HEAD 2> $null
+    if (-not [string]::IsNullOrWhiteSpace($branch)) {
+        return $branch.Trim()
+    }
+
+    $detachedHead = git rev-parse --short HEAD 2> $null
+    if (-not [string]::IsNullOrWhiteSpace($detachedHead)) {
+        return $detachedHead.Trim()
+    }
+
+    return $null
 }
 
 function git_main_branch {
@@ -136,17 +146,35 @@ function gb { git branch $args }
 function gbD { git branch --delete --force $args }
 function gba { git branch --all $args }
 function gbd { git branch --delete $args }
-function gbg { Set-Variable -Name LANG -Value "C"; git branch -vv | Select-String ": gone\]" }
+function gbg {
+    $previousLang = $env:LANG
+    try {
+        $env:LANG = 'C'
+        git branch -vv | Select-String ": gone\]"
+    } finally {
+        $env:LANG = $previousLang
+    }
+}
 function gbgD {
-    Set-Variable -Name LANG -Value "C"
-    git branch --no-color -vv | Select-String ": gone\]" | ForEach-Object {
-        git branch -D ($_.ToString() -replace "^.*?(\S+).*$", '$1')
+    $previousLang = $env:LANG
+    try {
+        $env:LANG = 'C'
+        git branch --no-color -vv | Select-String ": gone\]" | ForEach-Object {
+            git branch -D ($_.ToString() -replace "^.*?(\S+).*$", '$1')
+        }
+    } finally {
+        $env:LANG = $previousLang
     }
 }
 function gbgd {
-    Set-Variable -Name LANG -Value "C"
-    git branch --no-color -vv | Select-String ": gone\]" | ForEach-Object {
-        git branch -d ($_.ToString() -replace "^.*?(\S+).*$", '$1')
+    $previousLang = $env:LANG
+    try {
+        $env:LANG = 'C'
+        git branch --no-color -vv | Select-String ": gone\]" | ForEach-Object {
+            git branch -d ($_.ToString() -replace "^.*?(\S+).*$", '$1')
+        }
+    } finally {
+        $env:LANG = $previousLang
     }
 }
 function gbl { git blame -w $args }
@@ -204,7 +232,7 @@ function gfa { git fetch --all --tags --prune --jobs=10 $args }
 function gfg { git ls-files | Select-String $args }
 function gfo { git fetch origin $args }
 function gfp { git fetch --force --prune --prune-tags --tags --jobs=8 $args }
-function gg { git gui citool $args }
+function ggui { git gui citool $args }
 function gga { git gui citool --amend $args }
 function ggpull { git pull origin "$(git_current_branch)" }
 function ggpush { git push origin "$(git_current_branch)" }
@@ -242,12 +270,22 @@ function gp { git push $args }
 function gpd { git push --dry-run $args }
 function gpf { git push --force-with-lease --force-if-includes $args }
 function gpf! { git push --force $args }
-function gpoat { git push origin --all && git push origin --tags $args }
+function gpoat {
+    git push origin --all
+    if ($LASTEXITCODE -eq 0) {
+        git push origin --tags $args
+    }
+}
 function gpod { git push origin --delete $args }
 function gpr { git pull --rebase $args }
 function gpra { git pull --rebase --autostash $args }
 function gprav { git pull --rebase --autostash -v $args }
-function gpristine { git reset --hard && git clean --force -dfx $args }
+function gpristine {
+    git reset --hard
+    if ($LASTEXITCODE -eq 0) {
+        git clean --force -dfx $args
+    }
+}
 function gprom { git pull --rebase origin $(git_main_branch) $args }
 function gpromi { git pull --rebase=interactive origin $(git_main_branch) $args }
 function gprum { git pull --rebase upstream $(git_main_branch) $args }
@@ -286,7 +324,14 @@ function grs { git restore $args }
 function grset { git remote set-url $args }
 function grss { git restore --source $args }
 function grst { git restore --staged $args }
-function grt { Set-Location -Path "$(git rev-parse --show-toplevel 2> $null || echo '.')" }
+function grt {
+    $gitRoot = git rev-parse --show-toplevel 2> $null
+    if ([string]::IsNullOrWhiteSpace($gitRoot)) {
+        Set-Location -Path '.'
+    } else {
+        Set-Location -LiteralPath $gitRoot.Trim()
+    }
+}
 function gru { git reset -- $args }
 function grup { git remote update $args }
 function grv { git remote --verbose $args }
@@ -328,7 +373,12 @@ function gwip {
     git ls-files --deleted -z | ForEach-Object { if ($_) { git rm $_ } } 2> $null
     git commit --no-verify --no-gpg-sign --message "--wip-- [skip ci]" $args
 }
-function gwipe { git reset --hard && git clean --force -df $args }
+function gwipe {
+    git reset --hard
+    if ($LASTEXITCODE -eq 0) {
+        git clean --force -df $args
+    }
+}
 function gwt { git worktree $args }
 function gwta { git worktree add $args }
 function gwtls { git worktree list $args }
