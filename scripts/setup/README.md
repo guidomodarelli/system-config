@@ -5,6 +5,35 @@ diversas herramientas y dependencias del sistema, facilitando así el proceso de
 configuración inicial y asegurando que todas las aplicaciones necesarias estén
 disponibles y correctamente configuradas.
 
+## Uso en macOS
+
+Este script automatiza la instalación de herramientas y la configuración del
+entorno usando Homebrew.
+
+### Requisitos
+
+- Homebrew instalado en `/opt/homebrew`.
+- Permisos de administrador para cambiar el shell por defecto.
+- Conexión a Internet.
+
+Si Homebrew está en otra ruta, ajusta la función `_brew` en
+`scripts/setup/setup.sh`.
+
+### Ejecutar el script completo
+
+Desde la raíz del repo:
+
+```bash
+chmod +x scripts/setup/setup.sh
+./scripts/setup/setup.sh
+```
+
+### Ejecutar una función específica
+
+```bash
+./scripts/setup/setup.sh install_zsh
+```
+
 ## Uso en Linux
 
 Puedes ejecutar el script completo o llamar a funciones específicas desde la
