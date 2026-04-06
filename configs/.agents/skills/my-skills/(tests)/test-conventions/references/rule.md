@@ -1,3 +1,9 @@
+## Mandatory Execution
+
+- Run the relevant tests before marking any change as done; verify they pass.
+- When functionality is added, modified, or removed, add or update the corresponding tests in the same change.
+- If tests cannot be executed in the current environment, add an Error section stating what could not be validated and why.
+
 # Test Conventions Rules
 
 ## Structure and Naming
