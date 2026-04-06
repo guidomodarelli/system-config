@@ -1,11 +1,11 @@
 #!/bin/bash
 
 ROOT_DIR="$(git rev-parse --show-toplevel)"
-ROOT_CONFIGS="configs"
-CONFIG_PATHS_FILE="symlinks.yml"
-source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/styleText.zsh"
-source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/constants.zsh"
-source "$ROOT_DIR/$ROOT_CONFIGS/zsh/.zsh/functions/check_command.zsh"
+ROOT_CONFIGS_DIR="$ROOT_DIR/configs"
+CONFIG_PATHS_FILE="$ROOT_DIR/symlinks.yml"
+source "$ROOT_CONFIGS_DIR/zsh/.zsh/functions/styleText.zsh"
+source "$ROOT_CONFIGS_DIR/zsh/.zsh/constants.zsh"
+source "$ROOT_CONFIGS_DIR/zsh/.zsh/functions/check_command.zsh"
 
 # Create a temporary PowerShell script
 TMP_SCRIPT=$(mktemp -p /tmp wsl_symlink_XXXXXX.ps1)
@@ -207,7 +207,7 @@ get_abs_path() {
   local path="$1"
 
   if [ "$(first_letter "$path")" != "/" ] && [ "$(first_letter "$path")" != "~" ]; then
-    path="$ROOT_CONFIGS/$path"
+    path="$ROOT_CONFIGS_DIR/$path"
   fi
 
   realpath "$path"
@@ -260,7 +260,7 @@ process_path_entry() {
 
   local path=$(echo "$line" | jq -r '.path')
   local override_target=$(echo "$line" | jq -r ".overrides[]? | select($selector_override) | .target")
-  # Si hay override, úsalo; si no, usa el target normal
+  # Use the override target when present; otherwise use the default target
   local target=${override_target:-$(echo "$line" | jq -r '.target')}
 
   if [[ "$target" != WSL://* ]]; then
