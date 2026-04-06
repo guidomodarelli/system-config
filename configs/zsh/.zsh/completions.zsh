@@ -12,7 +12,7 @@ discover_completion_dirs() {
     [ -d "$root" ] || continue
 
     while IFS= read -r file; do
-      if sed -n '1,12p' "$file" | grep -Eq '^[[:space:]]*(#compdef|compdef[[:space:]])'; then
+      if grep -qEm1 '^[[:space:]]*(#compdef|compdef[[:space:]])' "$file"; then
         completion_dirs+=("${file:h}")
       fi
     done < <(
