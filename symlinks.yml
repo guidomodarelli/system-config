@@ -5,7 +5,6 @@ paths:
   - path: zsh/.zshrc
   - path: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
     target: .oh-my-zsh/themes
-  - path: git/.gitconfig
   - path: espanso
     target: .config
     overrides:
