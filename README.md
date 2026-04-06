@@ -9,41 +9,83 @@ configuración.
 Antes de comenzar con la instalación, asegúrate de cumplir con los siguientes
 requisitos:
 
-- **Sistema operativo**: Linux (basado en Debian/Ubuntu) o Windows.
 - **Privilegios de administrador**: Necesarios para ejecutar ciertos comandos y
   scripts.
 - **Conexión a Internet**: Para descargar dependencias y herramientas
   necesarias.
 - **Git**: Asegúrate de tener Git instalado para clonar el repositorio y
-  actualizar los submódulos.
-
-Para asegurarte de que todos los submódulos estén inicializados y actualizados,
-ejecuta el siguiente comando:
-
-```sh
-git submodule update --init --recursive --remote -f
-```
+  mantenerlo actualizado.
 
 ## Instalación
 
-En Linux y Windows:
-
-1. **Lee [`SETUP.md`](./scripts/setup/SETUP.md)**: Antes de proceder con la
-   instalación, asegúrate de leer el archivo `SETUP.md`. Contiene instrucciones
+1. **Lee [`README.md`](./scripts/setup/README.md)**: Antes de proceder con la
+   instalación, asegúrate de leer el archivo `README.md`. Contiene instrucciones
    detalladas sobre cómo usar el script de configuración, incluyendo cómo
    ejecutar el script completo o funciones específicas.
 
-2. **Ejecuta el script de configuración**: Ejecuta el script `setup.py`. Este
-   script detectará automáticamente si estás en un sistema Linux o Windows y
-   procederá con la instalación y configuración de las herramientas y
-   dependencias necesarias. En sistemas Linux, también ejecutará `dotfiler.sh`
-   para configurar tus dotfiles y otras configuraciones.
+2. **Ejecuta el script de configuración**: Ejecuta el script `scripts/setup/setup.sh`.
 
   ```sh
-  python3 setup.py
+  ./scripts/setup/setup.sh
+  ./scripts/dotfiler/dotfiler.sh
   ```
 
 3. **Revisa la configuración**: Asegúrate de que todas las herramientas y
    configuraciones se hayan instalado correctamente. Puedes revisar los archivos
    de configuración generados y probar las herramientas instaladas para
    verificar su funcionamiento.
+
+## Completions dinámicos en Zsh
+
+La carga de completions está configurada para descubrir automáticamente
+directorios que contengan archivos de completion válidos.
+
+¿Cómo funciona?
+
+1. Se toma como raíz de búsqueda `~/.zsh` (o `ZDOTDIR/.zsh` si aplica).
+2. Se buscan archivos que empiecen con `_`.
+3. Si el archivo contiene una línea que comience con `#compdef` o `compdef`,
+   se considera un completion válido.
+4. El directorio de ese archivo se agrega a `fpath` automáticamente.
+
+Esto permite organizar completions en cualquier subcarpeta, por ejemplo:
+
+- `~/.zsh/completions`
+- `~/.zsh/settings/meli/completions`
+
+Además:
+
+- Se siguen symlinks durante la búsqueda.
+- `~/.zsh/completions` sigue siendo la carpeta base para completions generados
+  localmente.
+- Si se hace `source ~/.zsh/completions.zsh` en una shell ya abierta, se
+  refresca `compinit` para tomar cambios sin reiniciar terminal.
+
+### Relación con zsh-autosuggestions
+
+La estrategia de completions de autosuggestions está en
+[third-party/zsh-autosuggestions/src/strategies/completion.zsh](third-party/zsh-autosuggestions/src/strategies/completion.zsh).
+
+Puntos importantes:
+
+- Ahí se valida `whence compdef >/dev/null || return` dentro de la estrategia.
+- Esa validación ocurre cuando se intenta capturar sugerencias por completion,
+  no solo durante el arranque de la shell.
+- En paralelo, el discover de [configs/zsh/.zsh/completions.zsh](configs/zsh/.zsh/completions.zsh)
+  vuelve a ejecutarse cada vez que ese archivo se sourcea.
+
+En resumen: no depende solo del inicio. Si agregas/mueves completions en una
+shell ya abierta, puedes recargar para que se redescubran y se reconstruya
+`compinit`.
+
+Comando rápido para validar:
+
+```sh
+zsh -ic 'cmd="setup.sh"; echo "$cmd comp: ${_comps[$cmd]-<none>}"'
+```
+
+Si está correcto, debería mostrar un valor distinto de `<none>`, por ejemplo:
+
+```text
+setup.sh comp: _setup_sh_completions
+```
