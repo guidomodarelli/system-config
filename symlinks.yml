@@ -14,5 +14,11 @@ paths:
     target: WSL://OneDrive/Documents/PowerShell
     onlyFor:
       - wsl: true
+  - path: .agents/skills/my-skills
+    target: .agents/skills
   - path: .codex/AGENTS.md
     target: .codex/
+  - path: .codex/skills/frontend-skill
+    target: .codex/skills
+  - path: .codex/skills/.system/skill-creator/SKILL.md
+    target: .agents/skills/.system/skill-creator
