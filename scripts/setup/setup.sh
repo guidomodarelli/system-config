@@ -1,6 +1,7 @@
 #!/bin/bash
 
 LOCAL_BINARIES="$HOME/.local/bin"
+REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
 
 is_windows() {
   if uname -r | grep -iq "microsoft"; then
@@ -82,10 +83,7 @@ install_docker() {
 }
 
 install_antigen() {
-  local repo_root
-  # TODO: use git rev-parse to get the repo root instead of assuming the script is in scripts/setup
-  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-  local antigen_source="$repo_root/third-party/antigen/antigen.zsh"
+  local antigen_source="$REPO_ROOT/third-party/antigen/antigen.zsh"
 
   if [ ! -f "$antigen_source" ]; then
     echo "Antigen source not found at $antigen_source" >&2
