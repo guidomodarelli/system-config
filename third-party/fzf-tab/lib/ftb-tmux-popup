@@ -48,14 +48,43 @@ zstyle -a ":fzf-tab:$_ftb_curcontext" popup-min-size popup_min_size || popup_min
 
 # get the size of content, note we should remove all ANSI color code
 comp_lines=$(( ${#${(f)mapfile[$tmp_dir/completions.$$]}} + $popup_pad[2] ))
-if (( comp_lines <= 500 )); then
+if (( $+commands[python3] )); then
+  # Use display width so wide CJK characters do not shrink the popup.
+  comp_length=$( command python3 - "$tmp_dir/completions.$$" <<'PY'
+import re
+import sys
+import unicodedata
+
+ansi_escape = re.compile(r'\x1b\[[0-9;]*m')
+max_width = 0
+
+with open(sys.argv[1], encoding='utf-8', errors='ignore') as completion_file:
+    for raw_line in completion_file:
+        clean_line = ansi_escape.sub('', raw_line.rstrip('\n')).replace('\x00', '')
+        line_width = 0
+
+        for character in clean_line:
+            if unicodedata.combining(character):
+                continue
+
+            if unicodedata.category(character).startswith('C'):
+                continue
+
+            line_width += 2 if unicodedata.east_asian_width(character) in ('F', 'W') else 1
+
+        if line_width > max_width:
+            max_width = line_width
+
+print(max_width, end='')
+PY
+  )
+elif (( comp_lines <= 500 )); then
   comp_length=0
   for line in ${(f)mapfile[$tmp_dir/completions.$$]}; do
     length=${(m)#${(S)line//$'\x1b['[0-9]#*m}}
     (( length >= comp_length )) && comp_length=$length
   done
 else
-  # FIXME: can't get the correct width of CJK characters.
   comp_length=$( command perl -ne 's/\x1b\[[0-9;]*m//g;s/\x00//g; $m= length() if $m < length(); END { print $m }' < $tmp_dir/completions.$$ )
 fi
 comp_length=$(( comp_length + $popup_pad[1] ))
