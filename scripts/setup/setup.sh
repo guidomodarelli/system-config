@@ -2,6 +2,7 @@
 
 LOCAL_BINARIES="$HOME/.local/bin"
 REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
+SDKMAN_JAVA_IDENTIFIER="21.0.10-tem"
 
 is_windows() {
   if uname -r | grep -iq "microsoft"; then
@@ -294,6 +295,12 @@ install_ggrep() {
 }
 
 install_sdkman() {
+  if [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]; then
+    source "$HOME/.sdkman/bin/sdkman-init.sh"
+    sdk version || true
+    return 0
+  fi
+
   curl -s "https://get.sdkman.io" | bash
   if [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]; then
     source "$HOME/.sdkman/bin/sdkman-init.sh"
@@ -301,6 +308,38 @@ install_sdkman() {
   else
     echo "ERROR: SDKMAN no se instaló correctamente."
   fi
+}
+
+install_java_jdk() {
+  install_sdkman || return 1
+
+  if ! command -v sdk >/dev/null 2>&1; then
+    echo "ERROR: SDKMAN is not available to install Java." >&2
+    return 1
+  fi
+
+  if ! sdk list java | grep -Fq "$SDKMAN_JAVA_IDENTIFIER"; then
+    echo "ERROR: Java identifier '$SDKMAN_JAVA_IDENTIFIER' was not found in SDKMAN." >&2
+    return 1
+  fi
+
+  if [ ! -d "$HOME/.sdkman/candidates/java/$SDKMAN_JAVA_IDENTIFIER" ]; then
+    sdk install java "$SDKMAN_JAVA_IDENTIFIER" || return 1
+  fi
+
+  sdk default java "$SDKMAN_JAVA_IDENTIFIER" || return 1
+
+  export JAVA_HOME
+  JAVA_HOME="$(sdk home java "$SDKMAN_JAVA_IDENTIFIER" 2>/dev/null || true)"
+
+  if [ -z "$JAVA_HOME" ] || [ ! -d "$JAVA_HOME" ]; then
+    echo "ERROR: SDKMAN did not return a valid JAVA_HOME for '$SDKMAN_JAVA_IDENTIFIER'." >&2
+    return 1
+  fi
+
+  "$JAVA_HOME/bin/java" -version || return 1
+  java -version || return 1
+  sdk current java || return 1
 }
 install_yq() {
   _brew install yq # https://github.com/mikefarah/yq
@@ -343,7 +382,8 @@ main() {
   # Install other dependencies that might be needed for subsequent installations
   install_golang
   install_homebrew
-  # install_sdkman
+  install_sdkman
+  install_java_jdk
   install_nvm
 
   # Shell environment
@@ -467,6 +507,7 @@ interactive_menu() {
     "Homebrew"
     "NVM (Node Version Manager)"
     "SDKMAN"
+    "Java JDK 21 (Temurin via SDKMAN)"
     "Zsh"
     "Antigen (Zsh plugin manager)"
     "Oh My Zsh"
@@ -497,6 +538,7 @@ interactive_menu() {
     install_homebrew
     install_nvm
     install_sdkman
+    install_java_jdk
     install_zsh
     install_antigen
     install_oh_my_zsh
@@ -522,7 +564,7 @@ interactive_menu() {
   )
 
   # Pre-select items from the default main() flow
-  _MENU_SELECTED=(1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0)
+  _MENU_SELECTED=(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0)
 
   printf "\n"
   printf "  ╔══════════════════════════════════════╗\n"

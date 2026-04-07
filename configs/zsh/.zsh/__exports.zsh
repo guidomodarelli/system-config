@@ -36,11 +36,6 @@ export HOMEBREW_CURLRC=1
 # =============================================================================
 
 if [[ "$CURRENT_OS" = "Darwin" ]]; then
-  ### Java
-  # Maven 3.6.0: https://archive.apache.org/dist/maven/maven-3/3.6.0/binaries/
-  # jdk11: https://adoptium.net/temurin/releases/?version=11&arch=x64&os=mac
-  export JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home/"
-
   ### Python
   export PATH="$HOME/Library/Python/3.9/bin:$PATH"
 
@@ -61,11 +56,6 @@ fi
 # =============================================================================
 
 if [[ "$CURRENT_OS" = "Linux" ]]; then
-  ### Java
-  # Maven 3.6.0: https://archive.apache.org/dist/maven/maven-3/3.6.0/binaries/
-  # jdk11: https://adoptium.net/temurin/releases/?version=11&arch=x64&os=linux
-  # export JAVA_HOME="$(dirname $(dirname $(readlink /usr/bin/java) 2>/dev/null) 2>/dev/null || sdk home java $(sdk current java | awk '{print $4}' | grep "[0-9]") || echo 'JAVA_NOT_INSTALLED')"
-
   ### GTK
   export GTK_PATH=:/usr/lib/gtk-2.0
 
@@ -97,7 +87,6 @@ path+=(
   $PROGRAMS/gf
   $HOME/.local/bin/flutter/bin/
   $GOOGLE_CLOUD_HOME/bin
-  $JAVA_HOME/bin
   $GOROOT/bin
   $GOBIN
   $HOME/.yarn/bin
