@@ -141,12 +141,18 @@ install_espanso() {
 
 install_golang() {
   # https://go.dev/dl/
-  # TODO: try to get the latest version of Go from the website instead of hardcoding it
-  local GO_VERSION="1.25.3"
+  local GO_VERSION
+  GO_VERSION="$(curl -fsSL "https://go.dev/VERSION?m=text" | sed -n '1s/^go//p')"
+
+  if [ -z "$GO_VERSION" ]; then
+    echo "Failed to resolve the latest Go version from go.dev" >&2
+    return 1
+  fi
+
   local FILE="go${GO_VERSION}.linux-amd64.tar.gz"
-  curl -LO https://go.dev/dl/$FILE
-  sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $FILE
-  rm -rf $FILE
+  curl -fsSLO "https://go.dev/dl/$FILE"
+  sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf "$FILE"
+  rm -rf "$FILE"
 }
 
 _go() {
