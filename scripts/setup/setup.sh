@@ -547,29 +547,6 @@ _ensure_brew_binary_path() {
   done
 }
 
-_bootstrap_fzf() {
-  _has_fzf && return 0
-
-  echo "  fzf not found. Attempting to install it for searchable selection..."
-  _ensure_brew_binary_path
-
-  if ! _brew --version >/dev/null 2>&1; then
-    echo "  Homebrew not found. Attempting to install Homebrew first..."
-    install_homebrew || true
-    _ensure_brew_binary_path
-  fi
-
-  install_fzf || true
-  _ensure_brew_binary_path
-
-  if _has_fzf; then
-    return 0
-  fi
-
-  echo "  Unable to enable fzf automatically. Falling back to the classic menu."
-  return 1
-}
-
 _menu_catalog_to_fzf_input() {
   local menu_index
 
@@ -754,14 +731,20 @@ interactive_menu() {
   printf "  ║       System Setup Installer         ║\n"
   printf "  ╚══════════════════════════════════════╝\n"
 
-  if _has_fzf || _bootstrap_fzf; then
+  _ensure_brew_binary_path
+
+  if _has_fzf; then
     if ! interactive_menu_fzf; then
       echo "  Installation cancelled."
       return 0
     fi
-  elif ! _multiselect; then
-    echo "  Installation cancelled."
-    return 0
+  else
+    echo "  fzf not found. Falling back to the classic menu without installing additional dependencies."
+
+    if ! _multiselect; then
+      echo "  Installation cancelled."
+      return 0
+    fi
   fi
 
   # Count selected
