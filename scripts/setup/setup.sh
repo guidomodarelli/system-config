@@ -521,7 +521,7 @@ interactive_menu() {
     install_font_IosevkaTermCurly
   )
 
-  # Pre-select items from the default main() flow (sdkman, VS Code, Iosevka off)
+  # Pre-select items from the default main() flow
   _MENU_SELECTED=(1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0)
 
   printf "\n"
