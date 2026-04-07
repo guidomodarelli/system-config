@@ -7,16 +7,19 @@ import sys
 
 def setup_windows(setup_dir: Path, args: list[str]):
 	setup_script_path = setup_dir / "setup.ps1"
-	subprocess.call(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(setup_script_path.absolute())] + args)
+	subprocess.run(
+		["powershell", "-ExecutionPolicy", "Bypass", "-File", str(setup_script_path.absolute())] + args,
+		check=True,
+	)
 
 def setup_linux(setup_dir: Path, args: list[str]):
 	setup_script_path = setup_dir / "setup.sh"
-	subprocess.call([str(setup_script_path.absolute())] + args)
+	subprocess.run([str(setup_script_path.absolute())] + args, check=True)
 
 	dotfiler_path = Path("dotfiler.sh")
-	subprocess.call([str(dotfiler_path.absolute())])
+	subprocess.run([str(dotfiler_path.absolute())], check=True)
 
-def main(args: list[str]):
+def main(args: list[str]) -> int:
 	try:
 		script_dir = Path("scripts")
 		setup_dir = script_dir / "setup"
@@ -27,11 +30,19 @@ def main(args: list[str]):
 			setup_linux(setup_dir, args)
 		else:
 			print(f"Unsupported operating system: {system}")
+			return 1
+
 		print("Setup complete.")
+		return 0
 	except KeyboardInterrupt:
 		print("\nProcess interrupted by user. Exiting gracefully.")
-	except Exception as e:
-		print(f"An error occurred: {e}")
+		return 130
+	except subprocess.CalledProcessError as error:
+		print(f"Setup failed with exit code {error.returncode}.")
+		return error.returncode
+	except Exception as error:
+		print(f"An error occurred: {error}")
+		return 1
 
 if __name__ == "__main__":
-	main(sys.argv[1:])
+	sys.exit(main(sys.argv[1:]))

@@ -610,6 +610,8 @@ interactive_menu_fzf() {
     return 1
   fi
 
+  # In the fzf flow ENTER confirms only the items explicitly marked in the UI.
+  # Recommended defaults remain recoverable via CTRL-R from the main interactive flow.
   _clear_menu_selection
 
   local should_apply_default_selection=0
