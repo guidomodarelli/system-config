@@ -366,13 +366,196 @@ main() {
   install_fonts
 }
 
+# ─── Interactive Multi-Select Menu ───────────────────────────────────────────
+
+_draw_menu_item() {
+  local idx=$1 cursor=$2 label=$3 is_selected=$4
+  local marker=" "
+  [[ $is_selected -eq 1 ]] && marker="✔"
+  if [[ $idx -eq $cursor ]]; then
+    printf "  \033[7m [%s] %s \033[0m" "$marker" "$label"
+  else
+    printf "   [%s] %s" "$marker" "$label"
+  fi
+}
+
+_read_key() {
+  local key rest
+  IFS= read -rsn1 key
+  case "$key" in
+    $'\033')
+      if IFS= read -rsn2 -t 1 rest 2>/dev/null; then
+        case "$rest" in
+          '[A') echo "UP"; return ;;
+          '[B') echo "DOWN"; return ;;
+        esac
+      fi
+      echo "ESC"
+      ;;
+    ' ') echo "SPACE" ;;
+    '') echo "ENTER" ;;
+    j) echo "DOWN" ;;
+    k) echo "UP" ;;
+    a|A) echo "ALL" ;;
+    q|Q) echo "QUIT" ;;
+    *) echo "OTHER" ;;
+  esac
+}
+
+# Operates on global arrays: _MENU_LABELS, _MENU_SELECTED
+_multiselect() {
+  local cursor=0
+  local count=${#_MENU_LABELS[@]}
+
+  printf "\n  ↑/↓/j/k: navigate | SPACE: toggle | a: toggle all | ENTER: confirm | q: quit\n\n"
+
+  # Initial draw
+  for i in "${!_MENU_LABELS[@]}"; do
+    _draw_menu_item "$i" "$cursor" "${_MENU_LABELS[$i]}" "${_MENU_SELECTED[$i]}"
+    printf "\n"
+  done
+
+  while true; do
+    local key
+    key=$(_read_key)
+
+    case "$key" in
+      UP)    ((cursor > 0)) && ((cursor--)) ;;
+      DOWN)  ((cursor < count - 1)) && ((cursor++)) ;;
+      SPACE) _MENU_SELECTED[$cursor]=$(( 1 - ${_MENU_SELECTED[$cursor]} )) ;;
+      ALL)
+        local all_on=1
+        for s in "${_MENU_SELECTED[@]}"; do
+          [[ $s -eq 0 ]] && all_on=0 && break
+        done
+        local toggle=$(( 1 - all_on ))
+        for i in "${!_MENU_SELECTED[@]}"; do
+          _MENU_SELECTED[$i]=$toggle
+        done
+        ;;
+      ENTER) printf "\n"; return 0 ;;
+      QUIT)  printf "\n"; return 1 ;;
+      *) continue ;;
+    esac
+
+    # Redraw
+    printf "\033[%dA" "$count"
+    for i in "${!_MENU_LABELS[@]}"; do
+      printf "\r\033[2K"
+      _draw_menu_item "$i" "$cursor" "${_MENU_LABELS[$i]}" "${_MENU_SELECTED[$i]}"
+      printf "\n"
+    done
+  done
+}
+
+interactive_menu() {
+  _MENU_LABELS=(
+    "Essentials (build-essential, gcc, curl, wget, zip, unzip, python3-venv)"
+    "Golang"
+    "Homebrew"
+    "NVM (Node Version Manager)"
+    "SDKMAN"
+    "Zsh"
+    "Antigen (Zsh plugin manager)"
+    "Oh My Zsh"
+    "jq"
+    "fzf"
+    "ripgrep"
+    "zoxide"
+    "GNU grep (ggrep)"
+    "eza"
+    "fd-find"
+    "yq"
+    "xclip"
+    "win32yank (WSL clipboard)"
+    "espanso"
+    "Git"
+    "git-filter-repo"
+    "ghq"
+    "Docker"
+    "lazydocker"
+    "Fonts (JetBrains Mono, DejaVu, Cascadia Code)"
+    "VS Code"
+    "Font: Iosevka Term Curly"
+  )
+
+  local _MENU_FUNCS=(
+    install_essentials
+    install_golang
+    install_homebrew
+    install_nvm
+    install_sdkman
+    install_zsh
+    install_antigen
+    install_oh_my_zsh
+    install_jq
+    install_fzf
+    install_ripgrep
+    install_zoxide
+    install_ggrep
+    install_eza
+    install_fd_find
+    install_yq
+    install_xclip
+    install_win32yank
+    install_espanso
+    install_git
+    install_git_filter_repo
+    install_ghq
+    install_docker
+    install_lazydocker
+    install_fonts
+    install_VsCode
+    install_font_IosevkaTermCurly
+  )
+
+  # Pre-select items from the default main() flow (sdkman, VS Code, Iosevka off)
+  _MENU_SELECTED=(1 1 1 1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0)
+
+  printf "\n"
+  printf "  ╔══════════════════════════════════════╗\n"
+  printf "  ║       System Setup Installer         ║\n"
+  printf "  ╚══════════════════════════════════════╝\n"
+
+  if ! _multiselect; then
+    echo "  Installation cancelled."
+    return 0
+  fi
+
+  # Count selected
+  local count=0
+  for s in "${_MENU_SELECTED[@]}"; do
+    ((s == 1)) && ((count++))
+  done
+
+  if [[ $count -eq 0 ]]; then
+    echo "  No items selected. Exiting."
+    return 0
+  fi
+
+  echo "  Installing $count selected item(s)..."
+
+  if is_ubuntu; then
+    sudo apt update
+    sudo apt --fix-broken install
+  fi
+
+  for i in "${!_MENU_FUNCS[@]}"; do
+    if [[ ${_MENU_SELECTED[$i]} -eq 1 ]]; then
+      printf "\n━━━ Installing: %s ━━━\n" "${_MENU_LABELS[$i]}"
+      ${_MENU_FUNCS[$i]}
+    fi
+  done
+
+  printf "\n  ✅ Installation complete!\n"
+}
+
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   ensure_sudo
   if [[ -n "$1" ]]; then
     echo "Running $0 $@"
     "$@"
   else
-    echo "Running $0 main"
-    main
+    interactive_menu
   fi
 fi
