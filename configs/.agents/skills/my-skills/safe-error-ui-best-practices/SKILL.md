@@ -1,6 +1,6 @@
 ---
 name: safe-error-ui-best-practices
-description: Safe error handling and UI fallback practices for MELI/Nordic frontends. Use when adding or updating error states, input/prop validation, or tests so user-facing errors avoid sensitive data, fallbacks are action-oriented, inputs/props are validated before rendering, and automated tests cover error scenarios.
+description: Safe error handling and UI fallback practices. Use when adding or updating error states, input/prop validation, or tests so user-facing errors avoid sensitive data, fallbacks are action-oriented, inputs/props are validated before rendering, and automated tests cover error scenarios.
 ---
 
 # Safe Error UI Best Practices

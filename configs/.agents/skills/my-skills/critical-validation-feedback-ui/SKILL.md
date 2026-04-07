@@ -1,6 +1,6 @@
 ---
 name: critical-validation-feedback-ui
-description: Ensure critical UI interactions have pre-action validation and clear, visible feedback (errors or helper text). Use when adding or updating forms, searches, navigations, edits, or async actions in MELI/Nordic frontends to avoid silent failures.
+description: Ensure critical UI interactions have pre-action validation and clear, visible feedback (errors or helper text). Use when adding or updating forms, searches, navigations, edits, or async actions to avoid silent failures.
 ---
 
 # Critical Validation and Feedback

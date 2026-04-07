@@ -1,6 +1,6 @@
 ---
 name: no-encode-uri-and-simple-casts
-description: Prefer simple Number/String casting for type conversion and avoid encodeURIComponent when middleware already validates input. Use when handling query/params in MELI/Nordic code so conversions stay explicit and redundant encoding is avoided.
+description: Prefer simple Number/String casting for type conversion and avoid encodeURIComponent when middleware already validates input. Use when handling query/params so conversions stay explicit and redundant encoding is avoided.
 ---
 
 # Simple Casting, No encodeURIComponent

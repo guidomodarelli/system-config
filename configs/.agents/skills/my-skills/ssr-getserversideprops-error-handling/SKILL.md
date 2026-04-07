@@ -1,6 +1,6 @@
 ---
 name: ssr-getserversideprops-error-handling
-description: Buenas practicas para manejar errores en SSR con getServerSideProps. Use when working on Nordic SSR to wrap API calls in try/catch and return controlled props to keep the UI stable on failures.
+description: Buenas practicas para manejar errores en SSR con getServerSideProps. Use when working on SSR to wrap API calls in try/catch and return controlled props to keep the UI stable on failures.
 ---
 
 # SSR getServerSideProps Error Handling

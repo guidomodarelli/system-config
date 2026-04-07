@@ -1,6 +1,6 @@
 ---
 name: react-data-fetching-best-practices
-description: Best practices for React data fetching in MELI/Nordic frontends. Use when adding or updating data flows so data is fetched from a single entry point (prefer a container component), duplicated requests are avoided via shared state, loading/error states show user feedback, and endpoint responses are mapped to props for clean separation of concerns.
+description: Best practices for React data fetching. Use when adding or updating data flows so data is fetched from a single entry point (prefer a container component), duplicated requests are avoided via shared state, loading/error states show user feedback, and endpoint responses are mapped to props for clean separation of concerns.
 ---
 
 # React Data Fetching Best Practices

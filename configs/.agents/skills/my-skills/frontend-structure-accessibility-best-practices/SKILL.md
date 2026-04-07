@@ -1,6 +1,6 @@
 ---
 name: frontend-structure-accessibility-best-practices
-description: Enforce semantic HTML, accessibility attributes, component structure, descriptive naming, modularization by responsibility, hardcoded value extraction, duplication elimination, and cohesion/coupling principles in MELI/Nordic frontends. Use when creating or updating React components, markup, styles, or refactoring frontend code.
+description: Enforce semantic HTML, accessibility attributes, component structure, descriptive naming, modularization by responsibility, hardcoded value extraction, duplication elimination, and cohesion/coupling principles in frontends. Use when creating or updating React components, markup, styles, or refactoring frontend code.
 ---
 
 # Frontend Structure and Accessibility Best Practices

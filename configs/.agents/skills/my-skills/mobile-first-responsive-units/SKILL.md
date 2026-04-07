@@ -1,13 +1,13 @@
 ---
 name: mobile-first-responsive-units
-description: "Guia para aplicar unidades y patrones mobile-first en CSS/SCSS de proyectos Nordic: usa unidades fluidas (%, rem, vw), evita valores fijos, y ajusta breakpoints y escalas responsivas al crear o modificar layouts, grids o componentes."
+description: "Guia para aplicar unidades y patrones mobile-first en CSS/SCSS: usa unidades fluidas (%, rem, vw), evita valores fijos, y ajusta breakpoints y escalas responsivas al crear o modificar layouts, grids o componentes."
 ---
 
 # Mobile First Responsive Units
 
 ## Overview
 
-Esta skill define criterios claros para usar unidades responsivas y mobile-first en CSS/SCSS de proyectos Nordic. Ayuda a mantener layouts fluidos, escalas tipograficas consistentes y breakpoints bien justificados.
+Esta skill define criterios claros para usar unidades responsivas y mobile-first en CSS/SCSS. Ayuda a mantener layouts fluidos, escalas tipograficas consistentes y breakpoints bien justificados.
 
 ## Cuando usar esta skill
 

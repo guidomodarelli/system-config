@@ -1,6 +1,6 @@
 ---
 name: schema-validation-middleware-centralization
-description: Centralize request parameter and query validation in a schema validation middleware (e.g., schemaValidationMiddleware) for MELI/Nordic APIs. Use when adding or updating API routes/handlers so validations are not duplicated inside each function.
+description: Centralize request parameter and query validation in a schema validation middleware (e.g., schemaValidationMiddleware). Use when adding or updating API routes/handlers so validations are not duplicated inside each function.
 ---
 
 # Schema Validation Middleware Centralization
