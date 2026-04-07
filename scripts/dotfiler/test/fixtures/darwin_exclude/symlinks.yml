@@ -1,0 +1,10 @@
+paths:
+  - path: excluded-file
+    target: linked-files
+    excludeFor:
+      - platform: darwin
+      - wsl: true
+  - path: included-file
+    target: linked-files
+    excludeFor:
+      - wsl: true

@@ -275,9 +275,9 @@ process_path_entry() {
   target=$(expand_env_vars "$target")
 
   if is_debug; then
-    echo "Path: $(printPath "${path//\\/\\\\}")"
-    echo "Target: $(printPath $target)"
-    echo "-----------"
+    echo "Path: $(printPath "${path//\\/\\\\}")" >&2
+    echo "Target: $(printPath "$target")" >&2
+    echo "-----------" >&2
   fi
 
   local output="[]"
@@ -291,9 +291,9 @@ process_path_entry() {
       while IFS= read -r item; do
         # For each item, create a symlink to the target directory
         if is_debug; then
-          echo "Item: $(printPath "${item//\\/\\\\}")"
-          echo "Target: $(printPath $target)"
-          echo "-----------"
+          echo "Item: $(printPath "${item//\\/\\\\}")" >&2
+          echo "Target: $(printPath "$target")" >&2
+          echo "-----------" >&2
         fi
         output=$(add_path_to_output "$item" "$target" "$output")
       done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
@@ -326,18 +326,36 @@ retrieve_linux_paths() {
 
   # Main selector for path entries
   local selector='(
-    .excludeFor == null or (.excludeFor[].platform == null and .excludeFor[].wsl != null and .excludeFor[].wsl != '$wsl_status') or (
-      .excludeFor[].platform != null and .excludeFor[].platform != "linux" or (
-        .excludeFor[].platform == "linux" and (
-          (.excludeFor[].linuxDistro != null and .excludeFor[].linuxDistro != "'$current_distro'")
+    .excludeFor == null or (
+      [
+        .excludeFor[]? |
+        select(
+          (
+            .platform == null and
+            .wsl != null and
+            .wsl == '$wsl_status'
+          ) or (
+            .platform == "linux" and
+            (.linuxDistro == null or .linuxDistro == "'$current_distro'")
+          )
         )
-      )
+      ] | length == 0
     )
   ) and (
-    .onlyFor == null or (.onlyFor[].platform == null and .onlyFor[].wsl != null and .onlyFor[].wsl == '$wsl_status') or (
-      .onlyFor[].platform == "linux" and (
-        (.onlyFor[].linuxDistro == null or .onlyFor[].linuxDistro == "'$current_distro'")
-      )
+    .onlyFor == null or (
+      [
+        .onlyFor[]? |
+        select(
+          (
+            .platform == null and
+            .wsl != null and
+            .wsl == '$wsl_status'
+          ) or (
+            .platform == "linux" and
+            (.linuxDistro == null or .linuxDistro == "'$current_distro'")
+          )
+        )
+      ] | length > 0
     )
   )'
 
@@ -351,9 +369,9 @@ retrieve_linux_paths() {
 
 retrieve_darwin_paths() {
   local selector='(
-    .excludeFor == null or .excludeFor[].platform != "darwin"
+    .excludeFor == null or ([.excludeFor[]? | select(.platform == "darwin")] | length == 0)
   ) and (
-    .onlyFor == null or .onlyFor[].platform == "darwin"
+    .onlyFor == null or ([.onlyFor[]? | select(.platform == "darwin")] | length > 0)
   )'
   local selector_override='.platform == "darwin"'
 
@@ -390,6 +408,4 @@ if [ "$EUID" = 0 ]; then
   exit 1
 fi
 
-if ! is_debug; then
-  main
-fi
+main
