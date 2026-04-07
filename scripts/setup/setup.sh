@@ -94,8 +94,16 @@ install_antigen() {
 }
 
 install_nvm() {
-  # TODO: try to get the latest version of nvm from GitHub instead of hardcoding it
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  local nvm_version="v0.40.4"
+  local latest_release_url=""
+
+  latest_release_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/nvm-sh/nvm/releases/latest)" || true
+
+  if [ -n "$latest_release_url" ]; then
+    nvm_version="${latest_release_url##*/}"
+  fi
+
+  curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh" | bash
 }
 
 install_font() {
