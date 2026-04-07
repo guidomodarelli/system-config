@@ -420,14 +420,258 @@ main() {
 
 # ─── Interactive Multi-Select Menu ───────────────────────────────────────────
 
+_initialize_menu_catalog() {
+  _MENU_LABELS=(
+    "build-essential"
+    "gcc"
+    "curl"
+    "wget"
+    "zip"
+    "unzip"
+    "python3-venv"
+    "Golang"
+    "Homebrew"
+    "NVM (Node Version Manager)"
+    "SDKMAN"
+    "Java JDK 21 (Temurin via SDKMAN)"
+    "Zsh"
+    "Antigen (Zsh plugin manager)"
+    "Oh My Zsh"
+    "jq"
+    "fzf"
+    "ripgrep"
+    "zoxide"
+    "GNU grep (ggrep)"
+    "eza"
+    "fd-find"
+    "yq"
+    "xclip"
+    "win32yank (WSL clipboard)"
+    "espanso"
+    "Git"
+    "git-filter-repo"
+    "ghq"
+    "Docker"
+    "lazydocker"
+    "Fonts (JetBrains Mono, DejaVu, Cascadia Code)"
+    "VS Code"
+    "Font: Iosevka Term Curly"
+  )
+
+  _MENU_FUNCS=(
+    install_build_essential
+    install_gcc
+    install_curl_pkg
+    install_wget_pkg
+    install_zip_pkg
+    install_unzip_pkg
+    install_python3_venv
+    install_golang
+    install_homebrew
+    install_nvm
+    install_sdkman
+    install_java_jdk
+    install_zsh
+    install_antigen
+    install_oh_my_zsh
+    install_jq
+    install_fzf
+    install_ripgrep
+    install_zoxide
+    install_ggrep
+    install_eza
+    install_fd_find
+    install_yq
+    install_xclip
+    install_win32yank
+    install_espanso
+    install_git
+    install_git_filter_repo
+    install_ghq
+    install_docker
+    install_lazydocker
+    install_fonts
+    install_VsCode
+    install_font_IosevkaTermCurly
+  )
+
+  _MENU_DEFAULT_SELECTED=(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0)
+}
+
+_reset_menu_selection_to_defaults() {
+  _MENU_SELECTED=("${_MENU_DEFAULT_SELECTED[@]}")
+}
+
+_clear_menu_selection() {
+  _MENU_SELECTED=()
+
+  local index
+  for index in "${!_MENU_LABELS[@]}"; do
+    _MENU_SELECTED+=("0")
+  done
+}
+
+_menu_selected_count() {
+  local selected_count=0
+  local selection_state
+
+  for selection_state in "${_MENU_SELECTED[@]}"; do
+    ((selection_state == 1)) && ((selected_count++))
+  done
+
+  echo "$selected_count"
+}
+
+_run_selected_menu_items() {
+  local menu_index
+
+  for menu_index in "${!_MENU_FUNCS[@]}"; do
+    if [[ ${_MENU_SELECTED[$menu_index]} -eq 1 ]]; then
+      printf "\n━━━ Installing: %s ━━━\n" "${_MENU_LABELS[$menu_index]}"
+      ${_MENU_FUNCS[$menu_index]}
+    fi
+  done
+}
+
+_has_fzf() {
+  command -v fzf >/dev/null 2>&1
+}
+
+_ensure_brew_binary_path() {
+  local candidate_directory
+
+  for candidate_directory in "/opt/homebrew/bin" "/home/linuxbrew/.linuxbrew/bin"; do
+    if [[ -d "$candidate_directory" && ":$PATH:" != *":$candidate_directory:"* ]]; then
+      export PATH="$candidate_directory:$PATH"
+    fi
+  done
+}
+
+_bootstrap_fzf() {
+  _has_fzf && return 0
+
+  echo "  fzf not found. Attempting to install it for searchable selection..."
+  _ensure_brew_binary_path
+
+  if ! _brew --version >/dev/null 2>&1; then
+    echo "  Homebrew not found. Attempting to install Homebrew first..."
+    install_homebrew || true
+    _ensure_brew_binary_path
+  fi
+
+  install_fzf || true
+  _ensure_brew_binary_path
+
+  if _has_fzf; then
+    return 0
+  fi
+
+  echo "  Unable to enable fzf automatically. Falling back to the classic menu."
+  return 1
+}
+
+_menu_catalog_to_fzf_input() {
+  local menu_index
+
+  for menu_index in "${!_MENU_LABELS[@]}"; do
+    printf "%d\t%s\n" "$((menu_index + 1))" "$(_menu_display_label "$menu_index")"
+  done
+}
+
+_menu_is_recommended() {
+  local menu_index=$1
+  [[ ${_MENU_DEFAULT_SELECTED[$menu_index]} -eq 1 ]]
+}
+
+_menu_display_label() {
+  local menu_index=$1
+  local label="${_MENU_LABELS[$menu_index]}"
+
+  if ! _menu_is_recommended "$menu_index"; then
+    printf "%s" "$label"
+    return 0
+  fi
+
+  printf "⚪ %s" "$label"
+}
+
+interactive_menu_fzf() {
+  local default_selection_sentinel="__DEFAULT_SELECTION__"
+
+  local -a fzf_bindings=(
+    "space:toggle+down"
+    "tab:toggle+down"
+    "btab:toggle+up"
+    "ctrl-a:toggle-all"
+    "ctrl-r:print(${default_selection_sentinel})+accept"
+    "enter:accept"
+  )
+
+  local fzf_bindings_serialized
+  fzf_bindings_serialized=$(IFS=,; echo "${fzf_bindings[*]}")
+
+  local fzf_output
+  if ! fzf_output="$(
+    _menu_catalog_to_fzf_input | \
+      fzf \
+        --sync \
+        --multi \
+        --ansi \
+        --delimiter=$'\t' \
+        --with-nth=2.. \
+        --accept-nth=1 \
+        --layout=reverse \
+        --height=~80% \
+        --border=rounded \
+        --header=$'Items marked with ⚪ are part of the default setup.\nENTER: confirm selected | CTRL-R: apply recommended defaults\nTAB/SPACE: toggle | CTRL-A: toggle all\nESC: cancel' \
+        --header-first \
+        --prompt="Setup > " \
+        --pointer="👉" \
+        --marker="✅" \
+        --bind "$fzf_bindings_serialized"
+  )"; then
+    return 1
+  fi
+
+  _clear_menu_selection
+
+  local should_apply_default_selection=0
+  local selected_entry
+  while IFS= read -r selected_entry; do
+    [[ -z "$selected_entry" ]] && continue
+
+    if [[ "$selected_entry" == "$default_selection_sentinel" ]]; then
+      should_apply_default_selection=1
+      continue
+    fi
+
+    if [[ "$selected_entry" =~ ^[0-9]+$ ]]; then
+      local selected_index=$((selected_entry - 1))
+      if (( selected_index >= 0 && selected_index < ${#_MENU_SELECTED[@]} )); then
+        _MENU_SELECTED[$selected_index]=1
+      fi
+    fi
+  done <<< "$fzf_output"
+
+  if [[ $should_apply_default_selection -eq 1 ]]; then
+    _reset_menu_selection_to_defaults
+  fi
+
+  return 0
+}
+
 _draw_menu_item() {
   local idx=$1 cursor=$2 label=$3 is_selected=$4
   local marker=" "
-  [[ $is_selected -eq 1 ]] && marker="✔"
+  local pointer="  "
+  local rendered_label
+  rendered_label="$(_menu_display_label "$idx")"
+  [[ $is_selected -eq 1 ]] && marker="✅"
+  [[ $idx -eq $cursor ]] && pointer="👉"
   if [[ $idx -eq $cursor ]]; then
-    printf "  \033[7m [%s] %s \033[0m" "$marker" "$label"
+    printf " %s \033[7m[%s] %s\033[0m" "$pointer" "$marker" "$rendered_label"
   else
-    printf "   [%s] %s" "$marker" "$label"
+    printf " %s [%s] %s" "$pointer" "$marker" "$rendered_label"
   fi
 }
 
@@ -459,7 +703,8 @@ _multiselect() {
   local cursor=0
   local count=${#_MENU_LABELS[@]}
 
-  printf "\n  ↑/↓/j/k: navigate | SPACE: toggle | a: toggle all | ENTER: confirm | q: quit\n\n"
+  printf "\n  Classic fallback menu\n"
+  printf "  ↑/↓/j/k: navigate | SPACE: toggle | a: toggle all | ENTER: confirm | q: quit\n\n"
 
   # Initial draw
   for i in "${!_MENU_LABELS[@]}"; do
@@ -501,86 +746,27 @@ _multiselect() {
 }
 
 interactive_menu() {
-  _MENU_LABELS=(
-    "Essentials (build-essential, gcc, curl, wget, zip, unzip, python3-venv)"
-    "Golang"
-    "Homebrew"
-    "NVM (Node Version Manager)"
-    "SDKMAN"
-    "Java JDK 21 (Temurin via SDKMAN)"
-    "Zsh"
-    "Antigen (Zsh plugin manager)"
-    "Oh My Zsh"
-    "jq"
-    "fzf"
-    "ripgrep"
-    "zoxide"
-    "GNU grep (ggrep)"
-    "eza"
-    "fd-find"
-    "yq"
-    "xclip"
-    "win32yank (WSL clipboard)"
-    "espanso"
-    "Git"
-    "git-filter-repo"
-    "ghq"
-    "Docker"
-    "lazydocker"
-    "Fonts (JetBrains Mono, DejaVu, Cascadia Code)"
-    "VS Code"
-    "Font: Iosevka Term Curly"
-  )
-
-  local _MENU_FUNCS=(
-    install_essentials
-    install_golang
-    install_homebrew
-    install_nvm
-    install_sdkman
-    install_java_jdk
-    install_zsh
-    install_antigen
-    install_oh_my_zsh
-    install_jq
-    install_fzf
-    install_ripgrep
-    install_zoxide
-    install_ggrep
-    install_eza
-    install_fd_find
-    install_yq
-    install_xclip
-    install_win32yank
-    install_espanso
-    install_git
-    install_git_filter_repo
-    install_ghq
-    install_docker
-    install_lazydocker
-    install_fonts
-    install_VsCode
-    install_font_IosevkaTermCurly
-  )
-
-  # Pre-select items from the default main() flow
-  _MENU_SELECTED=(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0)
+  _initialize_menu_catalog
+  _reset_menu_selection_to_defaults
 
   printf "\n"
   printf "  ╔══════════════════════════════════════╗\n"
   printf "  ║       System Setup Installer         ║\n"
   printf "  ╚══════════════════════════════════════╝\n"
 
-  if ! _multiselect; then
+  if _has_fzf || _bootstrap_fzf; then
+    if ! interactive_menu_fzf; then
+      echo "  Installation cancelled."
+      return 0
+    fi
+  elif ! _multiselect; then
     echo "  Installation cancelled."
     return 0
   fi
 
   # Count selected
-  local count=0
-  for s in "${_MENU_SELECTED[@]}"; do
-    ((s == 1)) && ((count++))
-  done
+  local count
+  count=$(_menu_selected_count)
 
   if [[ $count -eq 0 ]]; then
     echo "  No items selected. Exiting."
@@ -594,12 +780,7 @@ interactive_menu() {
     sudo apt --fix-broken install
   fi
 
-  for i in "${!_MENU_FUNCS[@]}"; do
-    if [[ ${_MENU_SELECTED[$i]} -eq 1 ]]; then
-      printf "\n━━━ Installing: %s ━━━\n" "${_MENU_LABELS[$i]}"
-      ${_MENU_FUNCS[$i]}
-    fi
-  done
+  _run_selected_menu_items
 
   printf "\n  ✅ Installation complete!\n"
 }

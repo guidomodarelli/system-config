@@ -39,6 +39,15 @@ chmod +x scripts/setup/setup.sh
 ./scripts/setup/setup.sh
 ```
 
+### Selector interactivo
+
+- Si `fzf` está disponible, el setup abre un selector buscable con selección múltiple.
+- Los ítems recomendados se muestran claramente con la marca `⚪`.
+- `ENTER` confirma solo los ítems realmente marcados.
+- `CTRL-R` aplica las opciones recomendadas por defecto.
+- Puedes escribir para filtrar; usa `TAB` o `SPACE` para marcar, `CTRL-A` para alternar toda la selección y `ESC` para cancelar.
+- Si `fzf` no está instalado, el script intentará instalarlo automáticamente. Si no puede hacerlo, volverá al menú clásico.
+
 ### Ejecutar una función específica
 
 ```bash
