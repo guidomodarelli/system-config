@@ -26,7 +26,11 @@ function cx {
     $model = 'gpt-5.4'
     $reasoning = 'medium'
     $yolo = $false
+    $commitMode = $false
     $rest = New-Object System.Collections.Generic.List[string]
+    $commitPrompt = @'
+create a commit with: Generate commit messages in conventional commit style, but omit the type prefix. Example: instead of 'feat: add new feature', write 'add new feature'. Do not include issue numbers. Use imperative mood (e.g., 'add feature', 'fix bug', 'update docs'). When mentioning functions or variables, wrap their names in «». Example: 'update function «myFunction» to handle edge cases'. If a variable starts with $, escape it with a backslash. Example: 'fix issue with \$var when it is null'. Replace backticks (`...`) with «...» formatting. Always include a detailed description after the commit title, separated by a blank line. The description should explain the reasoning behind the changes, any important implementation details, and potential impacts
+'@
 
     for ($i = 0; $i -lt $Args.Count; $i++) {
         switch ($Args[$i]) {
@@ -42,6 +46,8 @@ function cx {
                     $i++
                 }
             }
+            '-c' { $commitMode = $true }
+            '--commit' { $commitMode = $true }
             '--yolo' {
                 $yolo = $true
             }
@@ -57,6 +63,12 @@ function cx {
                 $rest.Add($Args[$i])
             }
         }
+    }
+
+    if ($commitMode) {
+        $yolo = $true
+        $rest.Clear()
+        $rest.Add($commitPrompt)
     }
 
     $cmd = @('codex','-m', $model,'-c',"model_reasoning_effort=$reasoning")

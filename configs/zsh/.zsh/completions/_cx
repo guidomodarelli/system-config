@@ -5,6 +5,7 @@
 #   update (as first positional)
 #   -m <model>
 #   -re <reasoning>
+#   -c, --commit
 # Remaining args treated as query tokens.
 
 : "${CX_FZF_HEIGHT:=20%}"   # Altura de fzf (override: export CX_FZF_HEIGHT=40%)
@@ -63,6 +64,7 @@ _cx() {
     '1:first arg:->first' \
     '-m[Model to use]:model:_cx_model_select' \
     '-re[Reasoning effort]:effort:_cx_reasoning_select' \
+    '(-c --commit)'{-c,--commit}'[Run built-in commit prompt in yolo mode]' \
     '*:query token:' && return 0
 
   case $state in
