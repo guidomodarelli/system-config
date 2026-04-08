@@ -22,6 +22,35 @@ function Get-CxCommitPrompt {
     return (Get-Content -LiteralPath $promptFile -Raw)
 }
 
+# Returns `-c` overrides to disable all configured MCP servers for the current run.
+function Get-CxDisableMcpConfigArgs {
+    $disableArgs = New-Object System.Collections.Generic.List[string]
+    $mcpListOutput = & codex mcp list 2>$null
+
+    if (-not $mcpListOutput) {
+        return @()
+    }
+
+    $serverNames = New-Object System.Collections.Generic.List[string]
+
+    foreach ($line in $mcpListOutput) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        if ($line.TrimStart().StartsWith('Name')) { continue }
+
+        $tokens = ($line -split '\s+') | Where-Object { $_ -ne '' }
+        if ($tokens.Count -gt 0) {
+            $serverNames.Add($tokens[0])
+        }
+    }
+
+    foreach ($serverName in ($serverNames | Select-Object -Unique)) {
+        $disableArgs.Add('-c')
+        $disableArgs.Add("mcp_servers.$serverName.enabled=false")
+    }
+
+    return $disableArgs.ToArray()
+}
+
 # Unified implementation: cx handles both safe and yolo modes.
 function cx {
     [CmdletBinding()]
@@ -40,6 +69,7 @@ function cx {
     $yolo = $false
     $commitMode = $false
     $rest = New-Object System.Collections.Generic.List[string]
+    $mcpConfigArgs = @()
 
     for ($i = 0; $i -lt $Args.Count; $i++) {
         switch ($Args[$i]) {
@@ -79,9 +109,13 @@ function cx {
         $yolo = $true
         $rest.Clear()
         $rest.Add((Get-CxCommitPrompt))
+        $mcpConfigArgs = Get-CxDisableMcpConfigArgs
     }
 
     $cmd = @('codex','-m', $model,'-c',"model_reasoning_effort=$reasoning")
+    if ($mcpConfigArgs.Count -gt 0) {
+        $cmd += $mcpConfigArgs
+    }
     if ($yolo) {
         $cmd += '--yolo'
     } else {

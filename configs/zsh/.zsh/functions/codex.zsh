@@ -13,6 +13,19 @@ _cx_commit_prompt() {
   fi
 }
 
+# Returns `-c` overrides to disable all configured MCP servers for the current run.
+_cx_disable_mcp_config_args() {
+  local -a disable_args
+  local server_name
+
+  while IFS= read -r server_name; do
+    [[ -z "$server_name" ]] && continue
+    disable_args+=(-c "mcp_servers.${server_name}.enabled=false")
+  done < <(command codex mcp list 2>/dev/null | awk 'NR > 1 && NF { print $1 }')
+
+  printf '%s\n' "${disable_args[@]}"
+}
+
 # Unified implementation: cx handles both safe and yolo modes.
 cx() {
   # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit
@@ -21,6 +34,7 @@ cx() {
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
   local rest=()
+  local mcp_config_args=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -64,9 +78,13 @@ cx() {
     commit_prompt="$(_cx_commit_prompt)" || return 1
     yolo=1
     rest=("$commit_prompt")
+    mcp_config_args=("${(@f)$(_cx_disable_mcp_config_args)}")
   fi
 
   local cmd=(codex -m "$model" -c model_reasoning_effort="$reasoning")
+  if (( ${#mcp_config_args[@]} > 0 )); then
+    cmd+=("${mcp_config_args[@]}")
+  fi
   if [[ -n "$yolo" ]]; then
     cmd+=(--yolo)
   else
