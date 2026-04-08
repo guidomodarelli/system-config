@@ -112,10 +112,15 @@ function cx {
 
     if ($commitMode) {
         # `--commit` has priority over any user-provided query tokens.
+        $disableMcpConfigArgs = Get-CxDisableMcpConfigArgs
         $yolo = $true
         $rest.Clear()
         $rest.Add((Get-CxCommitPrompt))
-        $mcpConfigArgs = Get-CxDisableMcpConfigArgs
+        if ($disableMcpConfigArgs.Count -gt 0) {
+            $mcpConfigArgs = $disableMcpConfigArgs
+        } else {
+            $mcpConfigArgs = @()
+        }
     }
 
     $cmd = @('codex','-m', $model,'-c',"model_reasoning_effort=$reasoning")
