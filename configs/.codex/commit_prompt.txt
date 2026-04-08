@@ -2,6 +2,8 @@ Collect the information required to draft and apply a high-quality commit messag
 
 Scope:
 - Focus only on understanding the current uncommitted changes.
+- Analyze and commit only staged changes when staged changes exist.
+- If there are no staged changes, analyze and commit all current uncommitted changes.
 - Do not propose new code changes.
 - Do not execute destructive commands.
 - Run `git commit` directly using the generated message.
@@ -10,7 +12,7 @@ Gather:
 - What changed: key files and the most relevant modifications.
 - Why it changed: inferred intent or problem being solved.
 - Impact: behavior, UX, DX, performance, or operational effects.
-- Validation: tests/checks executed (or missing validation).
+- Validation: explicitly run lint and unit tests, and report results (or clearly report missing validation and why).
 - Risks: edge cases, regressions, or follow-up considerations.
 
 Output format:
@@ -20,6 +22,7 @@ Output format:
 4) `final_commit_message`: final text to use in the commit (title + blank line + body).
 
 Apply step:
+- Before commit, ensure lint and unit tests pass for the selected scope.
 - Run `git commit` using `final_commit_message` without asking for confirmation.
 
 Style constraints:
