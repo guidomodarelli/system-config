@@ -29,7 +29,7 @@ _cx_disable_mcp_config_args() {
 # Unified implementation: cx handles both safe and yolo modes.
 cx() {
   # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit
-  local model="gpt-5.4"
+  local model="gpt-5.3-codex"
   local reasoning="medium"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
