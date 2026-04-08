@@ -3,6 +3,11 @@ ZSH_HOME="$HOME/.zsh"
 ZSH_THEME="murilasso"
 ZSH="$HOME/.oh-my-zsh"
 
+# Load Python tooling early so python3 resolves through pyenv shims.
+if [ -f "$ZSH_HOME/settings/python.zsh" ]; then
+  source "$ZSH_HOME/settings/python.zsh"
+fi
+
 # ---- Early startup optimizations (must run before plugin manager) ----
 # Cache and compdump paths used by Oh My Zsh's completion init
 export ZSH_CACHE_DIR="${ZSH_CACHE_DIR:-$HOME/.cache/oh-my-zsh}"
@@ -22,7 +27,11 @@ source $ZSH/oh-my-zsh.sh
 # Source all .zsh files from ~/.zsh except the early-loaded completions.zsh
 if [ -d "$ZSH_HOME" ]; then
   while read file; do
-    [ "$(basename "$file")" = "completions.zsh" ] && continue
+    case "$(basename "$file")" in
+      completions.zsh|python.zsh)
+        continue
+        ;;
+    esac
     fullpath=$(cd "$ZSH_HOME" && realpath "$file")
 
     source "$fullpath"

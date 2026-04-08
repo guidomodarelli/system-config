@@ -21,7 +21,7 @@ _cx_disable_mcp_config_args() {
   while IFS= read -r server_name; do
     [[ -z "$server_name" ]] && continue
     disable_args+=(-c "mcp_servers.${server_name}.enabled=false")
-  done < <(command codex mcp list 2>/dev/null | awk 'NR > 1 && NF { print $1 }')
+  done < <(command codex mcp list 2>/dev/null | awk 'NF && $1 != "Name" { print $1 }')
 
   printf '%s\n' "${disable_args[@]}"
 }

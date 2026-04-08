@@ -35,7 +35,7 @@ function Get-CxDisableMcpConfigArgs {
 
     foreach ($line in $mcpListOutput) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        if ($line.TrimStart().StartsWith('Name')) { continue }
+        if ($line -match '^\s*Name\s+') { continue }
 
         $tokens = ($line -split '\s+') | Where-Object { $_ -ne '' }
         if ($tokens.Count -gt 0) {
