@@ -19,11 +19,11 @@ function cx {
     )
 
     if ($Args.Count -gt 0 -and $Args[0] -eq 'update') {
-        npm install -g '@openai/codex@latest'
+        brew upgrade codex
         return
     }
 
-    $model = 'gpt-5.2-codex'
+    $model = 'gpt-5.4'
     $reasoning = 'medium'
     $yolo = $false
     $rest = New-Object System.Collections.Generic.List[string]
@@ -65,10 +65,8 @@ function cx {
     } else {
         $cmd += @('--sandbox','workspace-write','--ask-for-approval','on-failure')
     }
-    $cmd += @('--enable', 'web_search_request')
-    if ($rest.Count -gt 0) {
-        $cmd += $rest.ToArray()
-    }
+    $cmd += '--search'
+    $cmd += $rest.ToArray()
 
     Write-Host "Running: $($cmd -join ' ')"
 
