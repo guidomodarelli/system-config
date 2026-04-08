@@ -10,6 +10,18 @@ function rg { & rg.exe --glob "!.git/*" $args }
 
 # --- Codex unified (replica de lógica Zsh) ------------------------------------
 
+# Returns the built-in prompt used by `cx --commit`.
+function Get-CxCommitPrompt {
+    $configsDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $promptFile = Join-Path $configsDir '.codex/commit_prompt.txt'
+
+    if (-not (Test-Path -LiteralPath $promptFile)) {
+        throw "Commit prompt file not found: $promptFile"
+    }
+
+    return (Get-Content -LiteralPath $promptFile -Raw)
+}
+
 # Unified implementation: cx handles both safe and yolo modes.
 function cx {
     [CmdletBinding()]
@@ -28,9 +40,6 @@ function cx {
     $yolo = $false
     $commitMode = $false
     $rest = New-Object System.Collections.Generic.List[string]
-    $commitPrompt = @'
-create a commit with: Generate commit messages in conventional commit style, but omit the type prefix. Example: instead of 'feat: add new feature', write 'add new feature'. Do not include issue numbers. Use imperative mood (e.g., 'add feature', 'fix bug', 'update docs'). When mentioning functions or variables, wrap their names in «». Example: 'update function «myFunction» to handle edge cases'. If a variable starts with $, escape it with a backslash. Example: 'fix issue with \$var when it is null'. Replace backticks (`...`) with «...» formatting. Always include a detailed description after the commit title, separated by a blank line. The description should explain the reasoning behind the changes, any important implementation details, and potential impacts
-'@
 
     for ($i = 0; $i -lt $Args.Count; $i++) {
         switch ($Args[$i]) {
@@ -66,9 +75,10 @@ create a commit with: Generate commit messages in conventional commit style, but
     }
 
     if ($commitMode) {
+        # `--commit` has priority over any user-provided query tokens.
         $yolo = $true
         $rest.Clear()
-        $rest.Add($commitPrompt)
+        $rest.Add((Get-CxCommitPrompt))
     }
 
     $cmd = @('codex','-m', $model,'-c',"model_reasoning_effort=$reasoning")

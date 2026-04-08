@@ -64,7 +64,7 @@ _cx() {
     '1:first arg:->first' \
     '-m[Model to use]:model:_cx_model_select' \
     '-re[Reasoning effort]:effort:_cx_reasoning_select' \
-    '(-c --commit)'{-c,--commit}'[Run built-in commit prompt in yolo mode]' \
+    '(-c --commit)'{-c,--commit}'[Run built-in commit prompt in yolo mode (overrides query)]' \
     '*:query token:' && return 0
 
   case $state in

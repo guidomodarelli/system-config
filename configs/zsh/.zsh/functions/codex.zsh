@@ -1,3 +1,18 @@
+# Returns the built-in prompt used by `cx --commit`.
+_cx_commit_prompt() {
+  local script_dir prompt_file
+  script_dir="${${(%):-%x}:A:h}"
+  prompt_file="${script_dir}/../../../.codex/commit_prompt.txt"
+  prompt_file="${prompt_file:A}"
+
+  if [[ -r "$prompt_file" ]]; then
+    cat "$prompt_file"
+  else
+    echo "Error: commit prompt file not found: $prompt_file" >&2
+    return 1
+  fi
+}
+
 # Unified implementation: cx handles both safe and yolo modes.
 cx() {
   # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit
@@ -6,11 +21,6 @@ cx() {
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
   local rest=()
-  local commit_prompt
-  commit_prompt=$(cat <<'EOF'
-create a commit with: Generate commit messages in conventional commit style, but omit the type prefix. Example: instead of 'feat: add new feature', write 'add new feature'. Do not include issue numbers. Use imperative mood (e.g., 'add feature', 'fix bug', 'update docs'). When mentioning functions or variables, wrap their names in «». Example: 'update function «myFunction» to handle edge cases'. If a variable starts with $, escape it with a backslash. Example: 'fix issue with \$var when it is null'. Replace backticks (`...`) with «...» formatting. Always include a detailed description after the commit title, separated by a blank line. The description should explain the reasoning behind the changes, any important implementation details, and potential impacts
-EOF
-)
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -49,6 +59,9 @@ EOF
   done
 
   if [[ -n "$commit" ]]; then
+    # `--commit` has priority over any user-provided query tokens.
+    local commit_prompt
+    commit_prompt="$(_cx_commit_prompt)" || return 1
     yolo=1
     rest=("$commit_prompt")
   fi
