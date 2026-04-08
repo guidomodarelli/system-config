@@ -36,10 +36,16 @@ function Get-CxDisableMcpConfigArgs {
     foreach ($line in $mcpListOutput) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         if ($line -match '^\s*Name\s+') { continue }
+        if ($line -match '^\s*-+\s*$') { continue }
+        if ($line -match '^\s*No\s+MCP\s+servers?.*$') { continue }
 
-        $tokens = ($line -split '\s+') | Where-Object { $_ -ne '' }
-        if ($tokens.Count -gt 0) {
-            $serverNames.Add($tokens[0])
+        # Accept only table-like lines with a known transport in column 2.
+        # This avoids parsing informational rows like "No MCP servers configured".
+        if ($line -match '^\s*(?<name>[A-Za-z0-9._-]+)\s+(?<transport>stdio|sse|http|https|ws|wss|streamable_http)\b') {
+            $serverName = $Matches['name']
+            if (-not [string]::IsNullOrWhiteSpace($serverName)) {
+                $serverNames.Add($serverName)
+            }
         }
     }
 
@@ -121,8 +127,9 @@ function cx {
     } else {
         $cmd += @('--sandbox','workspace-write','--ask-for-approval','on-failure')
     }
-    $cmd += '--search'
-    $cmd += $rest.ToArray()
+    if ($rest.Count -gt 0) {
+        $cmd += $rest.ToArray()
+    }
 
     Write-Host "Running: $($cmd -join ' ')"
 

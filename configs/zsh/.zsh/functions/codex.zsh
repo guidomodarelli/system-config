@@ -21,7 +21,19 @@ _cx_disable_mcp_config_args() {
   while IFS= read -r server_name; do
     [[ -z "$server_name" ]] && continue
     disable_args+=(-c "mcp_servers.${server_name}.enabled=false")
-  done < <(command codex mcp list 2>/dev/null | awk 'NF && $1 != "Name" { print $1 }')
+  done < <(
+    command codex mcp list 2>/dev/null | awk '
+      /^\s*Name\s+/ { next }
+      /^\s*-+\s*$/ { next }
+      {
+        server_name = $1
+        transport = $2
+        if (transport ~ /^(stdio|sse|http|https|ws|wss|streamable_http)$/ && !seen[server_name]++) {
+          print server_name
+        }
+      }
+    '
+  )
 
   printf '%s\n' "${disable_args[@]}"
 }
@@ -75,10 +87,16 @@ cx() {
   if [[ -n "$commit" ]]; then
     # `--commit` has priority over any user-provided query tokens.
     local commit_prompt
+    local disable_mcp_config_output
     commit_prompt="$(_cx_commit_prompt)" || return 1
+    disable_mcp_config_output="$(_cx_disable_mcp_config_args)"
     yolo=1
     rest=("$commit_prompt")
-    mcp_config_args=("${(@f)$(_cx_disable_mcp_config_args)}")
+    if [[ -n "$disable_mcp_config_output" ]]; then
+      mcp_config_args=("${(@f)disable_mcp_config_output}")
+    else
+      mcp_config_args=()
+    fi
   fi
 
   local cmd=(codex -m "$model" -c model_reasoning_effort="$reasoning")

@@ -49,8 +49,10 @@ install_fixture() {
 
 run_dotfiler() {
   local debug_value="$1"
+  shift
+  local extra_args="$*"
 
-  run bash -lc "cd '$REPO_DIR/scripts/dotfiler' && HOME='$HOME_DIR' USER='test-user' DEBUG='$debug_value' PATH='$FAKE_BIN_DIR:$PATH' bash ./dotfiler.sh"
+  run bash -lc "cd '$REPO_DIR/scripts/dotfiler' && HOME='$HOME_DIR' USER='test-user' DEBUG='$debug_value' PATH='$FAKE_BIN_DIR:$PATH' bash ./dotfiler.sh $extra_args"
 }
 
 assert_symlink_points_to() {
@@ -72,4 +74,19 @@ assert_path_missing() {
 
   [ ! -e "$path_to_check" ]
   [ ! -L "$path_to_check" ]
+}
+
+assert_no_double_separator() {
+  local output_text="$1"
+  local separator_line="────────────────────────────────────────────────────────"
+  local duplicated_separator=$separator_line$'\n'$separator_line
+
+  [[ "$output_text" != *"$duplicated_separator"* ]]
+}
+
+assert_output_contains_line() {
+  local output_text="$1"
+  local expected_line="$2"
+
+  [[ "$output_text" == *"$expected_line"* ]]
 }
