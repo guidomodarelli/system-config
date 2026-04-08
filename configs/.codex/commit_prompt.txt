@@ -1,1 +1,28 @@
-create a commit with: Generate commit messages in conventional commit style, but omit the type prefix. Example: instead of 'feat: add new feature', write 'add new feature'. Do not include issue numbers. Use imperative mood (e.g., 'add feature', 'fix bug', 'update docs'). When mentioning functions or variables, wrap their names in «». Example: 'update function «myFunction» to handle edge cases'. If a variable starts with $, escape it with a backslash. Example: 'fix issue with \$var when it is null'. Replace backticks (`...`) with «...» formatting. Always include a detailed description after the commit title, separated by a blank line. The description should explain the reasoning behind the changes, any important implementation details, and potential impacts
+Collect the information required to draft and apply a high-quality commit message.
+
+Scope:
+- Focus only on understanding the current uncommitted changes.
+- Do not propose new code changes.
+- Do not execute destructive commands.
+- Run `git commit` directly using the generated message.
+
+Gather:
+- What changed: key files and the most relevant modifications.
+- Why it changed: inferred intent or problem being solved.
+- Impact: behavior, UX, DX, performance, or operational effects.
+- Validation: tests/checks executed (or missing validation).
+- Risks: edge cases, regressions, or follow-up considerations.
+
+Output format:
+1) `title_candidate`: one imperative commit title, without conventional prefixes (`feat:`, `fix:`, etc.) and without issue numbers.
+2) `commit_context`: a concise but complete summary to use as the commit body.
+3) `missing_context`: explicit unknowns that should be confirmed before finalizing the commit message.
+4) `final_commit_message`: final text to use in the commit (title + blank line + body).
+
+Apply step:
+- Run `git commit` using `final_commit_message` without asking for confirmation.
+
+Style constraints:
+- Keep everything concrete and repository-specific.
+- If referring to identifiers, use «identifier».
+- Replace backticks with «...».
