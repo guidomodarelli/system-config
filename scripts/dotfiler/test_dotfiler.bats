@@ -10,6 +10,17 @@ teardown() {
   teardown_test_environment
 }
 
+simulate_wsl_environment() {
+  cat > "$FAKE_BIN_DIR/grep" <<'BASH'
+#!/usr/bin/env bash
+if [ "$#" -ge 3 ] && [ "$1" = "-qi" ] && { [ "$2" = "microsoft" ] || [ "$2" = "wsl" ]; } && [ "$3" = "/proc/version" ]; then
+  exit 0
+fi
+exec /bin/grep "$@"
+BASH
+  chmod +x "$FAKE_BIN_DIR/grep"
+}
+
 @test "DEBUG=true still executes the symlink flow" {
   install_fixture "debug_flow"
 
@@ -164,6 +175,24 @@ BASH
   assert_output_contains_line "$output" "Fallo al crear symlink"
 }
 
+@test "existing backup is preserved and next backup uses incremental suffix" {
+  install_fixture "debug_flow"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "current-content" > "$HOME_DIR/linked-files/debug-source"
+  printf "older-backup" > "$HOME_DIR/linked-files/debug-source.bak"
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  [ -f "$HOME_DIR/linked-files/debug-source.bak" ]
+  [ -f "$HOME_DIR/linked-files/debug-source.bak.1" ]
+  [ "$(cat "$HOME_DIR/linked-files/debug-source.bak")" = "older-backup" ]
+  [ "$(cat "$HOME_DIR/linked-files/debug-source.bak.1")" = "current-content" ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/debug-source" \
+    "$REPO_DIR/configs/debug-source"
+}
+
 @test "invalid config returns exit code 2" {
   printf "paths: [\n" > "$REPO_DIR/symlinks.yml"
 
@@ -171,4 +200,99 @@ BASH
 
   [ "$status" -eq 2 ]
   [[ "$output$stderr" == *"Configuración inválida"* ]]
+}
+
+@test "wsl distro name fallback works when WSL_DISTRO_NAME is unset" {
+  simulate_wsl_environment
+  cat > "$FAKE_BIN_DIR/wslpath" <<'BASH'
+#!/usr/bin/env bash
+if [ "$1" = "-w" ] && [ "$2" = "/" ]; then
+  printf '%s\n' '\\wsl.localhost\Ubuntu\'
+  exit 0
+fi
+printf '%s\n' 'C:\tmp\fake'
+BASH
+  chmod +x "$FAKE_BIN_DIR/wslpath"
+  cat > "$FAKE_BIN_DIR/powershell.exe" <<'BASH'
+#!/usr/bin/env bash
+exit 0
+BASH
+  chmod +x "$FAKE_BIN_DIR/powershell.exe"
+
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: debug-source
+    target: WSL://Desktop
+YAML
+
+  run_dotfiler "false" "--dry-run --quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output$stderr" != *"unbound variable"* ]]
+}
+
+@test "wsl without windows operations does not require powershell or wslpath" {
+  install_fixture "debug_flow"
+  simulate_wsl_environment
+  cat > "$REPO_DIR/configs/zsh/.zsh/functions/check_command.zsh" <<'BASH'
+check_command() {
+  local cmd="$1"
+  if [ "$cmd" = "wslpath" ] || [ "$cmd" = "powershell.exe" ]; then
+    logError "Command '$cmd' not found"
+    exit 1
+  fi
+  if ! command -v "$cmd" &>/dev/null; then
+    logError "Command '$cmd' not found"
+    exit 1
+  fi
+}
+
+check_commands() {
+  for cmd in "$@"; do
+    check_command "$cmd"
+  done
+}
+BASH
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output$stderr" != *"Command 'powershell.exe' not found"* ]]
+  [[ "$output$stderr" != *"Command 'wslpath' not found"* ]]
+}
+
+@test "wsl target records diagnostic when wslpath conversion fails" {
+  simulate_wsl_environment
+  cat > "$FAKE_BIN_DIR/sudo" <<'BASH'
+#!/usr/bin/env bash
+"$@"
+BASH
+  chmod +x "$FAKE_BIN_DIR/sudo"
+  cat > "$FAKE_BIN_DIR/mkdir" <<'BASH'
+#!/usr/bin/env bash
+exit 0
+BASH
+  chmod +x "$FAKE_BIN_DIR/mkdir"
+  cat > "$FAKE_BIN_DIR/wslpath" <<'BASH'
+#!/usr/bin/env bash
+if [ "$1" = "-w" ] && [ "$2" = "/" ]; then
+  printf '%s\n' '\\wsl.localhost\Ubuntu\'
+  exit 0
+fi
+exit 1
+BASH
+  chmod +x "$FAKE_BIN_DIR/wslpath"
+
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: debug-source
+    target: WSL://Desktop
+YAML
+  printf "debug" > "$REPO_DIR/configs/debug-source"
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 1 ]
+  assert_output_contains_line "$output" "DIAGNÓSTICO"
+  assert_output_contains_line "$output" "Fallo al convertir destino con wslpath"
 }
