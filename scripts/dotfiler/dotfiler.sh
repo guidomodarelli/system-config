@@ -65,10 +65,9 @@ is_darwin() {
 
 is_wsl() {
   if grep -qi microsoft /proc/version 2>/dev/null || grep -qi wsl /proc/version 2>/dev/null; then
-    echo "true"
-  else
-    echo "false"
+    return 0 # true
   fi
+  return 1 # false
 }
 
 get_linux_distro() {
@@ -313,7 +312,7 @@ validate_paths_config() {
 
 # Get the current WSL distribution name
 get_wsl_distro_name() {
-  if [ "$(is_wsl)" = "true" ]; then
+  if is_wsl; then
     local wsl_distro_name="${WSL_DISTRO_NAME:-}"
     if [ -n "$wsl_distro_name" ]; then
       echo "$wsl_distro_name"
@@ -348,9 +347,10 @@ format_wsl_windows_path() {
 
 create_backup() {
   local path="$1"
-  local command_prefix="$2"
+  local requires_sudo="$2"
   local backup_path
   backup_path=$(resolve_backup_path "$path")
+  local -a move_command
 
   if [ "$DRY_RUN" = "true" ]; then
     ((COUNT_BACKUPS+=1))
@@ -358,7 +358,12 @@ create_backup() {
     return 0
   fi
 
-  if ! $command_prefix mv "${path}" "${backup_path}" 2>/dev/null; then
+  move_command=(mv "${path}" "${backup_path}")
+  if [ "$requires_sudo" = "true" ]; then
+    move_command=(sudo "${move_command[@]}")
+  fi
+
+  if ! "${move_command[@]}" 2>/dev/null; then
     log_error_action "No se pudo crear respaldo para $(printPath "$path")"
     record_failed_target "$path" "Fallo al crear respaldo"
     return 1
@@ -383,20 +388,31 @@ resolve_backup_path() {
 
 remove_old_symlink() {
   local target="$1"
-  local command_prefix="$2"
+  local requires_sudo="$2"
+  local -a remove_command
 
   if [ "$DRY_RUN" = "true" ]; then
     log_delete_action "Eliminaría symlink anterior $(printPath "$target")"
     return 0
   fi
 
-  if ! $command_prefix rm "$target"; then
+  remove_command=(rm "$target")
+  if [ "$requires_sudo" = "true" ]; then
+    remove_command=(sudo "${remove_command[@]}")
+  fi
+
+  if ! "${remove_command[@]}"; then
     log_error_action "No se pudo eliminar symlink anterior $(printPath "$target")"
     record_failed_target "$target" "Fallo al eliminar symlink anterior"
     return 1
   fi
 
   log_delete_action "Symlink anterior eliminado $(printPath "$target")"
+}
+
+escape_powershell_single_quotes() {
+  local value="$1"
+  printf "%s" "${value//\'/\'\'}"
 }
 
 # This function creates a symbolic link from the source path to the target location
@@ -407,33 +423,35 @@ make_symlink() {
   local started_at_seconds
   started_at_seconds=$(date +%s)
 
-  local command_prefix=''
+  local requires_sudo="false"
   local target_dir
   target_dir=$(dirname "$target")
+  local -a mkdir_command
+  local -a ln_command
 
   if [ "$DRY_RUN" = "true" ]; then
     ((COUNT_SKIPPED+=1))
   fi
 
   if [[ "$target" != "$HOME"* ]] || [[ -d "$target_dir" && ! -w "$target_dir" ]] || [[ ! -d "$target_dir" && ! -w "$(dirname "$target_dir")" ]]; then
-    command_prefix='sudo'
+    requires_sudo="true"
     ((COUNT_SUDO_OPERATIONS+=1))
     log_note_action "Usando permisos elevados para $(printPath "$target")"
   fi
 
   if [ -L "${target}.bak" ]; then
-    if ! remove_old_symlink "${target}.bak" "$command_prefix"; then
+    if ! remove_old_symlink "${target}.bak" "$requires_sudo"; then
       return 1
     fi
   fi
 
   if [ -L "$target" ]; then
-    if ! remove_old_symlink "$target" "$command_prefix"; then
+    if ! remove_old_symlink "$target" "$requires_sudo"; then
       return 1
     fi
     ((COUNT_REPLACED+=1))
   elif [ -e "$target" ]; then
-    if ! create_backup "$target" "$command_prefix"; then
+    if ! create_backup "$target" "$requires_sudo"; then
       return 1
     fi
     ((COUNT_REPLACED+=1))
@@ -442,14 +460,19 @@ make_symlink() {
   fi
 
   if [ "$DRY_RUN" != "true" ]; then
-    if ! $command_prefix mkdir -p "$(dirname "$target")"; then
+    mkdir_command=(mkdir -p "$(dirname "$target")")
+    if [ "$requires_sudo" = "true" ]; then
+      mkdir_command=(sudo "${mkdir_command[@]}")
+    fi
+
+    if ! "${mkdir_command[@]}"; then
       log_error_action "No se pudo crear directorio padre para $(printPath "$target")"
       record_failed_target "$target" "Fallo al crear directorio padre"
       return 1
     fi
   fi
 
-  if [[ $path =~ "\\\\wsl\$" ]]; then
+  if [[ "$path" == \\\\wsl\$\\* ]]; then
     log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") Preparando destino WSL del symlink $(printPath "${path//\\/\\\\}")"
 
     if [ "$DRY_RUN" = "true" ]; then
@@ -465,14 +488,23 @@ make_symlink() {
         record_failed_target "$target" "Fallo al convertir destino con wslpath"
         return 1
       fi
-      echo "New-Item -ItemType SymbolicLink -Path '$win_target' -Target '$path' -Force -ErrorAction Stop | Out-Null" >> "$TMP_SCRIPT"
+      local escaped_win_target
+      escaped_win_target=$(escape_powershell_single_quotes "$win_target")
+      local escaped_path
+      escaped_path=$(escape_powershell_single_quotes "$path")
+      echo "New-Item -ItemType SymbolicLink -Path '$escaped_win_target' -Target '$escaped_path' -Force -ErrorAction Stop | Out-Null" >> "$TMP_SCRIPT"
       ((COUNT_WINDOWS_QUEUED+=1))
     fi
   else
     if [ "$DRY_RUN" = "true" ]; then
       log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Crearía symlink"
     else
-      if ! $command_prefix ln -s "$path" "$target"; then
+      ln_command=(ln -s "$path" "$target")
+      if [ "$requires_sudo" = "true" ]; then
+        ln_command=(sudo "${ln_command[@]}")
+      fi
+
+      if ! "${ln_command[@]}"; then
         log_error_action "No se pudo crear symlink $(printPath "$target") -> $(printPath "${path//\\/\\\\}")"
         record_failed_target "$target" "Fallo al crear symlink"
         return 1
@@ -529,7 +561,7 @@ run_elevated_powershell_script() {
 
 # Get Windows username when in WSL
 get_windows_username() {
-  if [ "$(is_wsl)" = "true" ]; then
+  if is_wsl; then
     if [ -f /mnt/c/Windows/System32/cmd.exe ]; then
       /mnt/c/Windows/System32/cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n'
     elif command -v powershell.exe >/dev/null 2>&1; then
@@ -547,10 +579,8 @@ get_windows_username() {
 build_path_obj() {
   local path="$1"
   local target="$2"
-  local json
 
-  json=$(jq -n --arg path "$path" --arg target "$target" '{path: $path, target: $target}')
-  echo "$json"
+  jq -cn --arg path "$path" --arg target "$target" '{path: $path, target: $target}'
 }
 
 get_abs_path() {
@@ -582,7 +612,6 @@ expand_env_vars() {
 add_path_to_output() {
   local path="$1"
   local target="$2"
-  local output="$3"
   local original_path="$1"
 
   target="$target"/"$(basename "$path")"
@@ -592,7 +621,6 @@ add_path_to_output() {
     log_warn_action "Ruta de origen inválida o inexistente: $original_path"
     record_failed_target "$target/$(basename "$original_path")" "Ruta de origen inexistente"
     ((COUNT_ERRORS+=1))
-    echo "$output"
     return 0
   fi
 
@@ -603,20 +631,21 @@ add_path_to_output() {
     path=$(format_wsl_windows_path "$path")
   fi
 
-  local path_obj
-  path_obj=$(build_path_obj "$path" "$target")
-  echo "$output" | jq -c ". + [$path_obj]"
+  build_path_obj "$path" "$target"
 }
 
 process_path_entry() {
   local line="$1"
   local selector_override="$2"
 
+  local line_fields
+  line_fields=$(echo "$line" | jq -r ". as \$entry | [\$entry.path, (([\$entry.overrides[]? | select($selector_override) | .target] | first) // \"\"), (\$entry.target // \"null\")] | @tsv")
+
   local path
-  path=$(echo "$line" | jq -r '.path')
   local override_target
-  override_target=$(echo "$line" | jq -r ".overrides[]? | select($selector_override) | .target")
-  local target=${override_target:-$(echo "$line" | jq -r '.target')}
+  local default_target
+  IFS=$'\t' read -r path override_target default_target <<< "$line_fields"
+  local target="${override_target:-$default_target}"
 
   if [[ "$target" != WSL://* ]]; then
     if [ "$target" = "null" ]; then
@@ -634,7 +663,6 @@ process_path_entry() {
     echo "-----------" >&2
   fi
 
-  local output="[]"
   if [[ "$path" == *"*" ]]; then
     local dir_path="${path%/*}"
     local abs_dir_path
@@ -647,35 +675,34 @@ process_path_entry() {
           echo "Target: $(printPath "$target")" >&2
           echo "-----------" >&2
         fi
-        output=$(add_path_to_output "$item" "$target" "$output")
+        add_path_to_output "$item" "$target"
       done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
     else
       log_warn_action "Directorio no encontrado: $abs_dir_path"
     fi
   else
-    output=$(add_path_to_output "$path" "$target" "$output")
+    add_path_to_output "$path" "$target"
   fi
-
-  echo "$output"
 }
 
 get_paths() {
   local selector="$1"
   local selector_override="$2"
-  local output="[]"
 
   while read -r line; do
-    output=$(echo "$output" | jq -c ". + $(process_path_entry "$line" "$selector_override")")
-  done < <(yq eval -o=json ".paths[] | select($selector)" "$CONFIG_PATHS_FILE" | jq -c '.')
-
-  echo "$output"
+    process_path_entry "$line" "$selector_override"
+  done < <(yq eval -o=json ".paths[] | select($selector)" "$CONFIG_PATHS_FILE" | jq -c '.') | jq -sc '.'
 }
 
 retrieve_linux_paths() {
   local current_distro
   current_distro=$(get_linux_distro)
   local wsl_status
-  wsl_status=$(is_wsl)
+  if is_wsl; then
+    wsl_status=true
+  else
+    wsl_status=false
+  fi
 
   local selector='(
     .excludeFor == null or (
