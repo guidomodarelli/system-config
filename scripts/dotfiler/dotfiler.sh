@@ -744,31 +744,40 @@ print_summary() {
   end_time_iso_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   local total_elapsed_seconds=$((end_time_seconds - START_TIME_SECONDS))
   local status_value="[OK] Sin errores"
-  local execution_mode="Aplicación real"
-  local metric_column_width=32
-  local value_column_width=20
+  local execution_mode="Aplicacion real"
+  local header_metric="Metrica"
+  local header_value="Valor"
+  local -a summary_rows=()
+  local metric_column_width=0
+  local value_column_width=0
 
-  format_metric_cell() {
-    local metric_label="$1"
-    local metric_length=${#metric_label}
-    local dots_count=$((metric_column_width - metric_length))
-    local dots=""
+  build_repeated_characters() {
+    local character="$1"
+    local count="$2"
+    local output=""
 
-    if [ "$dots_count" -lt 0 ]; then
-      dots_count=0
-    fi
-
-    while [ "$dots_count" -gt 0 ]; do
-      dots="${dots}."
-      dots_count=$((dots_count - 1))
+    while [ "$count" -gt 0 ]; do
+      output="${output}${character}"
+      count=$((count - 1))
     done
 
-    printf "%s%s" "$metric_label" "$dots"
+    printf "%s" "$output"
   }
 
-  format_value_cell() {
-    local value_text="$1"
-    printf "%-${value_column_width}.${value_column_width}s" "$value_text"
+  print_ascii_row_separator() {
+    local metric_separator
+    metric_separator="$(build_repeated_characters "-" "$metric_column_width")"
+    local value_separator
+    value_separator="$(build_repeated_characters "-" "$value_column_width")"
+
+    printf "+-%s-+-%s-+" "$metric_separator" "$value_separator"
+  }
+
+  print_ascii_summary_row() {
+    local metric_text="$1"
+    local value_text="$2"
+
+    printf "| %-*s | %-*s |" "$metric_column_width" "$metric_text" "$value_column_width" "$value_text"
   }
 
   if [ "$COUNT_ERRORS" -gt 0 ]; then
@@ -776,28 +785,57 @@ print_summary() {
   fi
 
   if [ "$DRY_RUN" = "true" ]; then
-    execution_mode="Simulación"
+    execution_mode="Simulacion"
   fi
+
+  summary_rows=(
+    "Inicio (UTC)|$START_TIME_ISO_UTC"
+    "Fin (UTC)|$end_time_iso_utc"
+    "Tiempo total (s)|$total_elapsed_seconds"
+    "Modo ejecucion|$execution_mode"
+    "Creados|$COUNT_CREATED"
+    "Reemplazados|$COUNT_REPLACED"
+    "Respaldos|$COUNT_BACKUPS"
+    "Omitidos|$COUNT_SKIPPED"
+    "Ops. con sudo|$COUNT_SUDO_OPERATIONS"
+    "Ops. Windows en cola (PS)|$COUNT_WINDOWS_QUEUED"
+    "Errores|$COUNT_ERRORS"
+    "Estado|$status_value"
+  )
+
+  metric_column_width=${#header_metric}
+  value_column_width=${#header_value}
+
+  local summary_row
+  local metric_label
+  local value_text
+  local metric_length
+  local value_length
+  for summary_row in "${summary_rows[@]}"; do
+    IFS='|' read -r metric_label value_text <<< "$summary_row"
+    metric_length=${#metric_label}
+    value_length=${#value_text}
+
+    if [ "$metric_length" -gt "$metric_column_width" ]; then
+      metric_column_width="$metric_length"
+    fi
+
+    if [ "$value_length" -gt "$value_column_width" ]; then
+      value_column_width="$value_length"
+    fi
+  done
 
   print_link_block_separator
   printf "%s\n" "$(print_blue -b "RESUMEN")"
   LAST_OUTPUT_WAS_SEPARATOR=false
-  printf "%s\n" "$(print_gray -b "╔══════════════════════════════════╦══════════════════════╗")"
-  printf "%s\n" "$(print_gray -b "║ Métrica                          ║ Valor                ║")"
-  printf "%s\n" "$(print_gray -b "╠══════════════════════════════════╬══════════════════════╣")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Inicio (UTC)") ║ $(format_value_cell "$START_TIME_ISO_UTC") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Fin (UTC)") ║ $(format_value_cell "$end_time_iso_utc") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Tiempo total (s)") ║ $(format_value_cell "$total_elapsed_seconds") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Modo ejecución") ║ $(format_value_cell "$execution_mode") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Creados") ║ $(format_value_cell "$COUNT_CREATED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Reemplazados") ║ $(format_value_cell "$COUNT_REPLACED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Respaldos") ║ $(format_value_cell "$COUNT_BACKUPS") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Omitidos") ║ $(format_value_cell "$COUNT_SKIPPED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Ops. con sudo") ║ $(format_value_cell "$COUNT_SUDO_OPERATIONS") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Ops. Windows en cola (PS)") ║ $(format_value_cell "$COUNT_WINDOWS_QUEUED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Errores") ║ $(format_value_cell "$COUNT_ERRORS") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Estado") ║ $(format_value_cell "$status_value") ║")"
-  printf "%s\n" "$(print_gray -b "╚══════════════════════════════════╩══════════════════════╝")"
+  printf "%s\n" "$(print_gray -b "$(print_ascii_row_separator)")"
+  printf "%s\n" "$(print_gray -b "$(print_ascii_summary_row "$header_metric" "$header_value")")"
+  printf "%s\n" "$(print_gray -b "$(print_ascii_row_separator)")"
+  for summary_row in "${summary_rows[@]}"; do
+    IFS='|' read -r metric_label value_text <<< "$summary_row"
+    printf "%s\n" "$(print_gray -b "$(print_ascii_summary_row "$metric_label" "$value_text")")"
+  done
+  printf "%s\n" "$(print_gray -b "$(print_ascii_row_separator)")"
 
   if [ "$DRY_RUN" = "true" ]; then
     printf "[ %s ] Modo simulación activo, no se escribieron cambios en el sistema de archivos.\n" "$(print_blue -b "INFO")"
