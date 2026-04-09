@@ -46,7 +46,7 @@ check_commands() {
 
   for command_name in "$@"; do
     command -v "$command_name" >/dev/null 2>&1 || {
-      echo "Missing required command: $command_name" >&2
+      echo "Falta comando requerido: $command_name" >&2
       return 1
     }
   done
@@ -59,15 +59,21 @@ load_optional_helpers() {
 
   if [ -r "$style_file" ]; then
     # shellcheck disable=SC1090
-    source "$style_file" || true
+    if ! source "$style_file"; then
+      printf "[ AVISO ] No se pudo cargar helper opcional: %s\n" "$style_file" >&2
+    fi
   fi
   if [ -r "$constants_file" ]; then
     # shellcheck disable=SC1090
-    source "$constants_file" || true
+    if ! source "$constants_file"; then
+      printf "[ AVISO ] No se pudo cargar helper opcional: %s\n" "$constants_file" >&2
+    fi
   fi
   if [ -r "$check_commands_file" ]; then
     # shellcheck disable=SC1090
-    source "$check_commands_file" || true
+    if ! source "$check_commands_file"; then
+      printf "[ AVISO ] No se pudo cargar helper opcional: %s\n" "$check_commands_file" >&2
+    fi
   fi
 }
 
@@ -112,6 +118,10 @@ COUNT_ERRORS=0
 COUNT_WINDOWS_QUEUED=0
 COUNT_SUDO_OPERATIONS=0
 LAST_OUTPUT_WAS_SEPARATOR=false
+COUNT_PLANNED_CREATED=0
+COUNT_PLANNED_REPLACED=0
+COUNT_PLANNED_BACKUPS=0
+COUNT_PLANNED_WINDOWS_QUEUED=0
 
 is_debug() {
   if [ "$DEBUG" = true ]; then
@@ -417,7 +427,7 @@ create_backup() {
   local -a move_command
 
   if [ "$DRY_RUN" = "true" ]; then
-    ((COUNT_BACKUPS+=1))
+    ((COUNT_PLANNED_BACKUPS+=1))
     log_backup_action "Crearía $(printPath "${backup_path//\\/\\\\}")"
     return 0
   fi
@@ -479,6 +489,16 @@ escape_powershell_single_quotes() {
   printf "%s" "${value//\'/\'\'}"
 }
 
+validate_powershell_value() {
+  local value="$1"
+
+  if [[ "$value" == *$'\n'* ]] || [[ "$value" == *$'\r'* ]]; then
+    return 1
+  fi
+
+  return 0
+}
+
 # This function creates a symbolic link from the source path to the target location
 # It handles existing files by creating backups and removes old symlinks if they exist
 make_symlink() {
@@ -502,7 +522,7 @@ make_symlink() {
     writable_base_dir=$(dirname "$writable_base_dir")
   done
 
-  if [[ "$target" != "$HOME"* ]] || [[ ! -w "$writable_base_dir" ]]; then
+  if [[ ! -w "$writable_base_dir" ]]; then
     requires_sudo="true"
     ((COUNT_SUDO_OPERATIONS+=1))
     log_note_action "Usando permisos elevados para $(printPath "$target")"
@@ -518,14 +538,26 @@ make_symlink() {
     if ! remove_old_symlink "$target" "$requires_sudo"; then
       return 1
     fi
-    ((COUNT_REPLACED+=1))
+    if [ "$DRY_RUN" = "true" ]; then
+      ((COUNT_PLANNED_REPLACED+=1))
+    else
+      ((COUNT_REPLACED+=1))
+    fi
   elif [ -e "$target" ]; then
     if ! create_backup "$target" "$requires_sudo"; then
       return 1
     fi
-    ((COUNT_REPLACED+=1))
+    if [ "$DRY_RUN" = "true" ]; then
+      ((COUNT_PLANNED_REPLACED+=1))
+    else
+      ((COUNT_REPLACED+=1))
+    fi
   else
-    ((COUNT_CREATED+=1))
+    if [ "$DRY_RUN" = "true" ]; then
+      ((COUNT_PLANNED_CREATED+=1))
+    else
+      ((COUNT_CREATED+=1))
+    fi
   fi
 
   if [ "$DRY_RUN" != "true" ]; then
@@ -545,7 +577,7 @@ make_symlink() {
     log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") Preparando destino WSL del symlink $(printPath "${path//\\/\\\\}")"
 
     if [ "$DRY_RUN" = "true" ]; then
-      ((COUNT_WINDOWS_QUEUED+=1))
+      ((COUNT_PLANNED_WINDOWS_QUEUED+=1))
       log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Encolaría comando de symlink para Windows"
     else
       if ! command -v wslpath >/dev/null 2>&1; then
@@ -555,6 +587,11 @@ make_symlink() {
       local win_target
       if ! win_target=$(wslpath -w "$target" 2>/dev/null); then
         record_failed_target "$target" "Fallo al convertir destino con wslpath"
+        return 1
+      fi
+      if ! validate_powershell_value "$win_target" || ! validate_powershell_value "$path"; then
+        log_error_action "Se detectaron caracteres no válidos para PowerShell en las rutas del symlink"
+        record_failed_target "$target" "Ruta inválida para script PowerShell"
         return 1
       fi
       local escaped_win_target
@@ -588,7 +625,23 @@ make_symlink() {
 }
 
 first_letter() {
-  echo "${1:0:1}"
+  printf "%s" "${1:0:1}"
+}
+
+resolve_absolute_path() {
+  local path="$1"
+
+  if command -v realpath >/dev/null 2>&1; then
+    realpath "$path" 2>/dev/null
+    return $?
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$path" 2>/dev/null
+    return $?
+  fi
+
+  return 1
 }
 
 run_elevated_powershell_script() {
@@ -665,7 +718,11 @@ get_abs_path() {
     path="$HOME/${path#\~/}"
   fi
 
-  realpath "$path" 2>/dev/null || true
+  if [ ! -e "$path" ] && [ ! -L "$path" ]; then
+    return 0
+  fi
+
+  resolve_absolute_path "$path" || true
 }
 
 # Expand environment variables in a path string
@@ -737,7 +794,7 @@ process_path_entry() {
   local selector_override="$2"
 
   local line_fields
-  line_fields=$(echo "$line" | jq -r ". as \$entry | [\$entry.path, (([\$entry.overrides[]? | select($selector_override) | .target] | first) // \"\"), (\$entry.target // \"null\")] | @tsv")
+  line_fields=$(printf "%s\n" "$line" | jq -r ". as \$entry | [\$entry.path, (([\$entry.overrides[]? | select($selector_override) | .target] | first) // \"\"), (\$entry.target // \"null\")] | @tsv")
 
   local path
   local override_target
@@ -875,6 +932,14 @@ print_summary() {
   local execution_mode="Aplicación real"
   local metric_column_width=32
   local value_column_width=20
+  local shown_created="$COUNT_CREATED"
+  local shown_replaced="$COUNT_REPLACED"
+  local shown_backups="$COUNT_BACKUPS"
+  local shown_windows_queued="$COUNT_WINDOWS_QUEUED"
+  local created_label="Creados"
+  local replaced_label="Reemplazados"
+  local backups_label="Respaldos"
+  local windows_queued_label="Ops. Windows en cola (PS)"
 
   format_metric_cell() {
     local metric_label="$1"
@@ -905,6 +970,14 @@ print_summary() {
 
   if [ "$DRY_RUN" = "true" ]; then
     execution_mode="Simulación"
+    shown_created="$COUNT_PLANNED_CREATED"
+    shown_replaced="$COUNT_PLANNED_REPLACED"
+    shown_backups="$COUNT_PLANNED_BACKUPS"
+    shown_windows_queued="$COUNT_PLANNED_WINDOWS_QUEUED"
+    created_label="Creados (plan)"
+    replaced_label="Reemplazados (plan)"
+    backups_label="Respaldos (plan)"
+    windows_queued_label="Ops. Windows en cola (plan)"
   fi
 
   print_link_block_separator
@@ -917,12 +990,12 @@ print_summary() {
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Fin (UTC)") ║ $(format_value_cell "$end_time_iso_utc") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Tiempo total (s)") ║ $(format_value_cell "$total_elapsed_seconds") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Modo ejecución") ║ $(format_value_cell "$execution_mode") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Creados") ║ $(format_value_cell "$COUNT_CREATED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Reemplazados") ║ $(format_value_cell "$COUNT_REPLACED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Respaldos") ║ $(format_value_cell "$COUNT_BACKUPS") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "$created_label") ║ $(format_value_cell "$shown_created") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "$replaced_label") ║ $(format_value_cell "$shown_replaced") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "$backups_label") ║ $(format_value_cell "$shown_backups") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Omitidos") ║ $(format_value_cell "$COUNT_SKIPPED") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Ops. con sudo") ║ $(format_value_cell "$COUNT_SUDO_OPERATIONS") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Ops. Windows en cola (PS)") ║ $(format_value_cell "$COUNT_WINDOWS_QUEUED") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "$windows_queued_label") ║ $(format_value_cell "$shown_windows_queued") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Errores") ║ $(format_value_cell "$COUNT_ERRORS") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Estado") ║ $(format_value_cell "$status_value") ║")"
   printf "%s\n" "$(print_gray -b "╚══════════════════════════════════╩══════════════════════╝")"
@@ -967,7 +1040,11 @@ print_diagnostics() {
 main() {
   parse_args "$@"
 
-  if ! check_commands yq jq realpath find mktemp sort; then
+  if ! check_commands yq jq find mktemp sort; then
+    return "$EXIT_CODE_INPUT_ERROR"
+  fi
+  if ! command -v realpath >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+    log_error_action "Se requiere 'realpath' o 'python3' para resolver rutas absolutas."
     return "$EXIT_CODE_INPUT_ERROR"
   fi
   if ! validate_paths_config; then
@@ -990,7 +1067,7 @@ main() {
     fi
 
     local parsed_line
-    parsed_line=$(echo "$line" | jq -r '[.path, .target] | @tsv')
+    parsed_line=$(printf "%s\n" "$line" | jq -r '[.path, .target] | @tsv')
     local path
     local target
     IFS=$'\t' read -r path target <<< "$parsed_line"
@@ -1017,7 +1094,7 @@ main() {
     fi
 
     is_first_link="false"
-  done < <(echo "$paths" | jq -c '.[]')
+  done < <(printf "%s\n" "$paths" | jq -c '.[]')
 
   if [ "$is_first_link" = "false" ]; then
     print_link_block_separator
