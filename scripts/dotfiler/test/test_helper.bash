@@ -55,6 +55,19 @@ run_dotfiler() {
   run bash -lc "cd '$REPO_DIR/scripts/dotfiler' && HOME='$HOME_DIR' USER='test-user' DEBUG='$debug_value' PATH='$FAKE_BIN_DIR:$PATH' bash ./dotfiler.sh $extra_args"
 }
 
+run_dotfiler_outside_repo() {
+  local debug_value="$1"
+  shift
+  local extra_args="$*"
+  local isolated_dir
+  isolated_dir="$TEST_DIR/outside-repo"
+  mkdir -p "$isolated_dir"
+  cp "$SCRIPT_UNDER_TEST" "$isolated_dir/dotfiler.sh"
+  chmod +x "$isolated_dir/dotfiler.sh"
+
+  run bash -lc "cd '$isolated_dir' && HOME='$HOME_DIR' USER='test-user' DEBUG='$debug_value' PATH='$FAKE_BIN_DIR:$PATH' bash ./dotfiler.sh $extra_args"
+}
+
 assert_symlink_points_to() {
   local symlink_path="$1"
   local expected_target="$2"

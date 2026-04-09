@@ -202,6 +202,101 @@ BASH
   [[ "$output$stderr" == *"Configuración inválida"* ]]
 }
 
+@test "fails with clear error when executed outside a git repository" {
+  run_dotfiler_outside_repo "false" "--quiet --no-color"
+
+  [ "$status" -eq 2 ]
+  [[ "$output$stderr" == *"repositorio Git válido"* ]]
+}
+
+@test "expands home prefix for source and target paths" {
+  printf "home-source" > "$HOME_DIR/home-source"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: '~/home-source'
+    target: '~/linked-home'
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-home/home-source" \
+    "$HOME_DIR/home-source"
+}
+
+@test "handles source names with spaces and quotes" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: 'file with "quotes" and spaces.txt'
+    target: linked-files
+YAML
+  printf "debug" > "$REPO_DIR/configs/file with \"quotes\" and spaces.txt"
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/file with \"quotes\" and spaces.txt" \
+    "$REPO_DIR/configs/file with \"quotes\" and spaces.txt"
+}
+
+@test "wildcard expansion is deterministic and sorted" {
+  mkdir -p "$REPO_DIR/configs/wild"
+  printf "b" > "$REPO_DIR/configs/wild/b-file"
+  printf "a" > "$REPO_DIR/configs/wild/a-file"
+  printf "c" > "$REPO_DIR/configs/wild/c-file"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: wild/*
+    target: ordered
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  local line_a
+  local line_b
+  local line_c
+  line_a=$(echo "$output" | grep -n "ordered/a-file" | head -n1 | cut -d: -f1)
+  line_b=$(echo "$output" | grep -n "ordered/b-file" | head -n1 | cut -d: -f1)
+  line_c=$(echo "$output" | grep -n "ordered/c-file" | head -n1 | cut -d: -f1)
+  [ -n "$line_a" ]
+  [ -n "$line_b" ]
+  [ -n "$line_c" ]
+  [ "$line_a" -lt "$line_b" ]
+  [ "$line_b" -lt "$line_c" ]
+}
+
+@test "missing wildcard directory does not fail execution" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: missing/*
+    target: linked-files
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output$stderr" == *"Directorio no encontrado"* ]]
+}
+
+@test "expands user variable only on valid path segments" {
+  printf "debug" > "$REPO_DIR/configs/debug-source"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: debug-source
+    target: '$HOME/targets/$USER/safe-$USER-suffix'
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/targets/test-user/safe-\$USER-suffix/debug-source" \
+    "$REPO_DIR/configs/debug-source"
+}
+
 @test "wsl distro name fallback works when WSL_DISTRO_NAME is unset" {
   simulate_wsl_environment
   cat > "$FAKE_BIN_DIR/wslpath" <<'BASH'

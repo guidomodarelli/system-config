@@ -2,12 +2,76 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(git rev-parse --show-toplevel)"
+if ! command -v git >/dev/null 2>&1; then
+  echo "[ ERROR ] El comando requerido 'git' no está disponible en PATH." >&2
+  exit 2
+fi
+
+if ! ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  echo "[ ERROR ] Este script debe ejecutarse dentro de un repositorio Git válido." >&2
+  exit 2
+fi
+
 ROOT_CONFIGS_DIR="$ROOT_DIR/configs"
 CONFIG_PATHS_FILE="$ROOT_DIR/symlinks.yml"
-source "$ROOT_CONFIGS_DIR/zsh/.zsh/functions/styleText.zsh"
-source "$ROOT_CONFIGS_DIR/zsh/.zsh/constants.zsh"
-source "$ROOT_CONFIGS_DIR/zsh/.zsh/functions/check_command.zsh"
+
+POINTER="->"
+
+logRed() {
+  printf "%s" "${@: -1}"
+}
+
+logGreen() {
+  printf "%s" "${@: -1}"
+}
+
+logYellow() {
+  printf "%s" "${@: -1}"
+}
+
+logBlue() {
+  printf "%s" "${@: -1}"
+}
+
+logMagenta() {
+  printf "%s" "${@: -1}"
+}
+
+logGray() {
+  printf "%s" "${@: -1}"
+}
+
+check_commands() {
+  local command_name
+
+  for command_name in "$@"; do
+    command -v "$command_name" >/dev/null 2>&1 || {
+      echo "Missing required command: $command_name" >&2
+      return 1
+    }
+  done
+}
+
+load_optional_helpers() {
+  local style_file="$ROOT_CONFIGS_DIR/zsh/.zsh/functions/styleText.zsh"
+  local constants_file="$ROOT_CONFIGS_DIR/zsh/.zsh/constants.zsh"
+  local check_commands_file="$ROOT_CONFIGS_DIR/zsh/.zsh/functions/check_command.zsh"
+
+  if [ -r "$style_file" ]; then
+    # shellcheck disable=SC1090
+    source "$style_file" || true
+  fi
+  if [ -r "$constants_file" ]; then
+    # shellcheck disable=SC1090
+    source "$constants_file" || true
+  fi
+  if [ -r "$check_commands_file" ]; then
+    # shellcheck disable=SC1090
+    source "$check_commands_file" || true
+  fi
+}
+
+load_optional_helpers
 
 # Create temporary files
 TMP_SCRIPT=$(mktemp "${TMPDIR:-/tmp}/wsl_symlink_XXXXXX.ps1")
@@ -426,6 +490,7 @@ make_symlink() {
   local requires_sudo="false"
   local target_dir
   target_dir=$(dirname "$target")
+  local writable_base_dir="$target_dir"
   local -a mkdir_command
   local -a ln_command
 
@@ -433,7 +498,11 @@ make_symlink() {
     ((COUNT_SKIPPED+=1))
   fi
 
-  if [[ "$target" != "$HOME"* ]] || [[ -d "$target_dir" && ! -w "$target_dir" ]] || [[ ! -d "$target_dir" && ! -w "$(dirname "$target_dir")" ]]; then
+  while [ ! -d "$writable_base_dir" ] && [ "$writable_base_dir" != "/" ]; do
+    writable_base_dir=$(dirname "$writable_base_dir")
+  done
+
+  if [[ "$target" != "$HOME"* ]] || [[ ! -w "$writable_base_dir" ]]; then
     requires_sudo="true"
     ((COUNT_SUDO_OPERATIONS+=1))
     log_note_action "Usando permisos elevados para $(printPath "$target")"
@@ -472,7 +541,7 @@ make_symlink() {
     fi
   fi
 
-  if [[ "$path" == \\\\wsl\$\\* ]]; then
+  if [[ "$path" == *\\wsl\$\\* ]]; then
     log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") Preparando destino WSL del symlink $(printPath "${path//\\/\\\\}")"
 
     if [ "$DRY_RUN" = "true" ]; then
@@ -590,36 +659,65 @@ get_abs_path() {
     path="$ROOT_CONFIGS_DIR/$path"
   fi
 
+  if [ "$path" = "~" ]; then
+    path="$HOME"
+  elif [[ "$path" == "~/"* ]]; then
+    path="$HOME/${path#\~/}"
+  fi
+
   realpath "$path" 2>/dev/null || true
 }
 
 # Expand environment variables in a path string
 expand_env_vars() {
   local path="$1"
-
-  path="${path//'$HOME'/$HOME}"
-  path="${path//\~/$HOME}"
+  local user_value="$USER"
 
   if [[ "$path" == /mnt/c/* ]] || [[ "$path" == WSL://* ]]; then
-    path="${path//'$USER'/$USERNAME}"
-  else
-    path="${path//'$USER'/$USER}"
+    user_value="${USERNAME:-$USER}"
   fi
 
-  echo "$path"
+  if [ "$path" = "~" ]; then
+    path="$HOME"
+  elif [[ "$path" == "~/"* ]]; then
+    path="$HOME/${path#\~/}"
+  fi
+
+  if [ "$path" = '$HOME' ]; then
+    path="$HOME"
+  elif [[ "$path" == '$HOME/'* ]]; then
+    path="$HOME/${path#'$HOME'/}"
+  fi
+  path="${path//\/\$HOME\//\/$HOME\/}"
+  if [[ "$path" == */'$HOME' ]]; then
+    path="${path%/\$HOME}/$HOME"
+  fi
+
+  if [ "$path" = '$USER' ]; then
+    path="$user_value"
+  elif [[ "$path" == '$USER/'* ]]; then
+    path="$user_value/${path#'$USER'/}"
+  fi
+  path="${path//\/\$USER\//\/$user_value\/}"
+  if [[ "$path" == */'$USER' ]]; then
+    path="${path%/\$USER}/$user_value"
+  fi
+
+  printf "%s\n" "$path"
 }
 
 add_path_to_output() {
   local path="$1"
   local target="$2"
   local original_path="$1"
+  local source_basename="${path##*/}"
 
-  target="$target"/"$(basename "$path")"
+  target="$target/$source_basename"
 
   path=$(get_abs_path "$path")
   if [ -z "$path" ]; then
     log_warn_action "Ruta de origen inválida o inexistente: $original_path"
-    record_failed_target "$target/$(basename "$original_path")" "Ruta de origen inexistente"
+    record_failed_target "$target/${original_path##*/}" "Ruta de origen inexistente"
     ((COUNT_ERRORS+=1))
     return 0
   fi
@@ -650,7 +748,10 @@ process_path_entry() {
   if [[ "$target" != WSL://* ]]; then
     if [ "$target" = "null" ]; then
       target="$HOME"
-    elif [ "$(first_letter "$target")" != "/" ] && [ "$(first_letter "$target")" != "~" ]; then
+    elif [ "$(first_letter "$target")" != "/" ] &&
+      [ "$(first_letter "$target")" != "~" ] &&
+      [[ "$target" != '$HOME'* ]] &&
+      [[ "$target" != '$USER'* ]]; then
       target="$HOME"/"$target"
     fi
   fi
@@ -676,7 +777,7 @@ process_path_entry() {
           echo "-----------" >&2
         fi
         add_path_to_output "$item" "$target"
-      done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
+      done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1 | LC_ALL=C sort)
     else
       log_warn_action "Directorio no encontrado: $abs_dir_path"
     fi
@@ -866,7 +967,7 @@ print_diagnostics() {
 main() {
   parse_args "$@"
 
-  if ! check_commands yq jq realpath find mktemp; then
+  if ! check_commands yq jq realpath find mktemp sort; then
     return "$EXIT_CODE_INPUT_ERROR"
   fi
   if ! validate_paths_config; then
@@ -888,13 +989,18 @@ main() {
       continue
     fi
 
+    local parsed_line
+    parsed_line=$(echo "$line" | jq -r '[.path, .target] | @tsv')
     local path
-    path=$(echo "$line" | jq -r '.path')
     local target
-    target=$(echo "$line" | jq -r '.target')
+    IFS=$'\t' read -r path target <<< "$parsed_line"
 
     local current_group
-    current_group=$(dirname "$target")
+    if [[ "$target" == */* ]]; then
+      current_group="${target%/*}"
+    else
+      current_group="."
+    fi
     current_group=$(abbreviate_home_path "$current_group")
 
     if [ "$current_group" != "$last_group" ]; then
