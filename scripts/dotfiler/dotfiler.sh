@@ -404,15 +404,21 @@ get_wsl_distro_name() {
     if command -v wslpath >/dev/null 2>&1; then
       local win_root
       win_root=$(wslpath -w / 2>/dev/null)
-      local distro_regex='^\\\\wsl(\\\\.localhost)?\\\\([^\\\\]+)\\\\'
-      if [[ $win_root =~ $distro_regex ]]; then
-        echo "${BASH_REMATCH[2]}"
+      local distro_name_from_unc
+      distro_name_from_unc=$(printf "%s" "$win_root" | sed -nE 's#^\\\\wsl(\.localhost)?\\([^\\]+)\\.*#\2#p')
+      if [ -n "$distro_name_from_unc" ]; then
+        echo "$distro_name_from_unc"
         return 0
       fi
     fi
 
-    grep -oP '(?<=^NAME=").*(?=")' /etc/os-release | tr -d '\r\n'
+    if [ -r /etc/os-release ]; then
+      awk -F= '/^NAME=/{gsub(/^"/, "", $2); gsub(/"$/, "", $2); print $2; exit}' /etc/os-release | tr -d '\r\n'
+      return 0
+    fi
   fi
+
+  return 1
 }
 
 # Format path for Windows when in WSL
@@ -652,6 +658,11 @@ resolve_absolute_path() {
   return 1
 }
 
+contains_glob_pattern() {
+  local candidate_path="$1"
+  [[ "$candidate_path" == *\** ]] || [[ "$candidate_path" == *\?* ]] || [[ "$candidate_path" == *\[* ]]
+}
+
 run_elevated_powershell_script() {
   local tmp_script="$1"
   local started_at_seconds
@@ -702,6 +713,7 @@ get_windows_username() {
     if [ -f /mnt/c/Windows/System32/cmd.exe ]; then
       /mnt/c/Windows/System32/cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n'
     elif command -v powershell.exe >/dev/null 2>&1; then
+      # shellcheck disable=SC2016
       powershell.exe -Command '$env:USERNAME' 2>/dev/null | tr -d '\r'
     elif [ -n "${WSLENV:-}" ] && [ -n "${USERNAME:-}" ]; then
       echo "$USERNAME"
@@ -729,7 +741,7 @@ get_abs_path() {
 
   if [ "$path" = "~" ]; then
     path="$HOME"
-  elif [[ "$path" == "~/"* ]]; then
+  elif [[ "$path" == \~/* ]]; then
     path="$HOME/${path#\~/}"
   fi
 
@@ -744,6 +756,8 @@ get_abs_path() {
 expand_env_vars() {
   local path="$1"
   local user_value="$USER"
+  local literal_home="\$HOME"
+  local literal_user="\$USER"
 
   if [[ "$path" == /mnt/c/* ]] || [[ "$path" == WSL://* ]]; then
     user_value="${USERNAME:-$USER}"
@@ -751,31 +765,53 @@ expand_env_vars() {
 
   if [ "$path" = "~" ]; then
     path="$HOME"
-  elif [[ "$path" == "~/"* ]]; then
+  elif [[ "$path" == \~/* ]]; then
     path="$HOME/${path#\~/}"
   fi
 
-  if [ "$path" = '$HOME' ]; then
+  if [ "$path" = "$literal_home" ]; then
     path="$HOME"
-  elif [[ "$path" == '$HOME/'* ]]; then
-    path="$HOME/${path#'$HOME'/}"
+  elif [[ "$path" == "$literal_home/"* ]]; then
+    path="$HOME/${path#"$literal_home"/}"
   fi
   path="${path//\/\$HOME\//\/$HOME\/}"
-  if [[ "$path" == */'$HOME' ]]; then
+  if [[ "$path" == */"$literal_home" ]]; then
     path="${path%/\$HOME}/$HOME"
   fi
 
-  if [ "$path" = '$USER' ]; then
+  if [ "$path" = "$literal_user" ]; then
     path="$user_value"
-  elif [[ "$path" == '$USER/'* ]]; then
-    path="$user_value/${path#'$USER'/}"
+  elif [[ "$path" == "$literal_user/"* ]]; then
+    path="$user_value/${path#"$literal_user"/}"
   fi
   path="${path//\/\$USER\//\/$user_value\/}"
-  if [[ "$path" == */'$USER' ]]; then
+  if [[ "$path" == */"$literal_user" ]]; then
     path="${path%/\$USER}/$user_value"
   fi
 
   printf "%s\n" "$path"
+}
+
+expand_wildcard_paths() {
+  local wildcard_path="$1"
+  local wildcard_dir_path="."
+  local wildcard_name_pattern="$wildcard_path"
+
+  if [[ "$wildcard_path" == */* ]]; then
+    wildcard_dir_path="${wildcard_path%/*}"
+    wildcard_name_pattern="${wildcard_path##*/}"
+  fi
+
+  local absolute_wildcard_dir_path
+  absolute_wildcard_dir_path=$(get_abs_path "$wildcard_dir_path")
+
+  if [ -z "$absolute_wildcard_dir_path" ] || [ ! -d "$absolute_wildcard_dir_path" ]; then
+    log_warn_action "Directorio no encontrado: $wildcard_dir_path"
+    return 0
+  fi
+
+  find "$absolute_wildcard_dir_path" -maxdepth 1 -mindepth 1 -name "$wildcard_name_pattern" -print0 |
+    perl -0ne 'push @items, $_; END { print for sort @items }'
 }
 
 add_path_to_output() {
@@ -816,14 +852,16 @@ process_path_entry() {
   local default_target
   IFS=$'\t' read -r path override_target default_target <<< "$line_fields"
   local target="${override_target:-$default_target}"
+  local literal_home="\$HOME"
+  local literal_user="\$USER"
 
   if [[ "$target" != WSL://* ]]; then
     if [ "$target" = "null" ]; then
       target="$HOME"
     elif [ "$(first_letter "$target")" != "/" ] &&
       [ "$(first_letter "$target")" != "~" ] &&
-      [[ "$target" != '$HOME'* ]] &&
-      [[ "$target" != '$USER'* ]]; then
+      [[ "$target" != "$literal_home"* ]] &&
+      [[ "$target" != "$literal_user"* ]]; then
       target="$HOME"/"$target"
     fi
   fi
@@ -836,23 +874,15 @@ process_path_entry() {
     echo "-----------" >&2
   fi
 
-  if [[ "$path" == *"*" ]]; then
-    local dir_path="${path%/*}"
-    local abs_dir_path
-    abs_dir_path=$(get_abs_path "$dir_path")
-
-    if [ -d "$abs_dir_path" ]; then
-      while IFS= read -r -d '' item; do
-        if is_debug; then
-          echo "Item: $(printPath "${item//\\/\\\\}")" >&2
-          echo "Target: $(printPath "$target")" >&2
-          echo "-----------" >&2
-        fi
-        add_path_to_output "$item" "$target"
-      done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1 -print0)
-    else
-      log_warn_action "Directorio no encontrado: $abs_dir_path"
-    fi
+  if contains_glob_pattern "$path"; then
+    while IFS= read -r -d '' item; do
+      if is_debug; then
+        echo "Item: $(printPath "${item//\\/\\\\}")" >&2
+        echo "Target: $(printPath "$target")" >&2
+        echo "-----------" >&2
+      fi
+      add_path_to_output "$item" "$target"
+    done < <(expand_wildcard_paths "$path")
   else
     add_path_to_output "$path" "$target"
   fi
@@ -991,11 +1021,10 @@ print_summary() {
     shown_replaced="$COUNT_PLANNED_REPLACED"
     shown_backups="$COUNT_PLANNED_BACKUPS"
     shown_windows_queued="$COUNT_PLANNED_WINDOWS_QUEUED"
-    simulated_label="Simulados"
+    simulated_label="Omitidos"
     created_label="Creados (plan)"
     replaced_label="Reemplazados (plan)"
     backups_label="Respaldos (plan)"
-    windows_queued_label="Ops. Windows en cola (plan)"
   fi
 
   print_link_block_separator
@@ -1058,7 +1087,7 @@ print_diagnostics() {
 main() {
   parse_args "$@"
 
-  if ! check_commands yq jq find mktemp; then
+  if ! check_commands yq jq find mktemp sort awk sed perl; then
     return "$EXIT_CODE_INPUT_ERROR"
   fi
   if ! command -v realpath >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then

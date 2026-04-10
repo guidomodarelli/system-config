@@ -268,6 +268,48 @@ YAML
   [ "$line_b" -lt "$line_c" ]
 }
 
+@test "wildcard respects the configured basename pattern" {
+  mkdir -p "$REPO_DIR/configs/wild-filter"
+  printf "match-a" > "$REPO_DIR/configs/wild-filter/a-match.zsh"
+  printf "match-b" > "$REPO_DIR/configs/wild-filter/b-match.zsh"
+  printf "skip" > "$REPO_DIR/configs/wild-filter/ignored.txt"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: wild-filter/*.zsh
+    target: filtered
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/filtered/a-match.zsh" \
+    "$REPO_DIR/configs/wild-filter/a-match.zsh"
+  assert_symlink_points_to \
+    "$HOME_DIR/filtered/b-match.zsh" \
+    "$REPO_DIR/configs/wild-filter/b-match.zsh"
+  assert_path_missing "$HOME_DIR/filtered/ignored.txt"
+}
+
+@test "wildcard keeps maxdepth 1 and ignores nested matches" {
+  mkdir -p "$REPO_DIR/configs/wild-depth/nested"
+  printf "root" > "$REPO_DIR/configs/wild-depth/root-file.conf"
+  printf "nested" > "$REPO_DIR/configs/wild-depth/nested/nested-file.conf"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: wild-depth/*.conf
+    target: depth-check
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/depth-check/root-file.conf" \
+    "$REPO_DIR/configs/wild-depth/root-file.conf"
+  assert_path_missing "$HOME_DIR/depth-check/nested-file.conf"
+}
+
 @test "missing wildcard directory does not fail execution" {
   cat > "$REPO_DIR/symlinks.yml" <<'YAML'
 paths:
@@ -324,6 +366,30 @@ YAML
 
   [ "$status" -eq 0 ]
   [[ "$output$stderr" != *"unbound variable"* ]]
+}
+
+@test "wsl fallback parses /etc/os-release without grep -P" {
+  simulate_wsl_environment
+  cat > "$FAKE_BIN_DIR/grep" <<'BASH'
+#!/usr/bin/env bash
+if [ "$1" = "-oP" ]; then
+  exit 99
+fi
+exec /bin/grep "$@"
+BASH
+  chmod +x "$FAKE_BIN_DIR/grep"
+
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: debug-source
+    target: WSL://Desktop
+YAML
+  printf "debug" > "$REPO_DIR/configs/debug-source"
+
+  run_dotfiler "false" "--dry-run --quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output$stderr" != *"grep"* ]]
 }
 
 @test "wsl without windows operations does not require powershell or wslpath" {
