@@ -17,39 +17,71 @@ CONFIG_PATHS_FILE="$ROOT_DIR/symlinks.yml"
 
 POINTER="->"
 
-logRed() {
+print_last_argument() {
   printf "%s" "${@: -1}"
 }
 
-logGreen() {
-  printf "%s" "${@: -1}"
-}
-
-logYellow() {
-  printf "%s" "${@: -1}"
-}
-
-logBlue() {
-  printf "%s" "${@: -1}"
-}
-
-logMagenta() {
-  printf "%s" "${@: -1}"
-}
-
-logGray() {
-  printf "%s" "${@: -1}"
-}
+logRed() { print_last_argument "$@"; }
+logGreen() { print_last_argument "$@"; }
+logYellow() { print_last_argument "$@"; }
+logBlue() { print_last_argument "$@"; }
+logMagenta() { print_last_argument "$@"; }
+logGray() { print_last_argument "$@"; }
 
 check_commands() {
   local command_name
 
   for command_name in "$@"; do
     command -v "$command_name" >/dev/null 2>&1 || {
-      echo "Falta comando requerido: $command_name" >&2
+      printf "[ ERROR ] Falta comando requerido: %s\n" "$command_name" >&2
       return 1
     }
   done
+}
+
+command_supports_null_sorting() {
+  printf "b\0a\0" | sort -z >/dev/null 2>&1
+}
+
+sanitize_text_for_log() {
+  local text="$1"
+  text="${text//$'\n'/ }"
+  text="${text//$'\r'/ }"
+  text="${text//$'\t'/ }"
+  printf "%s" "$text" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//'
+}
+
+capture_stderr_message() {
+  local stderr_file="$1"
+  if [ ! -s "$stderr_file" ]; then
+    LAST_COMMAND_ERROR=""
+    return 0
+  fi
+  LAST_COMMAND_ERROR=$(sanitize_text_for_log "$(cat "$stderr_file")")
+}
+
+run_command_with_optional_sudo() {
+  local requires_sudo="$1"
+  shift
+
+  local -a raw_command=("$@")
+  local -a command_to_run=("${raw_command[@]}")
+  local stderr_file
+  stderr_file=$(mktemp "${TMPDIR:-/tmp}/dotfiler_command_stderr_XXXXXX.log")
+
+  if [ "$requires_sudo" = "true" ]; then
+    command_to_run=(sudo "${command_to_run[@]}")
+  fi
+
+  if ! "${command_to_run[@]}" 2>"$stderr_file"; then
+    capture_stderr_message "$stderr_file"
+    rm -f "$stderr_file"
+    return 1
+  fi
+
+  LAST_COMMAND_ERROR=""
+  rm -f "$stderr_file"
+  return 0
 }
 
 load_optional_helpers() {
@@ -116,6 +148,8 @@ COUNT_PLANNED_CREATED=0
 COUNT_PLANNED_REPLACED=0
 COUNT_PLANNED_BACKUPS=0
 COUNT_PLANNED_WINDOWS_QUEUED=0
+SORT_SUPPORTS_NULL_BYTE=false
+LAST_COMMAND_ERROR=""
 
 is_debug() {
   if [ "$DEBUG" = true ]; then
@@ -146,10 +180,6 @@ get_linux_distro() {
   fi
 }
 
-last_argument() {
-  printf "%s" "${@: -1}"
-}
-
 format_with_style() {
   local formatter="$1"
   shift
@@ -157,7 +187,7 @@ format_with_style() {
   if [ "$USE_COLOR" = "true" ] && command -v "$formatter" >/dev/null 2>&1; then
     "$formatter" "$@"
   else
-    last_argument "$@"
+    print_last_argument "$@"
   fi
 }
 
@@ -356,6 +386,7 @@ parse_args() {
 record_failed_target() {
   local target="$1"
   local reason="$2"
+  reason=$(sanitize_text_for_log "$reason")
   printf "%s\t%s\n" "$target" "$reason" >> "$FAILED_TARGETS_FILE"
 }
 
@@ -425,12 +456,19 @@ get_wsl_distro_name() {
 format_wsl_windows_path() {
   local path="$1"
   local distro_name
-  distro_name=$(get_wsl_distro_name)
+  if ! distro_name=$(get_wsl_distro_name); then
+    log_error_action "No se pudo resolver el nombre de la distribución WSL."
+    return 1
+  fi
+  if [ -z "$distro_name" ]; then
+    log_error_action "Se obtuvo un nombre de distribución WSL vacío."
+    return 1
+  fi
 
   path="\\\\wsl\$\\$distro_name$path"
   path="${path//\//\\}"
 
-  echo "$path"
+  printf "%s\n" "$path"
 }
 
 create_backup() {
@@ -438,7 +476,6 @@ create_backup() {
   local requires_sudo="$2"
   local backup_path
   backup_path=$(resolve_backup_path "$path")
-  local -a move_command
 
   if [ "$DRY_RUN" = "true" ]; then
     ((COUNT_PLANNED_BACKUPS+=1))
@@ -446,14 +483,13 @@ create_backup() {
     return 0
   fi
 
-  move_command=(mv "${path}" "${backup_path}")
-  if [ "$requires_sudo" = "true" ]; then
-    move_command=(sudo "${move_command[@]}")
-  fi
-
-  if ! "${move_command[@]}" 2>/dev/null; then
+  if ! run_command_with_optional_sudo "$requires_sudo" mv "$path" "$backup_path"; then
+    local failure_reason="Fallo al crear respaldo"
+    if [ -n "$LAST_COMMAND_ERROR" ]; then
+      failure_reason="$failure_reason: $LAST_COMMAND_ERROR"
+    fi
     log_error_action "No se pudo crear respaldo para $(printPath "$path")"
-    record_failed_target "$path" "Fallo al crear respaldo"
+    record_failed_target "$path" "$failure_reason"
     return 1
   fi
 
@@ -477,21 +513,19 @@ resolve_backup_path() {
 remove_old_symlink() {
   local target="$1"
   local requires_sudo="$2"
-  local -a remove_command
 
   if [ "$DRY_RUN" = "true" ]; then
     log_delete_action "Eliminaría symlink anterior $(printPath "$target")"
     return 0
   fi
 
-  remove_command=(rm "$target")
-  if [ "$requires_sudo" = "true" ]; then
-    remove_command=(sudo "${remove_command[@]}")
-  fi
-
-  if ! "${remove_command[@]}"; then
+  if ! run_command_with_optional_sudo "$requires_sudo" rm "$target"; then
+    local failure_reason="Fallo al eliminar symlink anterior"
+    if [ -n "$LAST_COMMAND_ERROR" ]; then
+      failure_reason="$failure_reason: $LAST_COMMAND_ERROR"
+    fi
     log_error_action "No se pudo eliminar symlink anterior $(printPath "$target")"
-    record_failed_target "$target" "Fallo al eliminar symlink anterior"
+    record_failed_target "$target" "$failure_reason"
     return 1
   fi
 
@@ -525,8 +559,6 @@ make_symlink() {
   local target_dir
   target_dir=$(dirname "$target")
   local writable_base_dir="$target_dir"
-  local -a mkdir_command
-  local -a ln_command
 
   if [ "$DRY_RUN" = "true" ]; then
     ((COUNT_SIMULATED+=1))
@@ -575,14 +607,13 @@ make_symlink() {
   fi
 
   if [ "$DRY_RUN" != "true" ]; then
-    mkdir_command=(mkdir -p "$(dirname "$target")")
-    if [ "$requires_sudo" = "true" ]; then
-      mkdir_command=(sudo "${mkdir_command[@]}")
-    fi
-
-    if ! "${mkdir_command[@]}"; then
+    if ! run_command_with_optional_sudo "$requires_sudo" mkdir -p "$(dirname "$target")"; then
+      local failure_reason="Fallo al crear directorio padre"
+      if [ -n "$LAST_COMMAND_ERROR" ]; then
+        failure_reason="$failure_reason: $LAST_COMMAND_ERROR"
+      fi
       log_error_action "No se pudo crear directorio padre para $(printPath "$target")"
-      record_failed_target "$target" "Fallo al crear directorio padre"
+      record_failed_target "$target" "$failure_reason"
       return 1
     fi
   fi
@@ -619,14 +650,13 @@ make_symlink() {
     if [ "$DRY_RUN" = "true" ]; then
       log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Crearía symlink"
     else
-      ln_command=(ln -s "$path" "$target")
-      if [ "$requires_sudo" = "true" ]; then
-        ln_command=(sudo "${ln_command[@]}")
-      fi
-
-      if ! "${ln_command[@]}"; then
+      if ! run_command_with_optional_sudo "$requires_sudo" ln -s "$path" "$target"; then
+        local failure_reason="Fallo al crear symlink"
+        if [ -n "$LAST_COMMAND_ERROR" ]; then
+          failure_reason="$failure_reason: $LAST_COMMAND_ERROR"
+        fi
         log_error_action "No se pudo crear symlink $(printPath "$target") -> $(printPath "${path//\\/\\\\}")"
-        record_failed_target "$target" "Fallo al crear symlink"
+        record_failed_target "$target" "$failure_reason"
         return 1
       fi
     fi
@@ -725,6 +755,24 @@ get_windows_username() {
   fi
 }
 
+resolve_windows_username() {
+  local windows_username
+  windows_username=$(get_windows_username)
+  windows_username=$(sanitize_text_for_log "$windows_username")
+
+  if [ -n "$windows_username" ]; then
+    printf "%s\n" "$windows_username"
+    return 0
+  fi
+
+  if [ -n "${USER:-}" ]; then
+    printf "%s\n" "$USER"
+    return 0
+  fi
+
+  return 1
+}
+
 build_path_obj() {
   local path="$1"
   local target="$2"
@@ -810,8 +858,12 @@ expand_wildcard_paths() {
     return 0
   fi
 
-  find "$absolute_wildcard_dir_path" -maxdepth 1 -mindepth 1 -name "$wildcard_name_pattern" -print0 |
-    perl -0ne 'push @items, $_; END { print for sort @items }'
+  if [ "$SORT_SUPPORTS_NULL_BYTE" = "true" ]; then
+    find "$absolute_wildcard_dir_path" -maxdepth 1 -mindepth 1 -name "$wildcard_name_pattern" -print0 | sort -z
+  else
+    find "$absolute_wildcard_dir_path" -maxdepth 1 -mindepth 1 -name "$wildcard_name_pattern" -print0 |
+      perl -0ne 'push @items, $_; END { print for sort @items }'
+  fi
 }
 
 add_path_to_output() {
@@ -831,10 +883,20 @@ add_path_to_output() {
   fi
 
   if [[ "$target" == WSL://* ]]; then
+    if [ -z "${USERNAME:-}" ]; then
+      log_error_action "No se pudo resolver el usuario de Windows para destino WSL."
+      record_failed_target "$target" "Usuario de Windows no disponible para destino WSL"
+      ((COUNT_ERRORS+=1))
+      return 0
+    fi
     target=${target//WSL:\/\//}
     target="/mnt/c/Users/$USERNAME/$target"
     target=$(expand_env_vars "$target")
-    path=$(format_wsl_windows_path "$path")
+    if ! path=$(format_wsl_windows_path "$path"); then
+      record_failed_target "$target" "No se pudo construir la ruta UNC para WSL"
+      ((COUNT_ERRORS+=1))
+      return 0
+    fi
   fi
 
   build_path_obj "$path" "$target"
@@ -891,10 +953,15 @@ process_path_entry() {
 get_paths() {
   local selector="$1"
   local selector_override="$2"
+  local collected_paths_file
+  collected_paths_file=$(mktemp "${TMPDIR:-/tmp}/dotfiler_paths_XXXXXX.jsonl")
 
   while read -r line; do
-    process_path_entry "$line" "$selector_override"
-  done < <(yq eval -o=json ".paths[] | select($selector)" "$CONFIG_PATHS_FILE" | jq -c '.') | jq -sc '.'
+    process_path_entry "$line" "$selector_override" >> "$collected_paths_file"
+  done < <(yq eval -o=json ".paths[] | select($selector)" "$CONFIG_PATHS_FILE" | jq -c '.')
+
+  jq -sc '.' "$collected_paths_file"
+  rm -f "$collected_paths_file"
 }
 
 retrieve_linux_paths() {
@@ -964,6 +1031,53 @@ retrieve_paths_for_platform() {
     retrieve_darwin_paths
   else
     retrieve_linux_paths
+  fi
+}
+
+apply_resolved_paths() {
+  local paths_json="$1"
+  local is_first_link="true"
+  local last_group=""
+
+  print_link_block_separator
+
+  while read -r line; do
+    if [ -z "$line" ]; then
+      continue
+    fi
+
+    local parsed_line
+    parsed_line=$(printf "%s\n" "$line" | jq -r '[.path, .target] | @tsv')
+    local path
+    local target
+    IFS=$'\t' read -r path target <<< "$parsed_line"
+
+    local current_group
+    if [[ "$target" == */* ]]; then
+      current_group="${target%/*}"
+    else
+      current_group="."
+    fi
+    current_group=$(abbreviate_home_path "$current_group")
+
+    if [ "$current_group" != "$last_group" ]; then
+      if [ "$is_first_link" != "true" ]; then
+        print_link_block_separator
+      fi
+      print_group_header "$current_group"
+      last_group="$current_group"
+    fi
+
+    if ! make_symlink "$path" "$target"; then
+      ((COUNT_ERRORS+=1))
+      log_error_action "La operación falló para el destino $(printPath "$target")"
+    fi
+
+    is_first_link="false"
+  done < <(printf "%s\n" "$paths_json" | jq -c '.[]')
+
+  if [ "$is_first_link" = "false" ]; then
+    print_link_block_separator
   fi
 }
 
@@ -1087,7 +1201,13 @@ print_diagnostics() {
 main() {
   parse_args "$@"
 
-  if ! check_commands yq jq find mktemp sort awk sed perl; then
+  if ! check_commands yq jq find mktemp sort awk sed; then
+    return "$EXIT_CODE_INPUT_ERROR"
+  fi
+  if command_supports_null_sorting; then
+    SORT_SUPPORTS_NULL_BYTE=true
+  elif ! check_commands perl; then
+    log_error_action "Se requiere 'sort -z' o 'perl' para ordenar resultados con rutas complejas."
     return "$EXIT_CODE_INPUT_ERROR"
   fi
   if ! command -v realpath >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
@@ -1102,53 +1222,18 @@ main() {
   initialize_temp_files
   trap cleanup_temp_files EXIT
 
-  USERNAME=$(get_windows_username)
-
-  local paths
-  paths="$(retrieve_paths_for_platform)"
-  local is_first_link="true"
-  local last_group=""
-
-  print_link_block_separator
-
-  while read -r line; do
-    if [ -z "$line" ]; then
-      continue
-    fi
-
-    local parsed_line
-    parsed_line=$(printf "%s\n" "$line" | jq -r '[.path, .target] | @tsv')
-    local path
-    local target
-    IFS=$'\t' read -r path target <<< "$parsed_line"
-
-    local current_group
-    if [[ "$target" == */* ]]; then
-      current_group="${target%/*}"
-    else
-      current_group="."
-    fi
-    current_group=$(abbreviate_home_path "$current_group")
-
-    if [ "$current_group" != "$last_group" ]; then
-      if [ "$is_first_link" != "true" ]; then
-        print_link_block_separator
-      fi
-      print_group_header "$current_group"
-      last_group="$current_group"
-    fi
-
-    if ! make_symlink "$path" "$target"; then
-      ((COUNT_ERRORS+=1))
-      log_error_action "La operación falló para el destino $(printPath "$target")"
-    fi
-
-    is_first_link="false"
-  done < <(printf "%s\n" "$paths" | jq -c '.[]')
-
-  if [ "$is_first_link" = "false" ]; then
-    print_link_block_separator
+  if ! USERNAME=$(resolve_windows_username); then
+    log_error_action "No se pudo resolver el usuario actual para construir rutas destino."
+    return "$EXIT_CODE_INPUT_ERROR"
   fi
+
+  local resolved_paths_file
+  resolved_paths_file=$(mktemp "${TMPDIR:-/tmp}/dotfiler_resolved_paths_XXXXXX.json")
+  retrieve_paths_for_platform > "$resolved_paths_file"
+  local paths
+  paths=$(cat "$resolved_paths_file")
+  rm -f "$resolved_paths_file"
+  apply_resolved_paths "$paths"
 
   if ! run_elevated_powershell_script "$TMP_SCRIPT"; then
     ((COUNT_ERRORS+=1))

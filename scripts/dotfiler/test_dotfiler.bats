@@ -175,6 +175,21 @@ BASH
   assert_output_contains_line "$output" "Fallo al crear symlink"
 }
 
+@test "diagnostics include stderr details when a command fails" {
+  install_fixture "debug_flow"
+  cat > "$FAKE_BIN_DIR/ln" <<'BASH'
+#!/usr/bin/env bash
+echo "mock ln error details" >&2
+exit 1
+BASH
+  chmod +x "$FAKE_BIN_DIR/ln"
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 1 ]
+  assert_output_contains_line "$output" "Fallo al crear symlink: mock ln error details"
+}
+
 @test "existing backup is preserved and next backup uses incremental suffix" {
   install_fixture "debug_flow"
   mkdir -p "$HOME_DIR/linked-files"
@@ -361,8 +376,9 @@ paths:
   - path: debug-source
     target: WSL://Desktop
 YAML
+  printf "debug" > "$REPO_DIR/configs/debug-source"
 
-  run_dotfiler "false" "--dry-run --quiet --no-color"
+  run bash -lc "cd '$REPO_DIR/scripts/dotfiler' && HOME='$HOME_DIR' USER='test-user' WSL_DISTRO_NAME='' DEBUG='false' PATH='$FAKE_BIN_DIR:$PATH' bash ./dotfiler.sh --dry-run --quiet --no-color"
 
   [ "$status" -eq 0 ]
   [[ "$output$stderr" != *"unbound variable"* ]]
@@ -386,7 +402,7 @@ paths:
 YAML
   printf "debug" > "$REPO_DIR/configs/debug-source"
 
-  run_dotfiler "false" "--dry-run --quiet --no-color"
+  run bash -lc "cd '$REPO_DIR/scripts/dotfiler' && HOME='$HOME_DIR' USER='test-user' WSL_DISTRO_NAME='' DEBUG='false' PATH='$FAKE_BIN_DIR:$PATH' bash ./dotfiler.sh --dry-run --quiet --no-color"
 
   [ "$status" -eq 0 ]
   [[ "$output$stderr" != *"grep"* ]]
@@ -456,4 +472,34 @@ YAML
   [ "$status" -eq 1 ]
   assert_output_contains_line "$output" "DIAGNÓSTICO"
   assert_output_contains_line "$output" "Fallo al convertir destino con wslpath"
+}
+
+@test "wsl target fails with clear diagnostic when distro name cannot be resolved" {
+  simulate_wsl_environment
+  cat > "$FAKE_BIN_DIR/wslpath" <<'BASH'
+#!/usr/bin/env bash
+if [ "$1" = "-w" ] && [ "$2" = "/" ]; then
+  exit 0
+fi
+printf '%s\n' 'C:\tmp\fake'
+BASH
+  chmod +x "$FAKE_BIN_DIR/wslpath"
+  cat > "$FAKE_BIN_DIR/awk" <<'BASH'
+#!/usr/bin/env bash
+exit 0
+BASH
+  chmod +x "$FAKE_BIN_DIR/awk"
+
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: debug-source
+    target: WSL://Desktop
+YAML
+  printf "debug" > "$REPO_DIR/configs/debug-source"
+
+  run bash -lc "cd '$REPO_DIR/scripts/dotfiler' && HOME='$HOME_DIR' USER='test-user' WSL_DISTRO_NAME='' DEBUG='false' PATH='$FAKE_BIN_DIR:$PATH' bash ./dotfiler.sh --dry-run --quiet --no-color"
+
+  [ "$status" -eq 1 ]
+  assert_output_contains_line "$output" "DIAGNÓSTICO"
+  assert_output_contains_line "$output" "No se pudo construir la ruta UNC para WSL"
 }
