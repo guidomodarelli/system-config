@@ -494,7 +494,9 @@ function gignored {
 
     Invoke-SelectStringOnGitLines -InputLines $ignoredLines @selectStringParams
 }
-function gll { git pull $args }
+if (Test-Path Alias:gl) { Remove-Item Alias:gl -Force }
+function gl { git pull $args }
+function gll { gl $args }
 function glg { git log --stat $args }
 function glgg { git log --graph $args }
 function glgga { git log --graph --decorate --all $args }
