@@ -30,7 +30,7 @@ paths:
     target: .codex/
   - path: .codex/skills/frontend-skill
     target: .codex/skills
-  - path: .codex/skills/.system
+  - path: $HOME/.codex/skills/.system
     exactTarget: .agents/.codex/skills/.system
   - path: .codex/skills/.system/skill-creator/SKILL.md
     target: .codex/skills/.system/skill-creator
