@@ -780,6 +780,20 @@ build_path_obj() {
   jq -cn --arg path "$path" --arg target "$target" '{path: $path, target: $target}'
 }
 
+build_final_target_path() {
+  local source_path="$1"
+  local target_path="$2"
+  local uses_exact_target="$3"
+
+  if [ "$uses_exact_target" = "true" ]; then
+    printf "%s\n" "$target_path"
+    return 0
+  fi
+
+  local source_basename="${source_path##*/}"
+  printf "%s/%s\n" "$target_path" "$source_basename"
+}
+
 get_abs_path() {
   local path="$1"
 
@@ -869,19 +883,20 @@ expand_wildcard_paths() {
 add_path_to_output() {
   local path="$1"
   local target="$2"
+  local uses_exact_target="$3"
   local original_path="$1"
-  local source_basename="${path##*/}"
-
-  target="$target/$source_basename"
+  local final_target
+  final_target=$(build_final_target_path "$path" "$target" "$uses_exact_target")
 
   path=$(get_abs_path "$path")
   if [ -z "$path" ]; then
     log_warn_action "Ruta de origen inválida o inexistente: $original_path"
-    record_failed_target "$target" "Ruta de origen inexistente"
+    record_failed_target "$final_target" "Ruta de origen inexistente"
     ((COUNT_ERRORS+=1))
     return 0
   fi
 
+  target="$final_target"
   if [[ "$target" == WSL://* ]]; then
     if [ -z "${USERNAME:-}" ]; then
       log_error_action "No se pudo resolver el usuario de Windows para destino WSL."
@@ -905,17 +920,60 @@ add_path_to_output() {
 process_path_entry() {
   local line="$1"
   local selector_override="$2"
-
-  local line_fields
-  line_fields=$(printf "%s\n" "$line" | jq -r ". as \$entry | [\$entry.path, (([\$entry.overrides[]? | select($selector_override) | .target] | first) // \"\"), (\$entry.target // \"null\")] | @tsv")
+  local entry_has_target
+  entry_has_target=$(printf "%s\n" "$line" | jq -r 'has("target")')
+  local entry_has_exact_target
+  entry_has_exact_target=$(printf "%s\n" "$line" | jq -r 'has("exactTarget")')
 
   local path
-  local override_target
+  path=$(printf "%s\n" "$line" | jq -r '.path')
+  if [ "$entry_has_target" = "true" ] && [ "$entry_has_exact_target" = "true" ]; then
+    log_warn_action "Configuración inválida: no se permite definir target y exactTarget al mismo tiempo en $path"
+    record_failed_target "$path" "Configuración inválida: no se permite definir target y exactTarget al mismo tiempo"
+    ((COUNT_ERRORS+=1))
+    return 0
+  fi
+
+  local selected_override
+  selected_override=$(printf "%s\n" "$line" | jq -c "([.overrides[]? | select($selector_override)] | first) // empty")
+  local override_has_target="false"
+  local override_has_exact_target="false"
+  local override_exact_target=""
+  local override_target=""
+  if [ -n "$selected_override" ]; then
+    override_has_target=$(printf "%s\n" "$selected_override" | jq -r 'has("target")')
+    override_has_exact_target=$(printf "%s\n" "$selected_override" | jq -r 'has("exactTarget")')
+    if [ "$override_has_target" = "true" ] && [ "$override_has_exact_target" = "true" ]; then
+      log_warn_action "Configuración inválida: un override no puede definir target y exactTarget al mismo tiempo en $path"
+      record_failed_target "$path" "Configuración inválida: un override no puede definir target y exactTarget al mismo tiempo"
+      ((COUNT_ERRORS+=1))
+      return 0
+    fi
+
+    override_exact_target=$(printf "%s\n" "$selected_override" | jq -r '.exactTarget // ""')
+    override_target=$(printf "%s\n" "$selected_override" | jq -r '.target // ""')
+  fi
+
+  local default_exact_target
+  default_exact_target=$(printf "%s\n" "$line" | jq -r '.exactTarget // "null"')
   local default_target
-  IFS=$'\t' read -r path override_target default_target <<< "$line_fields"
-  local target="${override_target:-$default_target}"
+  default_target=$(printf "%s\n" "$line" | jq -r '.target // "null"')
+  local target=""
+  local uses_exact_target="false"
   local literal_home="\$HOME"
   local literal_user="\$USER"
+
+  if [ -n "$override_exact_target" ]; then
+    target="$override_exact_target"
+    uses_exact_target="true"
+  elif [ -n "$override_target" ]; then
+    target="$override_target"
+  elif [ "$default_exact_target" != "null" ]; then
+    target="$default_exact_target"
+    uses_exact_target="true"
+  else
+    target="$default_target"
+  fi
 
   if [[ "$target" != WSL://* ]]; then
     if [ "$target" = "null" ]; then
@@ -933,7 +991,15 @@ process_path_entry() {
   if is_debug; then
     echo "Path: $(printPath "${path//\\/\\\\}")" >&2
     echo "Target: $(printPath "$target")" >&2
+    echo "Uses exact target: $uses_exact_target" >&2
     echo "-----------" >&2
+  fi
+
+  if [ "$uses_exact_target" = "true" ] && contains_glob_pattern "$path"; then
+    log_warn_action "No se permite exactTarget con patrones wildcard: $path"
+    record_failed_target "$target" "exactTarget no admite patrones wildcard"
+    ((COUNT_ERRORS+=1))
+    return 0
   fi
 
   if contains_glob_pattern "$path"; then
@@ -941,12 +1007,13 @@ process_path_entry() {
       if is_debug; then
         echo "Item: $(printPath "${item//\\/\\\\}")" >&2
         echo "Target: $(printPath "$target")" >&2
+        echo "Uses exact target: $uses_exact_target" >&2
         echo "-----------" >&2
       fi
-      add_path_to_output "$item" "$target"
+      add_path_to_output "$item" "$target" "$uses_exact_target"
     done < <(expand_wildcard_paths "$path")
   else
-    add_path_to_output "$path" "$target"
+    add_path_to_output "$path" "$target" "$uses_exact_target"
   fi
 }
 

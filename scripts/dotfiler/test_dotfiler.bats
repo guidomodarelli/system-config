@@ -129,6 +129,23 @@ YAML
   [[ "$output" == *".codex/debug-source"* ]]
 }
 
+@test "exactTarget creates the symlink at the configured final path" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: .codex/skills/.system
+    exactTarget: .agents/.codex/skills/.system
+YAML
+  mkdir -p "$REPO_DIR/configs/.codex/skills/.system"
+  printf "skill" > "$REPO_DIR/configs/.codex/skills/.system/example.txt"
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/.agents/.codex/skills/.system" \
+    "$REPO_DIR/configs/.codex/skills/.system"
+}
+
 @test "output does not print duplicated separators consecutively" {
   install_fixture "debug_flow"
 
@@ -323,6 +340,60 @@ YAML
     "$HOME_DIR/depth-check/root-file.conf" \
     "$REPO_DIR/configs/wild-depth/root-file.conf"
   assert_path_missing "$HOME_DIR/depth-check/nested-file.conf"
+}
+
+@test "exactTarget rejects wildcard paths with a clear diagnostic" {
+  mkdir -p "$REPO_DIR/configs/wild-exact"
+  printf "root" > "$REPO_DIR/configs/wild-exact/root-file.conf"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: wild-exact/*.conf
+    exactTarget: exact-destination.conf
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 1 ]
+  assert_output_contains_line "$output" "DIAGNÓSTICO"
+  assert_output_contains_line "$output" "exactTarget no admite patrones wildcard"
+  assert_path_missing "$HOME_DIR/exact-destination.conf"
+}
+
+@test "rejects entries that define target and exactTarget at the same time" {
+  printf "root" > "$REPO_DIR/configs/conflict-file"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: conflict-file
+    target: linked-files
+    exactTarget: linked-files/conflict-file
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 1 ]
+  assert_output_contains_line "$output" "DIAGNÓSTICO"
+  assert_output_contains_line "$output" "target y exactTarget al mismo tiempo"
+  assert_path_missing "$HOME_DIR/linked-files/conflict-file"
+}
+
+@test "uses only the selected override when target and exactTarget appear in different matching overrides" {
+  printf "root" > "$REPO_DIR/configs/override-priority-file"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: override-priority-file
+    overrides:
+      - platform: linux
+        target: linked-files
+      - wsl: false
+        exactTarget: linked-files/override-priority-file
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/override-priority-file" \
+    "$REPO_DIR/configs/override-priority-file"
 }
 
 @test "missing wildcard directory does not fail execution" {

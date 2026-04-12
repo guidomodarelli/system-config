@@ -23,6 +23,7 @@ Describe 'dotfiler.ps1' {
     $script:CountPlannedReplaced = 0
     $script:CountPlannedBackups = 0
     $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
+    $script:ConfigPathsFile = ''
   }
 
   It 'detecta errores de permisos insuficientes para symlinks' {
@@ -119,6 +120,112 @@ Describe 'dotfiler.ps1' {
       )
     }
 
-    (Get-OverrideTarget -Entry $entry) | Should Be 'AppData/Roaming'
+    $overrideTarget = Get-OverrideTarget -Entry $entry
+
+    $overrideTarget.UsesExactTarget | Should Be $false
+    $overrideTarget.ConfiguredTarget | Should Be 'AppData/Roaming'
+  }
+
+  It 'genera operaciones con exactTarget como ruta final del symlink' {
+    $testRootDirectory = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([System.Guid]::NewGuid().ToString())
+    $script:HomeDir = Join-Path -Path $testRootDirectory -ChildPath 'home'
+    $script:ConfigsDir = Join-Path -Path $testRootDirectory -ChildPath 'configs'
+
+    New-Item -ItemType Directory -Path $script:HomeDir -Force | Out-Null
+    $sourceDirectory = Join-Path -Path $script:ConfigsDir -ChildPath '.codex/skills/.system'
+    New-Item -ItemType Directory -Path $sourceDirectory -Force | Out-Null
+
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = '.codex/skills/.system'
+          exactTarget = '.agents/.codex/skills/.system'
+        }
+      )
+    }
+
+    $operations = Resolve-Operations
+
+    $operations.Count | Should Be 1
+    $operations[0].Source | Should Be $sourceDirectory
+    $operations[0].Target | Should Be (Join-Path -Path $script:HomeDir -ChildPath '.agents/.codex/skills/.system')
+    $operations[0].Group | Should Be (Join-Path -Path $script:HomeDir -ChildPath '.agents/.codex/skills')
+
+    Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
+  }
+
+  It 'rechaza exactTarget con wildcard y registra diagnostico' {
+    $testRootDirectory = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([System.Guid]::NewGuid().ToString())
+    $script:HomeDir = Join-Path -Path $testRootDirectory -ChildPath 'home'
+    $script:ConfigsDir = Join-Path -Path $testRootDirectory -ChildPath 'configs'
+
+    New-Item -ItemType Directory -Path $script:HomeDir -Force | Out-Null
+    $wildcardDirectory = Join-Path -Path $script:ConfigsDir -ChildPath 'wildcard'
+    New-Item -ItemType Directory -Path $wildcardDirectory -Force | Out-Null
+    New-Item -ItemType File -Path (Join-Path -Path $wildcardDirectory -ChildPath 'example.conf') -Force | Out-Null
+
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'wildcard/*.conf'
+          exactTarget = 'single-target.conf'
+        }
+      )
+    }
+
+    $operations = Resolve-Operations
+
+    $operations.Count | Should Be 0
+    $script:CountErrors | Should Be 1
+    if ($script:Diagnostics.Count -gt 0) {
+      $script:Diagnostics[0].Reason | Should Match 'exactTarget no admite patrones wildcard'
+    }
+
+    Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
+  }
+
+  It 'rechaza entradas que definen target y exactTarget al mismo tiempo' {
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'example.conf'
+          target = 'Documents'
+          exactTarget = 'Documents/example.conf'
+        }
+      )
+    }
+
+    $operations = Resolve-Operations
+
+    $operations.Count | Should Be 0
+    $script:CountErrors | Should Be 1
+    if ($script:Diagnostics.Count -gt 0) {
+      $script:Diagnostics[0].Reason | Should Match 'target y exactTarget al mismo tiempo'
+    }
+  }
+
+  It 'rechaza overrides que definen target y exactTarget al mismo tiempo' {
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'example.conf'
+          overrides = @(
+            [PSCustomObject]@{
+              windows = $true
+              target = 'Documents'
+              exactTarget = 'Documents/example.conf'
+            }
+          )
+        }
+      )
+    }
+
+    $operations = Resolve-Operations
+
+    $operations.Count | Should Be 0
+    $script:CountErrors | Should Be 1
+    if ($script:Diagnostics.Count -gt 0) {
+      $script:Diagnostics[0].Reason | Should Match 'override no puede definir target y exactTarget'
+    }
   }
 }

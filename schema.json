@@ -115,6 +115,10 @@
           "target": {
             "$ref": "#/$defs/targetPath"
           },
+          "exactTarget": {
+            "$ref": "#/$defs/targetPath",
+            "description": "Exact destination path for the symlink without appending the source basename"
+          },
           "onlyFor": {
             "$ref": "#/$defs/platformConfigArray",
             "description": "Restricts this path configuration to specific platforms or environments"
@@ -147,6 +151,11 @@
                         "type": "string",
                         "pattern": "^WSL://",
                         "description": "WSL environments must use WSL:// prefix"
+                      },
+                      "exactTarget": {
+                        "type": "string",
+                        "pattern": "^WSL://",
+                        "description": "WSL environments must use WSL:// prefix"
                       }
                     }
                   },
@@ -156,17 +165,40 @@
                         "type": "string",
                         "pattern": "^(?!WSL://)",
                         "description": "Non-WSL environments should not use WSL:// prefix"
+                      },
+                      "exactTarget": {
+                        "type": "string",
+                        "pattern": "^(?!WSL://)",
+                        "description": "Non-WSL environments should not use WSL:// prefix"
                       }
                     }
                   }
                 }
               ],
-              "required": ["target"]
+              "oneOf": [
+                {
+                  "required": ["target"],
+                  "not": {
+                    "required": ["exactTarget"]
+                  }
+                },
+                {
+                  "required": ["exactTarget"],
+                  "not": {
+                    "required": ["target"]
+                  }
+                }
+              ]
             }
           }
         },
         "required": ["path"],
         "allOf": [
+          {
+            "not": {
+              "required": ["target", "exactTarget"]
+            }
+          },
           {
             "if": {
               "properties": {
@@ -188,13 +220,26 @@
               "required": ["onlyFor"]
             },
             "then": {
-              "properties": {
-                "target": {
-                  "type": "string",
-                  "pattern": "^WSL://"
+              "oneOf": [
+                {
+                  "properties": {
+                    "target": {
+                      "type": "string",
+                      "pattern": "^WSL://"
+                    }
+                  },
+                  "required": ["target"]
+                },
+                {
+                  "properties": {
+                    "exactTarget": {
+                      "type": "string",
+                      "pattern": "^WSL://"
+                    }
+                  },
+                  "required": ["exactTarget"]
                 }
-              },
-              "required": ["target"]
+              ]
             }
           }
         ]

@@ -32,6 +32,13 @@ sistemas operativos como Darwin (macOS) y Linux.
         `$USER` será expandido al nombre de usuario de Windows.
       - Para todas las demás rutas, `$USER` será expandido al nombre de usuario de Linux/macOS.
       - También puedes usar `~` como alias para `$HOME`.
+      - `target` funciona como directorio contenedor: el enlace final conserva el
+        basename de `path`.
+    - `exactTarget` (opcional): La ruta final exacta donde se creará el enlace
+      simbólico, sin agregar automáticamente el basename del origen.
+      - `exactTarget` y `target` son mutuamente excluyentes.
+      - `exactTarget` no admite `path` con wildcards porque una sola ruta final
+        no puede representar múltiples resultados.
 
 ## Configuración por Plataforma
 
@@ -50,17 +57,17 @@ El sistema soporta configuraciones específicas para diferentes plataformas:
 - **Directivas de Configuración por Plataforma**:
   - `onlyFor`: Define para qué plataformas específicas aplica este enlace.
   - `excludeFor`: Define qué plataformas deben excluir este enlace.
-  - `overrides`: Permite modificar el `target` dependiendo de la plataforma.
+  - `overrides`: Permite modificar `target` o `exactTarget` dependiendo de la plataforma.
 
 ## Soporte para WSL (Windows Subsystem for Linux)
 
 El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
 
 - **Prefijo `WSL://`**:
-  - Cuando se especifica un `target` con el prefijo `WSL://`, el script reconoce que el destino debe estar en el sistema de archivos de Windows.
+  - Cuando se especifica un `target` o `exactTarget` con el prefijo `WSL://`, el script reconoce que el destino debe estar en el sistema de archivos de Windows.
   - El prefijo `WSL://` se convierte automáticamente a la ruta correcta en la estructura de `/mnt/c/`.
   - Este prefijo solo puede usarse cuando la configuración tiene `wsl: true`.
-  - **Importante**: Cuando un elemento tiene `onlyFor` con exactamente un objeto que especifica `wsl: true`, el campo `target` es obligatorio y debe comenzar con el prefijo `WSL://`. Esta regla asegura que los archivos destinados exclusivamente para WSL utilicen la ruta correcta en Windows.
+  - **Importante**: Cuando un elemento tiene `onlyFor` con exactamente un objeto que especifica `wsl: true`, el campo `target` o `exactTarget` es obligatorio y debe comenzar con el prefijo `WSL://`. Esta regla asegura que los archivos destinados exclusivamente para WSL utilicen la ruta correcta en Windows.
 
 - **Ejemplo de uso**:
   ```yaml
@@ -76,6 +83,9 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
     target: WSL://AppData/Roaming  # El prefijo WSL:// es obligatorio en este caso
     onlyFor:
       - wsl: true
+
+  - path: .codex/skills/.system
+    exactTarget: .agents/.codex/skills/.system
   ```
 
 - **Formato interno**:
@@ -95,6 +105,8 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
     la plataforma actual.
   - Interpreta las directivas `onlyFor`, `excludeFor` y `overrides` para
     determinar qué enlaces crear.
+  - Si la entrada usa `target`, el basename del origen se agrega al destino.
+  - Si la entrada usa `exactTarget`, el enlace se crea exactamente en esa ruta.
   - Cuando el "`path`" termina con un asterisco (`*`), el script interpreta
     que se deben enlazar todos los archivos y directorios contenidos en la
     carpeta indicada (solo el primer nivel). Cada uno de los elementos encontrados
@@ -142,6 +154,8 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
       target: /home/$USER/.ssh  # Expandido al usuario Linux/macOS
     - path: scripts/*
       target: $HOME/bin  # Expandido al directorio home del usuario
+    - path: .codex/skills/.system
+      exactTarget: .agents/.codex/skills/.system
     - path: windows/app-configs
       target: WSL://AppData/Roaming  # $USER es usuario de Windows en WSL
       onlyFor:
@@ -164,8 +178,8 @@ El archivo `schema.json` define las siguientes reglas importantes para la config
    - La propiedad `linuxDistro` solo puede utilizarse cuando `platform` es `linux`
 
 2. **Reglas específicas para WSL**:
-   - En la sección `overrides`, cuando `wsl: true`, el campo `target` debe usar el prefijo `WSL://`
-   - Cuando un elemento tiene `onlyFor` con exactamente un objeto que especifica `wsl: true`, el campo `target` es obligatorio y debe comenzar con el prefijo `WSL://`
+   - En la sección `overrides`, cuando `wsl: true`, el campo `target` o `exactTarget` debe usar el prefijo `WSL://`
+   - Cuando un elemento tiene `onlyFor` con exactamente un objeto que especifica `wsl: true`, el campo `target` o `exactTarget` es obligatorio y debe comenzar con el prefijo `WSL://`
    - Para entornos que no son WSL, el prefijo `WSL://` está prohibido
 
 Estas reglas aseguran que las configuraciones específicas para WSL y otras plataformas se mantengan correctas y consistentes.

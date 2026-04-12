@@ -15,6 +15,8 @@ paths:
       - platform: win32
   - path: espanso
     target: .config
+    excludeFor:
+      - wsl: true
     overrides:
       - target: AppData/Roaming
         platform: win32
@@ -28,5 +30,7 @@ paths:
     target: .codex/
   - path: .codex/skills/frontend-skill
     target: .codex/skills
+  - path: .codex/skills/.system
+    exactTarget: .agents/.codex/skills/.system
   - path: .codex/skills/.system/skill-creator/SKILL.md
     target: .codex/skills/.system/skill-creator

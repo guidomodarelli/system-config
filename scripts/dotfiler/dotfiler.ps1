@@ -682,6 +682,62 @@ function Resolve-TargetBase {
   return (Join-Path -Path $script:HomeDir -ChildPath (Normalize-Separators -Path $expanded))
 }
 
+function Get-TextPropertyValue {
+  param(
+    [object]$Object,
+    [string]$Name
+  )
+
+  if ($null -eq $Object) {
+    return $null
+  }
+
+  $property = $Object.PSObject.Properties[$Name]
+  if ($null -eq $property) {
+    return $null
+  }
+
+  return [string]$property.Value
+}
+
+function Test-PropertyPresent {
+  param(
+    [object]$Object,
+    [string]$Name
+  )
+
+  if ($null -eq $Object) {
+    return $false
+  }
+
+  return $null -ne $Object.PSObject.Properties[$Name]
+}
+
+function Test-ConflictingTargetDefinition {
+  param([object]$Object)
+
+  return (Test-PropertyPresent -Object $Object -Name 'target') -and
+    (Test-PropertyPresent -Object $Object -Name 'exactTarget')
+}
+
+function Get-SelectedTargetDefinition {
+  param([object]$Entry)
+
+  $override = Get-OverrideTarget -Entry $Entry
+  if ($null -ne $override) {
+    return $override
+  }
+
+  return [PSCustomObject]@{
+    UsesExactTarget = $null -ne $Entry.PSObject.Properties['exactTarget']
+    ConfiguredTarget = if ($null -ne $Entry.PSObject.Properties['exactTarget']) {
+      [string]$Entry.exactTarget
+    } else {
+      [string]$Entry.target
+    }
+  }
+}
+
 function Test-PlatformMatch {
   param([object]$Config)
 
@@ -750,7 +806,22 @@ function Get-OverrideTarget {
 
   foreach ($override in @(Get-PropertyArray -Object $Entry -Name 'overrides')) {
     if (Test-PlatformMatch -Config $override) {
-      return [string]$override.target
+      if (Test-ConflictingTargetDefinition -Object $override) {
+        throw 'Configuración inválida: un override no puede definir target y exactTarget al mismo tiempo.'
+      }
+
+      $exactTargetValue = Get-TextPropertyValue -Object $override -Name 'exactTarget'
+      if ($null -ne $exactTargetValue) {
+        return [PSCustomObject]@{
+          UsesExactTarget = $true
+          ConfiguredTarget = $exactTargetValue
+        }
+      }
+
+      return [PSCustomObject]@{
+        UsesExactTarget = $false
+        ConfiguredTarget = [string]$override.target
+      }
     }
   }
 
@@ -948,10 +1019,23 @@ function Resolve-Operations {
       continue
     }
 
-    $selectedTarget = Get-OverrideTarget -Entry $entry
-    if ([string]::IsNullOrWhiteSpace($selectedTarget)) {
-      $selectedTarget = [string]$entry.target
+    if (Test-ConflictingTargetDefinition -Object $entry) {
+      $script:CountErrors += 1
+      Add-Diagnostic -Target ([string]$entry.path) -Reason 'Configuración inválida: no se permite definir target y exactTarget al mismo tiempo.'
+      Write-Warn "Configuración inválida: no se permite definir target y exactTarget al mismo tiempo en $($entry.path)"
+      continue
     }
+
+    try {
+      $selectedTargetDefinition = Get-SelectedTargetDefinition -Entry $entry
+    } catch {
+      $script:CountErrors += 1
+      Add-Diagnostic -Target ([string]$entry.path) -Reason $_.Exception.Message
+      Write-Warn "$($_.Exception.Message) Ruta: $($entry.path)"
+      continue
+    }
+
+    $selectedTarget = $selectedTargetDefinition.ConfiguredTarget
 
     if (-not [string]::IsNullOrWhiteSpace($selectedTarget) -and $selectedTarget -match '^[A-Za-z]+://') {
       Write-Warn "Se omite target invalido para dotfiler.ps1: $selectedTarget"
@@ -972,8 +1056,19 @@ function Resolve-Operations {
       continue
     }
 
+    if ($selectedTargetDefinition.UsesExactTarget -and (Test-GlobPattern -Path ([string]$entry.path))) {
+      $script:CountErrors += 1
+      Add-Diagnostic -Target $targetBase -Reason "exactTarget no admite patrones wildcard: $($entry.path)"
+      Write-Warn "No se permite exactTarget con patrones wildcard: $($entry.path)"
+      continue
+    }
+
     foreach ($sourceItem in $sources) {
-      $targetPath = Join-Path -Path $targetBase -ChildPath $sourceItem.Name
+      $targetPath = if ($selectedTargetDefinition.UsesExactTarget) {
+        $targetBase
+      } else {
+        Join-Path -Path $targetBase -ChildPath $sourceItem.Name
+      }
       $operations.Add([PSCustomObject]@{
           Group  = (Split-Path -Path $targetPath -Parent)
           Source = $sourceItem.FullName
