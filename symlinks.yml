@@ -5,15 +5,15 @@ paths:
   - path: zsh/.zshrc
   - path: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
     target: .oh-my-zsh/themes
-  - path: espanso
-    target: .config
-    overrides:
-      - target: WSL://AppData/Roaming
-        wsl: true
-  - path: PowerShell/*
-    target: WSL://OneDrive/Documents/PowerShell
-    onlyFor:
-      - wsl: true
+  # - path: espanso
+  #   target: .config
+  #   overrides:
+  #     - target: AppData/Roaming
+  #       windows: true
+  # - path: PowerShell/Microsoft.PowerShell_profile.ps1
+  #   target: OneDrive/Documents/PowerShell
+  #   onlyFor:
+  #     - win32: true
   - path: .agents/skills/my-skills
     target: .agents/skills
   - path: .codex/AGENTS.md
