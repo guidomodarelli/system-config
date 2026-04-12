@@ -26,6 +26,29 @@ Describe 'dotfiler.ps1' {
     $script:ConfigPathsFile = ''
   }
 
+  It 'remueve comentarios inline de YAML sin romper hashes dentro de comillas' {
+    (Remove-YamlInlineComment -Line "target: value # comment") | Should Be 'target: value'
+    (Remove-YamlInlineComment -Line "target: 'value # keep' # comment") | Should Be "target: 'value # keep'"
+    (Remove-YamlInlineComment -Line 'target: "value # keep" # comment') | Should Be 'target: "value # keep"'
+  }
+
+  It 'divide key y value YAML ignorando dos puntos dentro de comillas' {
+    $pair = Split-YamlKeyValue -Text 'target: "C:\Users\name:with-colon\file.txt"'
+
+    $pair.HasValue | Should Be $true
+    $pair.Key | Should Be 'target'
+    $pair.Value | Should Be '"C:\Users\name:with-colon\file.txt"'
+  }
+
+  It 'convierte escalares YAML simples a sus tipos esperados' {
+    (ConvertFrom-YamlScalar -Text 'true') | Should BeOfType [bool]
+    (ConvertFrom-YamlScalar -Text 'true') | Should Be $true
+    (ConvertFrom-YamlScalar -Text 'false') | Should Be $false
+    (ConvertFrom-YamlScalar -Text 'null') | Should Be $null
+    (ConvertFrom-YamlScalar -Text "'quoted value'") | Should Be 'quoted value'
+    (ConvertFrom-YamlScalar -Text '"quoted \"value\""') | Should Be 'quoted "value"'
+  }
+
   It 'detecta errores de permisos insuficientes para symlinks' {
     $errorRecord = [System.Management.Automation.ErrorRecord]::new(
       [System.UnauthorizedAccessException]::new('The required privilege is not held by the client'),
@@ -126,6 +149,41 @@ Describe 'dotfiler.ps1' {
     $overrideTarget.ConfiguredTarget | Should Be 'AppData/Roaming'
   }
 
+  It 'expande ~, $HOME y $USER en rutas de usuario' {
+    $script:HomeDir = 'C:\Users\tester'
+    $script:WindowsUser = 'windows-user'
+
+    (Expand-UserPath -Path '~') | Should Be 'C:\Users\tester'
+    (Expand-UserPath -Path '~\Documents') | Should Be 'C:\Users\tester\Documents'
+    (Expand-UserPath -Path '$HOME\AppData\$USER\file.txt') | Should Be 'C:\Users\tester\AppData\windows-user\file.txt'
+  }
+
+  It 'resuelve targets base por defecto, absolutos y relativos' {
+    $script:HomeDir = 'C:\Users\tester'
+
+    (Resolve-TargetBase -Target $null) | Should Be 'C:\Users\tester'
+    (Resolve-TargetBase -Target 'Documents\PowerShell') | Should Be 'C:\Users\tester\Documents\PowerShell'
+    (Resolve-TargetBase -Target 'D:\dotfiles\target') | Should Be 'D:\dotfiles\target'
+  }
+
+  It 'ordena resultados wildcard y devuelve vacio para fuentes inexistentes' {
+    $testRootDirectory = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([System.Guid]::NewGuid().ToString())
+    $script:ConfigsDir = Join-Path -Path $testRootDirectory -ChildPath 'configs'
+    New-Item -ItemType Directory -Path (Join-Path -Path $script:ConfigsDir -ChildPath 'wild') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path -Path $script:ConfigsDir -ChildPath 'wild\b-file.txt') -Value 'b'
+    Set-Content -LiteralPath (Join-Path -Path $script:ConfigsDir -ChildPath 'wild\a-file.txt') -Value 'a'
+
+    $resolvedSources = @(Get-ResolvedSources -OriginalPath 'wild\*')
+    $missingSources = @(Get-ResolvedSources -OriginalPath 'missing*')
+
+    $resolvedSources.Count | Should Be 2
+    $resolvedSources[0].Name | Should Be 'a-file.txt'
+    $resolvedSources[1].Name | Should Be 'b-file.txt'
+    $missingSources.Count | Should Be 0
+
+    Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
+  }
+
   It 'genera operaciones con exactTarget como ruta final del symlink' {
     $testRootDirectory = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([System.Guid]::NewGuid().ToString())
     $script:HomeDir = Join-Path -Path $testRootDirectory -ChildPath 'home'
@@ -184,6 +242,75 @@ Describe 'dotfiler.ps1' {
     Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
   }
 
+  It 'omite targets con esquema invalido en Resolve-Operations' {
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'example.conf'
+          target = 'WSL://Desktop'
+        }
+      )
+    }
+    Mock Get-ResolvedSources { @([PSCustomObject]@{ Name = 'example.conf'; FullName = 'C:\repo\configs\example.conf' }) }
+
+    $operations = Resolve-Operations
+
+    $operations.Count | Should Be 0
+    $script:CountErrors | Should Be 0
+  }
+
+  It 'registra diagnostico cuando falta una ruta de origen sin wildcard' {
+    $script:HomeDir = 'C:\Users\tester'
+
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'missing.conf'
+          target = 'Documents'
+        }
+      )
+    }
+    Mock Get-ResolvedSources { @() } -ParameterFilter { $OriginalPath -eq 'missing.conf' }
+    Mock Add-Diagnostic {
+      param(
+        [string]$Target,
+        [string]$Reason
+      )
+
+      $script:Diagnostics.Add([PSCustomObject]@{
+          Target = $Target
+          Reason = $Reason
+        })
+    }
+
+    $operations = Resolve-Operations
+
+    $operations.Count | Should Be 0
+    $script:CountErrors | Should Be 1
+    $script:Diagnostics.Count | Should Be 1
+    $script:Diagnostics[0].Reason | Should Match 'Ruta de origen inexistente'
+  }
+
+  It 'omite entradas excluidas por onlyFor cuando no matchean Windows' {
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'linux-only.conf'
+          onlyFor = @(
+            [PSCustomObject]@{
+              platform = 'linux'
+            }
+          )
+        }
+      )
+    }
+
+    $operations = Resolve-Operations
+
+    $operations.Count | Should Be 0
+    $script:CountErrors | Should Be 0
+  }
+
   It 'rechaza entradas que definen target y exactTarget al mismo tiempo' {
     Mock Get-ConfigEntries {
       @(
@@ -227,5 +354,39 @@ Describe 'dotfiler.ps1' {
     if ($script:Diagnostics.Count -gt 0) {
       $script:Diagnostics[0].Reason | Should Match 'override no puede definir target y exactTarget'
     }
+  }
+
+  It 'Parse-Args activa flags y captura argumentos internos elevados' {
+    $script:DryRun = $false
+    $script:UseColor = $true
+    $script:UseIcons = $true
+    $script:VerboseMode = $false
+    $script:Quiet = $false
+    $script:IsElevatedSymlinkMode = $false
+    $script:ElevatedSymlinkSource = $null
+    $script:ElevatedSymlinkTarget = $null
+
+    Parse-Args -CliArgs @(
+      '--dry-run',
+      '--plain',
+      '--verbose',
+      '--quiet',
+      '--internal-create-link',
+      '--internal-source', 'C:\source',
+      '--internal-target', 'C:\target'
+    )
+
+    $script:DryRun | Should Be $true
+    $script:UseColor | Should Be $false
+    $script:UseIcons | Should Be $false
+    $script:VerboseMode | Should Be $true
+    $script:Quiet | Should Be $true
+    $script:IsElevatedSymlinkMode | Should Be $true
+    $script:ElevatedSymlinkSource | Should Be 'C:\source'
+    $script:ElevatedSymlinkTarget | Should Be 'C:\target'
+  }
+
+  It 'el modo interno elevado devuelve false cuando no fue solicitado' {
+    (Invoke-InternalElevatedSymlinkMode) | Should Be $false
   }
 }

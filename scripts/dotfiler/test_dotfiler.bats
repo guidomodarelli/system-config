@@ -87,6 +87,16 @@ BASH
   [[ "$output" == *"--quiet"* ]]
 }
 
+@test "unknown option returns exit code 2 and prints help" {
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--invalid-option"
+
+  [ "$status" -eq 2 ]
+  [[ "$output$stderr" == *"Opción desconocida"* ]]
+  [[ "$output$stderr" == *"--help"* ]]
+}
+
 @test "--no-color disables ANSI escape codes" {
   install_fixture "debug_flow"
 
@@ -225,6 +235,21 @@ BASH
     "$REPO_DIR/configs/debug-source"
 }
 
+@test "missing source path returns exit code 1 and records diagnostics" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: missing-source
+    target: linked-files
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 1 ]
+  assert_output_contains_line "$output" "DIAGNÓSTICO"
+  assert_output_contains_line "$output" "Ruta de origen inexistente"
+  assert_path_missing "$HOME_DIR/linked-files/missing-source"
+}
+
 @test "invalid config returns exit code 2" {
   printf "paths: [\n" > "$REPO_DIR/symlinks.yml"
 
@@ -232,6 +257,18 @@ BASH
 
   [ "$status" -eq 2 ]
   [[ "$output$stderr" == *"Configuración inválida"* ]]
+}
+
+@test "config without paths array returns exit code 2" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  target: linked-files
+YAML
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 2 ]
+  [[ "$output$stderr" == *"'paths' debe ser un arreglo"* ]]
 }
 
 @test "fails with clear error when executed outside a git repository" {
