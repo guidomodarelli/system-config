@@ -184,6 +184,17 @@ YAML
   assert_output_contains_line "$output" "Estado"
   assert_output_contains_line "$output" "[OK] Sin errores"
   assert_output_contains_line "$output" "Modo simulación activo, no se escribieron cambios en el sistema de archivos."
+  assert_output_contains_line "$output" "[ FIN ]"
+  assert_output_contains_line "$output" "Configuración de symlinks finalizada."
+}
+
+@test "successful execution prints final FIN block" {
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  assert_output_contains_line "$output" "[ FIN ]"
   assert_output_contains_line "$output" "Configuración de symlinks finalizada."
 }
 

@@ -11,6 +11,7 @@ if ($null -eq $previousSkipMain) {
 Describe 'dotfiler.ps1' {
   BeforeEach {
     $script:DryRun = $false
+    $script:UseColor = $false
     $script:Quiet = $false
     $script:VerboseMode = $false
     $script:IsElevatedSymlinkMode = $false
@@ -23,8 +24,76 @@ Describe 'dotfiler.ps1' {
     $script:CountPlannedCreated = 0
     $script:CountPlannedReplaced = 0
     $script:CountPlannedBackups = 0
+    $script:LastOutputWasSeparator = $false
     $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
     $script:ConfigPathsFile = ''
+  }
+
+  It 'Print-Summary imprime tabla y cierre final en una ejecucion exitosa' {
+    $script:StartTime = [datetime]'2026-04-12T10:00:00-03:00'
+    $script:CountCreated = 2
+    $script:CountReplaced = 1
+    $script:CountBackups = 1
+    $script:CountErrors = 0
+
+    $summaryOutput = Print-Summary | Out-String
+
+    $summaryOutput | Should Match 'RESUMEN'
+    $summaryOutput | Should Match '╔════════'
+    $summaryOutput | Should Match 'Metrica'
+    $summaryOutput | Should Match 'Modo ejecucion'
+    $summaryOutput | Should Match '\[ FIN \] Configuracion de symlinks finalizada\.'
+  }
+
+  It 'Print-Summary muestra labels de plan y mensaje de simulacion en dry-run' {
+    $script:DryRun = $true
+    $script:StartTime = [datetime]'2026-04-12T10:00:00-03:00'
+    $script:CountPlannedCreated = 3
+    $script:CountPlannedReplaced = 2
+    $script:CountPlannedBackups = 1
+    $script:CountSimulated = 4
+
+    $summaryOutput = Print-Summary | Out-String
+
+    $summaryOutput | Should Match 'Creados \(plan\)'
+    $summaryOutput | Should Match 'Reemplazados \(plan\)'
+    $summaryOutput | Should Match 'Respaldos \(plan\)'
+    $summaryOutput | Should Match 'Modo simulacion activo, no se escribieron cambios en el sistema de archivos\.'
+    $summaryOutput | Should Match '\[ FIN \] Configuracion de symlinks finalizada\.'
+  }
+
+  It 'Print-Diagnostics imprime el bloque de diagnostico con errores enumerados' {
+    $script:Diagnostics.Add([PSCustomObject]@{
+        Target = 'C:\destino'
+        Reason = 'Fallo controlado'
+      })
+
+    $diagnosticsOutput = Print-Diagnostics | Out-String
+
+    $diagnosticsOutput | Should Match 'DIAGNOSTICO'
+    $diagnosticsOutput | Should Match '\[ ERROR \] 1\) destino=C:\\destino \| causa=Fallo controlado'
+  }
+
+  It 'Write-SymlinkLine usa flecha doble violeta y rutas con estilo ANSI cuando hay color' {
+    $script:UseColor = $true
+    $styledOutput = & {
+      Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix 'Symlink creado' -TargetPath 'C:\destino' -SourcePath 'C:\fuente'
+    } | Out-String
+
+    $styledOutput | Should Match ([regex]::Escape([string][char]27) + '\[[0-9;]*35m->->')
+    $styledOutput | Should Match ([regex]::Escape([string][char]27) + '\[[0-9;]*4;3;37mC:\\destino')
+    $styledOutput | Should Match ([regex]::Escape([string][char]27) + '\[[0-9;]*4;3;37mC:\\fuente')
+  }
+
+  It 'Write-Separator evita separadores consecutivos duplicados' {
+    $separatorOutput = & {
+      Write-Separator
+      Write-Separator
+      Write-PlainLine -Message 'contenido'
+      Write-Separator
+    } | Out-String
+
+    ([regex]::Matches($separatorOutput, '────────────────────────────────────────────────────────')).Count | Should Be 2
   }
 
   It 'instala una dependencia faltante con winget cuando existe configuracion de paquete' {

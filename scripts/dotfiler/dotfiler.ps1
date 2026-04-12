@@ -32,6 +32,7 @@ $script:CountPlannedBackups = 0
 
 $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
 $script:PreferredCommandPaths = @{}
+$script:LastOutputWasSeparator = $false
 
 function Write-ColorLine {
   param(
@@ -67,35 +68,212 @@ function Write-ColorLine {
   }
 }
 
+function Get-AnsiColorCode {
+  param([ConsoleColor]$Color)
+
+  switch ($Color) {
+    ([ConsoleColor]::Red) { return '31' }
+    ([ConsoleColor]::Yellow) { return '33' }
+    ([ConsoleColor]::Blue) { return '34' }
+    ([ConsoleColor]::Green) { return '32' }
+    ([ConsoleColor]::Magenta) { return '35' }
+    ([ConsoleColor]::DarkGray) { return '90' }
+    default { return '37' }
+  }
+}
+
+function Format-AnsiSegment {
+  param(
+    [Parameter(Mandatory = $true)][string]$Text,
+    [ConsoleColor]$Color = [ConsoleColor]::Gray,
+    [switch]$Bold,
+    [switch]$Underline,
+    [switch]$Italic
+  )
+
+  if (-not $script:UseColor) {
+    return $Text
+  }
+
+  $ansiCodes = [System.Collections.Generic.List[string]]::new()
+  if ($Bold) {
+    $ansiCodes.Add('1')
+  }
+  if ($Underline) {
+    $ansiCodes.Add('4')
+  }
+  if ($Italic) {
+    $ansiCodes.Add('3')
+  }
+  $ansiCodes.Add((Get-AnsiColorCode -Color $Color))
+
+  return "$([char]27)[$([string]::Join(';', $ansiCodes))m$Text$([char]27)[0m"
+}
+
+function Write-FormattedLine {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Segments,
+    [switch]$ErrorStream
+  )
+
+  $message = [string]::Concat($Segments)
+
+  if ($ErrorStream) {
+    [Console]::Error.WriteLine($message)
+  } else {
+    Write-Output $message
+  }
+
+  $script:LastOutputWasSeparator = $false
+}
+
+function Format-LabelText {
+  param(
+    [Parameter(Mandatory = $true)][string]$Text,
+    [ConsoleColor]$Color
+  )
+
+  return (Format-AnsiSegment -Text $Text -Color $Color -Bold)
+}
+
+function Format-IconText {
+  param(
+    [Parameter(Mandatory = $true)][string]$Text,
+    [ConsoleColor]$Color
+  )
+
+  return (Format-AnsiSegment -Text $Text -Color $Color -Bold)
+}
+
+function Format-PathText {
+  param([Parameter(Mandatory = $true)][string]$Text)
+
+  return (Format-AnsiSegment -Text $Text -Underline -Italic)
+}
+
+function Get-OptionalIcon {
+  param([Parameter(Mandatory = $true)][string]$Icon)
+
+  if (-not $script:UseIcons) {
+    return ''
+  }
+
+  return $Icon
+}
+
+function Write-SymlinkLine {
+  param(
+    [Parameter(Mandatory = $true)][string]$Label,
+    [Parameter(Mandatory = $true)][ConsoleColor]$LabelColor,
+    [Parameter(Mandatory = $true)][string]$Prefix,
+    [Parameter(Mandatory = $true)][string]$TargetPath,
+    [Parameter(Mandatory = $true)][string]$SourcePath
+  )
+
+  $segments = [System.Collections.Generic.List[string]]::new()
+  $segments.Add('[ ')
+  $segments.Add((Format-LabelText -Text $Label -Color $LabelColor))
+  $segments.Add(' ] ')
+
+  $linkIcon = Get-OptionalIcon -Icon '⇢'
+  if (-not [string]::IsNullOrWhiteSpace($linkIcon)) {
+    $segments.Add((Format-IconText -Text $linkIcon -Color Blue))
+    $segments.Add(' ')
+  }
+
+  $segments.Add($Prefix)
+  $segments.Add(' ')
+  $segments.Add((Format-PathText -Text $TargetPath))
+  $segments.Add(' ')
+  $segments.Add((Format-AnsiSegment -Text '->->' -Color Magenta -Bold))
+  $segments.Add(' ')
+  $segments.Add((Format-PathText -Text $SourcePath))
+
+  Write-FormattedLine -Segments $segments.ToArray()
+}
+
 function Write-Info {
   param([string]$Message)
   if (-not $script:Quiet) {
-    Write-ColorLine -Message "[ INFO ] $Message" -Color Blue
+    Write-FormattedLine -Segments @('[ ', (Format-LabelText -Text 'INFO' -Color Blue), " ] $Message")
   }
 }
 
 function Write-Warn {
   param([string]$Message)
-  Write-ColorLine -Message "[ AVISO ] $Message" -Color Yellow -ErrorStream
+  Write-FormattedLine -Segments @('[ ', (Format-LabelText -Text 'AVISO' -Color Yellow), " ] $Message") -ErrorStream
 }
 
 function Write-ErrorLog {
   param([string]$Message)
-  Write-ColorLine -Message "[ ERROR ] $Message" -Color Red -ErrorStream
+  Write-FormattedLine -Segments @('[ ', (Format-LabelText -Text 'ERROR' -Color Red), " ] $Message") -ErrorStream
 }
 
 function Write-Success {
   param([string]$Message)
   if (-not $script:Quiet) {
-    Write-ColorLine -Message "[ OK ] $Message" -Color Green
+    Write-FormattedLine -Segments @('[ ', (Format-LabelText -Text 'OK' -Color Green), " ] $Message")
   }
+}
+
+function Write-Separator {
+  if (-not $script:Quiet -and -not $script:LastOutputWasSeparator) {
+    Write-ColorLine -Message '────────────────────────────────────────────────────────' -Color DarkGray
+    $script:LastOutputWasSeparator = $true
+  }
+}
+
+function Write-PlainLine {
+  param(
+    [Parameter(Mandatory = $true)][string]$Message,
+    [ConsoleColor]$Color = [ConsoleColor]::Gray
+  )
+
+  Write-ColorLine -Message $Message -Color $Color
+  $script:LastOutputWasSeparator = $false
 }
 
 function Write-Group {
   param([string]$GroupPath)
   if (-not $script:Quiet) {
-    Write-ColorLine -Message "[ GRUPO ] $GroupPath" -Color Magenta
+    $segments = [System.Collections.Generic.List[string]]::new()
+    $segments.Add('[ ')
+    $segments.Add((Format-LabelText -Text 'GRUPO' -Color Magenta))
+    $segments.Add(' ] ')
+
+    $groupIcon = Get-OptionalIcon -Icon '▸'
+    if (-not [string]::IsNullOrWhiteSpace($groupIcon)) {
+      $segments.Add((Format-IconText -Text $groupIcon -Color Magenta))
+      $segments.Add(' ')
+    }
+
+    $segments.Add((Format-PathText -Text $GroupPath))
+    Write-FormattedLine -Segments $segments.ToArray()
   }
+}
+
+function Format-TableCell {
+  param(
+    [Parameter(Mandatory = $true)][string]$Value,
+    [Parameter(Mandatory = $true)][int]$Width
+  )
+
+  if ($Value.Length -gt $Width) {
+    return $Value.Substring(0, $Width)
+  }
+
+  return $Value.PadRight($Width)
+}
+
+function Write-TableRow {
+  param(
+    [Parameter(Mandatory = $true)][string]$Metric,
+    [Parameter(Mandatory = $true)][string]$Value
+  )
+
+  $metricCell = Format-TableCell -Value $Metric -Width 32
+  $valueCell = Format-TableCell -Value $Value -Width 20
+  Write-PlainLine -Message ("║ {0} ║ {1} ║" -f $metricCell, $valueCell) -Color DarkGray
 }
 
 function Write-HelpText {
@@ -992,7 +1170,7 @@ function New-DotfileSymlink {
     }
 
     if ($script:DryRun) {
-      Write-Info "Crearia symlink $TargetPath -> $SourcePath"
+      Write-SymlinkLine -Label 'INFO' -LabelColor Blue -Prefix 'Crearia symlink' -TargetPath $TargetPath -SourcePath $SourcePath
     } else {
       if (-not (Test-Path -LiteralPath $parentDir)) {
         New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
@@ -1000,7 +1178,7 @@ function New-DotfileSymlink {
 
       try {
         New-Item -ItemType SymbolicLink -Path $TargetPath -Target $SourcePath -Force | Out-Null
-        Write-Success "Symlink creado $TargetPath -> $SourcePath"
+        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix 'Symlink creado' -TargetPath $TargetPath -SourcePath $SourcePath
       } catch {
         if (-not (Test-IsPrivilegeElevationError -ErrorRecord $_) -or $script:IsElevatedSymlinkMode) {
           throw
@@ -1008,7 +1186,7 @@ function New-DotfileSymlink {
 
         Write-Info "Reintentando symlink con elevacion $TargetPath"
         Invoke-ElevatedSymlinkCreation -SourcePath $SourcePath -TargetPath $TargetPath
-        Write-Success "Symlink creado con elevacion $TargetPath -> $SourcePath"
+        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix 'Symlink creado con elevacion' -TargetPath $TargetPath -SourcePath $SourcePath
       }
     }
 
@@ -1118,22 +1296,36 @@ function Print-Summary {
   $replaced = if ($script:DryRun) { $script:CountPlannedReplaced } else { $script:CountReplaced }
   $backups = if ($script:DryRun) { $script:CountPlannedBackups } else { $script:CountBackups }
   $status = if ($script:CountErrors -eq 0) { '[OK] Sin errores' } else { '[X] Con errores' }
+  $createdLabel = if ($script:DryRun) { 'Creados (plan)' } else { 'Creados' }
+  $replacedLabel = if ($script:DryRun) { 'Reemplazados (plan)' } else { 'Reemplazados' }
+  $backupsLabel = if ($script:DryRun) { 'Respaldos (plan)' } else { 'Respaldos' }
 
-  Write-ColorLine -Message '--------------------------------------------------------' -Color DarkGray
-  Write-ColorLine -Message 'RESUMEN' -Color Blue
-  Write-Output ("Inicio (local): {0}" -f $script:StartTime.ToString('yyyy-MM-ddTHH:mm:ssK'))
-  Write-Output ("Fin (local):    {0}" -f $endTime.ToString('yyyy-MM-ddTHH:mm:ssK'))
-  Write-Output ("Tiempo total:   {0}s" -f $elapsed)
-  Write-Output ("Modo:           {0}" -f $mode)
-  Write-Output ("Creados:        {0}" -f $created)
-  Write-Output ("Reemplazados:   {0}" -f $replaced)
-  Write-Output ("Respaldos:      {0}" -f $backups)
-  Write-Output ("Omitidos:       {0}" -f $script:CountSimulated)
-  Write-Output ("Errores:        {0}" -f $script:CountErrors)
-  Write-Output ("Estado:         {0}" -f $status)
+  Write-Separator
+  Write-PlainLine -Message 'RESUMEN' -Color Blue
+  Write-PlainLine -Message '╔══════════════════════════════════╦══════════════════════╗' -Color DarkGray
+  Write-TableRow -Metric 'Metrica' -Value 'Valor'
+  Write-PlainLine -Message '╠══════════════════════════════════╬══════════════════════╣' -Color DarkGray
+  Write-TableRow -Metric 'Inicio (local)' -Value $script:StartTime.ToString('yyyy-MM-ddTHH:mm:ssK')
+  Write-TableRow -Metric 'Fin (local)' -Value $endTime.ToString('yyyy-MM-ddTHH:mm:ssK')
+  Write-TableRow -Metric 'Tiempo total (s)' -Value ([string]$elapsed)
+  Write-TableRow -Metric 'Modo ejecucion' -Value $mode
+  Write-TableRow -Metric $createdLabel -Value ([string]$created)
+  Write-TableRow -Metric $replacedLabel -Value ([string]$replaced)
+  Write-TableRow -Metric $backupsLabel -Value ([string]$backups)
+  Write-TableRow -Metric 'Omitidos' -Value ([string]$script:CountSimulated)
+  Write-TableRow -Metric 'Errores' -Value ([string]$script:CountErrors)
+  Write-TableRow -Metric 'Estado' -Value $status
+  Write-PlainLine -Message '╚══════════════════════════════════╩══════════════════════╝' -Color DarkGray
 
   if ($script:DryRun) {
     Write-Info "Modo simulacion activo, no se escribieron cambios en el sistema de archivos."
+  }
+
+  Write-Separator
+  if ($script:CountErrors -eq 0) {
+    Write-PlainLine -Message '[ FIN ] Configuracion de symlinks finalizada.' -Color Green
+  } else {
+    Write-PlainLine -Message ("[ FIN ] Finalizado con {0} error(es)." -f $script:CountErrors) -Color Red
   }
 }
 
@@ -1142,12 +1334,12 @@ function Print-Diagnostics {
     return
   }
 
-  Write-ColorLine -Message '--------------------------------------------------------' -Color DarkGray
-  Write-ColorLine -Message 'DIAGNOSTICO' -Color Blue
+  Write-Separator
+  Write-PlainLine -Message 'DIAGNOSTICO' -Color Blue
 
   $index = 1
   foreach ($item in $script:Diagnostics) {
-    Write-Output ("[ ERROR ] {0}) destino={1} | causa={2}" -f $index, $item.Target, $item.Reason)
+    Write-PlainLine -Message ("[ ERROR ] {0}) destino={1} | causa={2}" -f $index, $item.Target, $item.Reason)
     $index += 1
   }
 }
@@ -1167,6 +1359,7 @@ function Main {
 
   foreach ($operation in $operations) {
     if ($operation.Group -ne $lastGroup) {
+      Write-Separator
       Write-Group -GroupPath $operation.Group
       $lastGroup = $operation.Group
     }
