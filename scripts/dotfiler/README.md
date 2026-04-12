@@ -1,4 +1,13 @@
-# Descripción General
+# Descripcion General
+
+## Entrypoints disponibles
+
+- Linux/macOS/WSL: `./scripts/dotfiler/dotfiler.sh`
+- Windows: `scripts\dotfiler\dotfiler.bat`
+
+En Windows, `dotfiler.bat` invoca `dotfiler.ps1` y soporta los mismos flags
+principales (`--dry-run`, `--no-color`, `--plain`, `--verbose`, `--quiet`,
+`--help`) para trabajar contra `symlinks.yml` desde PowerShell nativo.
 
 El script `dotfiler.sh` se encarga de crear enlaces simbólicos (symlinks) desde
 archivos y directorios de la carpeta `configs` hacia ubicaciones definidas en
