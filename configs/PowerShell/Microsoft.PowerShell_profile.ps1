@@ -59,9 +59,9 @@ function Get-CxDisableMcpConfigArgs {
 
 # Unified implementation: cx handles both safe and yolo modes.
 function cx {
-    $Args = @($args)
+    $cliArgs = @($args)
 
-    if ($Args.Count -gt 0 -and $Args[0] -eq 'update') {
+    if ($cliArgs.Count -gt 0 -and $cliArgs[0] -eq 'update') {
         brew upgrade codex
         return
     }
@@ -73,17 +73,17 @@ function cx {
     $rest = New-Object System.Collections.Generic.List[string]
     $mcpConfigArgs = @()
 
-    for ($i = 0; $i -lt $Args.Count; $i++) {
-        switch ($Args[$i]) {
+    for ($i = 0; $i -lt $cliArgs.Count; $i++) {
+        switch ($cliArgs[$i]) {
             '-m' {
-                if ($i + 1 -lt $Args.Count) {
-                    $model = $Args[$i + 1]
+                if ($i + 1 -lt $cliArgs.Count) {
+                    $model = $cliArgs[$i + 1]
                     $i++
                 }
             }
             '-re' {
-                if ($i + 1 -lt $Args.Count) {
-                    $reasoning = $Args[$i + 1]
+                if ($i + 1 -lt $cliArgs.Count) {
+                    $reasoning = $cliArgs[$i + 1]
                     $i++
                 }
             }
@@ -94,15 +94,15 @@ function cx {
                 $yolo = $true
             }
             '--' {
-                if ($i + 1 -lt $Args.Count) {
-                    for ($j = $i + 1; $j -lt $Args.Count; $j++) {
-                        $rest.Add($Args[$j])
+                if ($i + 1 -lt $cliArgs.Count) {
+                    for ($j = $i + 1; $j -lt $cliArgs.Count; $j++) {
+                        $rest.Add($cliArgs[$j])
                     }
                 }
                 break
             }
             default {
-                $rest.Add($Args[$i])
+                $rest.Add($cliArgs[$i])
             }
         }
     }
