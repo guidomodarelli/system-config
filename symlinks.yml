@@ -1,19 +1,27 @@
 # yaml-language-server: $schema=schema.json
 paths:
   - path: zsh/.zsh
+    excludeFor:
+      - platform: win32
   - path: zsh/.antigenrc
+    excludeFor:
+      - platform: win32
   - path: zsh/.zshrc
+    excludeFor:
+      - platform: win32
   - path: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
     target: .oh-my-zsh/themes
-  # - path: espanso
-  #   target: .config
-  #   overrides:
-  #     - target: AppData/Roaming
-  #       windows: true
-  # - path: PowerShell/Microsoft.PowerShell_profile.ps1
-  #   target: OneDrive/Documents/PowerShell
-  #   onlyFor:
-  #     - win32: true
+    excludeFor:
+      - platform: win32
+  - path: espanso
+    target: .config
+    overrides:
+      - target: AppData/Roaming
+        platform: win32
+  - path: PowerShell/Microsoft.PowerShell_profile.ps1
+    target: OneDrive/Documents/PowerShell
+    onlyFor:
+      - platform: win32
   - path: .agents/skills/my-skills
     target: .agents/skills
   - path: .codex/AGENTS.md
@@ -21,4 +29,4 @@ paths:
   - path: .codex/skills/frontend-skill
     target: .codex/skills
   - path: .codex/skills/.system/skill-creator/SKILL.md
-    target: .agents/skills/.system/skill-creator
+    target: .codex/skills/.system/skill-creator
