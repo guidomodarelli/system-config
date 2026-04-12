@@ -59,11 +59,7 @@ function Get-CxDisableMcpConfigArgs {
 
 # Unified implementation: cx handles both safe and yolo modes.
 function cx {
-    [CmdletBinding()]
-    param(
-        [Parameter(ValueFromRemainingArguments = $true)]
-        [string[]] $Args
-    )
+    $Args = @($args)
 
     if ($Args.Count -gt 0 -and $Args[0] -eq 'update') {
         brew upgrade codex
@@ -93,6 +89,7 @@ function cx {
             }
             '-c' { $commitMode = $true }
             '--commit' { $commitMode = $true }
+            # Internal-only flag, exposed via `cxd`.
             '--yolo' {
                 $yolo = $true
             }
@@ -143,12 +140,104 @@ function cx {
 
 # Dangerous alias for codex (bypass approvals & sandbox)
 function cxd {
-    [CmdletBinding()]
-    param(
-        [Parameter(ValueFromRemainingArguments = $true)]
-        [string[]] $Args
-    )
-    cx --yolo @Args
+    cx --yolo @args
+}
+
+if (Get-Command codex -ErrorAction SilentlyContinue) {
+    try {
+        $codexCompletionScript = (& codex completion powershell) -join [Environment]::NewLine
+        Invoke-Expression $codexCompletionScript
+    } catch {
+        Write-Warning "Unable to load Codex PowerShell completion: $($_.Exception.Message)"
+    }
+
+    $cxCompletionScriptBlock = {
+        param($wordToComplete, $commandAst, $cursorPosition)
+
+        $wrapperFlags = @(
+            @{ Text = '-m'; List = '-m'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Model to use' }
+            @{ Text = '-re'; List = '-re'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Model reasoning effort' }
+            @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Use the built-in commit prompt' }
+            @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Use the built-in commit prompt' }
+            @{ Text = 'update'; List = 'update'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Upgrade Codex via the wrapper' }
+        )
+        $modelOptions = @(
+            'gpt-5.4',
+            'gpt-5.4-mini',
+            'gpt-5.3-codex'
+        )
+        $reasoningOptions = @('low', 'medium', 'high', 'xhigh')
+
+        $results = New-Object System.Collections.Generic.List[System.Management.Automation.CompletionResult]
+        $dashMode = 'none'
+        if ($wordToComplete -like '--*') {
+            $dashMode = 'double'
+        } elseif ($wordToComplete -like '-*') {
+            $dashMode = 'single'
+        }
+
+        $elements = @($commandAst.CommandElements)
+        $tokenTexts = @()
+        foreach ($element in $elements) {
+            $tokenTexts += $element.Extent.Text
+        }
+
+        $previousToken = $null
+        if ($tokenTexts.Count -ge 2) {
+            if ([string]::IsNullOrWhiteSpace($wordToComplete) -and $tokenTexts.Count -ge 2) {
+                $previousToken = $tokenTexts[-1]
+            } elseif ($tokenTexts.Count -ge 3) {
+                $previousToken = $tokenTexts[-2]
+            }
+        }
+
+        if ($previousToken -eq '-m') {
+            foreach ($model in $modelOptions) {
+                if ($model -like "$wordToComplete*") {
+                    $results.Add([System.Management.Automation.CompletionResult]::new(
+                        $model,
+                        $model,
+                        [System.Management.Automation.CompletionResultType]::ParameterValue,
+                        'Model'
+                    ))
+                }
+            }
+        } elseif ($previousToken -eq '-re') {
+            foreach ($reasoning in $reasoningOptions) {
+                if ($reasoning -like "$wordToComplete*") {
+                    $results.Add([System.Management.Automation.CompletionResult]::new(
+                        $reasoning,
+                        $reasoning,
+                        [System.Management.Automation.CompletionResultType]::ParameterValue,
+                        'Reasoning effort'
+                    ))
+                }
+            }
+        } else {
+            foreach ($flag in $wrapperFlags) {
+                $isShortFlag = $flag.Text.StartsWith('-') -and -not $flag.Text.StartsWith('--')
+                $isLongFlag = $flag.Text.StartsWith('--')
+
+                if ($dashMode -eq 'none' -and ($isShortFlag -or $isLongFlag)) { continue }
+                if ($dashMode -eq 'single' -and -not $isShortFlag) { continue }
+                if ($dashMode -eq 'double' -and -not $isLongFlag) { continue }
+
+                if ($flag.Text -like "$wordToComplete*") {
+                    $results.Add([System.Management.Automation.CompletionResult]::new(
+                        $flag.Text,
+                        $flag.List,
+                        $flag.Type,
+                        $flag.Tip
+                    ))
+                }
+            }
+        }
+
+        $results |
+            Sort-Object -Property ListItemText -Unique
+    }
+
+    Register-ArgumentCompleter -CommandName 'cx', 'cxd' -ScriptBlock $cxCompletionScriptBlock
 }
 
 # --- Fin Codex unified -------------------------------------------------------
@@ -1080,12 +1169,12 @@ function Invoke-GhqKeyHandler {
         [string]$DefaultQuery
     )
 
-    $psConsoleReadLineType = [Microsoft.PowerShell.PSConsoleReadLine] -as [type]
+    $psConsoleReadLineType = 'Microsoft.PowerShell.PSConsoleReadLine' -as [type]
     $didRevert = $false
 
     if ($psConsoleReadLineType) {
         try {
-            [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
+            $psConsoleReadLineType::RevertLine()
             $didRevert = $true
         } catch {
             $didRevert = $false
@@ -1097,22 +1186,22 @@ function Invoke-GhqKeyHandler {
     if ($psConsoleReadLineType) {
         try {
             if ($didRevert) {
-                [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+                $psConsoleReadLineType::AcceptLine()
             } else {
                 $invokePromptMethod = $psConsoleReadLineType.GetMethod('InvokePrompt', [Type[]]@())
                 if ($invokePromptMethod) {
-                    [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+                    $psConsoleReadLineType::InvokePrompt()
                 } else {
-                    [Microsoft.PowerShell.PSConsoleReadLine]::Repaint()
+                    $psConsoleReadLineType::Repaint()
                 }
             }
         } catch {
-            try { [Microsoft.PowerShell.PSConsoleReadLine]::Repaint() } catch { }
+            try { $psConsoleReadLineType::Repaint() } catch { }
         }
     }
 }
 
-$psConsoleReadLineType = [Microsoft.PowerShell.PSConsoleReadLine] -as [type]
+$psConsoleReadLineType = 'Microsoft.PowerShell.PSConsoleReadLine' -as [type]
 if ($psConsoleReadLineType) {
     Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+g' -BriefDescription 'GHQ Global' -LongDescription 'Jump to ghq repository (excluding work/*)' -ScriptBlock {
         param($key, $arg)
