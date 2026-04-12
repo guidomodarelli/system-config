@@ -384,7 +384,54 @@ function gdup { git diff "@{upstream}" }
 function gdw { git diff --word-diff $args }
 function gf { git fetch $args }
 function gfa { git fetch --all --tags --prune --jobs=10 $args }
-function gfg { git ls-files | Select-String $args }
+function gfg {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)][string[]]$Pattern,
+        [switch]$CaseSensitive,
+        [switch]$SimpleMatch,
+        [switch]$NotMatch,
+        [switch]$AllMatches,
+        [switch]$List,
+        [switch]$Raw,
+        [switch]$NoEmphasis,
+        [switch]$Quiet,
+        [int[]]$Context,
+        [string]$Culture,
+        [string]$Encoding,
+        [string[]]$Include,
+        [string[]]$Exclude
+    )
+
+    if (-not $Pattern) {
+        Write-Host 'Uso: gfg <pattern> [Select-String args]' -ForegroundColor Yellow
+        return
+    }
+
+    $selectStringParams = @{}
+    foreach ($parameterName in @(
+        'Pattern',
+        'CaseSensitive',
+        'SimpleMatch',
+        'NotMatch',
+        'AllMatches',
+        'List',
+        'Raw',
+        'NoEmphasis',
+        'Quiet',
+        'Context',
+        'Culture',
+        'Encoding',
+        'Include',
+        'Exclude'
+    )) {
+        if ($PSBoundParameters.ContainsKey($parameterName)) {
+            $selectStringParams[$parameterName] = $PSBoundParameters[$parameterName]
+        }
+    }
+
+    Invoke-SelectStringOnGitLines -InputLines (git ls-files) @selectStringParams
+}
 function gfo { git fetch origin $args }
 function gfp { git fetch --force --prune --prune-tags --tags --jobs=8 $args }
 function ggui { git gui citool $args }
@@ -394,7 +441,59 @@ function ggpush { git push origin "$(git_current_branch)" }
 function ggsup { git branch --set-upstream-to=origin/$(git_current_branch) $args }
 function ghh { git help $args }
 function gignore { git update-index --assume-unchanged $args }
-function gignored { git ls-files -v | Select-String "^[[:lower:]]" $args }
+function gignored {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)][string[]]$Pattern,
+        [switch]$CaseSensitive,
+        [switch]$SimpleMatch,
+        [switch]$NotMatch,
+        [switch]$AllMatches,
+        [switch]$List,
+        [switch]$Raw,
+        [switch]$NoEmphasis,
+        [switch]$Quiet,
+        [int[]]$Context,
+        [string]$Culture,
+        [string]$Encoding,
+        [string[]]$Include,
+        [string[]]$Exclude
+    )
+
+    $ignoredLines = git ls-files -v | Where-Object { $_ -cmatch '^[a-z]' }
+    if (-not $ignoredLines) {
+        return
+    }
+
+    if (-not $Pattern) {
+        $ignoredLines
+        return
+    }
+
+    $selectStringParams = @{}
+    foreach ($parameterName in @(
+        'Pattern',
+        'CaseSensitive',
+        'SimpleMatch',
+        'NotMatch',
+        'AllMatches',
+        'List',
+        'Raw',
+        'NoEmphasis',
+        'Quiet',
+        'Context',
+        'Culture',
+        'Encoding',
+        'Include',
+        'Exclude'
+    )) {
+        if ($PSBoundParameters.ContainsKey($parameterName)) {
+            $selectStringParams[$parameterName] = $PSBoundParameters[$parameterName]
+        }
+    }
+
+    Invoke-SelectStringOnGitLines -InputLines $ignoredLines @selectStringParams
+}
 function gll { git pull $args }
 function glg { git log --stat $args }
 function glgg { git log --graph $args }
@@ -514,7 +613,64 @@ function gswm { git switch $(git_main_branch) $args }
 function gta { git tag --annotate $args }
 function gtl { param($pattern="*"); git tag --sort=-v:refname -n --list "${pattern}*" }
 function gts { git tag --sign $args }
-function gtv { git tag | Sort-Object -Property { [Version]$_ } $args }
+function gtv {
+    [CmdletBinding()]
+    param(
+        [switch]$Descending,
+        [switch]$Unique,
+        [switch]$CaseSensitive,
+        [string]$Culture,
+        [switch]$Stable,
+        [int]$Top,
+        [int]$Bottom,
+        [object[]]$Property
+    )
+
+    $tags = git tag
+    if (-not $tags) {
+        return
+    }
+
+    $sortProperties = @(
+        @{ Expression = { (Get-GitTagVersionSortKey $_).IsVersion }; Descending = $true },
+        @{ Expression = { (Get-GitTagVersionSortKey $_).Version }; Descending = [bool]$Descending },
+        @{ Expression = { (Get-GitTagVersionSortKey $_).Label }; Descending = [bool]$Descending }
+    )
+
+    if ($PSBoundParameters.ContainsKey('Property')) {
+        $sortProperties += $Property
+    }
+
+    $sortParams = @{
+        Property = $sortProperties
+    }
+
+    if ($Unique) {
+        $sortParams.Unique = $true
+    }
+
+    if ($CaseSensitive) {
+        $sortParams.CaseSensitive = $true
+    }
+
+    if ($PSBoundParameters.ContainsKey('Culture')) {
+        $sortParams.Culture = $Culture
+    }
+
+    if ($Stable) {
+        $sortParams.Stable = $true
+    }
+
+    if ($PSBoundParameters.ContainsKey('Top')) {
+        $sortParams.Top = $Top
+    }
+
+    if ($PSBoundParameters.ContainsKey('Bottom')) {
+        $sortParams.Bottom = $Bottom
+    }
+
+    $tags | Sort-Object @sortParams
+}
 function gunignore { git update-index --no-assume-unchanged $args }
 function gunwip {
     $msg = git rev-list --max-count=1 --format="%s" HEAD
@@ -546,6 +702,91 @@ function _git_log_prettily {
         git log --pretty=format:"%C(auto)%h%Creset -%C(auto)%d%Creset %s %C(green)(%cr) %C(bold blue)<%an>%Creset"
     } else {
         git log --pretty=format:"%C(auto)%h%Creset -%C(auto)%d%Creset %s %C(green)(%cr) %C(bold blue)<%an>%Creset" $args
+    }
+}
+
+function Invoke-SelectStringOnGitLines {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string[]]$InputLines,
+        [string[]]$Pattern,
+        [switch]$CaseSensitive,
+        [switch]$SimpleMatch,
+        [switch]$NotMatch,
+        [switch]$AllMatches,
+        [switch]$List,
+        [switch]$Raw,
+        [switch]$NoEmphasis,
+        [switch]$Quiet,
+        [int[]]$Context,
+        [string]$Culture,
+        [string]$Encoding,
+        [string[]]$Include,
+        [string[]]$Exclude
+    )
+
+    if (-not $InputLines) {
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Pattern)) {
+        $InputLines
+        return
+    }
+
+    $selectStringParams = @{}
+
+    foreach ($parameterName in @(
+        'Pattern',
+        'CaseSensitive',
+        'SimpleMatch',
+        'NotMatch',
+        'AllMatches',
+        'List',
+        'Raw',
+        'NoEmphasis',
+        'Quiet',
+        'Context',
+        'Culture',
+        'Encoding',
+        'Include',
+        'Exclude'
+    )) {
+        if ($PSBoundParameters.ContainsKey($parameterName)) {
+            $selectStringParams[$parameterName] = $PSBoundParameters[$parameterName]
+        }
+    }
+
+    $InputLines | Select-String @selectStringParams
+}
+
+function Get-GitTagVersionSortKey {
+    param([string]$TagName)
+
+    if ([string]::IsNullOrWhiteSpace($TagName)) {
+        return [PSCustomObject]@{
+            IsVersion = $false
+            Version = [Version]'0.0'
+            Label = ''
+        }
+    }
+
+    $trimmed = $TagName.Trim()
+    $normalized = $trimmed -replace '^[Vv]', ''
+
+    $parsedVersion = $null
+    if ([Version]::TryParse($normalized, [ref]$parsedVersion)) {
+        return [PSCustomObject]@{
+            IsVersion = $true
+            Version = $parsedVersion
+            Label = $trimmed
+        }
+    }
+
+    return [PSCustomObject]@{
+        IsVersion = $false
+        Version = [Version]'0.0'
+        Label = $trimmed
     }
 }
 
