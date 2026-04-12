@@ -2,7 +2,7 @@
 _cx_commit_prompt() {
   local script_dir prompt_file
   script_dir="${${(%):-%x}:A:h}"
-  prompt_file="${script_dir}/../../../.codex/commit_prompt.txt"
+  prompt_file="${script_dir}/../../../.codex/commit_prompt.md"
   prompt_file="${prompt_file:A}"
 
   if [[ -r "$prompt_file" ]]; then

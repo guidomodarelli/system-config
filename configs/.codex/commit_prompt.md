@@ -16,10 +16,10 @@ Gather:
 - Risks: edge cases, regressions, or follow-up considerations.
 
 Output format:
-1) `title_candidate`: one imperative commit title, without conventional prefixes (`feat:`, `fix:`, etc.) and without issue numbers.
-2) `commit_context`: a concise but complete summary to use as the commit body.
-3) `missing_context`: explicit unknowns that should be confirmed before finalizing the commit message.
-4) `final_commit_message`: final text to use in the commit (title + blank line + body).
+1. `title_candidate`: one imperative commit title, without conventional prefixes (`feat:`, `fix:`, etc.) and without issue numbers.
+2. `commit_context`: a concise but complete summary to use as the commit body.
+3. `missing_context`: explicit unknowns that should be confirmed before finalizing the commit message.
+4. `final_commit_message`: final text to use in the commit (title + blank line + body).
 
 Apply step:
 - Before commit, ensure available lint and unit tests pass for the selected scope; if a required command is missing, continue only after explicitly reporting the missing validation and why.

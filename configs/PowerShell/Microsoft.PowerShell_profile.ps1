@@ -13,7 +13,7 @@ function rg { & rg.exe --glob "!.git/*" $args }
 # Returns the built-in prompt used by `cx --commit`.
 function Get-CxCommitPrompt {
     $configsDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-    $promptFile = Join-Path $configsDir '.codex/commit_prompt.txt'
+    $promptFile = Join-Path $configsDir '.codex/commit_prompt.md'
 
     if (-not (Test-Path -LiteralPath $promptFile)) {
         throw "Commit prompt file not found: $promptFile"

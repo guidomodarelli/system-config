@@ -7,5 +7,4 @@ __pycache__
 .env.*
 !.env.template
 .DS_Store
-.codex
 node_modules/
