@@ -234,6 +234,10 @@ function Install-AutoHotkey {
   Winget-Install AutoHotkey.AutoHotkey
 }
 
+function Install-fnm {
+  Winget-Install Schniz.fnm
+}
+
 function Main {
   # Package Managers
   # Install-Scoop
@@ -246,6 +250,7 @@ function Main {
   Install-Ghq
   Install-VsCode
   Install-Mise-In-Place
+  Install-fnm
 
   # Programming Languages & Environments
   Install-Python
