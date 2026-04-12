@@ -34,11 +34,48 @@ sistemas operativos como Darwin (macOS) y Linux.
       - También puedes usar `~` como alias para `$HOME`.
       - `target` funciona como directorio contenedor: el enlace final conserva el
         basename de `path`.
+      - Regla práctica: usa `target` cuando quieras decir "poné este archivo o
+        directorio dentro de esta carpeta".
+      - Ejemplo:
+        ```yaml
+        - path: .codex/AGENTS.md
+          target: .codex/
+        ```
+        Resultado final: `~/.codex/AGENTS.md`.
+      - Ejemplo con wildcard:
+        ```yaml
+        - path: scripts/*
+          target: $HOME/bin
+        ```
+        Si el patrón encuentra `scripts/foo` y `scripts/bar`, se crearán
+        `~/bin/foo` y `~/bin/bar`.
     - `exactTarget` (opcional): La ruta final exacta donde se creará el enlace
       simbólico, sin agregar automáticamente el basename del origen.
       - `exactTarget` y `target` son mutuamente excluyentes.
       - `exactTarget` no admite `path` con wildcards porque una sola ruta final
         no puede representar múltiples resultados.
+      - Regla práctica: usa `exactTarget` cuando quieras decir "creá el symlink
+        exactamente en esta ruta".
+      - Ejemplo:
+        ```yaml
+        - path: .codex/skills/.system
+          exactTarget: .agents/.codex/skills/.system
+        ```
+        Resultado final: `~/.agents/.codex/skills/.system`.
+      - Si ese mismo caso usara `target`:
+        ```yaml
+        - path: .codex/skills/.system
+          target: .agents/.codex/skills/.system
+        ```
+        el resultado sería `~/.agents/.codex/skills/.system/.system`, porque
+        `target` siempre agrega el basename del origen.
+      - Ejemplo inválido:
+        ```yaml
+        - path: scripts/*
+          exactTarget: $HOME/bin/tool
+        ```
+        Esto no está permitido porque múltiples archivos no pueden resolverse a
+        una única ruta final exacta.
 
 ## Configuración por Plataforma
 
