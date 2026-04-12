@@ -70,7 +70,7 @@ function cx {
         return
     }
 
-    $model = 'gpt-5.3-codex'
+    $model = 'gpt-5.4'
     $reasoning = 'medium'
     $yolo = $false
     $commitMode = $false
