@@ -49,7 +49,7 @@ function Install-Scoop {
   }
 }
 
-function Choco-InstallOrUpgrade {
+function Install-ChocoPackage {
   param (
     [string[]]$packages
   )
@@ -86,7 +86,7 @@ function Install-Fonts {
     'nerd-fonts-dejavusansmono',
     'nerd-fonts-victormono'
   )
-  Choco-InstallOrUpgrade -packages $fonts
+  Install-ChocoPackage -packages $fonts
 }
 
 function _espanso {
