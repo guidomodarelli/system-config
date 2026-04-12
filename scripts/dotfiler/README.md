@@ -8,6 +8,10 @@
 En Windows, `dotfiler.bat` invoca `dotfiler.ps1` y soporta los mismos flags
 principales (`--dry-run`, `--no-color`, `--plain`, `--verbose`, `--quiet`,
 `--help`) para trabajar contra `symlinks.yml` desde PowerShell nativo.
+En ese entorno, `dotfiler.ps1` requiere `yq` y `jq` para interpretar el YAML.
+Si alguno no esta disponible, intenta instalarlo automaticamente con `winget`
+antes de continuar. Si la instalacion falla o `winget` no existe, el script
+termina con error.
 
 El script `dotfiler.sh` se encarga de crear enlaces simbólicos (symlinks) desde
 archivos y directorios de la carpeta `configs` hacia ubicaciones definidas en

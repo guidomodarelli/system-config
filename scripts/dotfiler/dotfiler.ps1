@@ -31,6 +31,7 @@ $script:CountPlannedReplaced = 0
 $script:CountPlannedBackups = 0
 
 $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
+$script:PreferredCommandPaths = @{}
 
 function Write-ColorLine {
   param(
@@ -247,6 +248,20 @@ function ConvertTo-WindowsProcessArgument {
   return '"' + $escapedValue + '"'
 }
 
+function ConvertTo-WindowsProcessArgumentsString {
+  param([string[]]$ArgumentList = @())
+
+  if ($null -eq $ArgumentList -or $ArgumentList.Count -eq 0) {
+    return ''
+  }
+
+  $quotedArguments = $ArgumentList | ForEach-Object {
+    ConvertTo-WindowsProcessArgument -Value $_
+  }
+
+  return [string]::Join(' ', $quotedArguments)
+}
+
 function Get-ElevatedSymlinkProcessArguments {
   param(
     [Parameter(Mandatory = $true)][string]$ScriptPath,
@@ -322,279 +337,298 @@ function Test-CommandAvailable {
   return $null -ne (Get-Command -Name $Name -ErrorAction SilentlyContinue)
 }
 
-function Remove-YamlInlineComment {
-  param([string]$Line)
+function Get-ResolvedCommandCandidates {
+  param([Parameter(Mandatory = $true)][string]$CommandName)
 
-  if ($null -eq $Line) {
-    return ''
-  }
+  $resolvedCommands = @(Get-Command -Name $CommandName -All -ErrorAction SilentlyContinue)
+  $resolvedPaths = [System.Collections.Generic.List[string]]::new()
+  $seenPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
-  $inSingleQuote = $false
-  $inDoubleQuote = $false
+  foreach ($resolvedCommand in $resolvedCommands) {
+    $candidatePath = if (-not [string]::IsNullOrWhiteSpace($resolvedCommand.Source)) {
+      $resolvedCommand.Source
+    } elseif (-not [string]::IsNullOrWhiteSpace($resolvedCommand.Path)) {
+      $resolvedCommand.Path
+    } else {
+      $null
+    }
 
-  for ($index = 0; $index -lt $Line.Length; $index += 1) {
-    $char = $Line[$index]
-
-    if ($char -eq "'" -and -not $inDoubleQuote) {
-      if ($inSingleQuote -and $index + 1 -lt $Line.Length -and $Line[$index + 1] -eq "'") {
-        $index += 1
-        continue
-      }
-
-      $inSingleQuote = -not $inSingleQuote
+    if ([string]::IsNullOrWhiteSpace($candidatePath)) {
       continue
     }
 
-    if ($char -eq '"' -and -not $inSingleQuote) {
-      $escaped = $index -gt 0 -and $Line[$index - 1] -eq '\'
-      if (-not $escaped) {
-        $inDoubleQuote = -not $inDoubleQuote
-      }
-      continue
-    }
-
-    if ($char -eq '#' -and -not $inSingleQuote -and -not $inDoubleQuote) {
-      if ($index -eq 0 -or [char]::IsWhiteSpace($Line[$index - 1])) {
-        return $Line.Substring(0, $index).TrimEnd()
-      }
+    if ($seenPaths.Add($candidatePath)) {
+      $resolvedPaths.Add($candidatePath)
     }
   }
 
-  return $Line.TrimEnd()
+  return @($resolvedPaths)
 }
 
-function Split-YamlKeyValue {
-  param([string]$Text)
+function Get-ResolvedCommandPath {
+  param([Parameter(Mandatory = $true)][string]$CommandName)
 
-  $inSingleQuote = $false
-  $inDoubleQuote = $false
+  $preferredCommandPath = $script:PreferredCommandPaths[$CommandName]
+  if (-not [string]::IsNullOrWhiteSpace($preferredCommandPath) -and (Test-Path -LiteralPath $preferredCommandPath)) {
+    return $preferredCommandPath
+  }
 
-  for ($index = 0; $index -lt $Text.Length; $index += 1) {
-    $char = $Text[$index]
+  $resolvedCommand = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
+  if ($null -ne $resolvedCommand -and -not [string]::IsNullOrWhiteSpace($resolvedCommand.Source)) {
+    return $resolvedCommand.Source
+  }
 
-    if ($char -eq "'" -and -not $inDoubleQuote) {
-      if ($inSingleQuote -and $index + 1 -lt $Text.Length -and $Text[$index + 1] -eq "'") {
-        $index += 1
-        continue
-      }
+  return $null
+}
 
-      $inSingleQuote = -not $inSingleQuote
-      continue
-    }
+function Invoke-ExternalCommand {
+  param(
+    [Parameter(Mandatory = $true)][string]$FilePath,
+    [string[]]$ArgumentList = @()
+  )
 
-    if ($char -eq '"' -and -not $inSingleQuote) {
-      $escaped = $index -gt 0 -and $Text[$index - 1] -eq '\'
-      if (-not $escaped) {
-        $inDoubleQuote = -not $inDoubleQuote
-      }
-      continue
-    }
-
-    if ($char -eq ':' -and -not $inSingleQuote -and -not $inDoubleQuote) {
-      return [PSCustomObject]@{
-        Key      = $Text.Substring(0, $index).Trim()
-        HasValue = $true
-        Value    = $Text.Substring($index + 1).Trim()
-      }
+  $resolvedFilePath = if ([System.IO.Path]::IsPathRooted($FilePath)) {
+    $FilePath
+  } else {
+    $preferredCommandPath = Get-ResolvedCommandPath -CommandName $FilePath
+    if (-not [string]::IsNullOrWhiteSpace($preferredCommandPath)) {
+      $preferredCommandPath
+    } else {
+      $FilePath
     }
   }
+
+  $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = $resolvedFilePath
+  $startInfo.Arguments = ConvertTo-WindowsProcessArgumentsString -ArgumentList $ArgumentList
+  $startInfo.UseShellExecute = $false
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+
+  $process = [System.Diagnostics.Process]::new()
+  $process.StartInfo = $startInfo
+  [void]$process.Start()
+
+  $standardOutputTask = $process.StandardOutput.ReadToEndAsync()
+  $standardErrorTask = $process.StandardError.ReadToEndAsync()
+  $process.WaitForExit()
+  [System.Threading.Tasks.Task]::WaitAll(@($standardOutputTask, $standardErrorTask))
+
+  $standardOutput = $standardOutputTask.GetAwaiter().GetResult()
+  $standardError = $standardErrorTask.GetAwaiter().GetResult()
+
+  $normalizedOutputParts = @($standardOutput.Trim(), $standardError.Trim()) |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+  $normalizedOutput = [string]::Join([Environment]::NewLine, $normalizedOutputParts)
 
   return [PSCustomObject]@{
-    Key      = $null
-    HasValue = $false
-    Value    = $null
+    ExitCode = $process.ExitCode
+    Output   = $normalizedOutput.Trim()
   }
 }
 
-function ConvertFrom-YamlScalar {
-  param([AllowNull()][string]$Text)
+function Install-WingetPackage {
+  param(
+    [Parameter(Mandatory = $true)][string]$PackageId,
+    [Parameter(Mandatory = $true)][string]$CommandName
+  )
 
-  if ($null -eq $Text) {
+  Write-Info "Instalando dependencia requerida '$CommandName' con winget."
+
+  $installResult = Invoke-ExternalCommand -FilePath 'winget' -ArgumentList @(
+    'install',
+    '-e',
+    '--id', $PackageId,
+    '--force',
+    '--accept-source-agreements',
+    '--accept-package-agreements'
+  )
+
+  if ($installResult.ExitCode -ne 0) {
+    $failureReason = if ([string]::IsNullOrWhiteSpace($installResult.Output)) {
+      'winget finalizo con error sin devolver detalles.'
+    } else {
+      $installResult.Output
+    }
+
+    throw "No se pudo instalar '$CommandName' con winget: $failureReason"
+  }
+}
+
+function Join-UniquePathEntries {
+  param([AllowEmptyCollection()][string[]]$RawPathValues)
+
+  $pathEntries = [System.Collections.Generic.List[string]]::new()
+  $seenEntries = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+  foreach ($rawPathValue in $RawPathValues) {
+    if ([string]::IsNullOrWhiteSpace($rawPathValue)) {
+      continue
+    }
+
+    foreach ($pathEntry in ($rawPathValue -split ';')) {
+      $normalizedEntry = $pathEntry.Trim()
+      if ([string]::IsNullOrWhiteSpace($normalizedEntry)) {
+        continue
+      }
+
+      if ($seenEntries.Add($normalizedEntry)) {
+        $pathEntries.Add($normalizedEntry)
+      }
+    }
+  }
+
+  if ($pathEntries.Count -eq 0) {
     return $null
   }
 
-  $value = $Text.Trim()
-  if ($value.Length -eq 0) {
-    return ''
-  }
-
-  if ($value.Length -ge 2 -and $value.StartsWith("'") -and $value.EndsWith("'")) {
-    return $value.Substring(1, $value.Length - 2).Replace("''", "'")
-  }
-
-  if ($value.Length -ge 2 -and $value.StartsWith('"') -and $value.EndsWith('"')) {
-    return [regex]::Unescape($value.Substring(1, $value.Length - 2))
-  }
-
-  switch -Regex ($value) {
-    '^(true|True|TRUE)$' { return $true }
-    '^(false|False|FALSE)$' { return $false }
-    '^(null|Null|NULL|~)$' { return $null }
-  }
-
-  return $value
+  return [string]::Join(';', $pathEntries)
 }
 
-function Parse-YamlNode {
-  param(
-    [System.Collections.Generic.List[object]]$Tokens,
-    [ref]$Index
+function Update-ProcessPathFromEnvironment {
+  # Refresh PATH giving priority to persisted locations so a reinstalled tool
+  # can override a broken executable that is still present in the current process PATH.
+  $mergedPath = Join-UniquePathEntries -RawPathValues @(
+    [Environment]::GetEnvironmentVariable('Path', 'User'),
+    [Environment]::GetEnvironmentVariable('Path', 'Machine'),
+    [Environment]::GetEnvironmentVariable('Path', 'Process')
   )
 
-  if ($Index.Value -ge $Tokens.Count) {
-    throw "Estructura YAML incompleta."
+  if (-not [string]::IsNullOrWhiteSpace($mergedPath)) {
+    $env:PATH = $mergedPath
   }
-
-  $current = $Tokens[$Index.Value]
-  if ($current.Content.StartsWith('- ')) {
-    return Parse-YamlSequence -Tokens $Tokens -Index $Index -Indent $current.Indent
-  }
-
-  return Parse-YamlMapping -Tokens $Tokens -Index $Index -Indent $current.Indent
 }
 
-function Parse-YamlSequence {
+function Assert-ConfigPathsFileExists {
+  if (-not (Test-Path -LiteralPath $script:ConfigPathsFile)) {
+    Write-ErrorLog "No se encontro el archivo de configuracion: $script:ConfigPathsFile"
+    exit $script:ExitCodeInputError
+  }
+}
+
+function Test-YqCommandOperational {
+  param([string]$CommandPath = 'yq')
+
+  $tempYamlPath = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ("dotfiler-yq-{0}.yml" -f [System.Guid]::NewGuid().ToString('N'))
+
+  try {
+    Set-Content -LiteralPath $tempYamlPath -Value "paths: []" -Encoding utf8
+    $yqResult = Invoke-ExternalCommand -FilePath $CommandPath -ArgumentList @('eval', '-o=json', '.paths', $tempYamlPath)
+    return $yqResult.ExitCode -eq 0
+  } finally {
+    Remove-Item -LiteralPath $tempYamlPath -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Test-CommandOperational {
   param(
-    [System.Collections.Generic.List[object]]$Tokens,
-    [ref]$Index,
-    [int]$Indent
+    [Parameter(Mandatory = $true)][string]$CommandName,
+    [string]$CommandPath = $CommandName
   )
 
-  $items = [System.Collections.Generic.List[object]]::new()
-
-  while ($Index.Value -lt $Tokens.Count) {
-    $token = $Tokens[$Index.Value]
-    if ($token.Indent -ne $Indent -or -not $token.Content.StartsWith('- ')) {
-      break
+  try {
+    if ($CommandName -eq 'yq') {
+      return (Test-YqCommandOperational -CommandPath $CommandPath)
     }
 
-    $itemText = $token.Content.Substring(2).Trim()
-    $Index.Value += 1
-
-    if ([string]::IsNullOrWhiteSpace($itemText)) {
-      if ($Index.Value -ge $Tokens.Count -or $Tokens[$Index.Value].Indent -le $Indent) {
-        $items.Add($null)
-      } else {
-        $items.Add((Parse-YamlNode -Tokens $Tokens -Index $Index))
-      }
-      continue
-    }
-
-    $pair = Split-YamlKeyValue -Text $itemText
-    if (-not $pair.HasValue) {
-      $items.Add((ConvertFrom-YamlScalar -Text $itemText))
-      continue
-    }
-
-    $map = [ordered]@{}
-    if ($pair.Value.Length -gt 0) {
-      $map[$pair.Key] = ConvertFrom-YamlScalar -Text $pair.Value
-    } elseif ($Index.Value -lt $Tokens.Count -and $Tokens[$Index.Value].Indent -gt $Indent) {
-      $map[$pair.Key] = Parse-YamlNode -Tokens $Tokens -Index $Index
-    } else {
-      $map[$pair.Key] = $null
-    }
-
-    while ($Index.Value -lt $Tokens.Count) {
-      $nextToken = $Tokens[$Index.Value]
-      if ($nextToken.Indent -le $Indent) {
-        break
-      }
-      if ($nextToken.Indent -eq ($Indent + 2) -and -not $nextToken.Content.StartsWith('- ')) {
-        $nextPair = Split-YamlKeyValue -Text $nextToken.Content
-        if (-not $nextPair.HasValue) {
-          throw "Propiedad YAML invalida: $($nextToken.Content)"
-        }
-
-        $Index.Value += 1
-        if ($nextPair.Value.Length -gt 0) {
-          $map[$nextPair.Key] = ConvertFrom-YamlScalar -Text $nextPair.Value
-        } elseif ($Index.Value -lt $Tokens.Count -and $Tokens[$Index.Value].Indent -gt $nextToken.Indent) {
-          $map[$nextPair.Key] = Parse-YamlNode -Tokens $Tokens -Index $Index
-        } else {
-          $map[$nextPair.Key] = $null
-        }
-        continue
-      }
-
-      break
-    }
-
-    $items.Add([PSCustomObject]$map)
+    $versionResult = Invoke-ExternalCommand -FilePath $CommandPath -ArgumentList @('--version')
+    return $versionResult.ExitCode -eq 0
+  } catch {
+    return $false
   }
-
-  return @($items)
 }
 
-function Parse-YamlMapping {
+function Find-OperationalCommandPath {
+  param([Parameter(Mandatory = $true)][string]$CommandName)
+
+  foreach ($candidatePath in (Get-ResolvedCommandCandidates -CommandName $CommandName)) {
+    if (Test-CommandOperational -CommandName $CommandName -CommandPath $candidatePath) {
+      return $candidatePath
+    }
+  }
+
+  return $null
+}
+
+function Ensure-CommandAvailable {
   param(
-    [System.Collections.Generic.List[object]]$Tokens,
-    [ref]$Index,
-    [int]$Indent
+    [Parameter(Mandatory = $true)][string]$CommandName,
+    [AllowNull()][string]$WingetPackageId
   )
 
-  $map = [ordered]@{}
-
-  while ($Index.Value -lt $Tokens.Count) {
-    $token = $Tokens[$Index.Value]
-    if ($token.Indent -ne $Indent -or $token.Content.StartsWith('- ')) {
-      break
-    }
-
-    $pair = Split-YamlKeyValue -Text $token.Content
-    if (-not $pair.HasValue) {
-      throw "Propiedad YAML invalida: $($token.Content)"
-    }
-
-    $Index.Value += 1
-    if ($pair.Value.Length -gt 0) {
-      $map[$pair.Key] = ConvertFrom-YamlScalar -Text $pair.Value
-      continue
-    }
-
-    if ($Index.Value -lt $Tokens.Count -and $Tokens[$Index.Value].Indent -gt $Indent) {
-      $map[$pair.Key] = Parse-YamlNode -Tokens $Tokens -Index $Index
-    } else {
-      $map[$pair.Key] = $null
-    }
+  $operationalCommandPath = Find-OperationalCommandPath -CommandName $CommandName
+  if (-not [string]::IsNullOrWhiteSpace($operationalCommandPath)) {
+    $script:PreferredCommandPaths[$CommandName] = $operationalCommandPath
+    return
   }
 
-  return [PSCustomObject]$map
+  if ([string]::IsNullOrWhiteSpace($WingetPackageId)) {
+    throw "El comando requerido '$CommandName' no esta disponible en PATH."
+  }
+
+  if (-not (Test-CommandAvailable -Name 'winget')) {
+    throw "Falta el comando requerido '$CommandName' y no se encontro 'winget' para instalarlo automaticamente."
+  }
+
+  if ($script:DryRun) {
+    Write-Warn "El modo --dry-run no evita la instalacion automatica de dependencias. Se instalara '$CommandName' antes de continuar con la simulacion."
+  }
+
+  Install-WingetPackage -PackageId $WingetPackageId -CommandName $CommandName
+  Update-ProcessPathFromEnvironment
+
+  $operationalCommandPath = Find-OperationalCommandPath -CommandName $CommandName
+  if ([string]::IsNullOrWhiteSpace($operationalCommandPath) -and -not (Test-CommandAvailable -Name $CommandName)) {
+    throw "La instalacion de '$CommandName' finalizo, pero el comando sigue sin estar disponible en PATH."
+  }
+
+  if ([string]::IsNullOrWhiteSpace($operationalCommandPath)) {
+    throw "La instalacion de '$CommandName' finalizo, pero el comando no se puede ejecutar correctamente."
+  }
+
+  $script:PreferredCommandPaths[$CommandName] = $operationalCommandPath
 }
 
-function ConvertFrom-SimpleYaml {
-  param([string]$Path)
+function Ensure-DotfilerDependencies {
+  try {
+    Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq'
+    Ensure-CommandAvailable -CommandName 'jq' -WingetPackageId 'jqlang.jq'
+  } catch {
+    Write-ErrorLog $_.Exception.Message
+    exit $script:ExitCodeInputError
+  }
+}
 
-  $tokens = [System.Collections.Generic.List[object]]::new()
+function Get-YamlPathsJson {
+  Assert-ConfigPathsFileExists
 
-  foreach ($rawLine in (Get-Content -LiteralPath $Path)) {
-    if ($rawLine -match "`t") {
-      throw "El YAML no puede usar tabulaciones para indentacion."
-    }
-
-    $lineWithoutComments = Remove-YamlInlineComment -Line $rawLine
-    if ([string]::IsNullOrWhiteSpace($lineWithoutComments)) {
-      continue
-    }
-
-    $trimmedLine = $lineWithoutComments.TrimStart(' ')
-    $tokens.Add([PSCustomObject]@{
-        Indent  = $lineWithoutComments.Length - $trimmedLine.Length
-        Content = $trimmedLine
-      })
+  $validationResult = Invoke-ExternalCommand -FilePath 'yq' -ArgumentList @('eval', '.paths', $script:ConfigPathsFile)
+  if ($validationResult.ExitCode -ne 0) {
+    Write-ErrorLog "Configuracion invalida en ${script:ConfigPathsFile}: no se pudo interpretar YAML."
+    exit $script:ExitCodeInputError
   }
 
-  if ($tokens.Count -eq 0) {
-    throw 'El archivo YAML esta vacio.'
+  $pathsJsonResult = Invoke-ExternalCommand -FilePath 'yq' -ArgumentList @('eval', '-o=json', '.paths', $script:ConfigPathsFile)
+  if ($pathsJsonResult.ExitCode -ne 0) {
+    Write-ErrorLog "Configuracion invalida en ${script:ConfigPathsFile}: no se pudo interpretar YAML."
+    exit $script:ExitCodeInputError
   }
 
-  $index = 0
-  $result = Parse-YamlNode -Tokens $tokens -Index ([ref]$index)
-  if ($index -ne $tokens.Count) {
-    throw "No se pudo interpretar completamente el YAML cerca de '$($tokens[$index].Content)'."
-  }
+  return $pathsJsonResult.Output
+}
 
-  return $result
+function Test-JsonArray {
+  param([Parameter(Mandatory = $true)][string]$JsonText)
+
+  $tempFilePath = [System.IO.Path]::GetTempFileName()
+
+  try {
+    Set-Content -LiteralPath $tempFilePath -Value $JsonText -Encoding utf8
+    $jqResult = Invoke-ExternalCommand -FilePath 'jq' -ArgumentList @('-e', 'type == "array"', $tempFilePath)
+    return $jqResult.ExitCode -eq 0
+  } finally {
+    Remove-Item -LiteralPath $tempFilePath -Force -ErrorAction SilentlyContinue
+  }
 }
 
 function Add-Diagnostic {
@@ -990,25 +1024,21 @@ function New-DotfileSymlink {
 }
 
 function Get-ConfigEntries {
-  if (-not (Test-Path -LiteralPath $script:ConfigPathsFile)) {
-    Write-ErrorLog "No se encontro el archivo de configuracion: $script:ConfigPathsFile"
-    exit $script:ExitCodeInputError
-  }
+  $pathsJson = Get-YamlPathsJson
 
-  try {
-    $config = ConvertFrom-SimpleYaml -Path $script:ConfigPathsFile
-  } catch {
-    Write-ErrorLog "Configuracion invalida en ${script:ConfigPathsFile}: no se pudo interpretar YAML."
-    exit $script:ExitCodeInputError
-  }
-
-  $pathsProperty = $config.PSObject.Properties['paths']
-  if ($null -eq $pathsProperty -or $pathsProperty.Value -isnot [System.Collections.IEnumerable] -or $pathsProperty.Value -is [string]) {
+  if (-not (Test-JsonArray -JsonText $pathsJson)) {
     Write-ErrorLog "Configuracion invalida en ${script:ConfigPathsFile}: 'paths' debe ser un arreglo."
     exit $script:ExitCodeInputError
   }
 
-  return @($pathsProperty.Value)
+  try {
+    $entries = ConvertFrom-Json -InputObject $pathsJson
+  } catch {
+    Write-ErrorLog "Configuracion invalida en ${script:ConfigPathsFile}: no se pudo convertir JSON."
+    exit $script:ExitCodeInputError
+  }
+
+  return @($entries)
 }
 
 function Resolve-Operations {
@@ -1129,6 +1159,8 @@ function Main {
   $script:RootDir = Get-RepoRoot
   $script:ConfigsDir = Join-Path -Path $script:RootDir -ChildPath 'configs'
   $script:ConfigPathsFile = Join-Path -Path $script:RootDir -ChildPath 'symlinks.yml'
+  Assert-ConfigPathsFileExists
+  Ensure-DotfilerDependencies
 
   $operations = @(Resolve-Operations)
   $lastGroup = $null

@@ -14,6 +14,7 @@ Describe 'dotfiler.ps1' {
     $script:Quiet = $false
     $script:VerboseMode = $false
     $script:IsElevatedSymlinkMode = $false
+    $script:PreferredCommandPaths = @{}
     $script:CountCreated = 0
     $script:CountReplaced = 0
     $script:CountBackups = 0
@@ -26,27 +27,286 @@ Describe 'dotfiler.ps1' {
     $script:ConfigPathsFile = ''
   }
 
-  It 'remueve comentarios inline de YAML sin romper hashes dentro de comillas' {
-    (Remove-YamlInlineComment -Line "target: value # comment") | Should Be 'target: value'
-    (Remove-YamlInlineComment -Line "target: 'value # keep' # comment") | Should Be "target: 'value # keep'"
-    (Remove-YamlInlineComment -Line 'target: "value # keep" # comment') | Should Be 'target: "value # keep"'
+  It 'instala una dependencia faltante con winget cuando existe configuracion de paquete' {
+    $script:installInvocations = [System.Collections.Generic.List[string]]::new()
+    $script:commandInstalled = $false
+
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      return $Name -eq 'winget' -or $script:commandInstalled
+    }
+    Mock Test-CommandOperational {
+      param([string]$CommandName)
+      return $script:commandInstalled
+    }
+    Mock Install-WingetPackage {
+      param([string]$PackageId, [string]$CommandName)
+      $script:installInvocations.Add("$CommandName|$PackageId")
+      $script:commandInstalled = $true
+    }
+    Mock Update-ProcessPathFromEnvironment {}
+
+    Ensure-CommandAvailable -CommandName 'jq' -WingetPackageId 'jqlang.jq'
+
+    $script:installInvocations.Count | Should Be 1
+    $script:installInvocations[0] | Should Be 'jq|jqlang.jq'
+    Assert-MockCalled Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
   }
 
-  It 'divide key y value YAML ignorando dos puntos dentro de comillas' {
-    $pair = Split-YamlKeyValue -Text 'target: "C:\Users\name:with-colon\file.txt"'
+  It 'falla cuando falta una dependencia y winget no esta disponible' {
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      return $false
+    }
+    Mock Test-CommandOperational { $false }
 
-    $pair.HasValue | Should Be $true
-    $pair.Key | Should Be 'target'
-    $pair.Value | Should Be '"C:\Users\name:with-colon\file.txt"'
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should Throw 'winget'
   }
 
-  It 'convierte escalares YAML simples a sus tipos esperados' {
-    (ConvertFrom-YamlScalar -Text 'true') | Should BeOfType [bool]
-    (ConvertFrom-YamlScalar -Text 'true') | Should Be $true
-    (ConvertFrom-YamlScalar -Text 'false') | Should Be $false
-    (ConvertFrom-YamlScalar -Text 'null') | Should Be $null
-    (ConvertFrom-YamlScalar -Text "'quoted value'") | Should Be 'quoted value'
-    (ConvertFrom-YamlScalar -Text '"quoted \"value\""') | Should Be 'quoted "value"'
+  It 'reintenta validar una dependencia despues de refrescar PATH tras instalar con winget' {
+    $script:pathWasRefreshed = $false
+
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      if ($Name -eq 'winget') {
+        return $true
+      }
+
+      return $script:pathWasRefreshed
+    }
+    Mock Test-CommandOperational { $script:pathWasRefreshed }
+    Mock Install-WingetPackage {}
+    Mock Update-ProcessPathFromEnvironment {
+      $script:pathWasRefreshed = $true
+    }
+
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should Not Throw
+    Assert-MockCalled Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
+  }
+
+  It 'omite un ejecutable previo roto y conserva la ruta operativa encontrada para usos posteriores' {
+    Mock Test-Path { $true } -ParameterFilter { $LiteralPath -eq 'C:\winget\yq.exe' }
+    Mock Get-Command {
+      param([string]$Name, [switch]$All)
+
+      if ($Name -eq 'yq' -and $All) {
+        return @(
+          [PSCustomObject]@{ Source = 'C:\broken\yq.exe'; Path = 'C:\broken\yq.exe' },
+          [PSCustomObject]@{ Source = 'C:\winget\yq.exe'; Path = 'C:\winget\yq.exe' }
+        )
+      }
+
+      if ($Name -eq 'yq') {
+        return [PSCustomObject]@{ Source = 'C:\broken\yq.exe'; Path = 'C:\broken\yq.exe' }
+      }
+
+      return $null
+    }
+    Mock Test-CommandOperational {
+      param([string]$CommandName, [string]$CommandPath)
+      return $CommandPath -eq 'C:\winget\yq.exe'
+    }
+
+    Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq'
+
+    $script:PreferredCommandPaths['yq'] | Should Be 'C:\winget\yq.exe'
+    (Get-ResolvedCommandPath -CommandName 'yq') | Should Be 'C:\winget\yq.exe'
+  }
+
+  It 'avisa cuando --dry-run necesita instalar una dependencia faltante' {
+    $script:DryRun = $true
+
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      if ($Name -eq 'winget') {
+        return $true
+      }
+
+      return $false
+    }
+    Mock Test-CommandOperational { $false }
+    Mock Install-WingetPackage {}
+    Mock Update-ProcessPathFromEnvironment {}
+    Mock Write-Warn {}
+
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should Throw 'sigue sin estar disponible'
+
+    Assert-MockCalled Write-Warn -Times 1 -Exactly -Scope It -ParameterFilter {
+      $Message -like '*--dry-run*' -and $Message -like "*'yq'*"
+    }
+  }
+
+  It 'falla cuando winget instala pero el comando sigue sin aparecer despues de refrescar PATH' {
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      if ($Name -eq 'winget') {
+        return $true
+      }
+
+      return $false
+    }
+    Mock Test-CommandOperational { $false }
+    Mock Install-WingetPackage {}
+    Mock Update-ProcessPathFromEnvironment {}
+
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should Throw 'sigue sin estar disponible'
+  }
+
+  It 'reinstala una dependencia cuando el ejecutable existe pero no funciona' {
+    $script:installInvocations = [System.Collections.Generic.List[string]]::new()
+    $script:commandOperational = $false
+
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      return $true
+    }
+    Mock Test-CommandOperational {
+      param([string]$CommandName)
+      return $script:commandOperational
+    }
+    Mock Install-WingetPackage {
+      param([string]$PackageId, [string]$CommandName)
+      $script:installInvocations.Add("$CommandName|$PackageId")
+      $script:commandOperational = $true
+    }
+    Mock Update-ProcessPathFromEnvironment {}
+
+    Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq'
+
+    $script:installInvocations.Count | Should Be 1
+    $script:installInvocations[0] | Should Be 'yq|MikeFarah.yq'
+    Assert-MockCalled Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
+  }
+
+  It 'considera yq no operativo cuando no soporta la sintaxis requerida por dotfiler' {
+    Mock Invoke-ExternalCommand {
+      [PSCustomObject]@{
+        ExitCode = 1
+        Output = 'unsupported'
+      }
+    }
+
+    (Test-YqCommandOperational) | Should Be $false
+  }
+
+  It 'resuelve comandos por la ruta preferida cuando ya fue validada' {
+    $script:PreferredCommandPaths['jq'] = 'C:\winget\jq.exe'
+    Mock Test-Path { $true } -ParameterFilter { $LiteralPath -eq 'C:\winget\jq.exe' }
+
+    Mock Get-Command {
+      throw 'Get-Command no deberia ejecutarse cuando existe una ruta preferida'
+    }
+
+    (Get-ResolvedCommandPath -CommandName 'jq') | Should Be 'C:\winget\jq.exe'
+  }
+
+  It 'prioriza PATH de User y Machine sobre Process al recomponer entradas unicas' {
+    $mergedPath = Join-UniquePathEntries -RawPathValues @(
+      'C:\Users\guido\AppData\Local\Microsoft\WinGet\Links;C:\Tools',
+      'C:\Program Files\Git\cmd;C:\Windows\System32',
+      'C:\BrokenTools;C:\Tools;C:\Windows\System32'
+    )
+
+    $mergedPath | Should Be 'C:\Users\guido\AppData\Local\Microsoft\WinGet\Links;C:\Tools;C:\Program Files\Git\cmd;C:\Windows\System32;C:\BrokenTools'
+  }
+
+  It 'convierte paths desde JSON generado por yq' {
+    $script:ConfigPathsFile = 'C:\repo\symlinks.yml'
+
+    Mock Get-YamlPathsJson {
+      @'
+[
+  {
+    "path": "PowerShell/Microsoft.PowerShell_profile.ps1",
+    "target": "Documents/PowerShell"
+  }
+]
+'@
+    }
+    Mock Test-JsonArray { $true }
+
+    $entries = @(Get-ConfigEntries)
+
+    $entries.Count | Should Be 1
+    $entries[0].path | Should Be 'PowerShell/Microsoft.PowerShell_profile.ps1'
+    $entries[0].target | Should Be 'Documents/PowerShell'
+  }
+
+  It 'convierte JSON anidado sin depender de parametros no disponibles en PowerShell 5.1' {
+    $script:ConfigPathsFile = 'C:\repo\symlinks.yml'
+
+    Mock Get-YamlPathsJson {
+      @'
+[
+  {
+    "path": "git/.gitconfig",
+    "overrides": [
+      {
+        "windows": true,
+        "target": "Documents/Git"
+      }
+    ]
+  }
+]
+'@
+    }
+    Mock Test-JsonArray { $true }
+
+    $entries = @(Get-ConfigEntries)
+
+    $entries.Count | Should Be 1
+    $entries[0].overrides.Count | Should Be 1
+    $entries[0].overrides[0].target | Should Be 'Documents/Git'
+  }
+
+  It 'valida con jq cuando el JSON representa un arreglo' {
+    Mock Invoke-ExternalCommand {
+      [PSCustomObject]@{
+        ExitCode = 0
+        Output = 'true'
+      }
+    }
+
+    (Test-JsonArray -JsonText '[{"path":"example"}]') | Should Be $true
+  }
+
+  It 'drena stdout y stderr abundantes sin bloquear el proceso hijo' {
+    $dotfilerPath = Join-Path -Path $PSScriptRoot -ChildPath 'dotfiler.ps1'
+    $heavyOutputScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'invoke-external-command-heavy-output.ps1'
+    $currentPowerShellPath = (Get-Process -Id $PID).Path
+
+    $job = Start-Job -ArgumentList $dotfilerPath, $currentPowerShellPath, $heavyOutputScriptPath -ScriptBlock {
+      param($ImportedScriptPath, $ExecutablePath, $ScriptPath)
+
+      $env:DOTFILER_PS1_SKIP_MAIN = '1'
+      . $ImportedScriptPath
+
+      Invoke-ExternalCommand -FilePath $ExecutablePath -ArgumentList @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        $ScriptPath
+      )
+    }
+
+    try {
+      $completedJob = Wait-Job -Job $job -Timeout 10
+
+      $completedJob | Should Not BeNullOrEmpty
+
+      $result = Receive-Job -Job $job
+
+      $result.ExitCode | Should Be 0
+      $result.Output | Should Match 'stdout line 0'
+      $result.Output | Should Match 'stderr line 0'
+    } finally {
+      if ($job.State -eq 'Running') {
+        Stop-Job -Job $job
+      }
+
+      Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    }
   }
 
   It 'detecta errores de permisos insuficientes para symlinks' {
@@ -106,6 +366,17 @@ Describe 'dotfiler.ps1' {
       '--internal-target',
       '"C:\Users\guido\AppData\Roaming\My Folder\profile.ps1"'
     )
+  }
+
+  It 'arma una cadena de argumentos compatible con Windows PowerShell 5.1' {
+    $argumentString = ConvertTo-WindowsProcessArgumentsString -ArgumentList @(
+      'eval',
+      '.paths',
+      'C:\Users\guido\Source Repos\symlinks file.yml',
+      'value "with quotes"'
+    )
+
+    $argumentString | Should Be 'eval .paths "C:\Users\guido\Source Repos\symlinks file.yml" "value \"with quotes\""'
   }
 
   It 'no clasifica errores genericos como problemas de elevacion' {
@@ -388,5 +659,30 @@ Describe 'dotfiler.ps1' {
 
   It 'el modo interno elevado devuelve false cuando no fue solicitado' {
     (Invoke-InternalElevatedSymlinkMode) | Should Be $false
+  }
+
+  It 'valida el repositorio antes de instalar dependencias globales' {
+    $script:CliArgs = @()
+    $script:MainCallOrder = [System.Collections.Generic.List[string]]::new()
+
+    Mock Parse-Args {}
+    Mock Invoke-InternalElevatedSymlinkMode { $false }
+    Mock Get-RepoRoot {
+      $script:MainCallOrder.Add('Get-RepoRoot')
+      return 'C:\repo'
+    }
+    Mock Assert-ConfigPathsFileExists {
+      $script:MainCallOrder.Add('Assert-ConfigPathsFileExists')
+    }
+    Mock Ensure-DotfilerDependencies {
+      $script:MainCallOrder.Add('Ensure-DotfilerDependencies')
+    }
+    Mock Resolve-Operations { throw 'stop-after-order-check' }
+    Mock Print-Summary {}
+    Mock Print-Diagnostics {}
+
+    { Main } | Should Throw 'stop-after-order-check'
+
+    $script:MainCallOrder | Should Be @('Get-RepoRoot', 'Assert-ConfigPathsFileExists', 'Ensure-DotfilerDependencies')
   }
 }
