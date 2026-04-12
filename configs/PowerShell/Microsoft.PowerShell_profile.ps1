@@ -61,7 +61,7 @@ function Get-CxDisableMcpConfigArgs {
 function cx {
     $cliArgs = @($args)
 
-    if ($cliArgs.Count -gt 0 -and $cliArgs[0] -eq 'update') {
+    if ($cliArgs.Count -gt 0 -and $cliArgs[0] -eq 'upgrade') {
         brew upgrade codex
         return
     }
@@ -159,7 +159,7 @@ if (Get-Command codex -ErrorAction SilentlyContinue) {
             @{ Text = '-re'; List = '-re'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Model reasoning effort' }
             @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Use the built-in commit prompt' }
             @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Use the built-in commit prompt' }
-            @{ Text = 'update'; List = 'update'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Upgrade Codex via the wrapper' }
+            @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Upgrade Codex via the wrapper' }
         )
         $modelOptions = @(
             'gpt-5.4',

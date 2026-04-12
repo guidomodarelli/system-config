@@ -50,7 +50,7 @@ cx() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      update)
+      upgrade)
         brew upgrade codex
         return
         ;;
