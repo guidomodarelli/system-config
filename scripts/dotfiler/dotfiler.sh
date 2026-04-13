@@ -520,11 +520,13 @@ build_path_obj() {
 get_abs_path() {
   local path="$1"
 
+  path=$(expand_env_vars "$path")
+
   if [ "$(first_letter "$path")" != "/" ] && [ "$(first_letter "$path")" != "~" ]; then
     path="$ROOT_CONFIGS_DIR/$path"
   fi
 
-  realpath "$path"
+  realpath "$path" 2>/dev/null || true
 }
 
 # Expand environment variables in a path string

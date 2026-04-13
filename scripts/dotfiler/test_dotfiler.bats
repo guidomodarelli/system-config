@@ -118,6 +118,23 @@ YAML
   [[ "$output" == *".codex/debug-source"* ]]
 }
 
+@test "source path supports HOME variable expansion" {
+  mkdir -p "$HOME_DIR/.codex/skills"
+  printf "skill-data" > "$HOME_DIR/.codex/skills/system.txt"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: $HOME/.codex/skills/system.txt
+    target: linked-files
+YAML
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/system.txt" \
+    "$HOME_DIR/.codex/skills/system.txt"
+}
+
 @test "output does not print duplicated separators consecutively" {
   install_fixture "debug_flow"
 
