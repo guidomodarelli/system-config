@@ -185,7 +185,7 @@ function Write-SymlinkLine {
   $segments.Add(' ')
   $segments.Add((Format-PathText -Text $TargetPath))
   $segments.Add(' ')
-  $segments.Add((Format-AnsiSegment -Text '->->' -Color Magenta -Bold))
+  $segments.Add((Format-AnsiSegment -Text '→→' -Color Magenta -Bold))
   $segments.Add(' ')
   $segments.Add((Format-PathText -Text $SourcePath))
 
