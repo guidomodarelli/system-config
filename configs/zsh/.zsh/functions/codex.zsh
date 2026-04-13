@@ -22,17 +22,18 @@ _cx_disable_mcp_config_args() {
     [[ -z "$server_name" ]] && continue
     disable_args+=(-c "mcp_servers.${server_name}.enabled=false")
   done < <(
-    command codex mcp list 2>/dev/null | awk '
-      /^\s*Name\s+/ { next }
-      /^\s*-+\s*$/ { next }
-      {
-        server_name = $1
-        transport = $2
-        if (transport ~ /^(stdio|sse|http|https|ws|wss|streamable_http)$/ && !seen[server_name]++) {
-          print server_name
-        }
-      }
-    '
+    if command -v jq >/dev/null 2>&1; then
+      command codex mcp list --json 2>/dev/null \
+        | command jq -r '.[] | select(.name != null and (.enabled != false)) | .name' 2>/dev/null \
+        | awk '!seen[$0]++'
+    else
+      command codex mcp list 2>/dev/null | awk '
+        /^[[:space:]]*$/ { next }
+        /^[[:space:]]*Name[[:space:]]+/ { next }
+        /^[[:space:]]*-+[[:space:]]*$/ { next }
+        !seen[$1]++ { print $1 }
+      '
+    fi
   )
 
   printf '%s\n' "${disable_args[@]}"
