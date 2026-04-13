@@ -271,8 +271,11 @@ function Write-TableRow {
     [Parameter(Mandatory = $true)][string]$Value
   )
 
-  $metricCell = Format-TableCell -Value $Metric -Width 32
-  $valueCell = Format-TableCell -Value $Value -Width 20
+  $metricColumnWidth = 32
+  $valueColumnWidth = 25
+
+  $metricCell = Format-TableCell -Value $Metric -Width $metricColumnWidth
+  $valueCell = Format-TableCell -Value $Value -Width $valueColumnWidth
   Write-PlainLine -Message ("║ {0} ║ {1} ║" -f $metricCell, $valueCell) -Color DarkGray
 }
 
@@ -1291,6 +1294,13 @@ function Resolve-Operations {
 function Print-Summary {
   $endTime = Get-Date
   $elapsed = [int]($endTime - $script:StartTime).TotalSeconds
+  $metricColumnWidth = 32
+  $valueColumnWidth = 25
+  $metricBorderWidth = $metricColumnWidth + 2
+  $valueBorderWidth = $valueColumnWidth + 2
+  $topBorder = ('╔' + ('═' * $metricBorderWidth) + '╦' + ('═' * $valueBorderWidth) + '╗')
+  $middleBorder = ('╠' + ('═' * $metricBorderWidth) + '╬' + ('═' * $valueBorderWidth) + '╣')
+  $bottomBorder = ('╚' + ('═' * $metricBorderWidth) + '╩' + ('═' * $valueBorderWidth) + '╝')
   $mode = if ($script:DryRun) { 'Simulacion' } else { 'Aplicacion real' }
   $created = if ($script:DryRun) { $script:CountPlannedCreated } else { $script:CountCreated }
   $replaced = if ($script:DryRun) { $script:CountPlannedReplaced } else { $script:CountReplaced }
@@ -1302,9 +1312,9 @@ function Print-Summary {
 
   Write-Separator
   Write-PlainLine -Message 'RESUMEN' -Color Blue
-  Write-PlainLine -Message '╔══════════════════════════════════╦══════════════════════╗' -Color DarkGray
+  Write-PlainLine -Message $topBorder -Color DarkGray
   Write-TableRow -Metric 'Metrica' -Value 'Valor'
-  Write-PlainLine -Message '╠══════════════════════════════════╬══════════════════════╣' -Color DarkGray
+  Write-PlainLine -Message $middleBorder -Color DarkGray
   Write-TableRow -Metric 'Inicio (local)' -Value $script:StartTime.ToString('yyyy-MM-ddTHH:mm:ssK')
   Write-TableRow -Metric 'Fin (local)' -Value $endTime.ToString('yyyy-MM-ddTHH:mm:ssK')
   Write-TableRow -Metric 'Tiempo total (s)' -Value ([string]$elapsed)
@@ -1315,7 +1325,7 @@ function Print-Summary {
   Write-TableRow -Metric 'Omitidos' -Value ([string]$script:CountSimulated)
   Write-TableRow -Metric 'Errores' -Value ([string]$script:CountErrors)
   Write-TableRow -Metric 'Estado' -Value $status
-  Write-PlainLine -Message '╚══════════════════════════════════╩══════════════════════╝' -Color DarkGray
+  Write-PlainLine -Message $bottomBorder -Color DarkGray
 
   if ($script:DryRun) {
     Write-Info "Modo simulacion activo, no se escribieron cambios en el sistema de archivos."

@@ -45,6 +45,15 @@ Describe 'dotfiler.ps1' {
     $summaryOutput | Should Match '\[ FIN \] Configuracion de symlinks finalizada\.'
   }
 
+  It 'Print-Summary conserva el offset horario completo en los timestamps locales' {
+    $script:StartTime = [datetime]'2026-04-12T10:00:00-03:00'
+
+    $summaryOutput = Print-Summary | Out-String
+
+    $summaryOutput | Should Match '2026-04-12T10:00:00-03:00'
+    $summaryOutput | Should Match 'Fin \(local\)\s+║ \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-03:00'
+  }
+
   It 'Print-Summary muestra labels de plan y mensaje de simulacion en dry-run' {
     $script:DryRun = $true
     $script:StartTime = [datetime]'2026-04-12T10:00:00-03:00'

@@ -1157,7 +1157,16 @@ print_summary() {
   local status_value="[OK] Sin errores"
   local execution_mode="Aplicación real"
   local metric_column_width=32
-  local value_column_width=20
+  local value_column_width=25
+  local metric_border_width=$((metric_column_width + 2))
+  local value_border_width=$((value_column_width + 2))
+  local metric_border
+  local value_border
+
+  printf -v metric_border '%*s' "$metric_border_width" ''
+  printf -v value_border '%*s' "$value_border_width" ''
+  metric_border="${metric_border// /═}"
+  value_border="${value_border// /═}"
   local simulated_label="Omitidos"
   local shown_created="$COUNT_CREATED"
   local shown_replaced="$COUNT_REPLACED"
@@ -1211,9 +1220,9 @@ print_summary() {
   print_link_block_separator
   printf "%s\n" "$(print_blue -b "RESUMEN")"
   LAST_OUTPUT_WAS_SEPARATOR=false
-  printf "%s\n" "$(print_gray -b "╔══════════════════════════════════╦══════════════════════╗")"
+  printf "%s\n" "$(print_gray -b "╔${metric_border}╦${value_border}╗")"
   printf "%s\n" "$(print_gray -b "║ Métrica                          ║ Valor                ║")"
-  printf "%s\n" "$(print_gray -b "╠══════════════════════════════════╬══════════════════════╣")"
+  printf "%s\n" "$(print_gray -b "╠${metric_border}╬${value_border}╣")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Inicio (UTC)") ║ $(format_value_cell "$START_TIME_ISO_UTC") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Fin (UTC)") ║ $(format_value_cell "$end_time_iso_utc") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Tiempo total (s)") ║ $(format_value_cell "$total_elapsed_seconds") ║")"
@@ -1226,7 +1235,7 @@ print_summary() {
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "$windows_queued_label") ║ $(format_value_cell "$shown_windows_queued") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Errores") ║ $(format_value_cell "$COUNT_ERRORS") ║")"
   printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Estado") ║ $(format_value_cell "$status_value") ║")"
-  printf "%s\n" "$(print_gray -b "╚══════════════════════════════════╩══════════════════════╝")"
+  printf "%s\n" "$(print_gray -b "╚${metric_border}╩${value_border}╝")"
 
   if [ "$DRY_RUN" = "true" ]; then
     printf "[ %s ] Modo simulación activo, no se escribieron cambios en el sistema de archivos.\n" "$(print_blue -b "INFO")"

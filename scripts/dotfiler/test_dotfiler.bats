@@ -186,6 +186,7 @@ YAML
   assert_output_contains_line "$output" "Modo simulación activo, no se escribieron cambios en el sistema de archivos."
   assert_output_contains_line "$output" "[ FIN ]"
   assert_output_contains_line "$output" "Configuración de symlinks finalizada."
+  [[ "$output" =~ [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2}) ]]
 }
 
 @test "successful execution prints final FIN block" {
