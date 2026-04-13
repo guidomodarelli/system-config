@@ -2,10 +2,11 @@
 
 # Completion for cx
 # Supports:
-#   update (as first positional)
+#   upgrade (as first positional)
 #   -m <model>
 #   -re <reasoning>
 #   -c, --commit
+#   --no-mcps
 # Remaining args treated as query tokens.
 
 : "${CX_FZF_HEIGHT:=20%}"   # Altura de fzf (override: export CX_FZF_HEIGHT=40%)
@@ -54,23 +55,24 @@ _cx() {
   local curcontext="$curcontext" state line
   typeset -A opt_args
 
-  # Si ya se eligió 'update' como primer argumento, no sugerir nada más.
-  if [[ ${words[2]} == update ]]; then
+  # Si ya se eligió 'upgrade' como primer argumento, no sugerir nada más.
+  if [[ ${words[2]} == upgrade ]]; then
     return 0
   fi
 
-  # Primera posición: siempre tratada como estado 'first' (para sugerir 'update')
+  # Primera posición: siempre tratada como estado 'first' (para sugerir 'upgrade')
   _arguments -C \
     '1:first arg:->first' \
     '-m[Model to use]:model:_cx_model_select' \
     '-re[Reasoning effort]:effort:_cx_reasoning_select' \
     '(-c --commit)'{-c,--commit}'[Run built-in commit prompt in yolo mode (overrides query)]' \
+    '--no-mcps[Disable MCP servers for this run]' \
     '*:query token:' && return 0
 
   case $state in
     first)
-      # Sugerir 'update'; si el usuario ya escribió algo, se filtra automáticamente.
-      compadd update
+      # Sugerir 'upgrade'; si el usuario ya escribió algo, se filtra automáticamente.
+      compadd upgrade
       return 0
       ;;
   esac

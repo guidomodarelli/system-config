@@ -41,11 +41,12 @@ _cx_disable_mcp_config_args() {
 
 # Unified implementation: cx handles both safe and yolo modes.
 cx() {
-  # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit
+  # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit, --no-mcps
   local model="gpt-5.3-codex"
   local reasoning="medium"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
+  local no_mcps=""
   local rest=()
   local mcp_config_args=()
 
@@ -67,6 +68,10 @@ cx() {
         ;;
       -c|--commit)
         commit=1
+        shift
+        ;;
+      --no-mcps)
+        no_mcps=1
         shift
         ;;
       --yolo)          # internal flag used by cxd
@@ -93,6 +98,14 @@ cx() {
     disable_mcp_config_output="$(_cx_disable_mcp_config_args)"
     yolo=1
     rest=("$commit_prompt")
+    if [[ -n "$disable_mcp_config_output" ]]; then
+      mcp_config_args=("${(@f)disable_mcp_config_output}")
+    else
+      mcp_config_args=()
+    fi
+  elif [[ -n "$no_mcps" ]]; then
+    local disable_mcp_config_output
+    disable_mcp_config_output="$(_cx_disable_mcp_config_args)"
     if [[ -n "$disable_mcp_config_output" ]]; then
       mcp_config_args=("${(@f)disable_mcp_config_output}")
     else

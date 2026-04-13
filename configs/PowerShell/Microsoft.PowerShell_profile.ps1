@@ -70,6 +70,7 @@ function cx {
     $reasoning = 'medium'
     $yolo = $false
     $commitMode = $false
+    $disableMcps = $false
     $rest = New-Object System.Collections.Generic.List[string]
     $mcpConfigArgs = @()
 
@@ -89,6 +90,7 @@ function cx {
             }
             '-c' { $commitMode = $true }
             '--commit' { $commitMode = $true }
+            '--no-mcps' { $disableMcps = $true }
             # Internal-only flag, exposed via `cxd`.
             '--yolo' {
                 $yolo = $true
@@ -113,6 +115,13 @@ function cx {
         $yolo = $true
         $rest.Clear()
         $rest.Add((Get-CxCommitPrompt))
+        if ($disableMcpConfigArgs.Count -gt 0) {
+            $mcpConfigArgs = $disableMcpConfigArgs
+        } else {
+            $mcpConfigArgs = @()
+        }
+    } elseif ($disableMcps) {
+        $disableMcpConfigArgs = Get-CxDisableMcpConfigArgs
         if ($disableMcpConfigArgs.Count -gt 0) {
             $mcpConfigArgs = $disableMcpConfigArgs
         } else {
@@ -159,6 +168,7 @@ if (Get-Command codex -ErrorAction SilentlyContinue) {
             @{ Text = '-re'; List = '-re'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Model reasoning effort' }
             @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Use the built-in commit prompt' }
             @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Use the built-in commit prompt' }
+            @{ Text = '--no-mcps'; List = '--no-mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Disable MCP servers for this run' }
             @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Upgrade Codex via the wrapper' }
         )
         $modelOptions = @(
