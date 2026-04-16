@@ -1,0 +1,113 @@
+# :schema https://developers.openai.com/codex/config-schema.json
+
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+model_provider = "meli"
+personality = "pragmatic"
+service_tier = "fast"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+[model_providers.meli]
+name = "Meli"
+base_url = "https://genai-agentic.melioffice.com/proxy/openai/v1"
+wire_api = "responses"
+env_key = "MELI_API_KEY"
+http_headers = { "X-GenAI-Agentic" = "codex-cli" }
+
+[features]
+# Habilita modos de colaboración como plan mode.Beneficio: ayuda a que Codex
+# trabaje con modos más estructurados para planificar antes de ejecutar.
+collaboration_modes = true
+prevent_idle_sleep = true
+# OpenAI documenta Fast mode como una forma de aumentar velocidad: en GPT-5.4 da
+# aproximadamente 1.5x más velocidad a cambio de 2x consumo de créditos. También
+# indican que hoy está disponible cuando iniciás sesión con ChatGPT, no con API
+# key, y el changelog dice que ya está habilitado por defecto en versiones
+# recientes, con toggle persistente /fast.
+#
+# Mi recomendación: útil para iteración rápida, pero no lo dejaría como apuesta
+# universal si te importa optimizar consumo; mejor usarlo cuando realmente
+# querés latencia baja.
+fast_mode = true
+# =============================================================================
+# Beta features below (use with caution)
+# =============================================================================
+# Sirve para capturar el entorno del shell y acelerar comandos repetidos. La
+# docs la describen como una forma de “snapshot your shell environment to speed
+# up repeated commands”.
+#
+# Beneficia más cuando trabajás en repos con muchos
+# comandos iterativos, shells con bastante inicialización, o sesiones largas.
+#
+# Mi recomendación: sí la usaría en local, salvo que notes comportamientos raros
+# con variables de entorno que cambian mucho durante la sesión.
+shell_snapshot = true
+# Usa la herramienta de ejecución unificada basada en PTY (beta).
+#
+# Activa el exec unificado basado en PTY. Está marcado como Beta. Beneficio
+# esperado: una ejecución de comandos más consistente y cercana a un terminal
+# real, útil en flujos donde el comportamiento interactivo del shell importa. Mi
+# recomendación: vale la pena probarlo, sobre todo si usás mucho terminal dentro
+# de Codex; si todo te funciona bien sin esto, tampoco es imprescindible.
+unified_exec = true
+# ==============================================================================
+# Experimental features below (use with caution)
+# ==============================================================================
+# https://developers.openai.com/codex/multi-agent
+#
+# Activa herramientas de multi-agente como spawn_agent, send_input,
+# resume_agent, wait, close_agent y spawn_agents_on_csv. Las docs aclaran que
+# los flujos multi-agente son experimentales y que hoy la visibilidad está
+# centrada en CLI.
+#
+# Beneficio: paralelizar revisiones complejas, dividir un PR en varios análisis
+# o procesar lotes.
+#
+# Mi recomendación: sí, pero solo si realmente vas a paralelizar trabajo; para
+# uso diario simple, no hace falta. Codex handles orchestration across agents,
+# including spawning new sub-agents, routing follow-up instructions, waiting for
+# results, and closing agent threads.
+multi_agent = true
+default_mode_request_user_input = false
+responses_websockets = false
+js_repl = true
+
+[mcp_servers]
+
+# [mcp_servers.genai_code_review]
+# command = "mcp-remote-proxy"
+# args = ["https://genai-code-review-mcp.melioffice.com/mcp", "--transport", "http"]
+
+[mcp_servers.meli_appsec_codeguard]
+command = "mcp-remote-proxy"
+args = ["https://codeguard-mcp.melioffice.com/mcp", "--transport", "http"]
+enabled = true
+
+[mcp_servers.backend]
+command = "mcp-remote-proxy"
+args = [
+  "https://mcp.melioffice.com/namespaces/backend/mcp",
+  "--transport",
+  "http",
+]
+enabled = true
+
+[mcp_servers.frontender-testing-mcp]
+url = "https://fe-testing-web-mcp.melioffice.com/mcp"
+enabled = true
+
+[mcp_servers.frontender-testing-mcp.tools.start]
+approval_mode = "approve"
+
+[tui]
+theme = "two-dark"
+notifications = ["agent-turn-complete", "user-input-requested", "approval-requested"]
+notification_method = "osc9"
+status_line = ["model-with-reasoning", "context-remaining", "current-dir", "total-input-tokens", "total-output-tokens", "fast-mode"]
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
+
+[plugins."caveman@local-plugins"]
+enabled = true

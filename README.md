@@ -28,12 +28,58 @@ requisitos:
   ```sh
   ./scripts/setup/setup.sh
   ./scripts/dotfiler/dotfiler.sh
+  ./scripts/setup/codex-external-repos.sh install
   ```
 
 3. **Revisa la configuración**: Asegúrate de que todas las herramientas y
    configuraciones se hayan instalado correctamente. Puedes revisar los archivos
    de configuración generados y probar las herramientas instaladas para
    verificar su funcionamiento.
+
+## Base portable de Codex
+
+El repo ahora versiona una base portable de `~/.codex` y `~/.agents` mediante
+`symlinks.yml`. Esto incluye:
+
+- `~/.codex/config.toml`
+- `~/.codex/rules/default.rules`
+- `~/.codex/AGENTS.md`
+- `~/.agents/plugins/marketplace.json`
+- skills locales y system skills ya enlazadas desde el repo
+
+Quedan explícitamente fuera de symlinks por ser estado local o efímero:
+
+- sesiones, logs y snapshots
+- bases SQLite y caches
+- `installation_id`, `history.jsonl`, `session_index.jsonl`
+- `plugins/cache`, `vendor_imports`, `memories`
+- `.codex-global-state.json`
+
+### Aplicar solo los symlinks de la base portable
+
+```sh
+./scripts/dotfiler/dotfiler.sh --dry-run
+./scripts/dotfiler/dotfiler.sh
+```
+
+### Materializar repos externos de Codex
+
+Los repos externos declarados viven en `configs/.codex/external-repos.yml` y se
+gestionan con:
+
+```sh
+./scripts/setup/codex-external-repos.sh list
+./scripts/setup/codex-external-repos.sh install
+./scripts/setup/codex-external-repos.sh update
+```
+
+Comportamiento esperado:
+
+- `caveman` queda disponible a través del marketplace local versionado en
+  `~/.agents/plugins/marketplace.json`, pero su activación final en Codex se
+  mantiene conservadora y puede requerir el paso manual desde la UI.
+- `superpowers` queda activo por descubrimiento nativo de skills mediante el
+  symlink `~/.agents/skills/superpowers -> ~/.codex/superpowers/skills`.
 
 ## Completions dinámicos en Zsh
 

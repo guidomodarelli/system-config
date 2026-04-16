@@ -26,8 +26,14 @@ paths:
       - platform: win32
   - path: .agents/skills/my-skills
     target: .agents/skills
+  - path: .agents/plugins/marketplace.json
+    target: .agents/plugins
   - path: .codex/AGENTS.md
     target: .codex/
+  - path: .codex/config.toml
+    target: .codex
+  - path: .codex/rules/default.rules
+    target: .codex/rules
   - path: .codex/skills/frontend-skill
     target: .codex/skills
   - path: $HOME/.codex/skills/.system
