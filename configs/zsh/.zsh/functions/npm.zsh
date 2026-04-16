@@ -1,11 +1,20 @@
 npm-clean-install() {
-    echo "[npm-clean-install] Removing node_modules if exists..."
-    [ -d node_modules ] && rm -rf node_modules && echo "[npm-clean-install] node_modules removed."
-    echo "[npm-clean-install] Removing package-lock.json if exists..."
-    [ -f package-lock.json ] && rm -rf package-lock.json && echo "[npm-clean-install] package-lock.json removed."
-    echo "[npm-clean-install] Cleaning npm cache..."
+    local log_prefix
+    local log_separator
+    log_prefix="[ $(styleText -b -c cyan "npm-clean-install") ]"
+    log_separator="$(styleText -c gray -- "────────────────────────────────────────────────────────────")"
+
+    print -r -- "${log_separator}"
+    print -r -- "${log_prefix} Starting clean install..."
+    print -r -- "${log_prefix} Removing node_modules if exists..."
+    [ -d node_modules ] && rm -rf node_modules && print -r -- "${log_prefix} $(styleText -b -c yellow "Warning: node_modules removed.")"
+    print -r -- "${log_prefix} Removing package-lock.json if exists..."
+    [ -f package-lock.json ] && rm -rf package-lock.json && print -r -- "${log_prefix} $(styleText -b -c yellow "Warning: package-lock.json removed.")"
+    print -r -- "${log_prefix} Cleaning npm cache..."
     npm cache clean --force
-    echo "[npm-clean-install] Installing dependencies..."
+    print -r -- "${log_separator}"
+    print -r -- "${log_prefix} Installing dependencies..."
     npm install
-    echo "[npm-clean-install] Done."
+    print -r -- "${log_prefix} $(styleText -b -c green "Done.")"
+    print -r -- "${log_separator}"
 }
