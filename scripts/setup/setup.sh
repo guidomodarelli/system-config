@@ -341,6 +341,31 @@ install_java_jdk() {
   java -version || return 1
   sdk current java || return 1
 }
+
+install_dotfiler_symlinks() {
+  bash "$REPO_ROOT/scripts/dotfiler/dotfiler.sh"
+}
+
+run_codex_external_repos_install() {
+  bash "$REPO_ROOT/scripts/setup/codex-external-repos.sh" install
+}
+
+install_codex_external_repos() {
+  install_git
+  install_homebrew
+  install_yq
+  run_codex_external_repos_install
+}
+
+install_codex_portable_base() {
+  install_git
+  install_homebrew
+  install_jq
+  install_yq
+  install_dotfiler_symlinks
+  run_codex_external_repos_install
+}
+
 install_yq() {
   _brew install yq # https://github.com/mikefarah/yq
 }
@@ -416,6 +441,7 @@ main() {
 
   # Fonts
   install_fonts
+
 }
 
 # ─── Interactive Multi-Select Menu ───────────────────────────────────────────
@@ -456,6 +482,7 @@ _initialize_menu_catalog() {
     "Fonts (JetBrains Mono, DejaVu, Cascadia Code)"
     "VS Code"
     "Font: Iosevka Term Curly"
+    "Codex portable base (dotfiler + external repos)"
   )
 
   _MENU_FUNCS=(
@@ -493,9 +520,10 @@ _initialize_menu_catalog() {
     install_fonts
     install_VsCode
     install_font_IosevkaTermCurly
+    install_codex_portable_base
   )
 
-  _MENU_DEFAULT_SELECTED=(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0)
+  _MENU_DEFAULT_SELECTED=(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0)
 }
 
 _reset_menu_selection_to_defaults() {

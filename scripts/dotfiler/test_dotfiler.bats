@@ -189,3 +189,33 @@ BASH
   [ "$status" -eq 2 ]
   [[ "$output$stderr" == *"Configuración inválida"* ]]
 }
+
+@test "portable codex entries create expected symlinks for config, rules and marketplace" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: .codex/config.toml
+    target: .codex
+  - path: .codex/rules/default.rules
+    target: .codex/rules
+  - path: .agents/plugins/marketplace.json
+    target: .agents/plugins
+YAML
+
+  mkdir -p "$REPO_DIR/configs/.codex/rules" "$REPO_DIR/configs/.agents/plugins"
+  printf "model = \"gpt-5.4\"\n" > "$REPO_DIR/configs/.codex/config.toml"
+  printf "rule = allow\n" > "$REPO_DIR/configs/.codex/rules/default.rules"
+  printf '{ "name": "local-plugins" }\n' > "$REPO_DIR/configs/.agents/plugins/marketplace.json"
+
+  run_dotfiler "false" "--quiet --no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/.codex/config.toml" \
+    "$REPO_DIR/configs/.codex/config.toml"
+  assert_symlink_points_to \
+    "$HOME_DIR/.codex/rules/default.rules" \
+    "$REPO_DIR/configs/.codex/rules/default.rules"
+  assert_symlink_points_to \
+    "$HOME_DIR/.agents/plugins/marketplace.json" \
+    "$REPO_DIR/configs/.agents/plugins/marketplace.json"
+}

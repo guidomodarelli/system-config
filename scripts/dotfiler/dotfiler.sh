@@ -58,6 +58,26 @@ is_darwin() {
   return 1 # false
 }
 
+is_path_inside_home() {
+  local path="$1"
+
+  if [[ "$path" == "$HOME" || "$path" == "$HOME/"* ]]; then
+    return 0
+  fi
+
+  return 1
+}
+
+find_nearest_existing_parent() {
+  local path="$1"
+
+  while [ ! -e "$path" ] && [ "$path" != "/" ]; do
+    path="$(dirname "$path")"
+  done
+
+  printf "%s" "$path"
+}
+
 is_wsl() {
   if [ -n "$(grep -i microsoft /proc/version 2>/dev/null)" ] || [ -n "$(grep -i WSL /proc/version 2>/dev/null)" ]; then
     echo "true"
@@ -387,12 +407,14 @@ make_symlink() {
   local command_prefix=''
   local target_dir
   target_dir=$(dirname "$target")
+  local writable_anchor_path
+  writable_anchor_path=$(find_nearest_existing_parent "$target_dir")
 
   if [ "$DRY_RUN" = "true" ]; then
     ((COUNT_SKIPPED++))
   fi
 
-  if [[ ! "$target" =~ "$HOME" ]] || [[ -d "$target_dir" && ! -w "$target_dir" ]] || [[ ! -d "$target_dir" && ! -w "$(dirname "$target_dir")" ]]; then
+  if ! is_path_inside_home "$target" || [[ -d "$target_dir" && ! -w "$target_dir" ]] || [[ ! -d "$target_dir" && ! -w "$writable_anchor_path" ]]; then
     command_prefix='sudo'
     ((COUNT_SUDO_OPERATIONS++))
     log_note_action "Usando permisos elevados para $(printPath "$target")"
