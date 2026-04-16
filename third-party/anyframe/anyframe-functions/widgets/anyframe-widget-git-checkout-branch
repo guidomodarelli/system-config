@@ -1,7 +1,60 @@
-anyframe-source-git-branch -n \
-  | anyframe-selector-auto \
-  | awk '{print $1}' \
-  | anyframe-action-execute git checkout
+local selected_branch_line
+selected_branch_line="$(
+  anyframe-source-git-branch -n \
+    | anyframe-selector-auto
+)"
+
+if [[ -z "$selected_branch_line" ]]; then
+  return 1
+fi
+
+local branch_marker selected_branch_name
+branch_marker="$(printf '%s\n' "$selected_branch_line" | awk '{print $1}')"
+
+if [[ "$branch_marker" == "+" ]]; then
+  selected_branch_name="$(printf '%s\n' "$selected_branch_line" | awk '{print $2}')"
+  local associated_worktree_path current_worktree_path worktree_line
+  associated_worktree_path=""
+  current_worktree_path=""
+  while IFS= read -r worktree_line; do
+    case "$worktree_line" in
+      worktree\ *)
+        current_worktree_path="${worktree_line#worktree }"
+        ;;
+      branch\ refs/heads/*)
+        if [[ "${worktree_line#branch }" == "refs/heads/$selected_branch_name" ]]; then
+          associated_worktree_path="$current_worktree_path"
+          break
+        fi
+        ;;
+    esac
+  done < <(git worktree list --porcelain 2>/dev/null)
+
+  [[ -z "$associated_worktree_path" ]] && associated_worktree_path="(path no disponible)"
+
+  local formatted_branch_name formatted_worktree_path warning_message warning_message_plain
+  if typeset -f styleText >/dev/null 2>&1; then
+    formatted_branch_name="$(styleText -c cyan -i -u "$selected_branch_name")"
+    formatted_worktree_path="$(styleText -c cyan -i -u "$associated_worktree_path")"
+  else
+    formatted_branch_name="$selected_branch_name"
+    formatted_worktree_path="$associated_worktree_path"
+  fi
+
+  warning_message="La branch '${formatted_branch_name}' esta asociada al worktree '${formatted_worktree_path}'; checkout cancelado."
+  warning_message_plain="La branch '${selected_branch_name}' esta asociada al worktree '${associated_worktree_path}'; checkout cancelado."
+
+  if typeset -f logWarn >/dev/null 2>&1; then
+    logWarn "$warning_message" >&2
+  else
+    echo "WARNING: $warning_message_plain" 1>&2
+  fi
+
+  return 0
+fi
+
+selected_branch_name="$branch_marker"
+printf '%s\n' "$selected_branch_name" | anyframe-action-execute git checkout
 
 # Local Variables:
 # mode: Shell-Script
