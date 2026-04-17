@@ -59,6 +59,8 @@ function Get-CxDisableMcpConfigArgs {
 
 # Unified implementation: cx handles both safe and yolo modes.
 function cx {
+    Clear-Host
+
     $cliArgs = @($args)
 
     if ($cliArgs.Count -gt 0 -and $cliArgs[0] -eq 'upgrade') {

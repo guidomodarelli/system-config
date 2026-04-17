@@ -23,3 +23,11 @@
 
 - Español para contenido orientado a personas.
 - Inglés para elementos técnicos ejecutables o de implementación.
+
+## Regla Específica Para `cx` Y `cxd` (Mandatorio)
+
+- Si una solicitud menciona `cx` o `cxd`, el agente debe verificar SIEMPRE ambos contextos antes de cerrar el trabajo:
+  - `PowerShell`: `configs/PowerShell/Microsoft.PowerShell_profile.ps1`
+  - `zsh`: `configs/zsh/.zsh/functions/codex.zsh`
+- No se permite dar por finalizado un cambio sobre `cx`/`cxd` si solo se revisó un shell.
+- La respuesta final debe indicar explícitamente que se verificó `PowerShell` y `zsh`, incluso cuando el cambio se aplique en un solo archivo.
