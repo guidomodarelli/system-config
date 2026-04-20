@@ -25,33 +25,64 @@ function Get-CxCommitPrompt {
 # Returns `-c` overrides to disable all configured MCP servers for the current run.
 function Get-CxDisableMcpConfigArgs {
     $disableArgs = New-Object System.Collections.Generic.List[string]
-    $mcpListOutput = & codex mcp list 2>$null
+    $seenConfigKeys = @{}
+    $mcpListJson = & codex mcp list --json 2>$null
 
+    if ($mcpListJson) {
+        try {
+            $mcpServers = $mcpListJson | ConvertFrom-Json
+        } catch {
+            $mcpServers = @()
+        }
+
+        foreach ($server in $mcpServers) {
+            if ($null -eq $server -or [string]::IsNullOrWhiteSpace($server.name)) { continue }
+            if ($server.enabled -eq $false) { continue }
+
+            $configKey = "mcp_servers.$($server.name).enabled=false"
+            $transportCwd = $server.transport.cwd
+            if (-not [string]::IsNullOrWhiteSpace($transportCwd)) {
+                $normalizedCwd = ($transportCwd -replace '\\', '/')
+                $pluginPathPattern = '/plugins/cache/(?<marketplace>[^/]+)/(?<plugin>[^/]+)/'
+                if ($normalizedCwd -match $pluginPathPattern) {
+                    $pluginId = "$($Matches['plugin'])@$($Matches['marketplace'])"
+                    $configKey = "plugins.`"$pluginId`".enabled=false"
+                }
+            }
+
+            if (-not $seenConfigKeys.ContainsKey($configKey)) {
+                $seenConfigKeys[$configKey] = $true
+                $disableArgs.Add('-c')
+                $disableArgs.Add($configKey)
+            }
+        }
+
+        return $disableArgs.ToArray()
+    }
+
+    $mcpListOutput = & codex mcp list 2>$null
     if (-not $mcpListOutput) {
         return @()
     }
 
     $serverNames = New-Object System.Collections.Generic.List[string]
-
     foreach ($line in $mcpListOutput) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         if ($line -match '^\s*Name\s+') { continue }
         if ($line -match '^\s*-+\s*$') { continue }
         if ($line -match '^\s*No\s+MCP\s+servers?.*$') { continue }
-
-        # Accept only table-like lines with a known transport in column 2.
-        # This avoids parsing informational rows like "No MCP servers configured".
         if ($line -match '^\s*(?<name>[A-Za-z0-9._-]+)\s+(?<transport>stdio|sse|http|https|ws|wss|streamable_http)\b') {
-            $serverName = $Matches['name']
-            if (-not [string]::IsNullOrWhiteSpace($serverName)) {
-                $serverNames.Add($serverName)
-            }
+            $serverNames.Add($Matches['name'])
         }
     }
 
     foreach ($serverName in ($serverNames | Select-Object -Unique)) {
-        $disableArgs.Add('-c')
-        $disableArgs.Add("mcp_servers.$serverName.enabled=false")
+        $configKey = "mcp_servers.$serverName.enabled=false"
+        if (-not $seenConfigKeys.ContainsKey($configKey)) {
+            $seenConfigKeys[$configKey] = $true
+            $disableArgs.Add('-c')
+            $disableArgs.Add($configKey)
+        }
     }
 
     return $disableArgs.ToArray()

@@ -16,22 +16,50 @@ _cx_commit_prompt() {
 # Returns `-c` overrides to disable all configured MCP servers for the current run.
 _cx_disable_mcp_config_args() {
   local -a disable_args
-  local server_name
+  local server_name plugin_id config_key
+  typeset -A seen_config_keys
 
-  while IFS= read -r server_name; do
+  while IFS=$'\t' read -r server_name plugin_id; do
     [[ -z "$server_name" ]] && continue
-    disable_args+=(-c "mcp_servers.${server_name}.enabled=false")
+
+    if [[ -n "$plugin_id" ]]; then
+      config_key="plugins.\"${plugin_id}\".enabled=false"
+    else
+      config_key="mcp_servers.${server_name}.enabled=false"
+    fi
+
+    if [[ -z "${seen_config_keys[$config_key]}" ]]; then
+      disable_args+=(-c "$config_key")
+      seen_config_keys[$config_key]=1
+    fi
   done < <(
     if command -v jq >/dev/null 2>&1; then
       command codex mcp list --json 2>/dev/null \
-        | command jq -r '.[] | select(.name != null and (.enabled != false)) | .name' 2>/dev/null \
-        | awk '!seen[$0]++'
+        | command jq -r '
+            .[]
+            | select(.name != null and (.enabled != false))
+            | (.transport.cwd // "") as $transport_cwd
+            | ($transport_cwd | split("/")) as $cwd_parts
+            | ($cwd_parts | index("cache")) as $cache_index
+            | (
+                if ($cache_index != null) and (($cwd_parts | length) > ($cache_index + 2))
+                then ($cwd_parts[$cache_index + 2] + "@" + $cwd_parts[$cache_index + 1])
+                else ""
+                end
+              ) as $plugin_id
+            | [
+                .name,
+                $plugin_id
+              ]
+            | @tsv
+          ' 2>/dev/null \
+        | awk -F'\t' '!seen[$1]++'
     else
       command codex mcp list 2>/dev/null | awk '
         /^[[:space:]]*$/ { next }
         /^[[:space:]]*Name[[:space:]]+/ { next }
         /^[[:space:]]*-+[[:space:]]*$/ { next }
-        !seen[$1]++ { print $1 }
+        !seen[$1]++ { print $1 "\t" }
       '
     fi
   )
