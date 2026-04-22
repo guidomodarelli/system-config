@@ -17,7 +17,10 @@ _cx_commit_prompt() {
 _cx_disable_mcp_config_args() {
   local -a disable_args
   local server_name plugin_id config_key
+  local mcp_list_json=""
   typeset -A seen_config_keys
+
+  mcp_list_json="$(command codex mcp list --json 2>/dev/null)"
 
   while IFS=$'\t' read -r server_name plugin_id; do
     [[ -z "$server_name" ]] && continue
@@ -33,8 +36,8 @@ _cx_disable_mcp_config_args() {
       seen_config_keys[$config_key]=1
     fi
   done < <(
-    if command -v jq >/dev/null 2>&1; then
-      command codex mcp list --json 2>/dev/null \
+    if [[ -n "$mcp_list_json" ]] && command -v jq >/dev/null 2>&1; then
+      print -r -- "$mcp_list_json" \
         | command jq -r '
             .[]
             | select(.name != null and (.enabled != false))
@@ -54,12 +57,62 @@ _cx_disable_mcp_config_args() {
             | @tsv
           ' 2>/dev/null \
         | awk -F'\t' '!seen[$1]++'
+    elif [[ -n "$mcp_list_json" ]] && command -v node >/dev/null 2>&1; then
+      print -r -- "$mcp_list_json" \
+        | command node -e '
+            const fs = require("fs");
+            const raw = fs.readFileSync(0, "utf8").trim();
+            if (!raw) process.exit(0);
+            let parsed;
+            try {
+              parsed = JSON.parse(raw);
+            } catch {
+              process.exit(0);
+            }
+            const servers = Array.isArray(parsed) ? parsed : [];
+            const seen = new Set();
+            const pluginPattern = /\/plugins\/cache\/([^/]+)\/([^/]+)\//;
+            for (const server of servers) {
+              if (!server || !server.name || server.enabled === false) continue;
+              const cwd = String(server?.transport?.cwd ?? "").replace(/\\/g, "/");
+              let pluginId = "";
+              const match = cwd.match(pluginPattern);
+              if (match) {
+                pluginId = `${match[2]}@${match[1]}`;
+              }
+              const dedupeKey = `${server.name}\t${pluginId}`;
+              if (seen.has(dedupeKey)) continue;
+              seen.add(dedupeKey);
+              process.stdout.write(`${server.name}\t${pluginId}\n`);
+            }
+          ' 2>/dev/null
     else
       command codex mcp list 2>/dev/null | awk '
         /^[[:space:]]*$/ { next }
         /^[[:space:]]*Name[[:space:]]+/ { next }
         /^[[:space:]]*-+[[:space:]]*$/ { next }
-        !seen[$1]++ { print $1 "\t" }
+        /^[[:space:]]*No[[:space:]]+MCP[[:space:]]+servers?.*$/ { next }
+        {
+          server_name = $1
+          if (server_name == "" || server_name == "Name") {
+            next
+          }
+
+          plugin_id = ""
+          if (index($0, "/plugins/cache/") > 0) {
+            split($0, path_split, "/plugins/cache/")
+            tail_path = path_split[2]
+            split(tail_path, plugin_parts, "/")
+            if (plugin_parts[1] != "" && plugin_parts[2] != "") {
+              plugin_id = plugin_parts[2] "@" plugin_parts[1]
+            }
+          }
+
+          dedupe_key = server_name "\t" plugin_id
+          if (!seen[dedupe_key]++) {
+            print dedupe_key
+          }
+        }
       '
     fi
   )
