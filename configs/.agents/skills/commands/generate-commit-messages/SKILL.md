@@ -30,5 +30,22 @@ Collect the information required to draft and apply a high-quality commit messag
 ## Style Constraints
 
 - Keep everything concrete and repository-specific.
+- Use conventional commit style semantics, but omit the type prefix.
+  Example: write «add new feature» instead of «feat: add new feature».
+- Do not include issue numbers in the title or description.
+- Use imperative mood for the commit title and body where applicable.
+  Examples: «add feature», «fix bug», «update docs».
 - If referring to identifiers, use «identifier».
+- When mentioning functions or variables, wrap their names with «...».
+  Example: «update function «myFunction» to handle edge cases».
+- If a variable starts with «$», escape it with a backslash.
+  Example: «fix issue with \$var when it is null».
 - Replace backticks with «...».
+
+## Message Format
+
+- Always include a commit title followed by a blank line and a detailed description.
+- The description must explain:
+  - The reasoning behind the changes.
+  - Important implementation details.
+  - Potential impacts.
