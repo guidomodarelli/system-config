@@ -1,5 +1,10 @@
-# Absolute repository root resolved via git.
-REPO_ROOT="$(command git rev-parse --show-toplevel)"
+# Absolute repository root resolved via git anchored to this wrapper location.
+_cx_wrapper_dir="${(%):-%x}"
+_cx_wrapper_dir="${_cx_wrapper_dir:A:h}"
+REPO_ROOT="$(command git -C "${_cx_wrapper_dir}" rev-parse --show-toplevel 2>/dev/null)"
+if [[ -z "${REPO_ROOT}" ]]; then
+  REPO_ROOT="${_cx_wrapper_dir:h:h:h:h}"
+fi
 REPO_ROOT="${REPO_ROOT:A}"
 
 # Returns the built-in prompt used by `cx --commit`.
