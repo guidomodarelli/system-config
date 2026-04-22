@@ -1,4 +1,6 @@
 paths:
+  - path: .agents/skills/commands
+    target: .agents/skills
   - path: excluded-file
     target: linked-files
     excludeFor:

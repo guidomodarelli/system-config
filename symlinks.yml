@@ -26,6 +26,8 @@ paths:
       - platform: win32
   - path: .agents/skills/my-skills
     target: .agents/skills
+  - path: .agents/skills/commands
+    target: .agents/skills
   - path: .agents/plugins/marketplace.json
     target: .agents/plugins
   - path: .codex/AGENTS.md

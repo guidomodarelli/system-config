@@ -27,6 +27,9 @@ teardown() {
   run_dotfiler "false"
 
   [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/.agents/skills/commands" \
+    "$REPO_DIR/configs/.agents/skills/commands"
   assert_path_missing "$HOME_DIR/linked-files/excluded-file"
   assert_symlink_points_to \
     "$HOME_DIR/linked-files/included-file" \
@@ -190,7 +193,7 @@ BASH
   [[ "$output$stderr" == *"Configuración inválida"* ]]
 }
 
-@test "portable codex entries create expected symlinks for config, rules and marketplace" {
+@test "portable codex entries create expected symlinks for config, rules, marketplace and commands skills" {
   cat > "$REPO_DIR/symlinks.yml" <<'YAML'
 paths:
   - path: .codex/config.toml
@@ -199,12 +202,15 @@ paths:
     target: .codex/rules
   - path: .agents/plugins/marketplace.json
     target: .agents/plugins
+  - path: .agents/skills/commands
+    target: .agents/skills
 YAML
 
-  mkdir -p "$REPO_DIR/configs/.codex/rules" "$REPO_DIR/configs/.agents/plugins"
+  mkdir -p "$REPO_DIR/configs/.codex/rules" "$REPO_DIR/configs/.agents/plugins" "$REPO_DIR/configs/.agents/skills/commands"
   printf "model = \"gpt-5.4\"\n" > "$REPO_DIR/configs/.codex/config.toml"
   printf "rule = allow\n" > "$REPO_DIR/configs/.codex/rules/default.rules"
   printf '{ "name": "local-plugins" }\n' > "$REPO_DIR/configs/.agents/plugins/marketplace.json"
+  printf "skills docs\n" > "$REPO_DIR/configs/.agents/skills/commands/README.md"
 
   run_dotfiler "false" "--quiet --no-color"
 
@@ -218,4 +224,7 @@ YAML
   assert_symlink_points_to \
     "$HOME_DIR/.agents/plugins/marketplace.json" \
     "$REPO_DIR/configs/.agents/plugins/marketplace.json"
+  assert_symlink_points_to \
+    "$HOME_DIR/.agents/skills/commands" \
+    "$REPO_DIR/configs/.agents/skills/commands"
 }
