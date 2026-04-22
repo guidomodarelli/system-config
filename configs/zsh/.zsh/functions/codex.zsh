@@ -1,8 +1,11 @@
+# Absolute repository root resolved via git.
+REPO_ROOT="$(command git rev-parse --show-toplevel)"
+REPO_ROOT="${REPO_ROOT:A}"
+
 # Returns the built-in prompt used by `cx --commit`.
 _cx_commit_prompt() {
-  local script_dir prompt_file
-  script_dir="${${(%):-%x}:A:h}"
-  prompt_file="${script_dir}/../../../.codex/commit_prompt.md"
+  local prompt_file
+  prompt_file="${REPO_ROOT}/configs/.agents/skills/commands/generate-commit-messages/SKILL.md"
   prompt_file="${prompt_file:A}"
 
   if [[ -r "$prompt_file" ]]; then
@@ -205,7 +208,12 @@ cx() {
   else
     cmd+=(--sandbox workspace-write --ask-for-approval on-failure)
   fi
-  cmd+=(--search "${rest[@]}")
+  if (( ${#rest[@]} > 0 )); then
+    # Ensure prompts that start with "-" are treated as positional payload.
+    cmd+=(--search -- "${rest[@]}")
+  else
+    cmd+=(--search)
+  fi
   echo "Running: ${cmd[*]}"
   "${cmd[@]}"
 }

@@ -8,12 +8,14 @@
 function global:grep { & grep.exe --color=auto --exclude-dir=".bzr" --exclude-dir="CVS" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" --exclude-dir=".idea" --exclude-dir=".tox" --exclude-dir=".venv" --exclude-dir="venv" $args }
 function rg { & rg.exe --glob "!.git/*" $args }
 
+# Absolute repository root resolved via git.
+$script:REPO_ROOT = (& git rev-parse --show-toplevel)
+
 # --- Codex unified (replica de lógica Zsh) ------------------------------------
 
 # Returns the built-in prompt used by `cx --commit`.
 function Get-CxCommitPrompt {
-    $configsDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-    $promptFile = Join-Path $configsDir '.codex/commit_prompt.md'
+    $promptFile = Join-Path $script:REPO_ROOT 'configs/.agents/skills/commands/generate-commit-messages/SKILL.md'
 
     if (-not (Test-Path -LiteralPath $promptFile)) {
         throw "Commit prompt file not found: $promptFile"
@@ -172,6 +174,8 @@ function cx {
         $cmd += @('--sandbox','workspace-write','--ask-for-approval','on-failure')
     }
     if ($rest.Count -gt 0) {
+        # Ensure prompts that start with "-" are treated as positional payload.
+        $cmd += '--'
         $cmd += $rest.ToArray()
     }
 
