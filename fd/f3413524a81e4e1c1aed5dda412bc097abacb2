@@ -1,0 +1,14 @@
+configs/.codex/config.toml
+  h_29e92ef55269d8 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "fdf3413524a81e4e1c1aed5dda412bc097abacb2",
+  "prompts": {},
+  "humans": {
+    "h_29e92ef55269d8": {
+      "author": "guidomodarelli"
+    }
+  }
+}
