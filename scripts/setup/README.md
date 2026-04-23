@@ -39,45 +39,6 @@ chmod +x scripts/setup/setup.sh
 ./scripts/setup/setup.sh
 ```
 
-### Base portable de Codex y repos externos
-
-Si quieres aplicar la base portable versionada de Codex sin correr todo el
-setup interactivo, tienes estas rutas:
-
-```bash
-./scripts/dotfiler/dotfiler.sh --dry-run
-./scripts/dotfiler/dotfiler.sh
-./scripts/setup/codex-external-repos.sh list
-./scripts/setup/codex-external-repos.sh install
-./scripts/setup/codex-external-repos.sh update
-```
-
-También puedes invocarlo desde `setup.sh` como función puntual:
-
-```bash
-./scripts/setup/setup.sh install_codex_portable_base
-./scripts/setup/setup.sh install_codex_external_repos
-```
-
-La base portable incluye:
-
-- `~/.codex/config.toml`
-- `~/.codex/rules/default.rules`
-- `~/.agents/plugins/marketplace.json`
-
-Quedan fuera por ser estado local o efímero:
-
-- sesiones, logs, sqlite y snapshots
-- caches de plugins y vendor imports
-- IDs e historiales locales de Codex
-
-Notas operativas:
-
-- `caveman` se publica vía marketplace local y puede requerir activación manual
-  en Codex.
-- `superpowers` se habilita por descubrimiento nativo mediante
-  `~/.agents/skills/superpowers`.
-
 ### Selector interactivo
 
 - Si `fzf` está disponible, el setup abre un selector buscable con selección múltiple.
@@ -91,7 +52,6 @@ Notas operativas:
 
 ```bash
 ./scripts/setup/setup.sh install_zsh
-./scripts/setup/setup.sh install_codex_portable_base
 ```
 
 ## Uso en Linux
