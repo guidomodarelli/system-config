@@ -1,7 +1,7 @@
 # :schema https://developers.openai.com/codex/config-schema.json
 
 model = "gpt-5.4"
-model_reasoning_effort = "high"
+model_reasoning_effort = "medium"
 model_provider = "meli"
 personality = "pragmatic"
 service_tier = "fast"
@@ -109,5 +109,19 @@ status_line = ["model-with-reasoning", "context-remaining", "current-dir", "tota
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
 
-[plugins."caveman@local-plugins"]
-enabled = true
+[tui]
+notification_method = "osc9"
+notifications = [
+    "agent-turn-complete",
+    "user-input-requested",
+    "approval-requested",
+]
+status_line = [
+    "model-with-reasoning",
+    "context-remaining",
+    "current-dir",
+    "total-input-tokens",
+    "total-output-tokens",
+    "fast-mode",
+]
+theme = "two-dark"
