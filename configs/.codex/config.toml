@@ -3,7 +3,6 @@
 model = "gpt-5.5"
 model_reasoning_effort = "medium"
 personality = "pragmatic"
-service_tier = "fast"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
@@ -64,7 +63,6 @@ multi_agent = true
 default_mode_request_user_input = false
 responses_websockets = false
 js_repl = true
-
 
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
