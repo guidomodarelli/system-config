@@ -2,7 +2,6 @@
 
 model = "gpt-5.5"
 model_reasoning_effort = "medium"
-model_provider = "meli"
 personality = "pragmatic"
 service_tier = "fast"
 approval_policy = "never"
