@@ -1,19 +1,12 @@
 # :schema https://developers.openai.com/codex/config-schema.json
 
-model = "gpt-5.4"
+model = "gpt-5.5"
 model_reasoning_effort = "medium"
 model_provider = "meli"
 personality = "pragmatic"
 service_tier = "fast"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
-
-[model_providers.meli]
-name = "Meli"
-base_url = "https://genai-agentic.melioffice.com/proxy/openai/v1"
-wire_api = "responses"
-env_key = "MELI_API_KEY"
-http_headers = { "X-GenAI-Agentic" = "codex-cli" }
 
 [features]
 # Habilita modos de colaboración como plan mode.Beneficio: ayuda a que Codex
@@ -73,38 +66,6 @@ default_mode_request_user_input = false
 responses_websockets = false
 js_repl = true
 
-[mcp_servers]
-
-# [mcp_servers.genai_code_review]
-# command = "mcp-remote-proxy"
-# args = ["https://genai-code-review-mcp.melioffice.com/mcp", "--transport", "http"]
-
-[mcp_servers.meli_appsec_codeguard]
-command = "mcp-remote-proxy"
-args = ["https://codeguard-mcp.melioffice.com/mcp", "--transport", "http"]
-enabled = true
-
-[mcp_servers.backend]
-command = "mcp-remote-proxy"
-args = [
-  "https://mcp.melioffice.com/namespaces/backend/mcp",
-  "--transport",
-  "http",
-]
-enabled = true
-
-[mcp_servers.frontender-testing-mcp]
-url = "https://fe-testing-web-mcp.melioffice.com/mcp"
-enabled = true
-
-[mcp_servers.frontender-testing-mcp.tools.start]
-approval_mode = "approve"
-
-[tui]
-theme = "two-dark"
-notifications = ["agent-turn-complete", "user-input-requested", "approval-requested"]
-notification_method = "osc9"
-status_line = ["model-with-reasoning", "context-remaining", "current-dir", "total-input-tokens", "total-output-tokens", "fast-mode"]
 
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
@@ -125,3 +86,6 @@ status_line = [
     "fast-mode",
 ]
 theme = "two-dark"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
