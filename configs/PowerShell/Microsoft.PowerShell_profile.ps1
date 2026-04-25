@@ -104,7 +104,7 @@ function cx {
         return
     }
 
-    $model = 'gpt-5.4'
+    $model = 'gpt-5.5'
     $reasoning = 'medium'
     $yolo = $false
     $commitMode = $false
@@ -212,6 +212,7 @@ if (Get-Command codex -ErrorAction SilentlyContinue) {
             @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Upgrade Codex via the wrapper' }
         )
         $modelOptions = @(
+            'gpt-5.5',
             'gpt-5.4',
             'gpt-5.4-mini',
             'gpt-5.3-codex'

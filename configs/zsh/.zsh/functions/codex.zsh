@@ -133,7 +133,7 @@ cx() {
   clear
 
   # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit, --no-mcps
-  local model="gpt-5.3-codex"
+  local model="gpt-5.5"
   local reasoning="medium"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
