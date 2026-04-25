@@ -301,6 +301,52 @@ function Get-SetupMenuDisplayLabel {
   return $menuItem.Label
 }
 
+function New-SetupMenuRowSegment {
+  param (
+    [string]$Text,
+    [ConsoleColor]$ForegroundColor = [Console]::ForegroundColor,
+    [ConsoleColor]$BackgroundColor = [Console]::BackgroundColor
+  )
+
+  return [PSCustomObject]@{
+    Text = $Text
+    ForegroundColor = $ForegroundColor
+    BackgroundColor = $BackgroundColor
+  }
+}
+
+function Get-SetupMenuRowSegments {
+  param (
+    [PSCustomObject]$menuItem,
+    [bool]$IsSelected,
+    [bool]$IsCursor
+  )
+
+  $foregroundColor = if ($IsCursor) { [ConsoleColor]::Black } else { [Console]::ForegroundColor }
+  $backgroundColor = if ($IsCursor) { [ConsoleColor]::Gray } else { [Console]::BackgroundColor }
+  $cursorMarker = if ($IsCursor) { '>' } else { ' ' }
+  $selectionMarker = if ($IsSelected) { 'x' } else { ' ' }
+  $cursorMarkerColor = if ($IsCursor) { [ConsoleColor]::Black } else { $foregroundColor }
+
+  $segments = @(
+    New-SetupMenuRowSegment -Text ' ' -ForegroundColor $foregroundColor -BackgroundColor $backgroundColor
+    New-SetupMenuRowSegment -Text $cursorMarker -ForegroundColor $cursorMarkerColor -BackgroundColor $backgroundColor
+    New-SetupMenuRowSegment -Text ' ' -ForegroundColor $foregroundColor -BackgroundColor $backgroundColor
+    New-SetupMenuRowSegment -Text '[' -ForegroundColor $foregroundColor -BackgroundColor $backgroundColor
+    New-SetupMenuRowSegment -Text $selectionMarker -ForegroundColor DarkGreen -BackgroundColor $backgroundColor
+    New-SetupMenuRowSegment -Text '] ' -ForegroundColor $foregroundColor -BackgroundColor $backgroundColor
+  )
+
+  if ($menuItem.DefaultSelected) {
+    $segments += New-SetupMenuRowSegment -Text '@' -ForegroundColor DarkYellow -BackgroundColor $backgroundColor
+    $segments += New-SetupMenuRowSegment -Text " $($menuItem.Label)" -ForegroundColor $foregroundColor -BackgroundColor $backgroundColor
+  } else {
+    $segments += New-SetupMenuRowSegment -Text $menuItem.Label -ForegroundColor $foregroundColor -BackgroundColor $backgroundColor
+  }
+
+  return $segments
+}
+
 function Get-DefaultSetupMenuIndexes {
   param (
     [PSCustomObject[]]$menuCatalog
@@ -316,6 +362,127 @@ function Get-DefaultSetupMenuIndexes {
   return ,$selectedIndexes
 }
 
+function Write-SetupMenuRow {
+  param (
+    [PSCustomObject]$menuItem,
+    [bool]$IsSelected,
+    [bool]$IsCursor
+  )
+
+  Write-ClearedSetupMenuLineStart
+  $rowSegments = Get-SetupMenuRowSegments -menuItem $menuItem -IsSelected $IsSelected -IsCursor $IsCursor
+  foreach ($rowSegment in $rowSegments) {
+    Write-Host $rowSegment.Text -ForegroundColor $rowSegment.ForegroundColor -BackgroundColor $rowSegment.BackgroundColor -NoNewline
+  }
+  Write-Host ''
+}
+
+function New-SetupMenuReferenceRow {
+  param (
+    [string]$Shortcut,
+    [string]$Description,
+    [ConsoleColor]$ShortcutColor = [ConsoleColor]::DarkCyan
+  )
+
+  return [PSCustomObject]@{
+    Shortcut = $Shortcut
+    Description = $Description
+    ShortcutColor = $ShortcutColor
+  }
+}
+
+function Get-SetupMenuReferenceRows {
+  return @(
+    New-SetupMenuReferenceRow -Shortcut 'Arriba/Abajo/j/k' -Description 'navegar'
+    New-SetupMenuReferenceRow -Shortcut 'PgUp/PgDn/Home/End' -Description 'saltar'
+    New-SetupMenuReferenceRow -Shortcut '/' -Description 'buscar'
+    New-SetupMenuReferenceRow -Shortcut 'ESPACIO' -Description 'alternar'
+    New-SetupMenuReferenceRow -Shortcut 'a' -Description 'alternar todo'
+    New-SetupMenuReferenceRow -Shortcut 'r' -Description 'restaurar defaults'
+    New-SetupMenuReferenceRow -Shortcut 'ENTER' -Description 'confirmar'
+    New-SetupMenuReferenceRow -Shortcut 'q/ESC/Ctrl+C' -Description 'cancelar'
+  )
+}
+
+function Get-SetupMenuDefaultMarkerSegments {
+  return @(
+    New-SetupMenuRowSegment -Text '  '
+    New-SetupMenuRowSegment -Text '@' -ForegroundColor DarkYellow
+    New-SetupMenuRowSegment -Text ' seleccionado por defecto'
+  )
+}
+
+function Write-SetupMenuDefaultMarkerLegend {
+  Write-ClearedSetupMenuLineStart
+  $defaultMarkerSegments = Get-SetupMenuDefaultMarkerSegments
+  foreach ($defaultMarkerSegment in $defaultMarkerSegments) {
+    Write-Host $defaultMarkerSegment.Text -ForegroundColor $defaultMarkerSegment.ForegroundColor -BackgroundColor $defaultMarkerSegment.BackgroundColor -NoNewline
+  }
+  Write-Host ''
+}
+
+function Get-SetupMenuReferenceFrameColor {
+  return [ConsoleColor]::DarkMagenta
+}
+
+function Write-SetupMenuReferenceFrameLine {
+  param (
+    [string]$Text
+  )
+
+  Write-Host $Text -ForegroundColor (Get-SetupMenuReferenceFrameColor)
+}
+
+function Write-SetupMenuReference {
+  Write-Host ''
+  Write-SetupMenuReferenceFrameLine -Text '  +--------------------+--------------------------+'
+  Write-SetupMenuReferenceFrameLine -Text '  | Atajos del menu                               |'
+  Write-SetupMenuReferenceFrameLine -Text '  +--------------------+--------------------------+'
+
+  foreach ($referenceRow in Get-SetupMenuReferenceRows) {
+    Write-Host '  | ' -ForegroundColor (Get-SetupMenuReferenceFrameColor) -NoNewline
+    Write-Host ('{0,-18}' -f $referenceRow.Shortcut) -ForegroundColor $referenceRow.ShortcutColor -NoNewline
+    Write-Host ' | ' -ForegroundColor (Get-SetupMenuReferenceFrameColor) -NoNewline
+    Write-Host ('{0,-24}' -f $referenceRow.Description) -NoNewline
+    Write-Host ' |' -ForegroundColor (Get-SetupMenuReferenceFrameColor)
+  }
+
+  Write-SetupMenuReferenceFrameLine -Text '  +--------------------+--------------------------+'
+  Write-Host ''
+}
+
+function Get-SetupMenuRangeSegments {
+  param (
+    [int]$FirstVisibleItemNumber,
+    [int]$LastVisibleItemNumber,
+    [int]$TotalItemCount
+  )
+
+  return @(
+    New-SetupMenuRowSegment -Text '  Elementos '
+    New-SetupMenuRowSegment -Text $FirstVisibleItemNumber -ForegroundColor DarkCyan
+    New-SetupMenuRowSegment -Text '-'
+    New-SetupMenuRowSegment -Text $LastVisibleItemNumber -ForegroundColor DarkCyan
+    New-SetupMenuRowSegment -Text ' de '
+    New-SetupMenuRowSegment -Text $TotalItemCount -ForegroundColor DarkCyan
+  )
+}
+
+function Write-SetupMenuRange {
+  param (
+    [int]$FirstVisibleItemNumber,
+    [int]$LastVisibleItemNumber,
+    [int]$TotalItemCount
+  )
+
+  Write-ClearedSetupMenuLineStart
+  $rangeSegments = Get-SetupMenuRangeSegments -FirstVisibleItemNumber $FirstVisibleItemNumber -LastVisibleItemNumber $LastVisibleItemNumber -TotalItemCount $TotalItemCount
+  foreach ($rangeSegment in $rangeSegments) {
+    Write-Host $rangeSegment.Text -ForegroundColor $rangeSegment.ForegroundColor -BackgroundColor $rangeSegment.BackgroundColor -NoNewline
+  }
+  Write-Host ''
+}
+
 function Write-ClassicSetupMenu {
   param (
     [PSCustomObject[]]$menuCatalog,
@@ -326,7 +493,8 @@ function Write-ClassicSetupMenu {
   )
 
   $windowEndIndex = $windowStartIndex + $visibleItemCount
-  Write-ClearedSetupMenuLine -text ("  Elementos {0}-{1} de {2}" -f ($windowStartIndex + 1), $windowEndIndex, $menuCatalog.Count)
+  Write-SetupMenuRange -FirstVisibleItemNumber ($windowStartIndex + 1) -LastVisibleItemNumber $windowEndIndex -TotalItemCount $menuCatalog.Count
+  Write-SetupMenuDefaultMarkerLegend
 
   if ($windowStartIndex -gt 0) {
     Write-ClearedSetupMenuLine -text '  Hay mas elementos arriba'
@@ -335,15 +503,7 @@ function Write-ClassicSetupMenu {
   }
 
   for ($menuIndex = $windowStartIndex; $menuIndex -lt $windowEndIndex; $menuIndex++) {
-    $selectionMarker = if ($selectedIndexes.Contains($menuIndex)) { 'x' } else { ' ' }
-    $cursorMarker = if ($menuIndex -eq $cursorIndex) { '>' } else { ' ' }
-    $displayLabel = Get-SetupMenuDisplayLabel -menuItem $menuCatalog[$menuIndex]
-
-    if ($menuIndex -eq $cursorIndex) {
-      Write-ClearedSetupMenuLine -text (" {0} [{1}] {2}" -f $cursorMarker, $selectionMarker, $displayLabel) -ForegroundColor Black -BackgroundColor Gray
-    } else {
-      Write-ClearedSetupMenuLine -text (" {0} [{1}] {2}" -f $cursorMarker, $selectionMarker, $displayLabel)
-    }
+    Write-SetupMenuRow -menuItem $menuCatalog[$menuIndex] -IsSelected $selectedIndexes.Contains($menuIndex) -IsCursor ($menuIndex -eq $cursorIndex)
   }
 
   if ($windowEndIndex -lt $menuCatalog.Count) {
@@ -351,6 +511,42 @@ function Write-ClassicSetupMenu {
   } else {
     Write-ClearedSetupMenuLine -text ''
   }
+}
+
+function Get-ClassicSetupMenuItemRowOffset {
+  param (
+    [int]$menuIndex,
+    [int]$windowStartIndex
+  )
+
+  return 3 + ($menuIndex - $windowStartIndex)
+}
+
+function Test-ClassicSetupMenuRequiresFullRender {
+  param (
+    [int]$previousWindowStartIndex,
+    [int]$windowStartIndex,
+    [int]$previousVisibleItemCount,
+    [int]$visibleItemCount,
+    [bool]$ForceFullRender
+  )
+
+  return $ForceFullRender -or $previousWindowStartIndex -ne $windowStartIndex -or $previousVisibleItemCount -ne $visibleItemCount
+}
+
+function Write-ClassicSetupMenuItemRowAt {
+  param (
+    [PSCustomObject[]]$menuCatalog,
+    [System.Collections.Generic.HashSet[int]]$selectedIndexes,
+    [int]$menuIndex,
+    [int]$cursorIndex,
+    [int]$windowStartIndex,
+    [int]$menuTop
+  )
+
+  $rowTop = $menuTop + (Get-ClassicSetupMenuItemRowOffset -menuIndex $menuIndex -windowStartIndex $windowStartIndex)
+  [Console]::SetCursorPosition(0, $rowTop)
+  Write-SetupMenuRow -menuItem $menuCatalog[$menuIndex] -IsSelected $selectedIndexes.Contains($menuIndex) -IsCursor ($menuIndex -eq $cursorIndex)
 }
 
 function Write-SearchSetupMenu {
@@ -386,21 +582,19 @@ function Write-SearchSetupMenu {
 
   for ($visibleIndex = $searchWindowStartIndex; $visibleIndex -lt $searchWindowEndIndex; $visibleIndex++) {
     $menuIndex = $filteredIndexes[$visibleIndex]
-    $selectionMarker = if ($selectedIndexes.Contains($menuIndex)) { 'x' } else { ' ' }
-    $cursorMarker = if ($visibleIndex -eq $filteredCursorIndex) { '>' } else { ' ' }
-    $displayLabel = Get-SetupMenuDisplayLabel -menuItem $menuCatalog[$menuIndex]
-
-    if ($visibleIndex -eq $filteredCursorIndex) {
-      Write-ClearedSetupMenuLine -text (" {0} [{1}] {2}" -f $cursorMarker, $selectionMarker, $displayLabel) -ForegroundColor Black -BackgroundColor Gray
-    } else {
-      Write-ClearedSetupMenuLine -text (" {0} [{1}] {2}" -f $cursorMarker, $selectionMarker, $displayLabel)
-    }
+    Write-SetupMenuRow -menuItem $menuCatalog[$menuIndex] -IsSelected $selectedIndexes.Contains($menuIndex) -IsCursor ($visibleIndex -eq $filteredCursorIndex)
   }
 
   for ($emptyLineIndex = $visibleSearchCount; $emptyLineIndex -lt $visibleItemCount; $emptyLineIndex++) {
     Write-ClearedSetupMenuLine -text ''
   }
 
+}
+
+function Write-ClearedSetupMenuLineStart {
+  [Console]::Write("`r")
+  [Console]::Write((' ' * ([Console]::WindowWidth - 1)))
+  [Console]::Write("`r")
 }
 
 function Write-ClearedSetupMenuLine {
@@ -410,9 +604,7 @@ function Write-ClearedSetupMenuLine {
     [ConsoleColor]$BackgroundColor = [Console]::BackgroundColor
   )
 
-  [Console]::Write("`r")
-  [Console]::Write((' ' * ([Console]::WindowWidth - 1)))
-  [Console]::Write("`r")
+  Write-ClearedSetupMenuLineStart
   Write-Host $text -ForegroundColor $ForegroundColor -BackgroundColor $BackgroundColor
 }
 
@@ -456,6 +648,14 @@ function Get-SetupMenuVisibleItemCount {
   }
 
   return $visibleItemCount
+}
+
+function Get-ClassicSetupMenuRenderedLineCount {
+  param (
+    [int]$visibleItemCount
+  )
+
+  return $visibleItemCount + 4
 }
 
 function Get-SetupMenuWindowStartIndex {
@@ -647,31 +847,21 @@ function Select-SetupMenuClassic {
   $cursorIndex = 0
   $windowStartIndex = 0
   $visibleItemCount = Get-SetupMenuVisibleItemCount -itemCount $menuCatalog.Count
-  $renderedLineCount = $visibleItemCount + 3
+  $renderedLineCount = Get-ClassicSetupMenuRenderedLineCount -visibleItemCount $visibleItemCount
   $selectedIndexes = Get-DefaultSetupMenuIndexes -menuCatalog $menuCatalog
+  $menuTop = 0
 
   try {
-    Write-Host ''
-    Write-Host '  +--------------------+--------------------------+'
-    Write-Host '  | Referencia del menu                           |'
-    Write-Host '  +--------------------+--------------------------+'
-    Write-Host '  | @                  | seleccionado por defecto |'
-    Write-Host '  | Arriba/Abajo/j/k   | navegar                  |'
-    Write-Host '  | PgUp/PgDn/Home/End | saltar                   |'
-    Write-Host '  | /                  | buscar                   |'
-    Write-Host '  | ESPACIO            | alternar                 |'
-    Write-Host '  | a                  | alternar todo            |'
-    Write-Host '  | r                  | restaurar defaults       |'
-    Write-Host '  | ENTER              | confirmar                |'
-    Write-Host '  | q/ESC/Ctrl+C       | cancelar                 |'
-    Write-Host '  +--------------------+--------------------------+'
-    Write-Host ''
+    Write-SetupMenuReference
+    Write-ClassicSetupMenu -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -visibleItemCount $visibleItemCount
+    $menuTop = [Math]::Max(0, [Console]::CursorTop - $renderedLineCount)
 
     while ($true) {
-      Write-ClassicSetupMenu -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -visibleItemCount $visibleItemCount
-
       $pressedKey = Read-SetupMenuKey
-      $shouldSkipCursorReposition = $false
+      $previousCursorIndex = $cursorIndex
+      $previousWindowStartIndex = $windowStartIndex
+      $previousVisibleItemCount = $visibleItemCount
+      $forceFullRender = $false
 
       switch ($pressedKey) {
         'Up' {
@@ -711,9 +901,11 @@ function Select-SetupMenuClassic {
               [void]$selectedIndexes.Add($menuIndex)
             }
           }
+          $forceFullRender = $true
         }
         'Defaults' {
           $selectedIndexes = Get-DefaultSetupMenuIndexes -menuCatalog $menuCatalog
+          $forceFullRender = $true
         }
         'Search' {
           $searchResult = Invoke-SetupMenuSearch -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -cursorIndex $cursorIndex -visibleItemCount $visibleItemCount
@@ -721,22 +913,9 @@ function Select-SetupMenuClassic {
             $cursorIndex = $searchResult.CursorIndex
           }
           Clear-Host
-          Write-Host ''
-          Write-Host '  +--------------------+--------------------------+'
-          Write-Host '  | Referencia del menu                           |'
-          Write-Host '  +--------------------+--------------------------+'
-          Write-Host '  | @                  | seleccionado por defecto |'
-          Write-Host '  | Arriba/Abajo/j/k   | navegar                  |'
-          Write-Host '  | PgUp/PgDn/Home/End | saltar                   |'
-          Write-Host '  | /                  | buscar                   |'
-          Write-Host '  | ESPACIO            | alternar                 |'
-          Write-Host '  | a                  | alternar todo            |'
-          Write-Host '  | r                  | restaurar defaults       |'
-          Write-Host '  | ENTER              | confirmar                |'
-          Write-Host '  | q/ESC/Ctrl+C       | cancelar                 |'
-          Write-Host '  +--------------------+--------------------------+'
-          Write-Host ''
-          $shouldSkipCursorReposition = $true
+          Write-SetupMenuReference
+          $forceFullRender = $true
+          $menuTop = [Console]::CursorTop
         }
         'Enter' {
           Write-Host ''
@@ -748,13 +927,25 @@ function Select-SetupMenuClassic {
         }
       }
 
+      $visibleItemCount = Get-SetupMenuVisibleItemCount -itemCount $menuCatalog.Count
+      $renderedLineCount = Get-ClassicSetupMenuRenderedLineCount -visibleItemCount $visibleItemCount
       $windowStartIndex = Get-SetupMenuWindowStartIndex -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -visibleItemCount $visibleItemCount -itemCount $menuCatalog.Count
-      if ($shouldSkipCursorReposition) {
+
+      if (Test-ClassicSetupMenuRequiresFullRender -previousWindowStartIndex $previousWindowStartIndex -windowStartIndex $windowStartIndex -previousVisibleItemCount $previousVisibleItemCount -visibleItemCount $visibleItemCount -ForceFullRender $forceFullRender) {
+        [Console]::SetCursorPosition(0, $menuTop)
+        Write-ClassicSetupMenu -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -visibleItemCount $visibleItemCount
+        $menuTop = [Math]::Max(0, [Console]::CursorTop - $renderedLineCount)
         continue
       }
 
-      $redrawTop = [Math]::Max(0, [Console]::CursorTop - $renderedLineCount)
-      [Console]::SetCursorPosition(0, $redrawTop)
+      if ($pressedKey -eq 'Toggle') {
+        Write-ClassicSetupMenuItemRowAt -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -menuIndex $cursorIndex -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -menuTop $menuTop
+      } elseif ($previousCursorIndex -ne $cursorIndex) {
+        Write-ClassicSetupMenuItemRowAt -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -menuIndex $previousCursorIndex -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -menuTop $menuTop
+        Write-ClassicSetupMenuItemRowAt -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -menuIndex $cursorIndex -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -menuTop $menuTop
+      }
+
+      [Console]::SetCursorPosition(0, $menuTop + $renderedLineCount)
     }
   } finally {
     [Console]::TreatControlCAsInput = $previousTreatControlCAsInput
