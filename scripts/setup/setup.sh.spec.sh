@@ -99,6 +99,21 @@ assert_equals "1" "$force_render_result" "Bulk updates and search returns should
 first_visible_offset="$(_menu_item_row_offset 10 10)"
 assert_equals "3" "$first_visible_offset" "First visible menu item should render after range, default marker, and top indicator."
 
+assert_equals "UP" "$(printf '\033[A' | _read_key)" "Up arrow should be parsed as one menu key."
+assert_equals "DOWN" "$(printf '\033[B' | _read_key)" "Down arrow should be parsed as one menu key."
+assert_equals "PAGE_UP" "$(printf '\033[5~' | _read_key)" "Page Up should consume the full terminal sequence."
+assert_equals "PAGE_DOWN" "$(printf '\033[6~' | _read_key)" "Page Down should consume the full terminal sequence."
+assert_equals "HOME" "$(printf '\033[H' | _read_key)" "Home should support the short CSI terminal sequence."
+assert_equals "HOME" "$(printf '\033[1~' | _read_key)" "Home should support the numbered CSI terminal sequence."
+assert_equals "HOME" "$(printf '\033OH' | _read_key)" "Home should support the application cursor terminal sequence."
+assert_equals "END" "$(printf '\033[F' | _read_key)" "End should support the short CSI terminal sequence."
+assert_equals "END" "$(printf '\033[4~' | _read_key)" "End should support the numbered CSI terminal sequence."
+assert_equals "END" "$(printf '\033OF' | _read_key)" "End should support the application cursor terminal sequence."
+assert_equals "OTHER" "$(printf 'A' | _read_key)" "Detached arrow fragments should not trigger the select all shortcut."
+assert_equals "OTHER" "$(printf '[B' | _read_search_key)" "Detached arrow fragments should be ignored in search input."
+assert_equals "TEXT:g" "$(printf 'g' | _read_search_key)" "Search input should keep regular text characters."
+assert_equals "TEXT:q" "$(printf 'q' | _read_search_key)" "Search input should allow filtering package names that contain q."
+
 export TERM=xterm-256color
 _MENU_LABELS=("Git" "PowerToys")
 _MENU_DEFAULT_SELECTED=(1 0)

@@ -6,6 +6,8 @@ REPO_ROOT="$(git -C "$SETUP_SCRIPT_DIR" rev-parse --show-toplevel)"
 SETUP_CATALOG_PATH="$SETUP_SCRIPT_DIR/setup.bash.catalog.csv"
 SDKMAN_JAVA_IDENTIFIER="21.0.10-tem"
 SETUP_STYLE_TEXT_PATH="$REPO_ROOT/configs/zsh/.zsh/functions/styleText.zsh"
+SETUP_ESCAPE_SEQUENCE_TIMEOUT_SECONDS=0.05
+SETUP_INPUT_FLUSH_TIMEOUT_SECONDS=0.02
 
 if [[ -f "$SETUP_STYLE_TEXT_PATH" ]]; then
   # shellcheck source=../../configs/zsh/.zsh/functions/styleText.zsh
@@ -904,24 +906,33 @@ _search_menu_incrementally() {
     printf "  Escribí para filtrar en vivo. Backspace borra.\n\n"
     _draw_search_window "$query" "$filtered_cursor" "$visible_height"
 
-    local key rest
-    IFS= read -rsn1 key
+    local key
+    key="$(_read_search_key)"
 
     case "$key" in
-      $'\033')
-        if IFS= read -rsn2 -t 0.05 rest 2>/dev/null; then
-          case "$rest" in
-            '[A') ((filtered_cursor > 0)) && ((filtered_cursor--)) ;;
-            '[B') ((filtered_cursor < ${#_FILTERED_MENU_INDEXES[@]} - 1)) && ((filtered_cursor++)) ;;
-            '[H') filtered_cursor=0 ;;
-            '[F') filtered_cursor=$((${#_FILTERED_MENU_INDEXES[@]} - 1)); ((filtered_cursor < 0)) && filtered_cursor=0 ;;
-          esac
-        else
-          _SEARCH_MENU_CURSOR_RESULT="$cursor"
-          return 1
-        fi
+      UP)
+        ((filtered_cursor > 0)) && ((filtered_cursor--))
         ;;
-      '')
+      DOWN)
+        ((filtered_cursor < ${#_FILTERED_MENU_INDEXES[@]} - 1)) && ((filtered_cursor++))
+        ;;
+      HOME)
+        filtered_cursor=0
+        ;;
+      END)
+        filtered_cursor=$((${#_FILTERED_MENU_INDEXES[@]} - 1))
+        ((filtered_cursor < 0)) && filtered_cursor=0
+        ;;
+      PAGE_UP)
+        filtered_cursor=$((filtered_cursor - visible_height))
+        ((filtered_cursor < 0)) && filtered_cursor=0
+        ;;
+      PAGE_DOWN)
+        filtered_cursor=$((filtered_cursor + visible_height))
+        ((filtered_cursor > ${#_FILTERED_MENU_INDEXES[@]} - 1)) && filtered_cursor=$((${#_FILTERED_MENU_INDEXES[@]} - 1))
+        ((filtered_cursor < 0)) && filtered_cursor=0
+        ;;
+      ENTER)
         if ((${#_FILTERED_MENU_INDEXES[@]} > 0)); then
           _SEARCH_MENU_CURSOR_RESULT="${_FILTERED_MENU_INDEXES[$filtered_cursor]}"
         else
@@ -929,29 +940,23 @@ _search_menu_incrementally() {
         fi
         return 0
         ;;
-      $'\003')
+      QUIT|ESC)
         _SEARCH_MENU_CURSOR_RESULT="$cursor"
         return 1
         ;;
-      $'\177'|$'\b')
+      BACKSPACE)
         if ((${#query} > 0)); then
           query="${query:0:${#query}-1}"
         fi
         ;;
-      ' ')
+      SPACE)
         if ((${#_FILTERED_MENU_INDEXES[@]} > 0)); then
           local menu_index=${_FILTERED_MENU_INDEXES[$filtered_cursor]}
           _MENU_SELECTED[$menu_index]=$((1 - ${_MENU_SELECTED[$menu_index]}))
         fi
         ;;
-      k)
-        ((filtered_cursor > 0)) && ((filtered_cursor--))
-        ;;
-      j)
-        ((filtered_cursor < ${#_FILTERED_MENU_INDEXES[@]} - 1)) && ((filtered_cursor++))
-        ;;
-      *)
-        query+="$key"
+      TEXT:*)
+        query+="${key#TEXT:}"
         ;;
     esac
 
@@ -964,33 +969,101 @@ _search_menu_incrementally() {
   done
 }
 
+_setup_stty_available() {
+  [[ -t 0 ]] && command -v stty >/dev/null 2>&1
+}
+
+_setup_enter_interactive_input_mode() {
+  _SETUP_PREVIOUS_STTY_STATE=""
+  if _setup_stty_available; then
+    _SETUP_PREVIOUS_STTY_STATE="$(stty -g 2>/dev/null || true)"
+    stty -echo 2>/dev/null || true
+  fi
+}
+
+_setup_restore_interactive_input_mode() {
+  if [[ -n "${_SETUP_PREVIOUS_STTY_STATE:-}" ]] && _setup_stty_available; then
+    stty "$_SETUP_PREVIOUS_STTY_STATE" 2>/dev/null || true
+  fi
+  _SETUP_PREVIOUS_STTY_STATE=""
+}
+
+_setup_flush_pending_input() {
+  local pending_key
+  while IFS= read -rsn1 -t "$SETUP_INPUT_FLUSH_TIMEOUT_SECONDS" pending_key 2>/dev/null; do
+    :
+  done
+}
+
+_setup_finish_interactive_input_mode() {
+  _setup_flush_pending_input
+  _setup_restore_interactive_input_mode
+}
+
+_read_escape_sequence() {
+  local sequence="" sequence_part
+
+  while IFS= read -rsn1 -t "$SETUP_ESCAPE_SEQUENCE_TIMEOUT_SECONDS" sequence_part 2>/dev/null; do
+    sequence+="$sequence_part"
+    case "$sequence_part" in
+      [A-Za-z~])
+        [[ "$sequence" != "O" ]] && break
+        ;;
+    esac
+  done
+
+  printf "%s" "$sequence"
+}
+
+_map_escape_sequence_to_key() {
+  case "$1" in
+    '[A'|'OA') echo "UP" ;;
+    '[B'|'OB') echo "DOWN" ;;
+    '[H'|'[1~'|'[7~'|'OH') echo "HOME" ;;
+    '[F'|'[4~'|'[8~'|'OF') echo "END" ;;
+    '[5~') echo "PAGE_UP" ;;
+    '[6~') echo "PAGE_DOWN" ;;
+    '') echo "ESC" ;;
+    *) echo "OTHER" ;;
+  esac
+}
+
 _read_key() {
-  local key rest
+  local key
   IFS= read -rsn1 key
   case "$key" in
     $'\033')
-      if IFS= read -rsn2 -t 1 rest 2>/dev/null; then
-        case "$rest" in
-          '[A') echo "UP"; return ;;
-          '[B') echo "DOWN"; return ;;
-          '[H') echo "HOME"; return ;;
-          '[F') echo "END"; return ;;
-          '[5') IFS= read -rsn1 -t 1 rest 2>/dev/null; echo "PAGE_UP"; return ;;
-          '[6') IFS= read -rsn1 -t 1 rest 2>/dev/null; echo "PAGE_DOWN"; return ;;
-        esac
-      fi
-      echo "ESC"
+      _map_escape_sequence_to_key "$(_read_escape_sequence)"
       ;;
     ' ') echo "SPACE" ;;
     '') echo "ENTER" ;;
     $'\003') echo "QUIT" ;;
     j) echo "DOWN" ;;
     k) echo "UP" ;;
-    a|A) echo "ALL" ;;
+    a) echo "ALL" ;;
+    A|'['|'B'|'C'|'D'|'F'|'H'|'O'|'~') echo "OTHER" ;;
     r|R) echo "DEFAULTS" ;;
     /) echo "SEARCH" ;;
     q|Q) echo "QUIT" ;;
     *) echo "OTHER" ;;
+  esac
+}
+
+_read_search_key() {
+  local key
+  IFS= read -rsn1 key
+  case "$key" in
+    $'\033')
+      _map_escape_sequence_to_key "$(_read_escape_sequence)"
+      ;;
+    ' ') echo "SPACE" ;;
+    '') echo "ENTER" ;;
+    $'\003') echo "QUIT" ;;
+    $'\177'|$'\b') echo "BACKSPACE" ;;
+    j) echo "DOWN" ;;
+    k) echo "UP" ;;
+    '['|'A'|'B'|'C'|'D'|'F'|'H'|'O'|'~') echo "OTHER" ;;
+    *) printf "TEXT:%s" "$key" ;;
   esac
 }
 
@@ -1037,8 +1110,9 @@ _multiselect() {
   local rendered_lines=$((visible_height + 4))
   local previous_interrupt_trap
   previous_interrupt_trap="$(trap -p INT)"
+  _setup_enter_interactive_input_mode
 
-  trap 'printf "\n  Instalación cancelada.\n"; exit 130' INT
+  trap '_setup_finish_interactive_input_mode; printf "\n  Instalación cancelada.\n"; exit 130' INT
 
   printf "\n"
   _draw_menu_reference
@@ -1086,6 +1160,7 @@ _multiselect() {
         force_full_render=1
         ;;
       ENTER)
+        _setup_finish_interactive_input_mode
         if [[ -n "$previous_interrupt_trap" ]]; then
           eval "$previous_interrupt_trap"
         else
@@ -1095,6 +1170,7 @@ _multiselect() {
         return 0
         ;;
       QUIT)
+        _setup_finish_interactive_input_mode
         if [[ -n "$previous_interrupt_trap" ]]; then
           eval "$previous_interrupt_trap"
         else
@@ -1137,7 +1213,12 @@ _print_selected_menu_items() {
 _confirm_selected_menu_items() {
   local dry_run=${1:-0}
   local selected_count
+  local previous_interrupt_trap
   selected_count="$(_menu_selected_count)"
+  previous_interrupt_trap="$(trap -p INT)"
+  _setup_enter_interactive_input_mode
+
+  trap '_setup_finish_interactive_input_mode; printf "\n  Instalación cancelada.\n"; exit 130' INT
 
   printf "\n"
   if [[ $dry_run -eq 1 ]]; then
@@ -1153,8 +1234,26 @@ _confirm_selected_menu_items() {
     local key
     key="$(_read_key)"
     case "$key" in
-      ENTER) printf "\n"; return 0 ;;
-      QUIT|ESC) printf "\n"; return 1 ;;
+      ENTER)
+        _setup_finish_interactive_input_mode
+        if [[ -n "$previous_interrupt_trap" ]]; then
+          eval "$previous_interrupt_trap"
+        else
+          trap - INT
+        fi
+        printf "\n"
+        return 0
+        ;;
+      QUIT|ESC)
+        _setup_finish_interactive_input_mode
+        if [[ -n "$previous_interrupt_trap" ]]; then
+          eval "$previous_interrupt_trap"
+        else
+          trap - INT
+        fi
+        printf "\n"
+        return 1
+        ;;
     esac
   done
 }
