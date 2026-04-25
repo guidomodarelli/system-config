@@ -66,6 +66,12 @@ function New-TestSetupMenuCatalog {
 $setupScriptPath = Join-Path $PSScriptRoot 'setup.ps1'
 Import-SetupScriptFunctions -ScriptPath $setupScriptPath
 
+$sharedMenuCatalog = Get-SetupMenuCatalog -CatalogPath (Join-Path $PSScriptRoot 'setup.pwsh.catalog.csv')
+Test-SetupMenuCatalog -menuCatalog $sharedMenuCatalog
+Assert-Equal -Expected $true -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Install-Git') -Message 'Catalog allowlist should include setup installer functions.'
+Assert-Equal -Expected $false -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Get-ChildItem') -Message 'Catalog allowlist should reject functions outside setup installers.'
+Assert-Equal -Expected 'Chocolatey' -Actual $sharedMenuCatalog[0].Label -Message 'PowerShell catalog should be loaded from the pwsh setup catalog.'
+
 $menuCatalog = New-TestSetupMenuCatalog
 
 $invalidWildcardMatches = @(ConvertTo-TestArray -Value (Get-FilteredSetupMenuIndexes -menuCatalog $menuCatalog -query '['))

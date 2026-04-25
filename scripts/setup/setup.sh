@@ -1,7 +1,9 @@
 #!/bin/bash
 
 LOCAL_BINARIES="$HOME/.local/bin"
-REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
+SETUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(git -C "$SETUP_SCRIPT_DIR" rev-parse --show-toplevel)"
+SETUP_CATALOG_PATH="$SETUP_SCRIPT_DIR/setup.bash.catalog.csv"
 SDKMAN_JAVA_IDENTIFIER="21.0.10-tem"
 
 is_windows() {
@@ -56,30 +58,33 @@ install_docker_compose_plugin() {
 }
 
 install_docker() {
-  if is_ubuntu; then
-    # Add Docker's official GPG key:
-    sudo apt-get update
-    sudo apt-get install ca-certificates curl
-    sudo install -m 0755 -d /etc/apt/keyrings
-    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-    sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-    # Add the repository to Apt sources:
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-      $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    sudo apt-get update
-    install_docker_ce
-    install_docker_ce_cli
-    install_containerd_io
-    install_docker_buildx_plugin
-    install_docker_compose_plugin
+  if ! is_ubuntu; then
+    echo "Docker install is only supported on Ubuntu/Debian in this setup; skipping."
+    return 0
   fi
+
+  # Add Docker's official GPG key:
+  sudo apt-get update
+  sudo apt-get install ca-certificates curl
+  sudo install -m 0755 -d /etc/apt/keyrings
+  sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+  # Add the repository to Apt sources:
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+    $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sudo apt-get update
+  install_docker_ce
+  install_docker_ce_cli
+  install_containerd_io
+  install_docker_buildx_plugin
+  install_docker_compose_plugin
   sleep 3
   sudo systemctl start docker.service
   sudo systemctl enable docker.service
-  sudo usermod -aG docker $USER
+  sudo usermod -aG docker "$USER"
   # NOTE: reboot
 }
 
@@ -425,81 +430,26 @@ main() {
 # ─── Interactive Multi-Select Menu ───────────────────────────────────────────
 
 _initialize_menu_catalog() {
-  _MENU_LABELS=(
-    "build-essential"
-    "gcc"
-    "curl"
-    "wget"
-    "zip"
-    "unzip"
-    "python3-venv"
-    "Golang"
-    "Homebrew"
-    "NVM (Node Version Manager)"
-    "SDKMAN"
-    "Java JDK 21 (Temurin via SDKMAN)"
-    "Zsh"
-    "Antigen (Zsh plugin manager)"
-    "Oh My Zsh"
-    "jq"
-    "fzf"
-    "ripgrep"
-    "zoxide"
-    "GNU grep (ggrep)"
-    "eza"
-    "fd-find"
-    "yq"
-    "xclip"
-    "win32yank (WSL clipboard)"
-    "espanso"
-    "Git"
-    "git-filter-repo"
-    "ghq"
-    "Docker"
-    "lazydocker"
-    "Fonts (JetBrains Mono, DejaVu, Cascadia Code)"
-    "VS Code"
-    "Font: Iosevka Term Curly"
-  )
+  _MENU_IDS=()
+  _MENU_LABELS=()
+  _MENU_FUNCS=()
+  _MENU_DEFAULT_SELECTED=()
 
-  _MENU_FUNCS=(
-    install_build_essential
-    install_gcc
-    install_curl_pkg
-    install_wget_pkg
-    install_zip_pkg
-    install_unzip_pkg
-    install_python3_venv
-    install_golang
-    install_homebrew
-    install_nvm
-    install_sdkman
-    install_java_jdk
-    install_zsh
-    install_antigen
-    install_oh_my_zsh
-    install_jq
-    install_fzf
-    install_ripgrep
-    install_zoxide
-    install_ggrep
-    install_eza
-    install_fd_find
-    install_yq
-    install_xclip
-    install_win32yank
-    install_espanso
-    install_git
-    install_git_filter_repo
-    install_ghq
-    install_docker
-    install_lazydocker
-    install_fonts
-    install_VsCode
-    install_font_IosevkaTermCurly
-  )
+  if [[ ! -f "$SETUP_CATALOG_PATH" ]]; then
+    echo "ERROR: No se encontró el catálogo de setup: $SETUP_CATALOG_PATH" >&2
+    return 1
+  fi
 
-  _MENU_DEFAULT_SELECTED=(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0)
+  local id label function_name default_selected
+  while IFS='|' read -r id label function_name default_selected; do
+    [[ "$id" == "Id" || -z "$id" || "${id:0:1}" == "#" ]] && continue
+    [[ -z "$function_name" ]] && continue
+
+    _MENU_IDS+=("$id")
+    _MENU_LABELS+=("$label")
+    _MENU_FUNCS+=("$function_name")
+    _MENU_DEFAULT_SELECTED+=("$default_selected")
+  done < "$SETUP_CATALOG_PATH"
 }
 
 _reset_menu_selection_to_defaults() {
@@ -507,11 +457,12 @@ _reset_menu_selection_to_defaults() {
 }
 
 _validate_menu_catalog() {
+  local ids_count=${#_MENU_IDS[@]}
   local labels_count=${#_MENU_LABELS[@]}
   local funcs_count=${#_MENU_FUNCS[@]}
   local defaults_count=${#_MENU_DEFAULT_SELECTED[@]}
 
-  if ((labels_count != funcs_count || labels_count != defaults_count)); then
+  if ((ids_count != labels_count || labels_count != funcs_count || labels_count != defaults_count)); then
     echo "ERROR: El catálogo del menú tiene longitudes inconsistentes." >&2
     return 1
   fi
@@ -538,6 +489,27 @@ _validate_menu_catalog() {
     echo "ERROR: Hay etiquetas duplicadas en el catálogo: $duplicated_label" >&2
     return 1
   fi
+
+  local duplicated_id
+  duplicated_id="$(printf "%s\n" "${_MENU_IDS[@]}" | sort | uniq -d | head -n 1)"
+  if [[ -n "$duplicated_id" ]]; then
+    echo "ERROR: Hay identificadores duplicados en el catálogo: $duplicated_id" >&2
+    return 1
+  fi
+}
+
+_find_menu_function_index() {
+  local function_name=$1
+  local menu_index
+
+  for menu_index in "${!_MENU_FUNCS[@]}"; do
+    if [[ "${_MENU_FUNCS[$menu_index]}" == "$function_name" ]]; then
+      echo "$menu_index"
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 _menu_selected_count() {
@@ -690,6 +662,33 @@ _draw_menu_window() {
   else
     printf "\r\033[2K\n"
   fi
+}
+
+_menu_item_row_offset() {
+  local menu_index=$1 window_start=$2
+  echo $((2 + menu_index - window_start))
+}
+
+_draw_menu_item_line() {
+  local menu_index=$1 cursor=$2
+  printf "\r\033[2K"
+  _draw_menu_item "$menu_index" "$cursor" "${_MENU_LABELS[$menu_index]}" "${_MENU_SELECTED[$menu_index]}"
+}
+
+_redraw_menu_item_from_bottom() {
+  local menu_index=$1 cursor=$2 window_start=$3 rendered_lines=$4
+  local row_offset lines_up
+  row_offset="$(_menu_item_row_offset "$menu_index" "$window_start")"
+  lines_up=$((rendered_lines - row_offset))
+
+  printf "\033[%dA" "$lines_up"
+  _draw_menu_item_line "$menu_index" "$cursor"
+  printf "\033[%dB\r" "$lines_up"
+}
+
+_menu_requires_full_render() {
+  local previous_window_start=$1 window_start=$2 previous_visible_height=$3 visible_height=$4 force_full_render=$5
+  [[ "$force_full_render" -eq 1 || "$previous_window_start" -ne "$window_start" || "$previous_visible_height" -ne "$visible_height" ]]
 }
 
 _find_menu_item_index() {
@@ -912,6 +911,11 @@ _multiselect() {
 
   while true; do
     local key
+    local previous_cursor=$cursor
+    local previous_window_start=$window_start
+    local previous_visible_height=$visible_height
+    local previous_rendered_lines=$rendered_lines
+    local force_full_render=0
     local should_draw_from_current_position=0
     key=$(_read_key)
 
@@ -923,7 +927,7 @@ _multiselect() {
       HOME) cursor=0 ;;
       END) cursor=$((count - 1)) ;;
       SPACE) _MENU_SELECTED[$cursor]=$(( 1 - ${_MENU_SELECTED[$cursor]} )) ;;
-      DEFAULTS) _reset_menu_selection_to_defaults ;;
+      DEFAULTS) _reset_menu_selection_to_defaults; force_full_render=1 ;;
       SEARCH)
         if _search_menu_incrementally "$cursor" "$visible_height" "$count"; then
           cursor="$_SEARCH_MENU_CURSOR_RESULT"
@@ -943,6 +947,7 @@ _multiselect() {
         printf "  | ENTER              | confirmar                |\n"
         printf "  | q/Ctrl+C           | cancelar                 |\n"
         printf "  +--------------------+--------------------------+\n\n"
+        force_full_render=1
         should_draw_from_current_position=1
         ;;
       ALL)
@@ -954,6 +959,7 @@ _multiselect() {
         for i in "${!_MENU_SELECTED[@]}"; do
           _MENU_SELECTED[$i]=$toggle
         done
+        force_full_render=1
         ;;
       ENTER)
         if [[ -n "$previous_interrupt_trap" ]]; then
@@ -976,13 +982,21 @@ _multiselect() {
       *) continue ;;
     esac
 
+    visible_height="$(_menu_visible_height)"
+    rendered_lines=$((visible_height + 3))
     window_start="$(_menu_adjust_window_start "$cursor" "$window_start" "$visible_height" "$count")"
 
-    # Redraw
-    if [[ $should_draw_from_current_position -eq 0 ]]; then
-      printf "\033[%dA" "$rendered_lines"
+    if [[ $should_draw_from_current_position -eq 1 ]]; then
+      _draw_menu_window "$cursor" "$window_start" "$visible_height" "$count"
+    elif _menu_requires_full_render "$previous_window_start" "$window_start" "$previous_visible_height" "$visible_height" "$force_full_render"; then
+      printf "\033[%dA" "$previous_rendered_lines"
+      _draw_menu_window "$cursor" "$window_start" "$visible_height" "$count"
+    elif [[ "$key" == "SPACE" ]]; then
+      _redraw_menu_item_from_bottom "$cursor" "$cursor" "$window_start" "$rendered_lines"
+    elif ((previous_cursor != cursor)); then
+      _redraw_menu_item_from_bottom "$previous_cursor" "$cursor" "$window_start" "$rendered_lines"
+      _redraw_menu_item_from_bottom "$cursor" "$cursor" "$window_start" "$rendered_lines"
     fi
-    _draw_menu_window "$cursor" "$window_start" "$visible_height" "$count"
   done
 }
 
@@ -1023,7 +1037,7 @@ _confirm_selected_menu_items() {
 
 interactive_menu() {
   local dry_run=${1:-0}
-  _initialize_menu_catalog
+  _initialize_menu_catalog || return 1
   _validate_menu_catalog || return 1
   _reset_menu_selection_to_defaults
 
@@ -1077,11 +1091,18 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   fi
 
   if [[ -n "$1" ]]; then
+    _initialize_menu_catalog || exit 1
+    _validate_menu_catalog || exit 1
+    if ! _find_menu_function_index "$1" >/dev/null; then
+      echo "ERROR: La función '$1' no está permitida por el catálogo de setup." >&2
+      exit 1
+    fi
+
     if [[ $dry_run -eq 1 ]]; then
       echo "Dry-run: se ejecutaría $*"
     else
       echo "Ejecutando $0 $*"
-      "$@"
+      "$1"
     fi
   else
     interactive_menu "$dry_run"

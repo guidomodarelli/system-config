@@ -86,3 +86,12 @@ theme = "two-dark"
 
 [tui.model_availability_nux]
 "gpt-5.5" = 4
+
+[windows]
+sandbox = "elevated"
+
+[plugins."browser-use@openai-bundled"]
+enabled = true
+
+[projects.'c:\users\guido\system-config']
+trust_level = "trusted"

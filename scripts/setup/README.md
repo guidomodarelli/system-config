@@ -41,18 +41,20 @@ chmod +x scripts/setup/setup.sh
 
 ### Selector interactivo
 
-- Si `fzf` está disponible, el setup abre un selector buscable con selección múltiple.
-- Los ítems recomendados se muestran claramente con la marca `⚪`.
+- El setup abre un selector clásico con selección múltiple y búsqueda incremental.
+- Los ítems seleccionados por defecto se muestran con la marca `@`.
 - `ENTER` confirma solo los ítems realmente marcados.
-- `CTRL-R` aplica las opciones recomendadas por defecto.
-- Puedes escribir para filtrar; usa `TAB` o `SPACE` para marcar, `CTRL-A` para alternar toda la selección y `ESC` para cancelar.
-- Si `fzf` no está instalado, el script intentará instalarlo automáticamente. Si no puede hacerlo, volverá al menú clásico.
+- Usa `ESPACIO` para alternar un ítem, `a` para alternar toda la selección y `r` para restaurar defaults.
+- Usa `/` para buscar, `j/k` o flechas para navegar y `q`, `ESC` o `Ctrl+C` para cancelar.
 
 ### Ejecutar una función específica
 
 ```bash
 ./scripts/setup/setup.sh install_zsh
 ```
+
+La ejecución directa está limitada a funciones presentes en
+`scripts/setup/setup.bash.catalog.csv`.
 
 ## Uso en Linux
 
@@ -85,6 +87,9 @@ argumento. Por ejemplo, para instalar Docker, ejecuta:
 ```bash
 ./setup.sh install_docker
 ```
+
+La ejecución directa está limitada a funciones presentes en
+`scripts/setup/setup.bash.catalog.csv`.
 
 ### Autocompletado
 
@@ -131,4 +136,25 @@ argumento. Por ejemplo, para instalar Chocolatey, ejecuta:
 # or
 
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 Install-Choco
+```
+
+La ejecución directa está limitada a funciones presentes en
+`scripts/setup/setup.pwsh.catalog.csv`.
+
+## Catálogos y validación
+
+- `setup.sh` construye su menú desde `scripts/setup/setup.bash.catalog.csv`.
+- `setup.ps1` construye su menú desde `scripts/setup/setup.pwsh.catalog.csv`.
+- Para agregar o quitar ítems, actualiza el catálogo del shell correspondiente
+  y la función instaladora asociada.
+- Validaciones recomendadas:
+
+```bash
+bash -n scripts/setup/setup.sh
+bash scripts/setup/setup.sh.spec.sh
+```
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup\setup.ps1.spec.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup\setup.ps1.spec.ps1
 ```

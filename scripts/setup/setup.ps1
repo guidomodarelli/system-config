@@ -49,12 +49,21 @@ function Install-Scoop {
   }
 }
 
+function Test-ChocoPackageInstalled {
+  param (
+    [string]$Package
+  )
+
+  $installedPackage = choco list --local-only --exact $Package --limit-output 2>$null | Select-Object -First 1
+  return -not [string]::IsNullOrWhiteSpace($installedPackage)
+}
+
 function Install-ChocoPackage {
   param (
     [string[]]$packages
   )
   foreach ($package in $packages) {
-    if (choco list | Select-String -Pattern $package) {
+    if (Test-ChocoPackageInstalled -Package $package) {
       LogWarning "The package '$package' is already installed. Upgrading..."
       choco upgrade $package --confirm --no-progress
       LogSuccess "The package '$package' has been upgraded successfully."
@@ -66,15 +75,31 @@ function Install-ChocoPackage {
   }
 }
 
+function Test-WingetPackageInstalled {
+  param (
+    [string]$AppId
+  )
+
+  winget list --exact --id $AppId --accept-source-agreements 1>$null 2>$null
+  return $LASTEXITCODE -eq 0
+}
+
 function Install-WingetPackage {
   param (
     [string[]]$appIds
   )
   foreach ($appId in $appIds) {
-    $appName = (winget search -e --id $appId | Select-Object -Last 1 | ForEach-Object { $_.Split(" ")[0] })
-    LogInfo "Installing the package '$appName'..."
-    winget install -e --id $appId
-    LogSuccess "The package '$appName' has been installed successfully."
+    if (Test-WingetPackageInstalled -AppId $appId) {
+      LogWarning "The package '$appId' is already installed. Skipping..."
+      continue
+    }
+
+    LogInfo "Installing the package '$appId'..."
+    winget install --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity
+    if ($LASTEXITCODE -ne 0) {
+      throw "Winget failed to install '$appId' with exit code $LASTEXITCODE."
+    }
+    LogSuccess "The package '$appId' has been installed successfully."
   }
 }
 
@@ -233,31 +258,23 @@ function New-SetupMenuItem {
 }
 
 function Get-SetupMenuCatalog {
+  param (
+    [string]$CatalogPath = (Join-Path $PSScriptRoot 'setup.pwsh.catalog.csv')
+  )
+
+  if (-not (Test-Path $CatalogPath)) {
+    throw "No se encontró el catálogo de setup: $CatalogPath"
+  }
+
+  $catalogRows = Import-Csv -Path $CatalogPath -Delimiter '|'
   return @(
-    New-SetupMenuItem -Label 'Chocolatey' -FunctionName 'Install-Choco' -DefaultSelected $true
-    New-SetupMenuItem -Label 'Git' -FunctionName 'Install-Git' -DefaultSelected $true
-    New-SetupMenuItem -Label 'fzf' -FunctionName 'Install-Fzf' -DefaultSelected $true
-    New-SetupMenuItem -Label 'ripgrep' -FunctionName 'Install-RipGrep' -DefaultSelected $true
-    New-SetupMenuItem -Label 'fd-find' -FunctionName 'Install-FdFind' -DefaultSelected $true
-    New-SetupMenuItem -Label 'curl' -FunctionName 'Install-Curl' -DefaultSelected $true
-    New-SetupMenuItem -Label 'bat' -FunctionName 'Install-Bat' -DefaultSelected $true
-    New-SetupMenuItem -Label 'eza' -FunctionName 'Install-Eza' -DefaultSelected $true
-    New-SetupMenuItem -Label 'ghq' -FunctionName 'Install-Ghq' -DefaultSelected $true
-    New-SetupMenuItem -Label 'Visual Studio Code' -FunctionName 'Install-VsCode' -DefaultSelected $true
-    New-SetupMenuItem -Label 'mise-en-place' -FunctionName 'Install-Mise-In-Place' -DefaultSelected $true
-    New-SetupMenuItem -Label 'fnm' -FunctionName 'Install-fnm' -DefaultSelected $true
-    New-SetupMenuItem -Label 'Python' -FunctionName 'Install-Python' -DefaultSelected $true
-    New-SetupMenuItem -Label 'Fuentes' -FunctionName 'Install-Fonts' -DefaultSelected $true
-    New-SetupMenuItem -Label 'Espanso' -FunctionName 'Install-Espanso' -DefaultSelected $true
-    New-SetupMenuItem -Label 'PowerToys' -FunctionName 'Install-PowerToys' -DefaultSelected $true
-    New-SetupMenuItem -Label 'Scoop' -FunctionName 'Install-Scoop'
-    New-SetupMenuItem -Label 'WSL' -FunctionName 'Install-WSL'
-    New-SetupMenuItem -Label 'AutoHotkey' -FunctionName 'Install-AutoHotkey'
-    New-SetupMenuItem -Label 'VLC' -FunctionName 'Install-Vlc'
-    New-SetupMenuItem -Label 'WhatsApp' -FunctionName 'Install-WhatsApp'
-    New-SetupMenuItem -Label 'Bitwarden' -FunctionName 'Install-Bitwarden'
-    New-SetupMenuItem -Label '7-Zip' -FunctionName 'Install-7z'
-    New-SetupMenuItem -Label 'Hyper-V' -FunctionName 'Enable-HyperV'
+    foreach ($catalogRow in $catalogRows) {
+      if ([string]::IsNullOrWhiteSpace($catalogRow.FunctionName)) {
+        continue
+      }
+
+      New-SetupMenuItem -Label $catalogRow.Label -FunctionName $catalogRow.FunctionName -DefaultSelected ($catalogRow.DefaultSelected -eq '1')
+    }
   )
 }
 
@@ -287,6 +304,15 @@ function Test-SetupMenuCatalog {
       throw "Los elementos seleccionados por defecto deben estar al inicio del catálogo."
     }
   }
+}
+
+function Test-SetupFunctionAllowed {
+  param (
+    [PSCustomObject[]]$menuCatalog,
+    [string]$FunctionName
+  )
+
+  return @($menuCatalog | Where-Object { $_.FunctionName -eq $FunctionName }).Count -gt 0
 }
 
 function Get-SetupMenuDisplayLabel {
@@ -1141,13 +1167,16 @@ if (-not $dryRun -and -not ([Security.Principal.WindowsPrincipal] [Security.Prin
 }
 
 if ($args.Count -gt 0) {
+  $menuCatalog = Get-SetupMenuCatalog
+  Test-SetupMenuCatalog -menuCatalog $menuCatalog
+
   if ($commandArguments.Count -eq 0) {
     Invoke-InteractiveSetupMenu -DryRun $dryRun
     exit
   }
 
   $functionName = $commandArguments[0]
-  if (Get-Command -Name $functionName -CommandType Function -ErrorAction SilentlyContinue) {
+  if (Test-SetupFunctionAllowed -menuCatalog $menuCatalog -FunctionName $functionName) {
     if ($dryRun) {
       LogWarning "Dry-run: se ejecutaría la función '$functionName'."
       exit
@@ -1156,7 +1185,8 @@ if ($args.Count -gt 0) {
     LogInfo "Invocando función: $functionName"
     & $functionName
   } else {
-    LogInfo "La función '$functionName' no existe."
+    LogError "La función '$functionName' no está permitida por el catálogo de setup."
+    exit 1
   }
 } else {
   Invoke-InteractiveSetupMenu
