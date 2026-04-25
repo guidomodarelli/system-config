@@ -15,6 +15,19 @@ assert_equals() {
   fi
 }
 
+assert_contains() {
+  local haystack=$1 needle=$2 message=$3
+
+  if [[ "$haystack" != *"$needle"* ]]; then
+    printf "ERROR: %s Expected output to contain '%s'.\n" "$message" "$needle" >&2
+    exit 1
+  fi
+}
+
+strip_ansi() {
+  sed -E $'s/\x1b\\[[0-9;]*m//g'
+}
+
 assert_success() {
   local message=$1
   shift
@@ -37,6 +50,12 @@ assert_failure() {
 
 _initialize_menu_catalog
 _validate_menu_catalog
+
+assert_equals "$REPO_ROOT/configs/zsh/.zsh/functions/styleText.zsh" "$SETUP_STYLE_TEXT_PATH" "Bash setup should load the shared styleText helper."
+if ! command -v styleText >/dev/null; then
+  printf "ERROR: Shared styleText helper should be available.\n" >&2
+  exit 1
+fi
 
 assert_equals "build-essential" "${_MENU_LABELS[0]}" "Bash catalog should be loaded from the bash setup catalog."
 assert_equals "install_build_essential" "${_MENU_FUNCS[0]}" "Bash catalog should load function names from the bash setup catalog."
@@ -78,6 +97,41 @@ fi
 assert_equals "1" "$force_render_result" "Bulk updates and search returns should force a full render."
 
 first_visible_offset="$(_menu_item_row_offset 10 10)"
-assert_equals "2" "$first_visible_offset" "First visible menu item should render after range and top indicator."
+assert_equals "3" "$first_visible_offset" "First visible menu item should render after range, default marker, and top indicator."
+
+export TERM=xterm-256color
+_MENU_LABELS=("Git" "PowerToys")
+_MENU_DEFAULT_SELECTED=(1 0)
+_MENU_SELECTED=(1 0)
+
+selected_row="$(_draw_menu_item 0 1 "${_MENU_LABELS[0]}" 1)"
+assert_contains "$selected_row" "$(styleText -c green -- "✅")" "Selected marker should use styleText success green."
+assert_contains "$selected_row" "$(styleText -c yellow -- "@")" "Default marker should use styleText warning yellow."
+selected_row_text="$(printf "%s" "$selected_row" | strip_ansi)"
+assert_equals "    [✅] @ Git" "$selected_row_text" "Default selected row should keep the visible menu text."
+
+cursor_row="$(_draw_menu_item 1 1 "${_MENU_LABELS[1]}" 0)"
+assert_contains "$cursor_row" "$(_setup_reverse_start)" "Cursor row should use the shared reverse style modifier."
+cursor_row_text="$(printf "%s" "$cursor_row" | strip_ansi)"
+assert_equals " 👉 [ ] PowerToys" "$cursor_row_text" "Cursor row should keep the visible menu text."
+
+selected_cursor_row="$(_draw_menu_item 0 0 "${_MENU_LABELS[0]}" 1)"
+selected_cursor_expected_segment="$(styleText -c green -- "✅")$(_setup_reverse_start)] $(styleText -c yellow -- "@")$(_setup_reverse_start) Git"
+assert_contains "$selected_cursor_row" "$selected_cursor_expected_segment" "Cursor row should restore reverse style after colored selected and default markers."
+selected_cursor_row_text="$(printf "%s" "$selected_cursor_row" | strip_ansi)"
+assert_equals " 👉 [✅] @ Git" "$selected_cursor_row_text" "Selected cursor row should keep the visible menu text."
+
+range_window="$(_draw_menu_window 0 0 1 2)"
+assert_contains "$range_window" "$(styleText -c cyan -- "1")" "First visible item number should use styleText info cyan."
+assert_contains "$range_window" "$(styleText -c cyan -- "2")" "Total item count should use styleText info cyan."
+assert_contains "$range_window" "$(styleText -c yellow -- "@")" "Default marker legend should use styleText warning yellow."
+
+reference_output="$(_draw_menu_reference)"
+assert_contains "$reference_output" "$(styleText -c magenta -- "  +--------------------+--------------------------+")" "Reference table frame should use styleText muted violet."
+padded_navigation_shortcut="$(printf "%-18s" "↑/↓/j/k")"
+assert_contains "$reference_output" "$(styleText -c cyan -- "$padded_navigation_shortcut")" "Reference shortcuts should use styleText info cyan."
+
+log_output="$(_setup_log_info "Shared styleText log")"
+assert_contains "$log_output" "$(logBlue "INFO")" "Setup info logs should use the shared styleText log helper."
 
 printf "setup.sh catalog and menu tests passed.\n"

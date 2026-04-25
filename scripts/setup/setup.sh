@@ -5,6 +5,76 @@ SETUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$SETUP_SCRIPT_DIR" rev-parse --show-toplevel)"
 SETUP_CATALOG_PATH="$SETUP_SCRIPT_DIR/setup.bash.catalog.csv"
 SDKMAN_JAVA_IDENTIFIER="21.0.10-tem"
+SETUP_STYLE_TEXT_PATH="$REPO_ROOT/configs/zsh/.zsh/functions/styleText.zsh"
+
+if [[ -f "$SETUP_STYLE_TEXT_PATH" ]]; then
+  # shellcheck source=../../configs/zsh/.zsh/functions/styleText.zsh
+  source "$SETUP_STYLE_TEXT_PATH"
+fi
+
+if ! command -v styleText >/dev/null 2>&1; then
+  styleText() {
+    while [[ $# -gt 0 && "$1" == -* ]]; do
+      if [[ "$1" == "--" ]]; then
+        shift
+        break
+      fi
+      shift
+      [[ "${1:-}" != -* ]] && shift
+    done
+    printf "%s" "$*"
+  }
+fi
+
+if ! command -v logInfo >/dev/null 2>&1; then
+  logInfo() { printf "[ INFO ] %s\n" "$*"; }
+  logSuccess() { printf "[ SUCCESS ] %s\n" "$*"; }
+  logWarn() { printf "[ WARN ] %s\n" "$*"; }
+  logError() { printf "[ ERROR ] %s\n" "$*"; }
+fi
+
+_setup_color() {
+  local color=$1 text=$2
+  styleText -c "$color" -- "$text"
+}
+
+_setup_colored_line() {
+  local color=$1 text=$2
+  _setup_color "$color" "$text"
+  printf "\n"
+}
+
+_setup_reverse_start() {
+  printf "\033[;%sm" "${REVERSE:-7}"
+}
+
+_setup_style_reset() {
+  printf "\033[m"
+}
+
+_setup_color_for_menu_row() {
+  local color=$1 text=$2 is_cursor=${3:-0}
+  _setup_color "$color" "$text"
+  if [[ $is_cursor -eq 1 ]]; then
+    _setup_reverse_start
+  fi
+}
+
+_setup_log_error() {
+  logError "$1"
+}
+
+_setup_log_info() {
+  logInfo "$1"
+}
+
+_setup_log_warning() {
+  logWarn "$1"
+}
+
+_setup_log_success() {
+  logSuccess "$1"
+}
 
 is_windows() {
   if uname -r | grep -iq "microsoft"; then
@@ -532,19 +602,21 @@ _run_selected_menu_items() {
   for menu_index in "${!_MENU_FUNCS[@]}"; do
     if [[ ${_MENU_SELECTED[$menu_index]} -eq 1 ]]; then
       if [[ $dry_run -eq 1 ]]; then
-        printf "\n[INFO] Dry-run: se ejecutaría %s.\n" "${_MENU_LABELS[$menu_index]}"
+        printf "\n"
+        _setup_log_info "Dry-run: se ejecutaría ${_MENU_LABELS[$menu_index]}."
         _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
         _INSTALL_RESULT_STATUSES+=("dry-run")
         continue
       fi
 
-      printf "\n━━━ Instalando: %s ━━━\n" "${_MENU_LABELS[$menu_index]}"
+      printf "\n"
+      _setup_log_info "Instalando: ${_MENU_LABELS[$menu_index]}"
       if ${_MENU_FUNCS[$menu_index]}; then
-        printf "[OK] %s\n" "${_MENU_LABELS[$menu_index]}"
+        _setup_log_success "${_MENU_LABELS[$menu_index]}"
         _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
         _INSTALL_RESULT_STATUSES+=("ok")
       else
-        printf "[ERROR] Falló: %s\n" "${_MENU_LABELS[$menu_index]}" >&2
+        _setup_log_error "Falló: ${_MENU_LABELS[$menu_index]}" >&2
         _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
         _INSTALL_RESULT_STATUSES+=("falló")
       fi
@@ -555,12 +627,13 @@ _run_selected_menu_items() {
 _print_install_summary() {
   local result_index
 
-  printf "\nResumen de instalación:\n"
+  printf "\n"
+  _setup_log_info "Resumen de instalación:"
   for result_index in "${!_INSTALL_RESULT_LABELS[@]}"; do
     case "${_INSTALL_RESULT_STATUSES[$result_index]}" in
-      ok) printf "  [OK] %s\n" "${_INSTALL_RESULT_LABELS[$result_index]}" ;;
-      dry-run) printf "  [DRY-RUN] %s\n" "${_INSTALL_RESULT_LABELS[$result_index]}" ;;
-      *) printf "  [ERROR] %s\n" "${_INSTALL_RESULT_LABELS[$result_index]}" ;;
+      ok) _setup_colored_line "green" "  [OK] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
+      dry-run) _setup_colored_line "yellow" "  [DRY-RUN] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
+      *) _setup_colored_line "red" "  [ERROR] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
     esac
   done
 }
@@ -582,19 +655,44 @@ _menu_display_label() {
   printf "@ %s" "$label"
 }
 
+_draw_menu_label() {
+  local menu_index=$1
+  local is_cursor=${2:-0}
+  local label="${_MENU_LABELS[$menu_index]}"
+
+  if ! _menu_is_recommended "$menu_index"; then
+    printf "%s" "$label"
+    return 0
+  fi
+
+  _setup_color_for_menu_row "yellow" "@" "$is_cursor"
+  printf " %s" "$label"
+}
+
 _draw_menu_item() {
   local idx=$1 cursor=$2 label=$3 is_selected=$4
   local marker=" "
   local pointer="  "
-  local rendered_label
-  rendered_label="$(_menu_display_label "$idx")"
+  local cursor_prefix=""
+  local cursor_suffix=""
+  local is_cursor=0
   [[ $is_selected -eq 1 ]] && marker="✅"
-  [[ $idx -eq $cursor ]] && pointer="👉"
   if [[ $idx -eq $cursor ]]; then
-    printf " %s \033[7m[%s] %s\033[0m" "$pointer" "$marker" "$rendered_label"
-  else
-    printf " %s [%s] %s" "$pointer" "$marker" "$rendered_label"
+    is_cursor=1
+    pointer="👉"
+    cursor_prefix="$(_setup_reverse_start)"
+    cursor_suffix="$(_setup_style_reset)"
   fi
+
+  printf "%s %s [" "$cursor_prefix" "$pointer"
+  if [[ $is_selected -eq 1 ]]; then
+    _setup_color_for_menu_row "green" "$marker" "$is_cursor"
+  else
+    printf "%s" "$marker"
+  fi
+  printf "] "
+  _draw_menu_label "$idx" "$is_cursor"
+  printf "%s" "$cursor_suffix"
 }
 
 _menu_visible_height() {
@@ -642,7 +740,16 @@ _draw_menu_window() {
   local cursor=$1 window_start=$2 visible_height=$3 count=$4
   local window_end=$((window_start + visible_height))
 
-  printf "\r\033[2K  Elementos %d-%d de %d\n" "$((window_start + 1))" "$window_end" "$count"
+  printf "\r\033[2K  Elementos "
+  _setup_color "cyan" "$((window_start + 1))"
+  printf "-"
+  _setup_color "cyan" "$window_end"
+  printf " de "
+  _setup_color "cyan" "$count"
+  printf "\n"
+  printf "\r\033[2K  "
+  _setup_color "yellow" "@"
+  printf " seleccionado por defecto\n"
 
   if ((window_start > 0)); then
     printf "\r\033[2K  ↑ Hay más elementos arriba\n"
@@ -666,7 +773,7 @@ _draw_menu_window() {
 
 _menu_item_row_offset() {
   local menu_index=$1 window_start=$2
-  echo $((2 + menu_index - window_start))
+  echo $((3 + menu_index - window_start))
 }
 
 _draw_menu_item_line() {
@@ -743,10 +850,18 @@ _draw_search_window() {
   fi
 
   printf "\r\033[2K  Buscar: %s\n" "$query"
-  printf "\r\033[2K  Coincidencias: %d\n" "$filtered_count"
-  printf "\r\033[2K  ENTER: volver\n"
-  printf "\r\033[2K  ESPACIO: alternar\n"
-  printf "\r\033[2K  ESC: cancelar\n"
+  printf "\r\033[2K  Coincidencias: "
+  _setup_color "cyan" "$filtered_count"
+  printf "\n"
+  printf "\r\033[2K  "
+  _setup_color "cyan" "ENTER"
+  printf ": volver\n"
+  printf "\r\033[2K  "
+  _setup_color "cyan" "ESPACIO"
+  printf ": alternar\n"
+  printf "\r\033[2K  "
+  _setup_color "cyan" "ESC"
+  printf ": cancelar\n"
 
   if ((filtered_count == 0)); then
     printf "\r\033[2K  Sin coincidencias\n"
@@ -879,6 +994,39 @@ _read_key() {
   esac
 }
 
+_draw_menu_reference_frame_line() {
+  _setup_colored_line "magenta" "$1"
+}
+
+_draw_menu_reference_row() {
+  local shortcut=$1 description=$2
+  local padded_shortcut
+
+  padded_shortcut="$(printf "%-18s" "$shortcut")"
+  _setup_color "magenta" "  | "
+  _setup_color "cyan" "$padded_shortcut"
+  _setup_color "magenta" " | "
+  printf "%-24s" "$description"
+  _setup_color "magenta" " |"
+  printf "\n"
+}
+
+_draw_menu_reference() {
+  _draw_menu_reference_frame_line "  +--------------------+--------------------------+"
+  _draw_menu_reference_frame_line "  | Atajos del menú                               |"
+  _draw_menu_reference_frame_line "  +--------------------+--------------------------+"
+  _draw_menu_reference_row "↑/↓/j/k" "navegar"
+  _draw_menu_reference_row "PgUp/PgDn/Home/End" "saltar"
+  _draw_menu_reference_row "/" "buscar"
+  _draw_menu_reference_row "ESPACIO" "alternar"
+  _draw_menu_reference_row "a" "alternar todo"
+  _draw_menu_reference_row "r" "restaurar defaults"
+  _draw_menu_reference_row "ENTER" "confirmar"
+  _draw_menu_reference_row "q/Ctrl+C" "cancelar"
+  _draw_menu_reference_frame_line "  +--------------------+--------------------------+"
+  printf "\n"
+}
+
 # Operates on global arrays: _MENU_LABELS, _MENU_SELECTED
 _multiselect() {
   local cursor=0
@@ -886,26 +1034,14 @@ _multiselect() {
   local window_start=0
   local visible_height
   visible_height="$(_menu_visible_height)"
-  local rendered_lines=$((visible_height + 3))
+  local rendered_lines=$((visible_height + 4))
   local previous_interrupt_trap
   previous_interrupt_trap="$(trap -p INT)"
 
   trap 'printf "\n  Instalación cancelada.\n"; exit 130' INT
 
   printf "\n"
-  printf "  +--------------------+--------------------------+\n"
-  printf "  | Referencia del menú                           |\n"
-  printf "  +--------------------+--------------------------+\n"
-  printf "  | @                  | seleccionado por defecto |\n"
-  printf "  | ↑/↓/j/k            | navegar                  |\n"
-  printf "  | PgUp/PgDn/Home/End | saltar                   |\n"
-  printf "  | /                  | buscar                   |\n"
-  printf "  | ESPACIO            | alternar                 |\n"
-  printf "  | a                  | alternar todo            |\n"
-  printf "  | r                  | restaurar defaults       |\n"
-  printf "  | ENTER              | confirmar                |\n"
-  printf "  | q/Ctrl+C           | cancelar                 |\n"
-  printf "  +--------------------+--------------------------+\n\n"
+  _draw_menu_reference
 
   _draw_menu_window "$cursor" "$window_start" "$visible_height" "$count"
 
@@ -934,19 +1070,7 @@ _multiselect() {
         fi
         clear
         printf "\n"
-        printf "  +--------------------+--------------------------+\n"
-        printf "  | Referencia del menú                           |\n"
-        printf "  +--------------------+--------------------------+\n"
-        printf "  | @                  | seleccionado por defecto |\n"
-        printf "  | ↑/↓/j/k            | navegar                  |\n"
-        printf "  | PgUp/PgDn/Home/End | saltar                   |\n"
-        printf "  | /                  | buscar                   |\n"
-        printf "  | ESPACIO            | alternar                 |\n"
-        printf "  | a                  | alternar todo            |\n"
-        printf "  | r                  | restaurar defaults       |\n"
-        printf "  | ENTER              | confirmar                |\n"
-        printf "  | q/Ctrl+C           | cancelar                 |\n"
-        printf "  +--------------------+--------------------------+\n\n"
+        _draw_menu_reference
         force_full_render=1
         should_draw_from_current_position=1
         ;;
@@ -983,7 +1107,7 @@ _multiselect() {
     esac
 
     visible_height="$(_menu_visible_height)"
-    rendered_lines=$((visible_height + 3))
+    rendered_lines=$((visible_height + 4))
     window_start="$(_menu_adjust_window_start "$cursor" "$window_start" "$visible_height" "$count")"
 
     if [[ $should_draw_from_current_position -eq 1 ]]; then
@@ -1017,10 +1141,10 @@ _confirm_selected_menu_items() {
 
   printf "\n"
   if [[ $dry_run -eq 1 ]]; then
-    printf "[WARNING] Modo dry-run activo: no se instalará nada.\n"
+    _setup_log_warning "Modo dry-run activo: no se instalará nada."
   fi
 
-  printf "[INFO] Elementos seleccionados (%s):\n" "$selected_count"
+  _setup_log_info "Elementos seleccionados ($selected_count):"
   _print_selected_menu_items
   printf "\n  ENTER: continuar\n"
   printf "  q/Ctrl+C: cancelar\n"
@@ -1043,12 +1167,12 @@ interactive_menu() {
 
   clear
   printf "\n"
-  printf "  ╔══════════════════════════════════════╗\n"
-  printf "  ║     Instalador de setup del sistema  ║\n"
-  printf "  ╚══════════════════════════════════════╝\n"
+  _setup_colored_line "magenta" "  ╔══════════════════════════════════════╗"
+  _setup_colored_line "magenta" "  ║     Instalador de setup del sistema  ║"
+  _setup_colored_line "magenta" "  ╚══════════════════════════════════════╝"
 
   if ! _multiselect; then
-    echo "  Instalación cancelada."
+    _setup_log_warning "Instalación cancelada."
     return 0
   fi
 
@@ -1057,16 +1181,16 @@ interactive_menu() {
   count=$(_menu_selected_count)
 
   if [[ $count -eq 0 ]]; then
-    echo "  No se seleccionaron elementos. No se instalará nada."
+    _setup_log_warning "No se seleccionaron elementos. No se instalará nada."
     return 0
   fi
 
   if ! _confirm_selected_menu_items "$dry_run"; then
-    echo "  Instalación cancelada."
+    _setup_log_warning "Instalación cancelada."
     return 0
   fi
 
-  echo "  Se procesarán $count elemento(s) seleccionado(s)."
+  _setup_log_info "Se procesarán $count elemento(s) seleccionado(s)."
 
   if [[ $dry_run -eq 0 ]] && is_ubuntu; then
     sudo apt update
@@ -1076,7 +1200,8 @@ interactive_menu() {
   _run_selected_menu_items "$dry_run"
   _print_install_summary
 
-  printf "\n  ✅ Proceso completo.\n"
+  printf "\n"
+  _setup_log_success "Proceso completo."
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
@@ -1094,14 +1219,14 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     _initialize_menu_catalog || exit 1
     _validate_menu_catalog || exit 1
     if ! _find_menu_function_index "$1" >/dev/null; then
-      echo "ERROR: La función '$1' no está permitida por el catálogo de setup." >&2
+      _setup_log_error "La función '$1' no está permitida por el catálogo de setup." >&2
       exit 1
     fi
 
     if [[ $dry_run -eq 1 ]]; then
-      echo "Dry-run: se ejecutaría $*"
+      _setup_log_warning "Dry-run: se ejecutaría $*"
     else
-      echo "Ejecutando $0 $*"
+      _setup_log_info "Ejecutando $0 $*"
       "$1"
     fi
   else
