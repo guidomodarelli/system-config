@@ -3,10 +3,11 @@
 LOCAL_BINARIES="$HOME/.local/bin"
 SETUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$SETUP_SCRIPT_DIR" rev-parse --show-toplevel)"
-SETUP_CATALOG_PATH="$SETUP_SCRIPT_DIR/setup.bash.catalog.csv"
+SETUP_CATALOG_PATH="$SETUP_SCRIPT_DIR/setup.catalog.csv"
 SETUP_STYLE_TEXT_PATH="$REPO_ROOT/configs/zsh/.zsh/functions/styleText.zsh"
 SETUP_ESCAPE_SEQUENCE_TIMEOUT_SECONDS=0.05
 SETUP_INPUT_FLUSH_TIMEOUT_SECONDS=0.02
+SETUP_LATEST_VERSION_POLICY="latest-stable-official"
 
 if [[ -f "$SETUP_STYLE_TEXT_PATH" ]]; then
   # shellcheck source=../../configs/zsh/.zsh/functions/styleText.zsh
@@ -88,7 +89,17 @@ is_windows() {
 is_ubuntu() {
   if [ -f /etc/os-release ]; then
     . /etc/os-release
-    if [[ "$ID" == *"ubuntu"* ]] || [[ "$ID_LIKE" == *"debian"* ]]; then
+    if [[ "${ID:-}" == "ubuntu" ]]; then
+      return 0  # true
+    fi
+  fi
+  return 1  # false
+}
+
+is_debian_like() {
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ "${ID:-}" == "debian" || "${ID:-}" == "ubuntu" || " ${ID_LIKE:-} " == *" debian "* ]]; then
       return 0  # true
     fi
   fi
@@ -108,7 +119,7 @@ _setup_current_platform() {
     echo "wsl"
   elif is_darwin; then
     echo "darwin"
-  elif is_ubuntu; then
+  elif is_debian_like; then
     echo "linux"
   else
     echo "unknown"
@@ -136,52 +147,90 @@ _setup_platform_token_is_supported() {
 }
 
 install_oh_my_zsh() {
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  _setup_log_info "Instalando la última versión estable oficial de Oh My Zsh."
+
+  if [[ -d "$HOME/.oh-my-zsh/.git" ]]; then
+    git -C "$HOME/.oh-my-zsh" pull --ff-only
+    return 0
+  fi
+
+  local temp_dir install_script
+  temp_dir="$(_setup_create_temp_dir)"
+  install_script="$temp_dir/oh-my-zsh-install.sh"
+  if ! curl -fsSLo "$install_script" "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  if ! RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh "$install_script"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  _setup_remove_temp_dir "$temp_dir"
+  if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
+    echo "Oh My Zsh no quedó instalado en $HOME/.oh-my-zsh." >&2
+    return 1
+  fi
 }
 
 install_docker_ce() {
-  is_ubuntu || return
+  is_debian_like || return
   sudo apt-get install -y docker-ce
 }
 install_docker_ce_cli() {
-  is_ubuntu || return
+  is_debian_like || return
   sudo apt-get install -y docker-ce-cli
 }
 install_containerd_io() {
-  is_ubuntu || return
+  is_debian_like || return
   sudo apt-get install -y containerd.io
 }
 install_docker_buildx_plugin() {
-  is_ubuntu || return
+  is_debian_like || return
   sudo apt-get install -y docker-buildx-plugin
 }
 install_docker_compose_plugin() {
-  is_ubuntu || return
+  is_debian_like || return
   sudo apt-get install -y docker-compose-plugin
 }
 
 install_docker() {
-  if ! is_ubuntu; then
+  if ! is_debian_like; then
     echo "La instalación de Docker solo está soportada en Ubuntu/Debian en este setup; se omite."
     return 0
   fi
 
   if command -v docker >/dev/null 2>&1; then
-    echo "Docker ya está instalado; se omite la instalación del paquete."
+    echo "Docker ya está instalado; el package manager resolverá la última versión estable si se actualiza por separado."
     return 0
+  fi
+
+  local docker_distribution_id docker_distribution_codename
+  . /etc/os-release
+  docker_distribution_id="${ID:-}"
+  docker_distribution_codename="${VERSION_CODENAME:-}"
+  if [[ "$docker_distribution_id" == "ubuntu" ]]; then
+    docker_distribution_codename="${UBUNTU_CODENAME:-$docker_distribution_codename}"
+  elif [[ "$docker_distribution_id" != "debian" ]]; then
+    echo "Docker solo puede configurar repositorios oficiales para Ubuntu o Debian. Distribución detectada: ${docker_distribution_id:-desconocida}." >&2
+    return 1
+  fi
+
+  if [[ -z "$docker_distribution_codename" ]]; then
+    echo "No se pudo resolver el codename de la distribución para configurar Docker." >&2
+    return 1
   fi
 
   # Add Docker's official GPG key:
   sudo apt-get update
   sudo apt-get install -y ca-certificates curl
   sudo install -m 0755 -d /etc/apt/keyrings
-  sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  sudo curl -fsSL "https://download.docker.com/linux/$docker_distribution_id/gpg" -o /etc/apt/keyrings/docker.asc
   sudo chmod a+r /etc/apt/keyrings/docker.asc
 
   # Add the repository to Apt sources:
   echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-    $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$docker_distribution_id \
+    $docker_distribution_codename stable" | \
     sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
   sudo apt-get update
   install_docker_ce
@@ -216,16 +265,37 @@ install_antigen() {
 }
 
 install_nvm() {
-  local nvm_version="v0.40.4"
-  local latest_release_url=""
+  local nvm_version installed_nvm_version temp_dir install_script
 
-  latest_release_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/nvm-sh/nvm/releases/latest)" || true
-
-  if [ -n "$latest_release_url" ]; then
-    nvm_version="${latest_release_url##*/}"
+  nvm_version="$(_setup_resolve_github_latest_tag "nvm-sh" "nvm")"
+  if [[ -z "$nvm_version" ]]; then
+    echo "No se pudo resolver la última versión estable oficial de NVM." >&2
+    return 1
   fi
 
-  curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh" | bash
+  installed_nvm_version="$(_setup_installed_nvm_version)"
+  if [[ "$installed_nvm_version" == "${nvm_version#v}" ]]; then
+    echo "NVM ya está en la última versión estable oficial ($nvm_version)."
+    return 0
+  fi
+
+  _setup_log_info "Instalando NVM $nvm_version, última versión estable oficial."
+  temp_dir="$(_setup_create_temp_dir)"
+  install_script="$temp_dir/nvm-install.sh"
+  if ! curl -fsSLo "$install_script" "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  if ! bash "$install_script"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  _setup_remove_temp_dir "$temp_dir"
+  installed_nvm_version="$(_setup_installed_nvm_version)"
+  if [[ "$installed_nvm_version" != "${nvm_version#v}" ]]; then
+    echo "NVM no quedó en la última versión estable oficial esperada ($nvm_version)." >&2
+    return 1
+  fi
 }
 
 install_font() {
@@ -236,7 +306,7 @@ install_font() {
   local url="$2"
   local temp_dir
 
-  temp_dir="$(mktemp -d)"
+  temp_dir="$(_setup_create_temp_dir)"
   (
     cd "$temp_dir" || exit 1
     curl -fsSLo "$zip_name" "$url"
@@ -246,7 +316,7 @@ install_font() {
     mv ./*.ttf "$HOME/.fonts/"
   )
   local install_status=$?
-  rm -rf "$temp_dir"
+  _setup_remove_temp_dir "$temp_dir"
   [[ $install_status -eq 0 ]] || return "$install_status"
   fc-cache -fv
 }
@@ -269,18 +339,37 @@ install_espanso() {
 
 install_golang() {
   # https://go.dev/dl/
-  local GO_VERSION
-  GO_VERSION="$(curl -fsSL "https://go.dev/VERSION?m=text" | sed -n '1s/^go//p')"
+  local go_version installed_go_version file_name temp_dir
 
-  if [ -z "$GO_VERSION" ]; then
-    echo "Failed to resolve the latest Go version from go.dev" >&2
+  go_version="$(_setup_resolve_latest_go_version)"
+  if [ -z "$go_version" ]; then
+    echo "No se pudo resolver la última versión estable oficial de Go desde go.dev." >&2
     return 1
   fi
 
-  local FILE="go${GO_VERSION}.linux-amd64.tar.gz"
-  curl -fsSLO "https://go.dev/dl/$FILE"
-  sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf "$FILE"
-  rm -rf "$FILE"
+  installed_go_version="$(_setup_installed_go_version)"
+  if [[ "$installed_go_version" == "$go_version" ]]; then
+    echo "Go ya está en la última versión estable oficial ($go_version)."
+    return 0
+  fi
+
+  _setup_log_info "Instalando Go $go_version, última versión estable oficial."
+  file_name="go${go_version}.linux-amd64.tar.gz"
+  temp_dir="$(_setup_create_temp_dir)"
+  if ! curl -fsSLo "$temp_dir/$file_name" "https://go.dev/dl/$file_name"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  if ! sudo rm -rf /usr/local/go || ! sudo tar -C /usr/local -xzf "$temp_dir/$file_name"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  _setup_remove_temp_dir "$temp_dir"
+  installed_go_version="$(_setup_installed_go_version)"
+  if [[ "$installed_go_version" != "$go_version" ]]; then
+    echo "Go no quedó en la última versión estable oficial esperada ($go_version)." >&2
+    return 1
+  fi
 }
 
 _go() {
@@ -290,8 +379,8 @@ _go() {
 install_ghq() {
   _brew install ghq # https://formulae.brew.sh/formula/ghq
 
-  mkdir -p $HOME/ghq/work
-  mkdir -p $HOME/ghq/projects
+  mkdir -p "$HOME/ghq/work"
+  mkdir -p "$HOME/ghq/projects"
 }
 
 install_VsCode() {
@@ -326,7 +415,8 @@ install_eza() {
 
 install_homebrew() {
   if command -v brew >/dev/null 2>&1; then
-    echo "Homebrew ya está instalado; se omite la instalación."
+    echo "Homebrew ya está instalado; actualizando metadatos para resolver últimas versiones estables."
+    brew update
     return 0
   fi
 
@@ -338,8 +428,8 @@ _brew() {
 
   if command -v brew >/dev/null 2>&1; then
     brew_command="$(command -v brew)"
-  elif is_ubuntu && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-    brew_command="/home/linuxbrew/.linuxbrew/bin/brew"
+  elif is_debian_like && [[ -x "$(_setup_default_linuxbrew_path)" ]]; then
+    brew_command="$(_setup_default_linuxbrew_path)"
   elif is_darwin && [[ -x /opt/homebrew/bin/brew ]]; then
     brew_command="/opt/homebrew/bin/brew"
   elif is_darwin && [[ -x /usr/local/bin/brew ]]; then
@@ -352,6 +442,10 @@ _brew() {
   "$brew_command" "$@"
 }
 
+_setup_default_linuxbrew_path() {
+  printf "%s" "/home/linuxbrew/.linuxbrew/bin/brew"
+}
+
 install_fd_find() {
   _brew install fd
 }
@@ -359,19 +453,19 @@ install_fd_find() {
 install_xclip() {
   is_windows && return
 
-  if is_ubuntu; then
+  if is_debian_like; then
     sudo apt install -y xclip
   fi
 }
 
 install_git_filter_repo() {
-  if is_ubuntu; then
+  if is_debian_like; then
     sudo apt install -y git-filter-repo
   fi
 }
 
 install_git() {
-  if is_ubuntu; then
+  if is_debian_like; then
     sudo apt install -y git
   fi
 }
@@ -390,13 +484,13 @@ install_zsh() {
   fi
 }
 
-install_build_essential() { is_ubuntu && sudo apt install -y build-essential; }
-install_gcc() { if is_ubuntu; then sudo apt install -y gcc; fi }
-install_curl_pkg() { if is_ubuntu; then sudo apt install -y curl; fi }
-install_wget_pkg() { if is_ubuntu; then sudo apt install -y wget; fi }
-install_zip_pkg() { if is_ubuntu; then sudo apt install -y zip; fi }
-install_unzip_pkg() { if is_ubuntu; then sudo apt install -y unzip; fi }
-install_python3_venv() { is_ubuntu && sudo apt install -y python3-venv; }
+install_build_essential() { is_debian_like && sudo apt install -y build-essential; }
+install_gcc() { if is_debian_like; then sudo apt install -y gcc; fi }
+install_curl_pkg() { if is_debian_like; then sudo apt install -y curl; fi }
+install_wget_pkg() { if is_debian_like; then sudo apt install -y wget; fi }
+install_zip_pkg() { if is_debian_like; then sudo apt install -y zip; fi }
+install_unzip_pkg() { if is_debian_like; then sudo apt install -y unzip; fi }
+install_python3_venv() { is_debian_like && sudo apt install -y python3-venv; }
 
 install_essentials() {
   install_build_essential
@@ -436,11 +530,23 @@ install_ggrep() {
 install_sdkman() {
   if [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]; then
     source "$HOME/.sdkman/bin/sdkman-init.sh"
+    sdk selfupdate force || true
     sdk version || true
     return 0
   fi
 
-  curl -s "https://get.sdkman.io" | bash
+  local temp_dir install_script
+  temp_dir="$(_setup_create_temp_dir)"
+  install_script="$temp_dir/sdkman-install.sh"
+  if ! curl -fsSLo "$install_script" "https://get.sdkman.io"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  if ! bash "$install_script"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  _setup_remove_temp_dir "$temp_dir"
   if [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]; then
     source "$HOME/.sdkman/bin/sdkman-init.sh"
     sdk version || true
@@ -456,15 +562,66 @@ install_yq() {
 install_win32yank() {
   ! is_windows && return
 
-  # Install win32yank in WSL
-  local VERSION="v0.1.1"
-  local FILENAME="win32yank-x64.zip"
-  local URL="https://github.com/equalsraf/win32yank/releases/download/${VERSION}/${FILENAME}"
+  local win32yank_version file_name url temp_dir
+  win32yank_version="$(_setup_resolve_github_latest_tag "equalsraf" "win32yank")"
+  if [[ -z "$win32yank_version" ]]; then
+    echo "No se pudo resolver la última versión estable oficial de win32yank." >&2
+    return 1
+  fi
 
-  curl -fsSLO "$URL"
-  unzip "$FILENAME" -d ~/.local/bin/
-  chmod +x ~/.local/bin/win32yank.exe
-  rm "$FILENAME"
+  file_name="win32yank-x64.zip"
+  url="https://github.com/equalsraf/win32yank/releases/download/${win32yank_version}/${file_name}"
+  temp_dir="$(_setup_create_temp_dir)"
+  if ! curl -fsSLo "$temp_dir/$file_name" "$url"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  mkdir -p "$LOCAL_BINARIES"
+  if ! unzip -o "$temp_dir/$file_name" -d "$LOCAL_BINARIES/" || ! chmod +x "$LOCAL_BINARIES/win32yank.exe"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  _setup_remove_temp_dir "$temp_dir"
+  if [[ ! -x "$LOCAL_BINARIES/win32yank.exe" ]]; then
+    echo "win32yank no quedó instalado en $LOCAL_BINARIES/win32yank.exe." >&2
+    return 1
+  fi
+}
+
+_setup_create_temp_dir() {
+  mktemp -d 2>/dev/null || mktemp -d -t setup
+}
+
+_setup_remove_temp_dir() {
+  local temp_dir=$1
+  [[ -n "$temp_dir" && -d "$temp_dir" ]] && rm -rf "$temp_dir"
+}
+
+_setup_resolve_github_latest_tag() {
+  local owner=$1 repository=$2 latest_release_url
+  latest_release_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${owner}/${repository}/releases/latest")" || return 1
+  printf "%s" "${latest_release_url##*/}"
+}
+
+_setup_resolve_latest_go_version() {
+  curl -fsSL "https://go.dev/VERSION?m=text" | sed -n '1s/^go//p'
+}
+
+_setup_installed_go_version() {
+  if [[ -x /usr/local/go/bin/go ]]; then
+    /usr/local/go/bin/go version | awk '{print $3}' | sed 's/^go//'
+  elif command -v go >/dev/null 2>&1; then
+    go version | awk '{print $3}' | sed 's/^go//'
+  fi
+}
+
+_setup_installed_nvm_version() {
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$NVM_DIR/nvm.sh"
+    nvm --version
+  fi
 }
 
 _is_setup_menu_item_recommended_for_platform() {
@@ -483,7 +640,7 @@ _is_setup_menu_item_recommended_for_platform() {
       is_darwin
       ;;
     xclip)
-      is_ubuntu && ! is_darwin && ! is_windows
+      is_debian_like && ! is_darwin && ! is_windows
       ;;
     win32yank)
       is_windows
@@ -547,53 +704,6 @@ ensure_sudo() {
   fi
 }
 
-main() {
-  if is_ubuntu; then
-    sudo apt update
-    sudo apt --fix-broken install -y
-  fi
-
-  # IMPORTANT: Install essential packages first
-  install_essentials
-
-  # Install other dependencies that might be needed for subsequent installations
-  install_golang
-  install_homebrew
-  install_sdkman
-  install_nvm
-
-  # Shell environment
-  install_zsh
-  install_antigen
-  install_oh_my_zsh
-
-  # CLI utilities
-  install_jq
-  install_fzf
-  install_ripgrep
-  install_zoxide
-  install_ggrep
-  install_eza
-  install_fd_find
-  install_yq
-  install_xclip
-  install_win32yank
-  install_espanso
-
-  # Git tools
-  install_git
-  install_git_filter_repo
-  install_ghq
-
-  # Development tools
-  # install_vagrant
-  install_docker
-  install_lazydocker
-
-  # Fonts
-  install_fonts
-}
-
 # ─── Interactive Multi-Select Menu ───────────────────────────────────────────
 
 _initialize_menu_catalog() {
@@ -610,13 +720,28 @@ _initialize_menu_catalog() {
     return 1
   fi
 
-  local id label function_name default_selected requires_admin supported_platforms requires_restart
-  while IFS='|' read -r id label function_name default_selected requires_admin supported_platforms requires_restart; do
-    [[ "$id" == "Id" || -z "$id" || "${id:0:1}" == "#" ]] && continue
+  local expected_catalog_header="Id|Label|BashFunctionName|PowerShellFunctionName|DefaultSelected|RequiresAdmin|Platforms|RequiresRestart"
+  local catalog_header
+  IFS= read -r catalog_header < "$SETUP_CATALOG_PATH"
+  if [[ "$catalog_header" != "$expected_catalog_header" ]]; then
+    echo "ERROR: El catálogo de setup debe usar el encabezado común: $expected_catalog_header" >&2
+    return 1
+  fi
+
+  local id label bash_function_name power_shell_function_name default_selected requires_admin supported_platforms requires_restart function_name
+  {
+    IFS= read -r catalog_header
+    while IFS='|' read -r id label bash_function_name power_shell_function_name default_selected requires_admin supported_platforms requires_restart; do
+    [[ -z "$id" || "${id:0:1}" == "#" ]] && continue
+    function_name="$bash_function_name"
     [[ -z "$function_name" ]] && continue
     requires_admin="${requires_admin:-0}"
     supported_platforms="${supported_platforms:-all}"
     requires_restart="${requires_restart:-0}"
+
+    if ! _setup_platforms_include_current "$supported_platforms"; then
+      continue
+    fi
 
     _MENU_IDS+=("$id")
     _MENU_LABELS+=("$label")
@@ -629,7 +754,8 @@ _initialize_menu_catalog() {
     else
       _MENU_DEFAULT_SELECTED+=("0")
     fi
-  done < "$SETUP_CATALOG_PATH"
+    done
+  } < "$SETUP_CATALOG_PATH"
 
   _sort_menu_catalog_by_default_selection
 }
@@ -1506,7 +1632,7 @@ interactive_menu() {
     ensure_sudo
   fi
 
-  if [[ $dry_run -eq 0 ]] && is_ubuntu; then
+  if [[ $dry_run -eq 0 ]] && is_debian_like; then
     sudo apt update
     sudo apt --fix-broken install -y
   fi

@@ -9,7 +9,9 @@ disponibles y correctamente configuradas.
 
 Este script automatiza la instalación de herramientas y la configuración del
 entorno usando Homebrew. `SDKMAN` puede instalarse como herramienta base, pero
-el setup recomendado ya no instala ni fija Java 21 por defecto.
+el setup recomendado ya no instala ni fija Java 21 por defecto. La política
+general del setup es instalar o actualizar siempre a la última versión estable
+disponible desde la fuente oficial de cada herramienta.
 
 ### Requisitos
 
@@ -53,9 +55,9 @@ chmod +x scripts/setup/setup.sh
 ./scripts/setup/setup.sh --dry-run --yes git fd_find
 ```
 
-La ejecución directa está limitada a ítems presentes en
-`scripts/setup/setup.bash.catalog.csv`. Se puede usar el `Id` o el nombre de la
-función.
+La ejecución directa está limitada a ítems presentes para la plataforma actual
+en `scripts/setup/setup.catalog.csv`. Se puede usar el `Id` o el nombre de la
+función del shell correspondiente.
 
 ### Opciones CLI
 
@@ -102,9 +104,9 @@ argumento. Por ejemplo, para instalar Docker, ejecuta:
 ./setup.sh --dry-run --yes docker
 ```
 
-La ejecución directa está limitada a ítems presentes en
-`scripts/setup/setup.bash.catalog.csv`. Se puede usar el `Id` o el nombre de la
-función.
+La ejecución directa está limitada a ítems presentes para la plataforma actual
+en `scripts/setup/setup.catalog.csv`. Se puede usar el `Id` o el nombre de la
+función del shell correspondiente.
 
 ### Autocompletado
 
@@ -155,9 +157,9 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 --yes Install-Choco
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 --dry-run --yes git
 ```
 
-La ejecución directa está limitada a ítems presentes en
-`scripts/setup/setup.pwsh.catalog.csv`. Se puede usar el `Id` o el nombre de la
-función.
+La ejecución directa está limitada a ítems presentes para Windows en
+`scripts/setup/setup.catalog.csv`. Se puede usar el `Id` o el nombre de la
+función de PowerShell.
 
 Opciones útiles:
 
@@ -166,15 +168,23 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1 --help
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 --list
 ```
 
-## Catálogos y validación
+## Catálogo, versiones y validación
 
-- `setup.sh` construye su menú desde `scripts/setup/setup.bash.catalog.csv`.
-- `setup.ps1` construye su menú desde `scripts/setup/setup.pwsh.catalog.csv`.
-- Para agregar o quitar ítems, actualiza el catálogo del shell correspondiente
-  y la función instaladora asociada.
-- Los catálogos declaran `RequiresAdmin`, `Platforms` y `RequiresRestart`, para
-  que cada script pueda pedir privilegios solo cuando corresponde y avisar sobre
-  reinicios.
+- `setup.sh` y `setup.ps1` construyen su menú desde
+  `scripts/setup/setup.catalog.csv`.
+- Para agregar o quitar ítems, actualiza el catálogo común y la función
+  instaladora asociada al shell correspondiente.
+- El catálogo común declara `BashFunctionName`, `PowerShellFunctionName`,
+  `RequiresAdmin`, `Platforms` y `RequiresRestart`, para que cada script cargue
+  solo los ítems compatibles con la plataforma actual y avise sobre privilegios
+  o reinicios.
+- La política explícita es instalar o actualizar siempre a la última versión
+  estable oficial. Si una herramienta se instala con `brew`, `winget`, `choco`
+  o `apt`, se confía en el resolver del package manager. Si se instala desde un
+  endpoint oficial, el script resuelve la versión estable más reciente cuando
+  existe un endpoint o redirección de `latest`.
+- Las descargas directas usan directorios temporales y limpieza posterior para
+  no dejar artefactos en el repo ni en el directorio actual.
 - Validaciones recomendadas:
 
 ```bash

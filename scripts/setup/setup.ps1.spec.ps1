@@ -39,6 +39,30 @@ function Assert-Equal {
   }
 }
 
+function Assert-Contains {
+  param (
+    [string]$Haystack,
+    [string]$Needle,
+    [string]$Message
+  )
+
+  if (-not $Haystack.Contains($Needle)) {
+    throw "$Message Expected output to contain '$Needle'."
+  }
+}
+
+function Assert-NotContains {
+  param (
+    [string]$Haystack,
+    [string]$Needle,
+    [string]$Message
+  )
+
+  if ($Haystack.Contains($Needle)) {
+    throw "$Message Expected output not to contain '$Needle'."
+  }
+}
+
 function ConvertTo-TestArray {
   param (
     [object]$Value
@@ -66,15 +90,32 @@ function New-TestSetupMenuCatalog {
 $setupScriptPath = Join-Path $PSScriptRoot 'setup.ps1'
 Import-SetupScriptFunctions -ScriptPath $setupScriptPath
 
-$sharedMenuCatalog = Get-SetupMenuCatalog -CatalogPath (Join-Path $PSScriptRoot 'setup.pwsh.catalog.csv')
+$setupScriptContent = Get-Content -Path $setupScriptPath -Raw
+Assert-Contains -Haystack $setupScriptContent -Needle "latest-stable-official" -Message 'PowerShell setup should make the latest stable policy explicit.'
+Assert-NotContains -Haystack $setupScriptContent -Needle 'setup.pwsh.catalog.csv' -Message 'PowerShell setup should not reference the old PowerShell-only catalog.'
+
+$sharedCatalogPath = Join-Path $PSScriptRoot 'setup.catalog.csv'
+$sharedMenuCatalog = Get-SetupMenuCatalog -CatalogPath $sharedCatalogPath
 Test-SetupMenuCatalog -menuCatalog $sharedMenuCatalog
 Assert-Equal -Expected $true -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Install-Git') -Message 'Catalog allowlist should include setup installer functions.'
 Assert-Equal -Expected $false -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Get-ChildItem') -Message 'Catalog allowlist should reject functions outside setup installers.'
-Assert-Equal -Expected 'Chocolatey' -Actual $sharedMenuCatalog[0].Label -Message 'PowerShell catalog should be loaded from the pwsh setup catalog.'
+Assert-Equal -Expected 'Chocolatey' -Actual $sharedMenuCatalog[0].Label -Message 'PowerShell catalog should be loaded from the shared setup catalog.'
 Assert-Equal -Expected 'chocolatey' -Actual $sharedMenuCatalog[0].Id -Message 'PowerShell catalog should preserve setup ids.'
 Assert-Equal -Expected $true -Actual $sharedMenuCatalog[0].RequiresAdmin -Message 'PowerShell catalog should load admin metadata.'
 Assert-Equal -Expected 'windows' -Actual $sharedMenuCatalog[0].Platforms -Message 'PowerShell catalog should load platform metadata.'
 Assert-Equal -Expected $false -Actual $sharedMenuCatalog[0].RequiresRestart -Message 'PowerShell catalog should load restart metadata.'
+
+$invalidHeaderCatalogPath = Join-Path $PSScriptRoot 'invalid-header.catalog.csv'
+Set-Content -Path $invalidHeaderCatalogPath -Value @('Id|Label|FunctionName', 'git|Git|Install-Git')
+$invalidHeaderFailed = $false
+try {
+  Get-SetupMenuCatalog -CatalogPath $invalidHeaderCatalogPath | Out-Null
+} catch {
+  $invalidHeaderFailed = $true
+} finally {
+  Remove-Item -Path $invalidHeaderCatalogPath -Force
+}
+Assert-Equal -Expected $true -Actual $invalidHeaderFailed -Message 'PowerShell catalog loading should reject non-shared headers.'
 
 $duplicatedIdCatalog = @(
   [PSCustomObject]@{ Id = 'git'; Label = 'Git'; FunctionName = 'Install-Git'; DefaultSelected = $true; RequiresAdmin = $false; Platforms = 'windows'; RequiresRestart = $false },
@@ -99,6 +140,17 @@ try {
 }
 Assert-Equal -Expected $true -Actual $unsupportedPlatformFailed -Message 'PowerShell catalog validation should reject unsupported platform tokens.'
 
+$missingFunctionCatalog = @(
+  [PSCustomObject]@{ Id = 'missing'; Label = 'Missing'; FunctionName = 'Install-MissingTool'; DefaultSelected = $true; RequiresAdmin = $false; Platforms = 'windows'; RequiresRestart = $false }
+)
+$missingFunctionFailed = $false
+try {
+  Test-SetupMenuCatalog -menuCatalog $missingFunctionCatalog
+} catch {
+  $missingFunctionFailed = $true
+}
+Assert-Equal -Expected $true -Actual $missingFunctionFailed -Message 'PowerShell catalog validation should reject missing PowerShell functions.'
+
 $parsedSetupArguments = ConvertTo-SetupArguments -Arguments @('Install-Git', '--dry-run', 'fd_find', '--yes')
 Assert-Equal -Expected $true -Actual $parsedSetupArguments.DryRun -Message 'PowerShell CLI parsing should accept dry-run after commands.'
 Assert-Equal -Expected $true -Actual $parsedSetupArguments.AssumeYes -Message 'PowerShell CLI parsing should accept yes after commands.'
@@ -107,6 +159,43 @@ Assert-Equal -Expected 'Install-Git fd_find' -Actual ($parsedSetupArguments.Comm
 Assert-Equal -Expected 0 -Actual (Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'chocolatey') -Message 'PowerShell catalog lookup should accept setup ids.'
 Assert-Equal -Expected 0 -Actual (Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'Install-Choco') -Message 'PowerShell catalog lookup should accept function names.'
 Assert-Equal -Expected $true -Actual (Test-SetupMenuIndexesRequireAdmin -menuCatalog $sharedMenuCatalog -selectedIndexes @(0)) -Message 'PowerShell selected metadata should detect admin requirements.'
+$gitMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'git'
+$curlMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'curl'
+$vscodeMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'vscode'
+$batMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'bat'
+Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$gitMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin Git installs.'
+Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$curlMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin curl installs.'
+Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$vscodeMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin VS Code installs.'
+Assert-Equal -Expected $true -Actual ($batMenuIndex -ge 0) -Message 'PowerShell catalog should include bat from the previous PowerShell catalog.'
+Assert-Equal -Expected $true -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Install-Bat') -Message 'PowerShell catalog allowlist should include Install-Bat.'
+
+$scriptDownloadPath = $null
+function global:Invoke-RestMethod {
+  param (
+    [string]$Uri,
+    [string]$OutFile,
+    [object]$ErrorAction
+  )
+
+  $script:scriptDownloadPath = $OutFile
+  Set-Content -Path $OutFile -Value '$global:LASTEXITCODE = 0'
+}
+
+$temporaryDirectoryPath = New-SetupTemporaryDirectory
+Remove-SetupTemporaryDirectory -Path $temporaryDirectoryPath
+Assert-Equal -Expected $false -Actual (Test-Path -LiteralPath $temporaryDirectoryPath) -Message 'Temporary setup directories should be removable.'
+
+Invoke-SetupLatestOfficialScript -Uri 'https://example.test/install.ps1' -FileName 'install.ps1'
+Assert-Equal -Expected $false -Actual (Test-Path -LiteralPath (Split-Path -Path $scriptDownloadPath -Parent)) -Message 'Remote installer helper should clean temporary downloads.'
+
+$wingetActions = @()
+function global:winget {
+  $script:wingetActions += ($args -join ' ')
+  $global:LASTEXITCODE = 0
+}
+
+Install-WingetPackage -appIds @('Example.Tool')
+Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('upgrade --exact --id Example.Tool')) -Message 'Winget installer should update installed packages to the latest stable version.'
 
 $failedSetupResults = @(
   [PSCustomObject]@{ Label = 'Git'; Status = 'OK'; Detail = ''; RequiresRestart = $false },

@@ -1,5 +1,7 @@
 ﻿# NOTA: Ejecutar este script como Administrador.
 
+$SetupLatestVersionPolicy = 'latest-stable-official'
+
 function LogError {
   param (
     [string]$message
@@ -28,27 +30,72 @@ function LogSuccess {
   Write-Host "[ SUCCESS ] $message" -ForegroundColor Green
 }
 
+function New-SetupTemporaryDirectory {
+  $temporaryDirectoryPath = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+  New-Item -ItemType Directory -Path $temporaryDirectoryPath -Force | Out-Null
+  return $temporaryDirectoryPath
+}
+
+function Remove-SetupTemporaryDirectory {
+  param (
+    [string]$Path
+  )
+
+  if (-not [string]::IsNullOrWhiteSpace($Path) -and (Test-Path -LiteralPath $Path)) {
+    Remove-Item -LiteralPath $Path -Recurse -Force
+  }
+}
+
+function Invoke-SetupLatestOfficialScript {
+  param (
+    [string]$Uri,
+    [string]$FileName
+  )
+
+  $temporaryDirectoryPath = New-SetupTemporaryDirectory
+  try {
+    $scriptPath = Join-Path $temporaryDirectoryPath $FileName
+    Invoke-RestMethod -Uri $Uri -OutFile $scriptPath -ErrorAction Stop
+    & $scriptPath
+    if ($LASTEXITCODE -ne 0) {
+      throw "El instalador oficial terminó con código $LASTEXITCODE."
+    }
+  } finally {
+    Remove-SetupTemporaryDirectory -Path $temporaryDirectoryPath
+  }
+}
+
 
 function Install-Choco {
   if (-Not (Test-Path 'C:\ProgramData\chocolatey\bin\choco.exe')) {
+    LogInfo 'Instalando la última versión estable oficial de Chocolatey.'
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+    Invoke-SetupLatestOfficialScript -Uri 'https://community.chocolatey.org/install.ps1' -FileName 'chocolatey-install.ps1'
     if ($LASTEXITCODE -ne 0) {
       throw "Chocolatey terminó con código $LASTEXITCODE."
     }
     LogSuccess "Chocolatey se instaló correctamente."
   } else {
-    LogWarning "Chocolatey ya está instalado."
+    LogInfo "Chocolatey ya está instalado. Actualizando paquetes del propio gestor a la última versión estable oficial disponible."
+    choco upgrade chocolatey --confirm --no-progress
+    if ($LASTEXITCODE -ne 0) {
+      throw "Chocolatey no pudo actualizarse. Código: $LASTEXITCODE."
+    }
   }
 }
 
 function Install-Scoop {
   if (-Not (Test-Path "$env:USERPROFILE\scoop\shims\scoop.ps1")) {
     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+    LogInfo 'Instalando la última versión estable oficial de Scoop.'
+    Invoke-SetupLatestOfficialScript -Uri 'https://get.scoop.sh' -FileName 'scoop-install.ps1'
     LogSuccess "Scoop se instaló correctamente."
   } else {
-    LogWarning "Scoop ya está instalado."
+    LogInfo "Scoop ya está instalado. Actualizando buckets para resolver últimas versiones estables."
+    scoop update
+    if ($LASTEXITCODE -ne 0) {
+      throw "Scoop no pudo actualizar sus metadatos. Código: $LASTEXITCODE."
+    }
   }
 }
 
@@ -99,7 +146,12 @@ function Install-WingetPackage {
   )
   foreach ($appId in $appIds) {
     if (Test-WingetPackageInstalled -AppId $appId) {
-      LogWarning "El paquete '$appId' ya está instalado. Omitiendo..."
+      LogInfo "El paquete '$appId' ya está instalado. Actualizando a la última versión estable oficial disponible..."
+      winget upgrade --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity
+      if ($LASTEXITCODE -ne 0) {
+        throw "Winget no pudo actualizar '$appId'. Código: $LASTEXITCODE."
+      }
+      LogSuccess "El paquete '$appId' quedó actualizado."
       continue
     }
 
@@ -131,7 +183,14 @@ function Install-Espanso {
   Install-WingetPackage Espanso.Espanso
 
   _espanso service register
+  if ($LASTEXITCODE -ne 0) {
+    throw "Espanso no pudo registrar el servicio. Código: $LASTEXITCODE."
+  }
+
   _espanso start
+  if ($LASTEXITCODE -ne 0) {
+    throw "Espanso no pudo iniciar. Código: $LASTEXITCODE."
+  }
 }
 
 function Install-Git {
@@ -177,11 +236,19 @@ function Install-Eza {
 
 function Install-WSL {
   LogInfo "Verificando si WSL está instalado..."
-  if (wsl --list --quiet) {
-    LogWarning "WSL ya está instalado."
+  wsl --list --quiet 1>$null 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    LogInfo "WSL ya está instalado. Actualizando a la última versión estable oficial disponible..."
+    wsl --update
+    if ($LASTEXITCODE -ne 0) {
+      throw "WSL no pudo actualizarse. Código: $LASTEXITCODE."
+    }
   } else {
     LogInfo "Instalando WSL..."
     wsl --install
+    if ($LASTEXITCODE -ne 0) {
+      throw "WSL no pudo instalarse. Código: $LASTEXITCODE."
+    }
     LogSuccess "WSL se instaló correctamente."
   }
 }
@@ -292,17 +359,27 @@ function Test-SetupPlatformTokenIsSupported {
 
 function Get-SetupMenuCatalog {
   param (
-    [string]$CatalogPath = (Join-Path $PSScriptRoot 'setup.pwsh.catalog.csv')
+    [string]$CatalogPath = (Join-Path $PSScriptRoot 'setup.catalog.csv')
   )
 
   if (-not (Test-Path $CatalogPath)) {
     throw "No se encontró el catálogo de setup: $CatalogPath"
   }
 
+  $expectedCatalogHeader = 'Id|Label|BashFunctionName|PowerShellFunctionName|DefaultSelected|RequiresAdmin|Platforms|RequiresRestart'
+  $catalogHeader = Get-Content -Path $CatalogPath -TotalCount 1
+  if ($catalogHeader -ne $expectedCatalogHeader) {
+    throw "El catálogo de setup debe usar el encabezado común: $expectedCatalogHeader"
+  }
+
   $catalogRows = Import-Csv -Path $CatalogPath -Delimiter '|'
   return @(
     foreach ($catalogRow in $catalogRows) {
-      if ([string]::IsNullOrWhiteSpace($catalogRow.FunctionName)) {
+      if ([string]::IsNullOrWhiteSpace($catalogRow.PowerShellFunctionName)) {
+        continue
+      }
+
+      if (-not (Test-SetupMenuItemSupportsCurrentPlatform -Platforms $catalogRow.Platforms)) {
         continue
       }
 
@@ -310,7 +387,7 @@ function Get-SetupMenuCatalog {
       New-SetupMenuItem `
         -Id $catalogRow.Id `
         -Label $catalogRow.Label `
-        -FunctionName $catalogRow.FunctionName `
+        -FunctionName $catalogRow.PowerShellFunctionName `
         -DefaultSelected (($catalogRow.DefaultSelected -eq '1') -and $supportsCurrentPlatform) `
         -RequiresAdmin ($catalogRow.RequiresAdmin -eq '1') `
         -Platforms $catalogRow.Platforms `
@@ -1238,54 +1315,6 @@ function Invoke-InteractiveSetupMenu {
     throw 'Uno o más ítems de setup fallaron.'
   }
   LogSuccess 'Proceso completo.'
-}
-
-function Main {
-  # Package Managers
-  # Install-Scoop
-  Install-Choco
-
-  # Development Tools
-  Install-Git
-  Install-Ghq
-  Install-VsCode
-  Install-Mise-In-Place
-  Install-fnm
-
-  # Programming Languages & Environments
-  Install-Python
-  Install-WSL
-
-  # Command Line Utilities
-  Install-FdFind
-  Install-Curl
-  Install-Fzf
-  Install-RipGrep
-  Install-Bat
-  Install-Eza
-
-  # Fonts
-  Install-Fonts
-
-  # Productivity Tools
-  Install-Espanso
-  Install-PowerToys
-  Install-AutoHotkey
-
-  # Media & Entertainment
-  Install-Vlc
-
-  # Communication
-  Install-WhatsApp
-
-  # Security & Password Management
-  Install-Bitwarden
-
-  # Utilities
-  Install-7z
-
-  # Always run this function last
-  Enable-HyperV
 }
 
 function Get-SetupUsage {
