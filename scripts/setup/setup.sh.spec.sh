@@ -6,6 +6,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=setup.sh
 source "$SCRIPT_DIR/setup.sh"
 
+_TEST_PLATFORM="linux"
+
+is_windows() {
+  [[ "$_TEST_PLATFORM" == "wsl" ]]
+}
+
+is_ubuntu() {
+  [[ "$_TEST_PLATFORM" == "linux" || "$_TEST_PLATFORM" == "wsl" ]]
+}
+
+is_darwin() {
+  [[ "$_TEST_PLATFORM" == "darwin" ]]
+}
+
+set_test_platform() {
+  _TEST_PLATFORM=$1
+}
+
 assert_equals() {
   local expected=$1 actual=$2 message=$3
 
@@ -48,6 +66,21 @@ assert_failure() {
   fi
 }
 
+get_menu_default_selection_by_id() {
+  local requested_id=$1
+  local menu_index
+
+  for menu_index in "${!_MENU_IDS[@]}"; do
+    if [[ "${_MENU_IDS[$menu_index]}" == "$requested_id" ]]; then
+      echo "${_MENU_DEFAULT_SELECTED[$menu_index]}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+set_test_platform "linux"
 _initialize_menu_catalog
 _validate_menu_catalog
 
@@ -68,8 +101,34 @@ SETUP_CATALOG_PATH="$original_setup_catalog_path"
 _initialize_menu_catalog
 _validate_menu_catalog
 
+assert_equals "1" "$(get_menu_default_selection_by_id xclip)" "Linux setup recommendations should include xclip."
+assert_equals "0" "$(get_menu_default_selection_by_id gnu_grep)" "Linux setup recommendations should not include GNU grep."
+assert_equals "0" "$(get_menu_default_selection_by_id win32yank)" "Linux setup recommendations should not include win32yank."
+assert_equals "1" "$(get_menu_default_selection_by_id espanso)" "Linux setup recommendations should include Espanso."
+assert_failure "Bash catalog should not include wget as a recommended setup item." get_menu_default_selection_by_id wget
+assert_failure "Bash catalog should not include Java JDK 21 as a recommended setup item." get_menu_default_selection_by_id java_jdk
+
+set_test_platform "wsl"
+_initialize_menu_catalog
+_validate_menu_catalog
+assert_equals "1" "$(get_menu_default_selection_by_id win32yank)" "WSL setup recommendations should include win32yank."
+assert_equals "0" "$(get_menu_default_selection_by_id espanso)" "WSL setup recommendations should not include Espanso."
+assert_equals "0" "$(get_menu_default_selection_by_id xclip)" "WSL setup recommendations should not include xclip."
+
+set_test_platform "darwin"
+_initialize_menu_catalog
+_validate_menu_catalog
+assert_equals "1" "$(get_menu_default_selection_by_id gnu_grep)" "macOS setup recommendations should include GNU grep."
+assert_equals "0" "$(get_menu_default_selection_by_id xclip)" "macOS setup recommendations should not include xclip."
+assert_equals "0" "$(get_menu_default_selection_by_id win32yank)" "macOS setup recommendations should not include win32yank."
+assert_equals "1" "$(get_menu_default_selection_by_id espanso)" "macOS setup recommendations should include Espanso."
+
+set_test_platform "linux"
+_initialize_menu_catalog
+_validate_menu_catalog
+
 git_function_index="$(_find_menu_function_index install_git)"
-assert_equals "26" "$git_function_index" "Catalog allowlist should find setup installer functions."
+assert_equals "24" "$git_function_index" "Catalog allowlist should find setup installer functions."
 assert_failure "Catalog allowlist should reject functions outside setup installers." _find_menu_function_index rm
 
 same_window_render_result=0

@@ -4,7 +4,6 @@ LOCAL_BINARIES="$HOME/.local/bin"
 SETUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$SETUP_SCRIPT_DIR" rev-parse --show-toplevel)"
 SETUP_CATALOG_PATH="$SETUP_SCRIPT_DIR/setup.bash.catalog.csv"
-SDKMAN_JAVA_IDENTIFIER="21.0.10-tem"
 SETUP_STYLE_TEXT_PATH="$REPO_ROOT/configs/zsh/.zsh/functions/styleText.zsh"
 SETUP_ESCAPE_SEQUENCE_TIMEOUT_SECONDS=0.05
 SETUP_INPUT_FLUSH_TIMEOUT_SECONDS=0.02
@@ -343,7 +342,6 @@ install_essentials() {
   install_build_essential
   install_gcc
   install_curl_pkg
-  install_wget_pkg
   install_zip_pkg
   install_unzip_pkg
   install_python3_venv
@@ -366,13 +364,13 @@ install_zoxide() {
 }
 
 install_ggrep() {
+  is_darwin || return
+
   _brew install grep # https://formulae.brew.sh/formula/grep (GNU grep provides ggrep)
-  if is_darwin; then
-    local brew_prefix
-    brew_prefix="$(_brew --prefix)"
-    _brew link --overwrite grep
-    ln -sf "${brew_prefix}/bin/ggrep" "${brew_prefix}/bin/grep"
-  fi
+  local brew_prefix
+  brew_prefix="$(_brew --prefix)"
+  _brew link --overwrite grep
+  ln -sf "${brew_prefix}/bin/ggrep" "${brew_prefix}/bin/grep"
 }
 
 install_sdkman() {
@@ -391,37 +389,6 @@ install_sdkman() {
   fi
 }
 
-install_java_jdk() {
-  install_sdkman || return 1
-
-  if ! command -v sdk >/dev/null 2>&1; then
-    echo "ERROR: SDKMAN is not available to install Java." >&2
-    return 1
-  fi
-
-  if ! sdk list java | grep -Fq "$SDKMAN_JAVA_IDENTIFIER"; then
-    echo "ERROR: Java identifier '$SDKMAN_JAVA_IDENTIFIER' was not found in SDKMAN." >&2
-    return 1
-  fi
-
-  if [ ! -d "$HOME/.sdkman/candidates/java/$SDKMAN_JAVA_IDENTIFIER" ]; then
-    sdk install java "$SDKMAN_JAVA_IDENTIFIER" || return 1
-  fi
-
-  sdk default java "$SDKMAN_JAVA_IDENTIFIER" || return 1
-
-  export JAVA_HOME
-  JAVA_HOME="$(sdk home java "$SDKMAN_JAVA_IDENTIFIER" 2>/dev/null || true)"
-
-  if [ -z "$JAVA_HOME" ] || [ ! -d "$JAVA_HOME" ]; then
-    echo "ERROR: SDKMAN did not return a valid JAVA_HOME for '$SDKMAN_JAVA_IDENTIFIER'." >&2
-    return 1
-  fi
-
-  "$JAVA_HOME/bin/java" -version || return 1
-  java -version || return 1
-  sdk current java || return 1
-}
 install_yq() {
   _brew install yq # https://github.com/mikefarah/yq
 }
@@ -434,11 +401,35 @@ install_win32yank() {
   local FILENAME="win32yank-x64.zip"
   local URL="https://github.com/equalsraf/win32yank/releases/download/${VERSION}/${FILENAME}"
 
-  sudo apt install wget -y
-  wget "$URL"
+  curl -fsSLO "$URL"
   unzip "$FILENAME" -d ~/.local/bin/
   chmod +x ~/.local/bin/win32yank.exe
   rm "$FILENAME"
+}
+
+_is_setup_menu_item_recommended_for_platform() {
+  local menu_item_id=$1
+  local base_default_selected=$2
+
+  [[ "$base_default_selected" -eq 1 ]] || return 1
+
+  case "$menu_item_id" in
+    espanso)
+      ! is_windows
+      ;;
+    gnu_grep)
+      is_darwin
+      ;;
+    xclip)
+      is_ubuntu && ! is_darwin && ! is_windows
+      ;;
+    win32yank)
+      is_windows
+      ;;
+    *)
+      return 0
+      ;;
+  esac
 }
 
 ensure_sudo() {
@@ -464,7 +455,6 @@ main() {
   install_golang
   install_homebrew
   install_sdkman
-  install_java_jdk
   install_nvm
 
   # Shell environment
@@ -520,7 +510,11 @@ _initialize_menu_catalog() {
     _MENU_IDS+=("$id")
     _MENU_LABELS+=("$label")
     _MENU_FUNCS+=("$function_name")
-    _MENU_DEFAULT_SELECTED+=("$default_selected")
+    if _is_setup_menu_item_recommended_for_platform "$id" "$default_selected"; then
+      _MENU_DEFAULT_SELECTED+=("1")
+    else
+      _MENU_DEFAULT_SELECTED+=("0")
+    fi
   done < "$SETUP_CATALOG_PATH"
 }
 
@@ -539,18 +533,10 @@ _validate_menu_catalog() {
     return 1
   fi
 
-  local found_non_default=0
   local menu_index
   for menu_index in "${!_MENU_LABELS[@]}"; do
     if ! declare -F "${_MENU_FUNCS[$menu_index]}" >/dev/null 2>&1; then
       echo "ERROR: La función '${_MENU_FUNCS[$menu_index]}' no existe." >&2
-      return 1
-    fi
-
-    if [[ ${_MENU_DEFAULT_SELECTED[$menu_index]} -eq 0 ]]; then
-      found_non_default=1
-    elif [[ $found_non_default -eq 1 ]]; then
-      echo "ERROR: Los elementos seleccionados por defecto deben estar al inicio del catálogo." >&2
       return 1
     fi
   done

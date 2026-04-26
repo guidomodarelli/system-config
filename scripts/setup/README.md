@@ -8,8 +8,8 @@ disponibles y correctamente configuradas.
 ## Uso en macOS
 
 Este script automatiza la instalación de herramientas y la configuración del
-entorno usando Homebrew. Java se instala y administra con `SDKMAN`, y el JDK
-por defecto queda fijado a Temurin 21.
+entorno usando Homebrew. `SDKMAN` puede instalarse como herramienta base, pero
+el setup recomendado ya no instala ni fija Java 21 por defecto.
 
 ### Requisitos
 
@@ -21,14 +21,13 @@ por defecto queda fijado a Temurin 21.
 Si Homebrew está en otra ruta, ajusta la función `_brew` en
 `scripts/setup/setup.sh`.
 
-### Java y `JAVA_HOME`
+### Recomendaciones por plataforma
 
-- El repo ya no define `JAVA_HOME` con una ruta fija del sistema.
-- `JAVA_HOME` se resuelve desde la versión activa de Java en `SDKMAN`.
-- El setup instala Temurin 21 usando el identificador configurado en
-  `scripts/setup/setup.sh` y lo deja como default.
-- Si cambias la versión por defecto con `sdk default java ...`, `JAVA_HOME`
-  reflejará esa selección en nuevas shells.
+- En macOS, el selector recomienda `ggrep` y no recomienda `xclip`.
+- En Linux nativo, el selector recomienda `xclip` y no recomienda `ggrep` ni
+  `win32yank`.
+- En WSL, el selector recomienda `win32yank` y no recomienda `Espanso`.
+- `wget` y Java 21 ya no forman parte de los paquetes recomendados.
 
 ### Ejecutar el script completo
 
