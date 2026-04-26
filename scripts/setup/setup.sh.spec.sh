@@ -134,6 +134,11 @@ _initialize_menu_catalog
 _validate_menu_catalog
 assert_menu_defaults_are_first "Linux setup menu should keep defaults first after catalog reload."
 
+_MENU_PLATFORMS[0]="linux,plan9"
+assert_failure "Bash catalog validation should reject unsupported platform tokens." _validate_menu_catalog
+_initialize_menu_catalog
+_validate_menu_catalog
+
 assert_equals "1" "$(get_menu_default_selection_by_id xclip)" "Linux setup recommendations should include xclip."
 assert_equals "1" "$(get_menu_requires_admin_by_id xclip)" "Linux setup metadata should mark xclip as requiring sudo."
 assert_equals "0" "$(get_menu_default_selection_by_id gnu_grep)" "Linux setup recommendations should not include GNU grep."

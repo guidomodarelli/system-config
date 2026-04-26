@@ -49,8 +49,8 @@ chmod +x scripts/setup/setup.sh
 ### Ejecutar una función específica
 
 ```bash
-./scripts/setup/setup.sh install_zsh
-./scripts/setup/setup.sh --dry-run git fd_find
+./scripts/setup/setup.sh --yes install_zsh
+./scripts/setup/setup.sh --dry-run --yes git fd_find
 ```
 
 La ejecución directa está limitada a ítems presentes en
@@ -67,7 +67,7 @@ función.
 
 - `--dry-run` puede ir antes o después de los ítems.
 - `--list` muestra `Id`, función y etiqueta disponibles.
-- `--yes` queda reservado para ejecuciones directas no interactivas.
+- `--yes` omite la pantalla de confirmación previa a la ejecución.
 
 ## Uso en Linux
 
@@ -98,8 +98,8 @@ Para ejecutar una función específica, usa el nombre de la función como
 argumento. Por ejemplo, para instalar Docker, ejecuta:
 
 ```bash
-./setup.sh install_docker
-./setup.sh --dry-run docker
+./setup.sh --yes install_docker
+./setup.sh --dry-run --yes docker
 ```
 
 La ejecución directa está limitada a ítems presentes en
@@ -135,7 +135,7 @@ Para ejecutar el script completo, simplemente ejecuta:
 ```bat
 .\setup.bat
 
-# or
+# o
 
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
@@ -146,13 +146,13 @@ Para ejecutar una función específica, usa el nombre de la función como
 argumento. Por ejemplo, para instalar Chocolatey, ejecuta:
 
 ```bat
-.\setup.bat Install-Choco
-.\setup.bat --dry-run git
+.\setup.bat --yes Install-Choco
+.\setup.bat --dry-run --yes git
 
-# or
+# o
 
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 Install-Choco
-powershell -ExecutionPolicy Bypass -File .\setup.ps1 --dry-run git
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 --yes Install-Choco
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 --dry-run --yes git
 ```
 
 La ejecución directa está limitada a ítems presentes en

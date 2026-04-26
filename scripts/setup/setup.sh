@@ -128,6 +128,13 @@ _setup_platforms_include_current() {
   esac
 }
 
+_setup_platform_token_is_supported() {
+  case "$1" in
+    all|linux|wsl|darwin|windows) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 install_oh_my_zsh() {
   sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 }
@@ -646,7 +653,8 @@ _validate_menu_catalog() {
   fi
 
   local found_non_default=0
-  local menu_index
+  local menu_index platform_token
+  local -a setup_validation_platform_tokens
   for menu_index in "${!_MENU_LABELS[@]}"; do
     if ! declare -F "${_MENU_FUNCS[$menu_index]}" >/dev/null 2>&1; then
       echo "ERROR: La función '${_MENU_FUNCS[$menu_index]}' no existe." >&2
@@ -669,6 +677,14 @@ _validate_menu_catalog() {
       echo "ERROR: RequiresRestart debe ser 0 o 1 para '${_MENU_LABELS[$menu_index]}'." >&2
       return 1
     fi
+
+    IFS=',' read -ra setup_validation_platform_tokens <<< "${_MENU_PLATFORMS[$menu_index]:-all}"
+    for platform_token in "${setup_validation_platform_tokens[@]}"; do
+      if ! _setup_platform_token_is_supported "$platform_token"; then
+        echo "ERROR: Plataforma no soportada '$platform_token' para '${_MENU_LABELS[$menu_index]}'." >&2
+        return 1
+      fi
+    done
   done
 
   local duplicated_label
@@ -1454,6 +1470,7 @@ _confirm_selected_menu_items() {
 
 interactive_menu() {
   local dry_run=${1:-0}
+  local assume_yes=${2:-0}
   _initialize_menu_catalog || return 1
   _validate_menu_catalog || return 1
   _reset_menu_selection_to_defaults
@@ -1478,7 +1495,7 @@ interactive_menu() {
     return 0
   fi
 
-  if ! _confirm_selected_menu_items "$dry_run"; then
+  if [[ $assume_yes -eq 0 ]] && ! _confirm_selected_menu_items "$dry_run"; then
     _setup_log_warning "Instalación cancelada."
     return 0
   fi
@@ -1496,6 +1513,9 @@ interactive_menu() {
 
   _run_selected_menu_items "$dry_run"
   _print_install_summary
+  if _setup_install_results_include_failure; then
+    return 1
+  fi
 
   printf "\n"
   _setup_log_success "Proceso completo."
@@ -1508,7 +1528,7 @@ Uso:
 
 Opciones:
   --dry-run  Muestra qué se ejecutaría sin instalar nada.
-  --yes      Ejecuta ítems directos sin pedir confirmación adicional.
+  --yes      Omite la confirmación antes de ejecutar los ítems seleccionados.
   --list     Lista los ítems disponibles del catálogo.
   --help     Muestra esta ayuda.
 EOF
@@ -1557,6 +1577,8 @@ _parse_setup_arguments() {
 
 _run_setup_items_by_identifier() {
   local dry_run=$1
+  local assume_yes=$2
+  shift
   shift
   local menu_indexes=()
   local item_identifier menu_index
@@ -1585,6 +1607,11 @@ _run_setup_items_by_identifier() {
     _MENU_SELECTED[$menu_index]=1
   done
 
+  if [[ $assume_yes -eq 0 ]] && ! _confirm_selected_menu_items "$dry_run"; then
+    _setup_log_warning "Instalación cancelada."
+    return 0
+  fi
+
   _run_selected_menu_items "$dry_run"
   _print_install_summary
   if _setup_install_results_include_failure; then
@@ -1600,8 +1627,8 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   elif [[ $SETUP_LIST_ITEMS -eq 1 ]]; then
     _list_setup_catalog
   elif [[ ${#SETUP_COMMAND_ARGUMENTS[@]} -gt 0 ]]; then
-    _run_setup_items_by_identifier "$SETUP_DRY_RUN" "${SETUP_COMMAND_ARGUMENTS[@]}"
+    _run_setup_items_by_identifier "$SETUP_DRY_RUN" "$SETUP_ASSUME_YES" "${SETUP_COMMAND_ARGUMENTS[@]}"
   else
-    interactive_menu "$SETUP_DRY_RUN"
+    interactive_menu "$SETUP_DRY_RUN" "$SETUP_ASSUME_YES"
   fi
 fi

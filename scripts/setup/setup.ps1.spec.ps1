@@ -88,6 +88,17 @@ try {
 }
 Assert-Equal -Expected $true -Actual $duplicatedIdFailed -Message 'PowerShell catalog validation should reject duplicated ids.'
 
+$unsupportedPlatformCatalog = @(
+  [PSCustomObject]@{ Id = 'git'; Label = 'Git'; FunctionName = 'Install-Git'; DefaultSelected = $true; RequiresAdmin = $false; Platforms = 'windows,plan9'; RequiresRestart = $false }
+)
+$unsupportedPlatformFailed = $false
+try {
+  Test-SetupMenuCatalog -menuCatalog $unsupportedPlatformCatalog
+} catch {
+  $unsupportedPlatformFailed = $true
+}
+Assert-Equal -Expected $true -Actual $unsupportedPlatformFailed -Message 'PowerShell catalog validation should reject unsupported platform tokens.'
+
 $parsedSetupArguments = ConvertTo-SetupArguments -Arguments @('Install-Git', '--dry-run', 'fd_find', '--yes')
 Assert-Equal -Expected $true -Actual $parsedSetupArguments.DryRun -Message 'PowerShell CLI parsing should accept dry-run after commands.'
 Assert-Equal -Expected $true -Actual $parsedSetupArguments.AssumeYes -Message 'PowerShell CLI parsing should accept yes after commands.'

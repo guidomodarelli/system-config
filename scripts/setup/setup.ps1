@@ -1,4 +1,4 @@
-﻿# NOTE: Run this script as Administrator
+﻿# NOTA: Ejecutar este script como Administrador.
 
 function LogError {
   param (
@@ -176,13 +176,13 @@ function Install-Eza {
 }
 
 function Install-WSL {
-  LogInfo "Checking if WSL is installed..."
+  LogInfo "Verificando si WSL está instalado..."
   if (wsl --list --quiet) {
-    LogWarning "WSL is already installed."
+    LogWarning "WSL ya está instalado."
   } else {
-    LogInfo "Installing WSL..."
+    LogInfo "Instalando WSL..."
     wsl --install
-    LogSuccess "WSL has been installed successfully."
+    LogSuccess "WSL se instaló correctamente."
   }
 }
 
@@ -204,25 +204,25 @@ function Test-HyperVAvailability {
 }
 
 function Enable-HyperV {
-  LogInfo "Enabling Hyper-V..."
+  LogInfo "Habilitando Hyper-V..."
   if (-not (Test-HyperVAvailability)) {
-    LogWarning "Hyper-V is not available on this Windows edition."
+    LogWarning "Hyper-V no está disponible en esta edición de Windows."
     return
   }
   try {
     $feature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All -ErrorAction Stop
     if ($feature.State -eq 'Enabled') {
-      LogWarning "Hyper-V is already enabled."
+      LogWarning "Hyper-V ya está habilitado."
       return
     }
     $result = Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All -NoRestart -ErrorAction Stop
     if ($result.RestartNeeded) {
-      LogSuccess "Hyper-V has been enabled successfully. A restart is required to complete the installation."
+      LogSuccess "Hyper-V se habilitó correctamente. Se requiere reiniciar para completar la instalación."
     } else {
-      LogSuccess "Hyper-V has been enabled successfully."
+      LogSuccess "Hyper-V se habilitó correctamente."
     }
   } catch {
-    LogError ("Failed to enable Hyper-V. {0}" -f $_.Exception.Message)
+    LogError ("No se pudo habilitar Hyper-V. {0}" -f $_.Exception.Message)
   }
 }
 
@@ -280,6 +280,14 @@ function Test-SetupMenuItemSupportsCurrentPlatform {
   )
 
   return [string]::IsNullOrWhiteSpace($Platforms) -or $Platforms -eq 'all' -or (",${Platforms}," -like '*,windows,*')
+}
+
+function Test-SetupPlatformTokenIsSupported {
+  param (
+    [string]$PlatformToken
+  )
+
+  return @('all', 'linux', 'wsl', 'darwin', 'windows').Contains($PlatformToken)
 }
 
 function Get-SetupMenuCatalog {
@@ -343,9 +351,12 @@ function Test-SetupMenuCatalog {
     }
   }
 
-  $unsupportedPlatformItems = @($menuCatalog | Where-Object { -not (Test-SetupMenuItemSupportsCurrentPlatform -Platforms $_.Platforms) } | ForEach-Object Id)
-  if ($unsupportedPlatformItems.Count -gt 0) {
-    throw "Hay ítems con plataforma no soportada para Windows: $($unsupportedPlatformItems -join ', ')."
+  foreach ($menuItem in $menuCatalog) {
+    $platformTokens = if ([string]::IsNullOrWhiteSpace($menuItem.Platforms)) { @('all') } else { @($menuItem.Platforms.Split(',')) }
+    $unsupportedPlatformTokens = @($platformTokens | Where-Object { -not (Test-SetupPlatformTokenIsSupported -PlatformToken $_) })
+    if ($unsupportedPlatformTokens.Count -gt 0) {
+      throw "Hay plataformas no soportadas en '$($menuItem.Label)': $($unsupportedPlatformTokens -join ', ')."
+    }
   }
 }
 
@@ -1188,7 +1199,8 @@ function Test-SetupExecutionResultsHaveFailures {
 
 function Invoke-InteractiveSetupMenu {
   param (
-    [bool]$DryRun = $false
+    [bool]$DryRun = $false,
+    [bool]$AssumeYes = $false
   )
 
   $menuCatalog = Get-SetupMenuCatalog
@@ -1213,7 +1225,7 @@ function Invoke-InteractiveSetupMenu {
     return
   }
 
-  if (-not (Confirm-SetupMenuSelection -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun)) {
+  if (-not $AssumeYes -and -not (Confirm-SetupMenuSelection -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun)) {
     LogWarning 'Instalación cancelada.'
     return
   }
@@ -1222,6 +1234,9 @@ function Invoke-InteractiveSetupMenu {
   Assert-SetupAdminRequirement -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
   $results = Invoke-SelectedSetupMenuItems -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
   Write-SetupExecutionSummary -results $results
+  if (Test-SetupExecutionResultsHaveFailures -results $results) {
+    throw 'Uno o más ítems de setup fallaron.'
+  }
   LogSuccess 'Proceso completo.'
 }
 
@@ -1280,7 +1295,7 @@ Uso:
 
 Opciones:
   --dry-run  Muestra qué se ejecutaría sin instalar nada.
-  --yes      Ejecuta ítems directos sin pedir confirmación adicional.
+  --yes      Omite la confirmación antes de ejecutar los ítems seleccionados.
   --list     Lista los ítems disponibles del catálogo.
   --help     Muestra esta ayuda.
 '@
@@ -1342,7 +1357,8 @@ function Invoke-SetupItemsByIdentifier {
   param (
     [PSCustomObject[]]$menuCatalog,
     [string[]]$itemIdentifiers,
-    [bool]$DryRun = $false
+    [bool]$DryRun = $false,
+    [bool]$AssumeYes = $false
   )
 
   $selectedIndexes = @()
@@ -1355,6 +1371,11 @@ function Invoke-SetupItemsByIdentifier {
   }
 
   Assert-SetupAdminRequirement -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
+  if (-not $AssumeYes -and -not (Confirm-SetupMenuSelection -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun)) {
+    LogWarning 'Instalación cancelada.'
+    return
+  }
+
   $results = Invoke-SelectedSetupMenuItems -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
   Write-SetupExecutionSummary -results $results
   if (Test-SetupExecutionResultsHaveFailures -results $results) {
@@ -1379,14 +1400,14 @@ if ($parsedArguments.ListItems) {
 
 if ($parsedArguments.CommandArguments.Count -gt 0) {
   try {
-    Invoke-SetupItemsByIdentifier -menuCatalog $menuCatalog -itemIdentifiers $parsedArguments.CommandArguments -DryRun $parsedArguments.DryRun
+    Invoke-SetupItemsByIdentifier -menuCatalog $menuCatalog -itemIdentifiers $parsedArguments.CommandArguments -DryRun $parsedArguments.DryRun -AssumeYes $parsedArguments.AssumeYes
   } catch {
     LogError $_.Exception.Message
     exit 1
   }
 } else {
   try {
-    Invoke-InteractiveSetupMenu -DryRun $parsedArguments.DryRun
+    Invoke-InteractiveSetupMenu -DryRun $parsedArguments.DryRun -AssumeYes $parsedArguments.AssumeYes
   } catch {
     LogError $_.Exception.Message
     exit 1
