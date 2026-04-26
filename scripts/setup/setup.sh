@@ -1088,7 +1088,7 @@ _draw_menu_reference() {
   _draw_menu_reference_frame_line "  +--------------------+--------------------------+"
   _draw_menu_reference_frame_line "  | Atajos del menú                               |"
   _draw_menu_reference_frame_line "  +--------------------+--------------------------+"
-  _draw_menu_reference_row "↑/↓/j/k" "navegar"
+  _draw_menu_reference_row "Arriba/Abajo/j/k" "navegar"
   _draw_menu_reference_row "PgUp/PgDn/Home/End" "saltar"
   _draw_menu_reference_row "/" "buscar"
   _draw_menu_reference_row "ESPACIO" "alternar"

@@ -143,7 +143,7 @@ assert_contains "$range_window" "$(styleText -c yellow -- "@")" "Default marker 
 
 reference_output="$(_draw_menu_reference)"
 assert_contains "$reference_output" "$(styleText -c magenta -- "  +--------------------+--------------------------+")" "Reference table frame should use styleText muted violet."
-padded_navigation_shortcut="$(printf "%-18s" "↑/↓/j/k")"
+padded_navigation_shortcut="$(printf "%-18s" "Arriba/Abajo/j/k")"
 assert_contains "$reference_output" "$(styleText -c cyan -- "$padded_navigation_shortcut")" "Reference shortcuts should use styleText info cyan."
 
 log_output="$(_setup_log_info "Shared styleText log")"
