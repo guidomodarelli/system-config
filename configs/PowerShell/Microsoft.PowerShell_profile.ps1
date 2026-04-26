@@ -108,7 +108,7 @@ function cx {
     $reasoning = 'medium'
     $yolo = $false
     $commitMode = $false
-    $disableMcps = $false
+    $enableMcps = $false
     $rest = New-Object System.Collections.Generic.List[string]
     $mcpConfigArgs = @()
 
@@ -128,7 +128,9 @@ function cx {
             }
             '-c' { $commitMode = $true }
             '--commit' { $commitMode = $true }
-            '--no-mcps' { $disableMcps = $true }
+            '--mcps' { $enableMcps = $true }
+            # Kept as a no-op for compatibility; MCPs are disabled by default.
+            '--no-mcps' {}
             # Internal-only flag, exposed via `cxd`.
             '--yolo' {
                 $yolo = $true
@@ -149,16 +151,12 @@ function cx {
 
     if ($commitMode) {
         # `--commit` has priority over any user-provided query tokens.
-        $disableMcpConfigArgs = Get-CxDisableMcpConfigArgs
         $yolo = $true
         $rest.Clear()
         $rest.Add((Get-CxCommitPrompt))
-        if ($disableMcpConfigArgs.Count -gt 0) {
-            $mcpConfigArgs = $disableMcpConfigArgs
-        } else {
-            $mcpConfigArgs = @()
-        }
-    } elseif ($disableMcps) {
+    }
+
+    if (-not $enableMcps) {
         $disableMcpConfigArgs = Get-CxDisableMcpConfigArgs
         if ($disableMcpConfigArgs.Count -gt 0) {
             $mcpConfigArgs = $disableMcpConfigArgs
@@ -204,12 +202,13 @@ if (Get-Command codex -ErrorAction SilentlyContinue) {
         param($wordToComplete, $commandAst, $cursorPosition)
 
         $wrapperFlags = @(
-            @{ Text = '-m'; List = '-m'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Model to use' }
-            @{ Text = '-re'; List = '-re'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Model reasoning effort' }
-            @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Use the built-in commit prompt' }
-            @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Use the built-in commit prompt' }
-            @{ Text = '--no-mcps'; List = '--no-mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Disable MCP servers for this run' }
-            @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Upgrade Codex via the wrapper' }
+            @{ Text = '-m'; List = '-m'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Modelo a usar' }
+            @{ Text = '-re'; List = '-re'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Esfuerzo de razonamiento del modelo' }
+            @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Usa el prompt interno de commit' }
+            @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Usa el prompt interno de commit' }
+            @{ Text = '--mcps'; List = '--mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Activa los servidores MCP para esta ejecución' }
+            @{ Text = '--no-mcps'; List = '--no-mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Comportamiento por defecto: los servidores MCP quedan desactivados' }
+            @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Actualiza Codex desde el wrapper' }
         )
         $modelOptions = @(
             'gpt-5.5',

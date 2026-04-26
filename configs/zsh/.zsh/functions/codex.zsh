@@ -132,12 +132,12 @@ _cx_disable_mcp_config_args() {
 cx() {
   clear
 
-  # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit, --no-mcps
+  # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit, --mcps
   local model="gpt-5.5"
   local reasoning="medium"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
-  local no_mcps=""
+  local enable_mcps=""
   local rest=()
   local mcp_config_args=()
 
@@ -161,8 +161,12 @@ cx() {
         commit=1
         shift
         ;;
+      --mcps)
+        enable_mcps=1
+        shift
+        ;;
       --no-mcps)
-        no_mcps=1
+        # Kept as a no-op for compatibility; MCPs are disabled by default.
         shift
         ;;
       --yolo)          # internal flag used by cxd
@@ -184,17 +188,12 @@ cx() {
   if [[ -n "$commit" ]]; then
     # `--commit` has priority over any user-provided query tokens.
     local commit_prompt
-    local disable_mcp_config_output
     commit_prompt="$(_cx_commit_prompt)" || return 1
-    disable_mcp_config_output="$(_cx_disable_mcp_config_args)"
     yolo=1
     rest=("$commit_prompt")
-    if [[ -n "$disable_mcp_config_output" ]]; then
-      mcp_config_args=("${(@f)disable_mcp_config_output}")
-    else
-      mcp_config_args=()
-    fi
-  elif [[ -n "$no_mcps" ]]; then
+  fi
+
+  if [[ -z "$enable_mcps" ]]; then
     local disable_mcp_config_output
     disable_mcp_config_output="$(_cx_disable_mcp_config_args)"
     if [[ -n "$disable_mcp_config_output" ]]; then
