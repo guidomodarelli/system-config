@@ -100,7 +100,8 @@ function cx {
     $cliArgs = @($args)
 
     if ($cliArgs.Count -gt 0 -and $cliArgs[0] -eq 'upgrade') {
-        brew upgrade codex
+        # PowerShell-only behavior: upgrade Codex through npm.
+        npm i -g @openai/codex
         return
     }
 
