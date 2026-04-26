@@ -50,10 +50,24 @@ chmod +x scripts/setup/setup.sh
 
 ```bash
 ./scripts/setup/setup.sh install_zsh
+./scripts/setup/setup.sh --dry-run git fd_find
 ```
 
-La ejecución directa está limitada a funciones presentes en
-`scripts/setup/setup.bash.catalog.csv`.
+La ejecución directa está limitada a ítems presentes en
+`scripts/setup/setup.bash.catalog.csv`. Se puede usar el `Id` o el nombre de la
+función.
+
+### Opciones CLI
+
+```bash
+./scripts/setup/setup.sh --help
+./scripts/setup/setup.sh --list
+./scripts/setup/setup.sh --dry-run git
+```
+
+- `--dry-run` puede ir antes o después de los ítems.
+- `--list` muestra `Id`, función y etiqueta disponibles.
+- `--yes` queda reservado para ejecuciones directas no interactivas.
 
 ## Uso en Linux
 
@@ -85,10 +99,12 @@ argumento. Por ejemplo, para instalar Docker, ejecuta:
 
 ```bash
 ./setup.sh install_docker
+./setup.sh --dry-run docker
 ```
 
-La ejecución directa está limitada a funciones presentes en
-`scripts/setup/setup.bash.catalog.csv`.
+La ejecución directa está limitada a ítems presentes en
+`scripts/setup/setup.bash.catalog.csv`. Se puede usar el `Id` o el nombre de la
+función.
 
 ### Autocompletado
 
@@ -131,14 +147,24 @@ argumento. Por ejemplo, para instalar Chocolatey, ejecuta:
 
 ```bat
 .\setup.bat Install-Choco
+.\setup.bat --dry-run git
 
 # or
 
 powershell -ExecutionPolicy Bypass -File .\setup.ps1 Install-Choco
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 --dry-run git
 ```
 
-La ejecución directa está limitada a funciones presentes en
-`scripts/setup/setup.pwsh.catalog.csv`.
+La ejecución directa está limitada a ítems presentes en
+`scripts/setup/setup.pwsh.catalog.csv`. Se puede usar el `Id` o el nombre de la
+función.
+
+Opciones útiles:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 --help
+powershell -ExecutionPolicy Bypass -File .\setup.ps1 --list
+```
 
 ## Catálogos y validación
 
@@ -146,6 +172,9 @@ La ejecución directa está limitada a funciones presentes en
 - `setup.ps1` construye su menú desde `scripts/setup/setup.pwsh.catalog.csv`.
 - Para agregar o quitar ítems, actualiza el catálogo del shell correspondiente
   y la función instaladora asociada.
+- Los catálogos declaran `RequiresAdmin`, `Platforms` y `RequiresRestart`, para
+  que cada script pueda pedir privilegios solo cuando corresponde y avisar sobre
+  reinicios.
 - Validaciones recomendadas:
 
 ```bash

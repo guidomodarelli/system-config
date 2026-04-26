@@ -80,6 +80,20 @@ get_menu_default_selection_by_id() {
   return 1
 }
 
+get_menu_requires_admin_by_id() {
+  local requested_id=$1
+  local menu_index
+
+  for menu_index in "${!_MENU_IDS[@]}"; do
+    if [[ "${_MENU_IDS[$menu_index]}" == "$requested_id" ]]; then
+      echo "${_MENU_REQUIRES_ADMIN[$menu_index]}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 assert_menu_defaults_are_first() {
   local found_non_default=0
   local menu_index
@@ -108,6 +122,9 @@ fi
 assert_equals "build-essential" "${_MENU_LABELS[0]}" "Bash catalog should be loaded from the bash setup catalog."
 assert_equals "install_build_essential" "${_MENU_FUNCS[0]}" "Bash catalog should load function names from the bash setup catalog."
 assert_equals "1" "${_MENU_DEFAULT_SELECTED[0]}" "Bash catalog should load default selection state from the bash setup catalog."
+assert_equals "1" "${_MENU_REQUIRES_ADMIN[0]}" "Bash catalog should load admin metadata from the bash setup catalog."
+assert_equals "linux,wsl" "${_MENU_PLATFORMS[0]}" "Bash catalog should load platform metadata from the bash setup catalog."
+assert_equals "0" "${_MENU_REQUIRES_RESTART[0]}" "Bash catalog should load restart metadata from the bash setup catalog."
 
 original_setup_catalog_path="$SETUP_CATALOG_PATH"
 SETUP_CATALOG_PATH="$SCRIPT_DIR/missing-setup.catalog.csv"
@@ -118,6 +135,7 @@ _validate_menu_catalog
 assert_menu_defaults_are_first "Linux setup menu should keep defaults first after catalog reload."
 
 assert_equals "1" "$(get_menu_default_selection_by_id xclip)" "Linux setup recommendations should include xclip."
+assert_equals "1" "$(get_menu_requires_admin_by_id xclip)" "Linux setup metadata should mark xclip as requiring sudo."
 assert_equals "0" "$(get_menu_default_selection_by_id gnu_grep)" "Linux setup recommendations should not include GNU grep."
 assert_equals "0" "$(get_menu_default_selection_by_id win32yank)" "Linux setup recommendations should not include win32yank."
 assert_equals "1" "$(get_menu_default_selection_by_id espanso)" "Linux setup recommendations should include Espanso."
@@ -148,6 +166,32 @@ assert_menu_defaults_are_first "Linux setup menu should keep defaults first befo
 
 assert_success "Catalog allowlist should find setup installer functions." _find_menu_function_index install_git >/dev/null
 assert_failure "Catalog allowlist should reject functions outside setup installers." _find_menu_function_index rm
+assert_equals "$(_find_menu_function_index install_git)" "$(_find_menu_item_index git)" "Catalog item lookup should accept setup ids."
+
+_parse_setup_arguments install_git --dry-run fd_find --yes
+assert_equals "1" "$SETUP_DRY_RUN" "Bash CLI parsing should accept dry-run after commands."
+assert_equals "1" "$SETUP_ASSUME_YES" "Bash CLI parsing should accept yes after commands."
+assert_equals "install_git fd_find" "${SETUP_COMMAND_ARGUMENTS[*]}" "Bash CLI parsing should preserve command arguments."
+
+_MENU_SELECTED=()
+for menu_index in "${!_MENU_FUNCS[@]}"; do
+  _MENU_SELECTED[$menu_index]=0
+done
+_MENU_SELECTED[$(_find_menu_item_index git)]=1
+assert_success "Bash selected metadata should detect sudo requirements." _menu_selection_requires_sudo
+
+_MENU_SELECTED=()
+for menu_index in "${!_MENU_FUNCS[@]}"; do
+  _MENU_SELECTED[$menu_index]=0
+done
+_MENU_SELECTED[$(_find_menu_item_index nvm)]=1
+assert_failure "Bash selected metadata should not require sudo for user-level installers." _menu_selection_requires_sudo
+
+_INSTALL_RESULT_STATUSES=("ok" "falló")
+assert_success "Bash setup results should detect failed installer results." _setup_install_results_include_failure
+
+_INSTALL_RESULT_STATUSES=("ok" "dry-run" "omitido")
+assert_failure "Bash setup results should not fail on successful, dry-run, or skipped results." _setup_install_results_include_failure
 
 same_window_render_result=0
 if _menu_requires_full_render 0 0 5 5 0; then

@@ -33,9 +33,12 @@ function Install-Choco {
   if (-Not (Test-Path 'C:\ProgramData\chocolatey\bin\choco.exe')) {
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
     Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-    LogSuccess "Chocolatey has been installed successfully."
+    if ($LASTEXITCODE -ne 0) {
+      throw "Chocolatey terminó con código $LASTEXITCODE."
+    }
+    LogSuccess "Chocolatey se instaló correctamente."
   } else {
-    LogWarning "Chocolatey is already installed."
+    LogWarning "Chocolatey ya está instalado."
   }
 }
 
@@ -43,9 +46,9 @@ function Install-Scoop {
   if (-Not (Test-Path "$env:USERPROFILE\scoop\shims\scoop.ps1")) {
     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
     Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-    LogSuccess "Scoop has been installed successfully."
+    LogSuccess "Scoop se instaló correctamente."
   } else {
-    LogWarning "Scoop is already installed."
+    LogWarning "Scoop ya está instalado."
   }
 }
 
@@ -64,13 +67,19 @@ function Install-ChocoPackage {
   )
   foreach ($package in $packages) {
     if (Test-ChocoPackageInstalled -Package $package) {
-      LogWarning "The package '$package' is already installed. Upgrading..."
+      LogWarning "El paquete '$package' ya está instalado. Actualizando..."
       choco upgrade $package --confirm --no-progress
-      LogSuccess "The package '$package' has been upgraded successfully."
+      if ($LASTEXITCODE -ne 0) {
+        throw "Chocolatey no pudo actualizar '$package'. Código: $LASTEXITCODE."
+      }
+      LogSuccess "El paquete '$package' se actualizó correctamente."
     } else {
-      LogInfo "Installing the package '$package'..."
+      LogInfo "Instalando el paquete '$package'..."
       choco install $package --confirm --no-progress
-      LogSuccess "The package '$package' has been installed successfully."
+      if ($LASTEXITCODE -ne 0) {
+        throw "Chocolatey no pudo instalar '$package'. Código: $LASTEXITCODE."
+      }
+      LogSuccess "El paquete '$package' se instaló correctamente."
     }
   }
 }
@@ -90,16 +99,16 @@ function Install-WingetPackage {
   )
   foreach ($appId in $appIds) {
     if (Test-WingetPackageInstalled -AppId $appId) {
-      LogWarning "The package '$appId' is already installed. Skipping..."
+      LogWarning "El paquete '$appId' ya está instalado. Omitiendo..."
       continue
     }
 
-    LogInfo "Installing the package '$appId'..."
+    LogInfo "Instalando el paquete '$appId'..."
     winget install --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity
     if ($LASTEXITCODE -ne 0) {
-      throw "Winget failed to install '$appId' with exit code $LASTEXITCODE."
+      throw "Winget no pudo instalar '$appId'. Código: $LASTEXITCODE."
     }
-    LogSuccess "The package '$appId' has been installed successfully."
+    LogSuccess "El paquete '$appId' se instaló correctamente."
   }
 }
 
@@ -245,16 +254,32 @@ function Install-fnm {
 
 function New-SetupMenuItem {
   param (
+    [string]$Id,
     [string]$Label,
     [string]$FunctionName,
-    [bool]$DefaultSelected = $false
+    [bool]$DefaultSelected = $false,
+    [bool]$RequiresAdmin = $false,
+    [string]$Platforms = 'windows',
+    [bool]$RequiresRestart = $false
   )
 
   return [PSCustomObject]@{
+    Id = $Id
     Label = $Label
     FunctionName = $FunctionName
     DefaultSelected = $DefaultSelected
+    RequiresAdmin = $RequiresAdmin
+    Platforms = $Platforms
+    RequiresRestart = $RequiresRestart
   }
+}
+
+function Test-SetupMenuItemSupportsCurrentPlatform {
+  param (
+    [string]$Platforms
+  )
+
+  return [string]::IsNullOrWhiteSpace($Platforms) -or $Platforms -eq 'all' -or (",${Platforms}," -like '*,windows,*')
 }
 
 function Get-SetupMenuCatalog {
@@ -273,7 +298,15 @@ function Get-SetupMenuCatalog {
         continue
       }
 
-      New-SetupMenuItem -Label $catalogRow.Label -FunctionName $catalogRow.FunctionName -DefaultSelected ($catalogRow.DefaultSelected -eq '1')
+      $supportsCurrentPlatform = Test-SetupMenuItemSupportsCurrentPlatform -Platforms $catalogRow.Platforms
+      New-SetupMenuItem `
+        -Id $catalogRow.Id `
+        -Label $catalogRow.Label `
+        -FunctionName $catalogRow.FunctionName `
+        -DefaultSelected (($catalogRow.DefaultSelected -eq '1') -and $supportsCurrentPlatform) `
+        -RequiresAdmin ($catalogRow.RequiresAdmin -eq '1') `
+        -Platforms $catalogRow.Platforms `
+        -RequiresRestart ($catalogRow.RequiresRestart -eq '1')
     }
   )
 }
@@ -286,6 +319,11 @@ function Test-SetupMenuCatalog {
   $duplicatedLabels = @($menuCatalog | Group-Object Label | Where-Object { $_.Count -gt 1 } | ForEach-Object Name)
   if ($duplicatedLabels.Count -gt 0) {
     throw "Hay etiquetas duplicadas en el catálogo: $($duplicatedLabels -join ', ')."
+  }
+
+  $duplicatedIds = @($menuCatalog | Group-Object Id | Where-Object { $_.Count -gt 1 } | ForEach-Object Name)
+  if ($duplicatedIds.Count -gt 0) {
+    throw "Hay identificadores duplicados en el catálogo: $($duplicatedIds -join ', ')."
   }
 
   $missingFunctions = @($menuCatalog | Where-Object { -not (Get-Command -Name $_.FunctionName -CommandType Function -ErrorAction SilentlyContinue) } | ForEach-Object FunctionName)
@@ -304,6 +342,11 @@ function Test-SetupMenuCatalog {
       throw "Los elementos seleccionados por defecto deben estar al inicio del catálogo."
     }
   }
+
+  $unsupportedPlatformItems = @($menuCatalog | Where-Object { -not (Test-SetupMenuItemSupportsCurrentPlatform -Platforms $_.Platforms) } | ForEach-Object Id)
+  if ($unsupportedPlatformItems.Count -gt 0) {
+    throw "Hay ítems con plataforma no soportada para Windows: $($unsupportedPlatformItems -join ', ')."
+  }
 }
 
 function Test-SetupFunctionAllowed {
@@ -313,6 +356,56 @@ function Test-SetupFunctionAllowed {
   )
 
   return @($menuCatalog | Where-Object { $_.FunctionName -eq $FunctionName }).Count -gt 0
+}
+
+function Find-SetupMenuCatalogItemIndex {
+  param (
+    [PSCustomObject[]]$menuCatalog,
+    [string]$ItemIdentifier
+  )
+
+  for ($menuIndex = 0; $menuIndex -lt $menuCatalog.Count; $menuIndex++) {
+    if ($menuCatalog[$menuIndex].FunctionName -eq $ItemIdentifier -or $menuCatalog[$menuIndex].Id -eq $ItemIdentifier) {
+      return $menuIndex
+    }
+  }
+
+  return -1
+}
+
+function Test-SetupMenuIndexesRequireAdmin {
+  param (
+    [PSCustomObject[]]$menuCatalog,
+    [int[]]$selectedIndexes
+  )
+
+  foreach ($selectedIndex in $selectedIndexes) {
+    if ($menuCatalog[$selectedIndex].RequiresAdmin) {
+      return $true
+    }
+  }
+
+  return $false
+}
+
+function Test-CurrentUserIsAdministrator {
+  return ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+}
+
+function Assert-SetupAdminRequirement {
+  param (
+    [PSCustomObject[]]$menuCatalog,
+    [int[]]$selectedIndexes,
+    [bool]$DryRun = $false
+  )
+
+  if ($DryRun) {
+    return
+  }
+
+  if ((Test-SetupMenuIndexesRequireAdmin -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes) -and -not (Test-CurrentUserIsAdministrator)) {
+    throw "La selección incluye ítems que requieren ejecutar PowerShell como Administrador."
+  }
 }
 
 function Get-SetupMenuDisplayLabel {
@@ -992,12 +1085,18 @@ function Invoke-SelectedSetupMenuItems {
     Write-Host ''
     if ($DryRun) {
       LogInfo "Dry-run: se ejecutaría $($menuItem.Label)."
-      $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'Dry-run'; Detail = 'No ejecutado' }
+      $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'Dry-run'; Detail = 'No ejecutado'; RequiresRestart = $menuItem.RequiresRestart }
       continue
     }
 
     LogInfo "Instalando: $($menuItem.Label)"
     try {
+      if (-not (Test-SetupMenuItemSupportsCurrentPlatform -Platforms $menuItem.Platforms)) {
+        LogWarning "Omitido por plataforma: $($menuItem.Label)"
+        $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'Omitido'; Detail = 'Plataforma no soportada'; RequiresRestart = $false }
+        continue
+      }
+
       $global:LASTEXITCODE = 0
       & $menuItem.FunctionName
       if ($global:LASTEXITCODE -ne 0) {
@@ -1005,10 +1104,10 @@ function Invoke-SelectedSetupMenuItems {
       }
 
       LogSuccess "OK: $($menuItem.Label)"
-      $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'OK'; Detail = '' }
+      $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'OK'; Detail = ''; RequiresRestart = $menuItem.RequiresRestart }
     } catch {
       LogError "Falló $($menuItem.Label): $($_.Exception.Message)"
-      $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'Falló'; Detail = $_.Exception.Message }
+      $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'Falló'; Detail = $_.Exception.Message; RequiresRestart = $false }
     }
   }
 
@@ -1066,10 +1165,25 @@ function Write-SetupExecutionSummary {
       LogSuccess "$($result.Label): OK"
     } elseif ($result.Status -eq 'Dry-run') {
       LogWarning "$($result.Label): dry-run"
+    } elseif ($result.Status -eq 'Omitido') {
+      LogWarning "$($result.Label): omitido"
     } else {
       LogError "$($result.Label): falló ($($result.Detail))"
     }
   }
+
+  $restartRequired = @($results | Where-Object { $_.Status -eq 'OK' -and $_.RequiresRestart }).Count -gt 0
+  if ($restartRequired) {
+    LogWarning 'Algunos cambios requieren reiniciar o abrir una nueva sesión para aplicarse.'
+  }
+}
+
+function Test-SetupExecutionResultsHaveFailures {
+  param (
+    [PSCustomObject[]]$results
+  )
+
+  return @($results | Where-Object { $_.Status -ne 'OK' -and $_.Status -ne 'Dry-run' -and $_.Status -ne 'Omitido' }).Count -gt 0
 }
 
 function Invoke-InteractiveSetupMenu {
@@ -1105,6 +1219,7 @@ function Invoke-InteractiveSetupMenu {
   }
 
   LogInfo "Se procesarán $($selectedIndexes.Count) elemento(s) seleccionado(s)."
+  Assert-SetupAdminRequirement -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
   $results = Invoke-SelectedSetupMenuItems -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
   Write-SetupExecutionSummary -results $results
   LogSuccess 'Proceso completo.'
@@ -1158,36 +1273,122 @@ function Main {
   Enable-HyperV
 }
 
-$dryRun = $args -contains '--dry-run'
-$commandArguments = @($args | Where-Object { $_ -ne '--dry-run' })
+function Get-SetupUsage {
+  return @'
+Uso:
+  setup.ps1 [--dry-run] [--yes] [--list] [id|función ...]
 
-if (-not $dryRun -and -not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-  LogError "Please run this script as Administrator."
+Opciones:
+  --dry-run  Muestra qué se ejecutaría sin instalar nada.
+  --yes      Ejecuta ítems directos sin pedir confirmación adicional.
+  --list     Lista los ítems disponibles del catálogo.
+  --help     Muestra esta ayuda.
+'@
+}
+
+function ConvertTo-SetupArguments {
+  param (
+    [string[]]$Arguments
+  )
+
+  $commandArguments = @()
+  $parsedArguments = [PSCustomObject]@{
+    DryRun = $false
+    AssumeYes = $false
+    ShowHelp = $false
+    ListItems = $false
+    CommandArguments = @()
+  }
+
+  for ($argumentIndex = 0; $argumentIndex -lt $Arguments.Count; $argumentIndex++) {
+    $argument = $Arguments[$argumentIndex]
+    switch ($argument) {
+      '--dry-run' { $parsedArguments.DryRun = $true }
+      '--yes' { $parsedArguments.AssumeYes = $true }
+      '-y' { $parsedArguments.AssumeYes = $true }
+      '--help' { $parsedArguments.ShowHelp = $true }
+      '-h' { $parsedArguments.ShowHelp = $true }
+      '--list' { $parsedArguments.ListItems = $true }
+      '--' {
+        if ($argumentIndex + 1 -lt $Arguments.Count) {
+          $commandArguments += @($Arguments[($argumentIndex + 1)..($Arguments.Count - 1)])
+        }
+        $argumentIndex = $Arguments.Count
+      }
+      default {
+        if ($argument.StartsWith('--')) {
+          throw "Opción no reconocida: $argument"
+        }
+        $commandArguments += $argument
+      }
+    }
+  }
+
+  $parsedArguments.CommandArguments = @($commandArguments)
+  return $parsedArguments
+}
+
+function Write-SetupCatalogList {
+  param (
+    [PSCustomObject[]]$menuCatalog
+  )
+
+  foreach ($menuItem in $menuCatalog) {
+    Write-Host ("{0}`t{1}`t{2}" -f $menuItem.Id, $menuItem.FunctionName, $menuItem.Label)
+  }
+}
+
+function Invoke-SetupItemsByIdentifier {
+  param (
+    [PSCustomObject[]]$menuCatalog,
+    [string[]]$itemIdentifiers,
+    [bool]$DryRun = $false
+  )
+
+  $selectedIndexes = @()
+  foreach ($itemIdentifier in $itemIdentifiers) {
+    $menuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $menuCatalog -ItemIdentifier $itemIdentifier
+    if ($menuIndex -lt 0) {
+      throw "El ítem '$itemIdentifier' no está permitido por el catálogo de setup."
+    }
+    $selectedIndexes += $menuIndex
+  }
+
+  Assert-SetupAdminRequirement -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
+  $results = Invoke-SelectedSetupMenuItems -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
+  Write-SetupExecutionSummary -results $results
+  if (Test-SetupExecutionResultsHaveFailures -results $results) {
+    throw 'Uno o más ítems de setup fallaron.'
+  }
+}
+
+$parsedArguments = ConvertTo-SetupArguments -Arguments $args
+
+if ($parsedArguments.ShowHelp) {
+  Write-Host (Get-SetupUsage)
   exit
 }
 
-if ($args.Count -gt 0) {
-  $menuCatalog = Get-SetupMenuCatalog
-  Test-SetupMenuCatalog -menuCatalog $menuCatalog
+$menuCatalog = Get-SetupMenuCatalog
+Test-SetupMenuCatalog -menuCatalog $menuCatalog
 
-  if ($commandArguments.Count -eq 0) {
-    Invoke-InteractiveSetupMenu -DryRun $dryRun
-    exit
-  }
+if ($parsedArguments.ListItems) {
+  Write-SetupCatalogList -menuCatalog $menuCatalog
+  exit
+}
 
-  $functionName = $commandArguments[0]
-  if (Test-SetupFunctionAllowed -menuCatalog $menuCatalog -FunctionName $functionName) {
-    if ($dryRun) {
-      LogWarning "Dry-run: se ejecutaría la función '$functionName'."
-      exit
-    }
-
-    LogInfo "Invocando función: $functionName"
-    & $functionName
-  } else {
-    LogError "La función '$functionName' no está permitida por el catálogo de setup."
+if ($parsedArguments.CommandArguments.Count -gt 0) {
+  try {
+    Invoke-SetupItemsByIdentifier -menuCatalog $menuCatalog -itemIdentifiers $parsedArguments.CommandArguments -DryRun $parsedArguments.DryRun
+  } catch {
+    LogError $_.Exception.Message
     exit 1
   }
 } else {
-  Invoke-InteractiveSetupMenu
+  try {
+    Invoke-InteractiveSetupMenu -DryRun $parsedArguments.DryRun
+  } catch {
+    LogError $_.Exception.Message
+    exit 1
+  }
 }

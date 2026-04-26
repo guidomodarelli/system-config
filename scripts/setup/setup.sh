@@ -103,6 +103,31 @@ is_darwin() {
   fi
 }
 
+_setup_current_platform() {
+  if is_windows; then
+    echo "wsl"
+  elif is_darwin; then
+    echo "darwin"
+  elif is_ubuntu; then
+    echo "linux"
+  else
+    echo "unknown"
+  fi
+}
+
+_setup_platforms_include_current() {
+  local supported_platforms=${1:-all}
+  local current_platform
+
+  current_platform="$(_setup_current_platform)"
+  [[ -z "$supported_platforms" || "$supported_platforms" == "all" ]] && return 0
+
+  case ",$supported_platforms," in
+    *",$current_platform,"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 install_oh_my_zsh() {
   sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 }
@@ -130,13 +155,18 @@ install_docker_compose_plugin() {
 
 install_docker() {
   if ! is_ubuntu; then
-    echo "Docker install is only supported on Ubuntu/Debian in this setup; skipping."
+    echo "La instalación de Docker solo está soportada en Ubuntu/Debian en este setup; se omite."
+    return 0
+  fi
+
+  if command -v docker >/dev/null 2>&1; then
+    echo "Docker ya está instalado; se omite la instalación del paquete."
     return 0
   fi
 
   # Add Docker's official GPG key:
   sudo apt-get update
-  sudo apt-get install ca-certificates curl
+  sudo apt-get install -y ca-certificates curl
   sudo install -m 0755 -d /etc/apt/keyrings
   sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
   sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -153,8 +183,12 @@ install_docker() {
   install_docker_buildx_plugin
   install_docker_compose_plugin
   sleep 3
-  sudo systemctl start docker.service
-  sudo systemctl enable docker.service
+  if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files docker.service >/dev/null 2>&1; then
+    sudo systemctl start docker.service
+    sudo systemctl enable docker.service
+  else
+    echo "systemctl no está disponible; se omite la activación del servicio Docker."
+  fi
   sudo usermod -aG docker "$USER"
   # NOTE: reboot
 }
@@ -190,18 +224,24 @@ install_nvm() {
 install_font() {
   is_windows && return
 
-  local folderName="$1"
-  local zipName="${folderName}.zip"
+  local folder_name="$1"
+  local zip_name="${folder_name}.zip"
   local url="$2"
+  local temp_dir
 
-  curl -Lo $zipName $url
-  unzip $zipName
-  cd $folderName
-  mkdir -p $HOME/.fonts
-  mv *.ttf $HOME/.fonts/
+  temp_dir="$(mktemp -d)"
+  (
+    cd "$temp_dir" || exit 1
+    curl -fsSLo "$zip_name" "$url"
+    unzip -q "$zip_name"
+    cd "$folder_name" || exit 1
+    mkdir -p "$HOME/.fonts"
+    mv ./*.ttf "$HOME/.fonts/"
+  )
+  local install_status=$?
+  rm -rf "$temp_dir"
+  [[ $install_status -eq 0 ]] || return "$install_status"
   fc-cache -fv
-  cd ..
-  rm -rf $folderName $zipName
 }
 
 install_font_IosevkaTermCurly() {
@@ -278,18 +318,31 @@ install_eza() {
 }
 
 install_homebrew() {
+  if command -v brew >/dev/null 2>&1; then
+    echo "Homebrew ya está instalado; se omite la instalación."
+    return 0
+  fi
+
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 
 _brew() {
-  if is_ubuntu; then
-    /home/linuxbrew/.linuxbrew/bin/brew "$@"
-  elif is_darwin; then
-     /opt/homebrew/bin/brew "$@"
-   else
-     echo "Unsupported OS for brew" >&2
-     return 1
+  local brew_command=""
+
+  if command -v brew >/dev/null 2>&1; then
+    brew_command="$(command -v brew)"
+  elif is_ubuntu && [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    brew_command="/home/linuxbrew/.linuxbrew/bin/brew"
+  elif is_darwin && [[ -x /opt/homebrew/bin/brew ]]; then
+    brew_command="/opt/homebrew/bin/brew"
+  elif is_darwin && [[ -x /usr/local/bin/brew ]]; then
+    brew_command="/usr/local/bin/brew"
+  else
+    echo "Homebrew no está disponible para este comando de setup. Instalá Homebrew primero." >&2
+    return 1
   fi
+
+  "$brew_command" "$@"
 }
 
 install_fd_find() {
@@ -410,8 +463,10 @@ install_win32yank() {
 _is_setup_menu_item_recommended_for_platform() {
   local menu_item_id=$1
   local base_default_selected=$2
+  local supported_platforms=${3:-all}
 
   [[ "$base_default_selected" -eq 1 ]] || return 1
+  _setup_platforms_include_current "$supported_platforms" || return 1
 
   case "$menu_item_id" in
     espanso)
@@ -439,6 +494,9 @@ _append_menu_item_to_sorted_catalog() {
   _SORTED_MENU_LABELS+=("${_MENU_LABELS[$source_index]}")
   _SORTED_MENU_FUNCS+=("${_MENU_FUNCS[$source_index]}")
   _SORTED_MENU_DEFAULT_SELECTED+=("${_MENU_DEFAULT_SELECTED[$source_index]}")
+  _SORTED_MENU_REQUIRES_ADMIN+=("${_MENU_REQUIRES_ADMIN[$source_index]}")
+  _SORTED_MENU_PLATFORMS+=("${_MENU_PLATFORMS[$source_index]}")
+  _SORTED_MENU_REQUIRES_RESTART+=("${_MENU_REQUIRES_RESTART[$source_index]}")
 }
 
 _sort_menu_catalog_by_default_selection() {
@@ -447,6 +505,9 @@ _sort_menu_catalog_by_default_selection() {
   _SORTED_MENU_LABELS=()
   _SORTED_MENU_FUNCS=()
   _SORTED_MENU_DEFAULT_SELECTED=()
+  _SORTED_MENU_REQUIRES_ADMIN=()
+  _SORTED_MENU_PLATFORMS=()
+  _SORTED_MENU_REQUIRES_RESTART=()
 
   for menu_index in "${!_MENU_DEFAULT_SELECTED[@]}"; do
     if [[ ${_MENU_DEFAULT_SELECTED[$menu_index]} -eq 1 ]]; then
@@ -464,6 +525,9 @@ _sort_menu_catalog_by_default_selection() {
   _MENU_LABELS=("${_SORTED_MENU_LABELS[@]}")
   _MENU_FUNCS=("${_SORTED_MENU_FUNCS[@]}")
   _MENU_DEFAULT_SELECTED=("${_SORTED_MENU_DEFAULT_SELECTED[@]}")
+  _MENU_REQUIRES_ADMIN=("${_SORTED_MENU_REQUIRES_ADMIN[@]}")
+  _MENU_PLATFORMS=("${_SORTED_MENU_PLATFORMS[@]}")
+  _MENU_REQUIRES_RESTART=("${_SORTED_MENU_REQUIRES_RESTART[@]}")
 }
 
 ensure_sudo() {
@@ -479,7 +543,7 @@ ensure_sudo() {
 main() {
   if is_ubuntu; then
     sudo apt update
-    sudo apt --fix-broken install
+    sudo apt --fix-broken install -y
   fi
 
   # IMPORTANT: Install essential packages first
@@ -530,21 +594,30 @@ _initialize_menu_catalog() {
   _MENU_LABELS=()
   _MENU_FUNCS=()
   _MENU_DEFAULT_SELECTED=()
+  _MENU_REQUIRES_ADMIN=()
+  _MENU_PLATFORMS=()
+  _MENU_REQUIRES_RESTART=()
 
   if [[ ! -f "$SETUP_CATALOG_PATH" ]]; then
     echo "ERROR: No se encontró el catálogo de setup: $SETUP_CATALOG_PATH" >&2
     return 1
   fi
 
-  local id label function_name default_selected
-  while IFS='|' read -r id label function_name default_selected; do
+  local id label function_name default_selected requires_admin supported_platforms requires_restart
+  while IFS='|' read -r id label function_name default_selected requires_admin supported_platforms requires_restart; do
     [[ "$id" == "Id" || -z "$id" || "${id:0:1}" == "#" ]] && continue
     [[ -z "$function_name" ]] && continue
+    requires_admin="${requires_admin:-0}"
+    supported_platforms="${supported_platforms:-all}"
+    requires_restart="${requires_restart:-0}"
 
     _MENU_IDS+=("$id")
     _MENU_LABELS+=("$label")
     _MENU_FUNCS+=("$function_name")
-    if _is_setup_menu_item_recommended_for_platform "$id" "$default_selected"; then
+    _MENU_REQUIRES_ADMIN+=("$requires_admin")
+    _MENU_PLATFORMS+=("$supported_platforms")
+    _MENU_REQUIRES_RESTART+=("$requires_restart")
+    if _is_setup_menu_item_recommended_for_platform "$id" "$default_selected" "$supported_platforms"; then
       _MENU_DEFAULT_SELECTED+=("1")
     else
       _MENU_DEFAULT_SELECTED+=("0")
@@ -563,8 +636,11 @@ _validate_menu_catalog() {
   local labels_count=${#_MENU_LABELS[@]}
   local funcs_count=${#_MENU_FUNCS[@]}
   local defaults_count=${#_MENU_DEFAULT_SELECTED[@]}
+  local admin_count=${#_MENU_REQUIRES_ADMIN[@]}
+  local platforms_count=${#_MENU_PLATFORMS[@]}
+  local restart_count=${#_MENU_REQUIRES_RESTART[@]}
 
-  if ((ids_count != labels_count || labels_count != funcs_count || labels_count != defaults_count)); then
+  if ((ids_count != labels_count || labels_count != funcs_count || labels_count != defaults_count || labels_count != admin_count || labels_count != platforms_count || labels_count != restart_count)); then
     echo "ERROR: El catálogo del menú tiene longitudes inconsistentes." >&2
     return 1
   fi
@@ -581,6 +657,16 @@ _validate_menu_catalog() {
       found_non_default=1
     elif [[ $found_non_default -eq 1 ]]; then
       echo "ERROR: Los elementos seleccionados por defecto deben estar al inicio del catálogo." >&2
+      return 1
+    fi
+
+    if [[ "${_MENU_REQUIRES_ADMIN[$menu_index]}" != "0" && "${_MENU_REQUIRES_ADMIN[$menu_index]}" != "1" ]]; then
+      echo "ERROR: RequiresAdmin debe ser 0 o 1 para '${_MENU_LABELS[$menu_index]}'." >&2
+      return 1
+    fi
+
+    if [[ "${_MENU_REQUIRES_RESTART[$menu_index]}" != "0" && "${_MENU_REQUIRES_RESTART[$menu_index]}" != "1" ]]; then
+      echo "ERROR: RequiresRestart debe ser 0 o 1 para '${_MENU_LABELS[$menu_index]}'." >&2
       return 1
     fi
   done
@@ -614,6 +700,60 @@ _find_menu_function_index() {
   return 1
 }
 
+_find_menu_item_index() {
+  local item_identifier=$1
+  local menu_index
+
+  for menu_index in "${!_MENU_FUNCS[@]}"; do
+    if [[ "${_MENU_FUNCS[$menu_index]}" == "$item_identifier" || "${_MENU_IDS[$menu_index]}" == "$item_identifier" ]]; then
+      echo "$menu_index"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+_menu_selection_requires_sudo() {
+  local menu_index
+
+  for menu_index in "${!_MENU_SELECTED[@]}"; do
+    if [[ "${_MENU_SELECTED[$menu_index]}" -eq 1 && "${_MENU_REQUIRES_ADMIN[$menu_index]}" -eq 1 ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+_menu_indexes_require_sudo() {
+  local menu_index
+
+  for menu_index in "$@"; do
+    if [[ "${_MENU_REQUIRES_ADMIN[$menu_index]}" -eq 1 ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+_print_restart_notice_if_needed() {
+  local menu_index
+  local found_restart_item=0
+
+  for menu_index in "${!_INSTALL_RESULT_LABELS[@]}"; do
+    if [[ "${_INSTALL_RESULT_REQUIRES_RESTART[$menu_index]}" -eq 1 && "${_INSTALL_RESULT_STATUSES[$menu_index]}" == "ok" ]]; then
+      found_restart_item=1
+      break
+    fi
+  done
+
+  if [[ $found_restart_item -eq 1 ]]; then
+    _setup_log_warning "Algunos cambios requieren reiniciar o abrir una nueva sesión para aplicarse."
+  fi
+}
+
 _menu_selected_count() {
   local selected_count=0
   local selection_state
@@ -630,6 +770,7 @@ _run_selected_menu_items() {
   local menu_index
   _INSTALL_RESULT_LABELS=()
   _INSTALL_RESULT_STATUSES=()
+  _INSTALL_RESULT_REQUIRES_RESTART=()
 
   for menu_index in "${!_MENU_FUNCS[@]}"; do
     if [[ ${_MENU_SELECTED[$menu_index]} -eq 1 ]]; then
@@ -638,19 +779,27 @@ _run_selected_menu_items() {
         _setup_log_info "Dry-run: se ejecutaría ${_MENU_LABELS[$menu_index]}."
         _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
         _INSTALL_RESULT_STATUSES+=("dry-run")
+        _INSTALL_RESULT_REQUIRES_RESTART+=("${_MENU_REQUIRES_RESTART[$menu_index]}")
         continue
       fi
 
       printf "\n"
       _setup_log_info "Instalando: ${_MENU_LABELS[$menu_index]}"
-      if ${_MENU_FUNCS[$menu_index]}; then
+      if ! _setup_platforms_include_current "${_MENU_PLATFORMS[$menu_index]}"; then
+        _setup_log_warning "Omitido por plataforma: ${_MENU_LABELS[$menu_index]}"
+        _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
+        _INSTALL_RESULT_STATUSES+=("omitido")
+        _INSTALL_RESULT_REQUIRES_RESTART+=("0")
+      elif ${_MENU_FUNCS[$menu_index]}; then
         _setup_log_success "${_MENU_LABELS[$menu_index]}"
         _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
         _INSTALL_RESULT_STATUSES+=("ok")
+        _INSTALL_RESULT_REQUIRES_RESTART+=("${_MENU_REQUIRES_RESTART[$menu_index]}")
       else
         _setup_log_error "Falló: ${_MENU_LABELS[$menu_index]}" >&2
         _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
         _INSTALL_RESULT_STATUSES+=("falló")
+        _INSTALL_RESULT_REQUIRES_RESTART+=("0")
       fi
     fi
   done
@@ -665,9 +814,24 @@ _print_install_summary() {
     case "${_INSTALL_RESULT_STATUSES[$result_index]}" in
       ok) _setup_colored_line "green" "  [OK] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
       dry-run) _setup_colored_line "yellow" "  [DRY-RUN] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
+      omitido) _setup_colored_line "yellow" "  [OMITIDO] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
       *) _setup_colored_line "red" "  [ERROR] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
     esac
   done
+
+  _print_restart_notice_if_needed
+}
+
+_setup_install_results_include_failure() {
+  local result_status
+
+  for result_status in "${_INSTALL_RESULT_STATUSES[@]}"; do
+    if [[ "$result_status" == "falló" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 _menu_is_recommended() {
@@ -830,7 +994,7 @@ _menu_requires_full_render() {
   [[ "$force_full_render" -eq 1 || "$previous_window_start" -ne "$window_start" || "$previous_visible_height" -ne "$visible_height" ]]
 }
 
-_find_menu_item_index() {
+_find_menu_item_index_by_label() {
   local query=$1 start_index=$2 count=$3
 
   if [[ -z "$query" ]]; then
@@ -1321,9 +1485,13 @@ interactive_menu() {
 
   _setup_log_info "Se procesarán $count elemento(s) seleccionado(s)."
 
+  if [[ $dry_run -eq 0 ]] && _menu_selection_requires_sudo; then
+    ensure_sudo
+  fi
+
   if [[ $dry_run -eq 0 ]] && is_ubuntu; then
     sudo apt update
-    sudo apt --fix-broken install
+    sudo apt --fix-broken install -y
   fi
 
   _run_selected_menu_items "$dry_run"
@@ -1333,32 +1501,107 @@ interactive_menu() {
   _setup_log_success "Proceso completo."
 }
 
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  dry_run=0
-  if [[ "${1:-}" == "--dry-run" ]]; then
-    dry_run=1
-    shift
-  fi
+_print_setup_usage() {
+  cat <<'EOF'
+Uso:
+  setup.sh [--dry-run] [--yes] [--list] [id|función ...]
 
-  if [[ $dry_run -eq 0 ]]; then
+Opciones:
+  --dry-run  Muestra qué se ejecutaría sin instalar nada.
+  --yes      Ejecuta ítems directos sin pedir confirmación adicional.
+  --list     Lista los ítems disponibles del catálogo.
+  --help     Muestra esta ayuda.
+EOF
+}
+
+_list_setup_catalog() {
+  local menu_index
+
+  _initialize_menu_catalog || return 1
+  _validate_menu_catalog || return 1
+
+  for menu_index in "${!_MENU_IDS[@]}"; do
+    printf "%s\t%s\t%s\n" "${_MENU_IDS[$menu_index]}" "${_MENU_FUNCS[$menu_index]}" "${_MENU_LABELS[$menu_index]}"
+  done
+}
+
+_parse_setup_arguments() {
+  SETUP_DRY_RUN=0
+  SETUP_ASSUME_YES=0
+  SETUP_SHOW_HELP=0
+  SETUP_LIST_ITEMS=0
+  SETUP_COMMAND_ARGUMENTS=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run) SETUP_DRY_RUN=1 ;;
+      --yes|-y) SETUP_ASSUME_YES=1 ;;
+      --help|-h) SETUP_SHOW_HELP=1 ;;
+      --list) SETUP_LIST_ITEMS=1 ;;
+      --)
+        shift
+        SETUP_COMMAND_ARGUMENTS+=("$@")
+        break
+        ;;
+      --*)
+        _setup_log_error "Opción no reconocida: $1" >&2
+        return 1
+        ;;
+      *)
+        SETUP_COMMAND_ARGUMENTS+=("$1")
+        ;;
+    esac
+    shift
+  done
+}
+
+_run_setup_items_by_identifier() {
+  local dry_run=$1
+  shift
+  local menu_indexes=()
+  local item_identifier menu_index
+
+  _initialize_menu_catalog || return 1
+  _validate_menu_catalog || return 1
+
+  for item_identifier in "$@"; do
+    if ! menu_index="$(_find_menu_item_index "$item_identifier")"; then
+      _setup_log_error "El ítem '$item_identifier' no está permitido por el catálogo de setup." >&2
+      return 1
+    fi
+    menu_indexes+=("$menu_index")
+  done
+
+  if [[ $dry_run -eq 0 ]] && _menu_indexes_require_sudo "${menu_indexes[@]}"; then
     ensure_sudo
   fi
 
-  if [[ -n "$1" ]]; then
-    _initialize_menu_catalog || exit 1
-    _validate_menu_catalog || exit 1
-    if ! _find_menu_function_index "$1" >/dev/null; then
-      _setup_log_error "La función '$1' no está permitida por el catálogo de setup." >&2
-      exit 1
-    fi
+  _MENU_SELECTED=()
+  for menu_index in "${!_MENU_FUNCS[@]}"; do
+    _MENU_SELECTED[$menu_index]=0
+  done
 
-    if [[ $dry_run -eq 1 ]]; then
-      _setup_log_warning "Dry-run: se ejecutaría $*"
-    else
-      _setup_log_info "Ejecutando $0 $*"
-      "$1"
-    fi
+  for menu_index in "${menu_indexes[@]}"; do
+    _MENU_SELECTED[$menu_index]=1
+  done
+
+  _run_selected_menu_items "$dry_run"
+  _print_install_summary
+  if _setup_install_results_include_failure; then
+    return 1
+  fi
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  _parse_setup_arguments "$@" || exit 1
+
+  if [[ $SETUP_SHOW_HELP -eq 1 ]]; then
+    _print_setup_usage
+  elif [[ $SETUP_LIST_ITEMS -eq 1 ]]; then
+    _list_setup_catalog
+  elif [[ ${#SETUP_COMMAND_ARGUMENTS[@]} -gt 0 ]]; then
+    _run_setup_items_by_identifier "$SETUP_DRY_RUN" "${SETUP_COMMAND_ARGUMENTS[@]}"
   else
-    interactive_menu "$dry_run"
+    interactive_menu "$SETUP_DRY_RUN"
   fi
 fi

@@ -58,8 +58,8 @@ function ConvertTo-TestArray {
 
 function New-TestSetupMenuCatalog {
   return @(
-    [PSCustomObject]@{ Label = 'Git'; DefaultSelected = $true },
-    [PSCustomObject]@{ Label = 'PowerToys'; DefaultSelected = $false }
+    [PSCustomObject]@{ Id = 'git'; Label = 'Git'; FunctionName = 'Install-Git'; DefaultSelected = $true; RequiresAdmin = $false; Platforms = 'windows'; RequiresRestart = $false },
+    [PSCustomObject]@{ Id = 'powertoys'; Label = 'PowerToys'; FunctionName = 'Install-PowerToys'; DefaultSelected = $false; RequiresAdmin = $false; Platforms = 'windows'; RequiresRestart = $false }
   )
 }
 
@@ -71,6 +71,44 @@ Test-SetupMenuCatalog -menuCatalog $sharedMenuCatalog
 Assert-Equal -Expected $true -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Install-Git') -Message 'Catalog allowlist should include setup installer functions.'
 Assert-Equal -Expected $false -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Get-ChildItem') -Message 'Catalog allowlist should reject functions outside setup installers.'
 Assert-Equal -Expected 'Chocolatey' -Actual $sharedMenuCatalog[0].Label -Message 'PowerShell catalog should be loaded from the pwsh setup catalog.'
+Assert-Equal -Expected 'chocolatey' -Actual $sharedMenuCatalog[0].Id -Message 'PowerShell catalog should preserve setup ids.'
+Assert-Equal -Expected $true -Actual $sharedMenuCatalog[0].RequiresAdmin -Message 'PowerShell catalog should load admin metadata.'
+Assert-Equal -Expected 'windows' -Actual $sharedMenuCatalog[0].Platforms -Message 'PowerShell catalog should load platform metadata.'
+Assert-Equal -Expected $false -Actual $sharedMenuCatalog[0].RequiresRestart -Message 'PowerShell catalog should load restart metadata.'
+
+$duplicatedIdCatalog = @(
+  [PSCustomObject]@{ Id = 'git'; Label = 'Git'; FunctionName = 'Install-Git'; DefaultSelected = $true; RequiresAdmin = $false; Platforms = 'windows'; RequiresRestart = $false },
+  [PSCustomObject]@{ Id = 'git'; Label = 'Git duplicated'; FunctionName = 'Install-Git'; DefaultSelected = $false; RequiresAdmin = $false; Platforms = 'windows'; RequiresRestart = $false }
+)
+$duplicatedIdFailed = $false
+try {
+  Test-SetupMenuCatalog -menuCatalog $duplicatedIdCatalog
+} catch {
+  $duplicatedIdFailed = $true
+}
+Assert-Equal -Expected $true -Actual $duplicatedIdFailed -Message 'PowerShell catalog validation should reject duplicated ids.'
+
+$parsedSetupArguments = ConvertTo-SetupArguments -Arguments @('Install-Git', '--dry-run', 'fd_find', '--yes')
+Assert-Equal -Expected $true -Actual $parsedSetupArguments.DryRun -Message 'PowerShell CLI parsing should accept dry-run after commands.'
+Assert-Equal -Expected $true -Actual $parsedSetupArguments.AssumeYes -Message 'PowerShell CLI parsing should accept yes after commands.'
+Assert-Equal -Expected 'Install-Git fd_find' -Actual ($parsedSetupArguments.CommandArguments -join ' ') -Message 'PowerShell CLI parsing should preserve command arguments.'
+
+Assert-Equal -Expected 0 -Actual (Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'chocolatey') -Message 'PowerShell catalog lookup should accept setup ids.'
+Assert-Equal -Expected 0 -Actual (Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'Install-Choco') -Message 'PowerShell catalog lookup should accept function names.'
+Assert-Equal -Expected $true -Actual (Test-SetupMenuIndexesRequireAdmin -menuCatalog $sharedMenuCatalog -selectedIndexes @(0)) -Message 'PowerShell selected metadata should detect admin requirements.'
+
+$failedSetupResults = @(
+  [PSCustomObject]@{ Label = 'Git'; Status = 'OK'; Detail = ''; RequiresRestart = $false },
+  [PSCustomObject]@{ Label = 'PowerToys'; Status = 'Falló'; Detail = 'winget error'; RequiresRestart = $false }
+)
+Assert-Equal -Expected $true -Actual (Test-SetupExecutionResultsHaveFailures -results $failedSetupResults) -Message 'PowerShell setup results should detect failed installer results.'
+
+$nonFailedSetupResults = @(
+  [PSCustomObject]@{ Label = 'Git'; Status = 'OK'; Detail = ''; RequiresRestart = $false },
+  [PSCustomObject]@{ Label = 'PowerToys'; Status = 'Dry-run'; Detail = 'No ejecutado'; RequiresRestart = $false },
+  [PSCustomObject]@{ Label = 'VLC'; Status = 'Omitido'; Detail = 'Plataforma no soportada'; RequiresRestart = $false }
+)
+Assert-Equal -Expected $false -Actual (Test-SetupExecutionResultsHaveFailures -results $nonFailedSetupResults) -Message 'PowerShell setup results should not fail on successful, dry-run, or skipped results.'
 
 $menuCatalog = New-TestSetupMenuCatalog
 
