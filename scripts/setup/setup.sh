@@ -432,6 +432,40 @@ _is_setup_menu_item_recommended_for_platform() {
   esac
 }
 
+_append_menu_item_to_sorted_catalog() {
+  local source_index=$1
+
+  _SORTED_MENU_IDS+=("${_MENU_IDS[$source_index]}")
+  _SORTED_MENU_LABELS+=("${_MENU_LABELS[$source_index]}")
+  _SORTED_MENU_FUNCS+=("${_MENU_FUNCS[$source_index]}")
+  _SORTED_MENU_DEFAULT_SELECTED+=("${_MENU_DEFAULT_SELECTED[$source_index]}")
+}
+
+_sort_menu_catalog_by_default_selection() {
+  local menu_index
+  _SORTED_MENU_IDS=()
+  _SORTED_MENU_LABELS=()
+  _SORTED_MENU_FUNCS=()
+  _SORTED_MENU_DEFAULT_SELECTED=()
+
+  for menu_index in "${!_MENU_DEFAULT_SELECTED[@]}"; do
+    if [[ ${_MENU_DEFAULT_SELECTED[$menu_index]} -eq 1 ]]; then
+      _append_menu_item_to_sorted_catalog "$menu_index"
+    fi
+  done
+
+  for menu_index in "${!_MENU_DEFAULT_SELECTED[@]}"; do
+    if [[ ${_MENU_DEFAULT_SELECTED[$menu_index]} -eq 0 ]]; then
+      _append_menu_item_to_sorted_catalog "$menu_index"
+    fi
+  done
+
+  _MENU_IDS=("${_SORTED_MENU_IDS[@]}")
+  _MENU_LABELS=("${_SORTED_MENU_LABELS[@]}")
+  _MENU_FUNCS=("${_SORTED_MENU_FUNCS[@]}")
+  _MENU_DEFAULT_SELECTED=("${_SORTED_MENU_DEFAULT_SELECTED[@]}")
+}
+
 ensure_sudo() {
   command -v sudo >/dev/null 2>&1 || return
   if [ -z "${SUDO_KEEPALIVE_PID:-}" ]; then
@@ -516,6 +550,8 @@ _initialize_menu_catalog() {
       _MENU_DEFAULT_SELECTED+=("0")
     fi
   done < "$SETUP_CATALOG_PATH"
+
+  _sort_menu_catalog_by_default_selection
 }
 
 _reset_menu_selection_to_defaults() {
@@ -533,10 +569,18 @@ _validate_menu_catalog() {
     return 1
   fi
 
+  local found_non_default=0
   local menu_index
   for menu_index in "${!_MENU_LABELS[@]}"; do
     if ! declare -F "${_MENU_FUNCS[$menu_index]}" >/dev/null 2>&1; then
       echo "ERROR: La función '${_MENU_FUNCS[$menu_index]}' no existe." >&2
+      return 1
+    fi
+
+    if [[ ${_MENU_DEFAULT_SELECTED[$menu_index]} -eq 0 ]]; then
+      found_non_default=1
+    elif [[ $found_non_default -eq 1 ]]; then
+      echo "ERROR: Los elementos seleccionados por defecto deben estar al inicio del catálogo." >&2
       return 1
     fi
   done

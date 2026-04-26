@@ -80,9 +80,24 @@ get_menu_default_selection_by_id() {
   return 1
 }
 
+assert_menu_defaults_are_first() {
+  local found_non_default=0
+  local menu_index
+
+  for menu_index in "${!_MENU_DEFAULT_SELECTED[@]}"; do
+    if [[ "${_MENU_DEFAULT_SELECTED[$menu_index]}" -eq 0 ]]; then
+      found_non_default=1
+    elif [[ "$found_non_default" -eq 1 ]]; then
+      printf "ERROR: %s Expected all default setup items before optional items.\n" "$1" >&2
+      exit 1
+    fi
+  done
+}
+
 set_test_platform "linux"
 _initialize_menu_catalog
 _validate_menu_catalog
+assert_menu_defaults_are_first "Linux setup menu should keep defaults first."
 
 assert_equals "$REPO_ROOT/configs/zsh/.zsh/functions/styleText.zsh" "$SETUP_STYLE_TEXT_PATH" "Bash setup should load the shared styleText helper."
 if ! command -v styleText >/dev/null; then
@@ -100,6 +115,7 @@ assert_failure "Bash catalog initialization should fail when the catalog file is
 SETUP_CATALOG_PATH="$original_setup_catalog_path"
 _initialize_menu_catalog
 _validate_menu_catalog
+assert_menu_defaults_are_first "Linux setup menu should keep defaults first after catalog reload."
 
 assert_equals "1" "$(get_menu_default_selection_by_id xclip)" "Linux setup recommendations should include xclip."
 assert_equals "0" "$(get_menu_default_selection_by_id gnu_grep)" "Linux setup recommendations should not include GNU grep."
@@ -111,6 +127,7 @@ assert_failure "Bash catalog should not include Java JDK 21 as a recommended set
 set_test_platform "wsl"
 _initialize_menu_catalog
 _validate_menu_catalog
+assert_menu_defaults_are_first "WSL setup menu should keep defaults first."
 assert_equals "1" "$(get_menu_default_selection_by_id win32yank)" "WSL setup recommendations should include win32yank."
 assert_equals "0" "$(get_menu_default_selection_by_id espanso)" "WSL setup recommendations should not include Espanso."
 assert_equals "0" "$(get_menu_default_selection_by_id xclip)" "WSL setup recommendations should not include xclip."
@@ -118,6 +135,7 @@ assert_equals "0" "$(get_menu_default_selection_by_id xclip)" "WSL setup recomme
 set_test_platform "darwin"
 _initialize_menu_catalog
 _validate_menu_catalog
+assert_menu_defaults_are_first "macOS setup menu should keep defaults first."
 assert_equals "1" "$(get_menu_default_selection_by_id gnu_grep)" "macOS setup recommendations should include GNU grep."
 assert_equals "0" "$(get_menu_default_selection_by_id xclip)" "macOS setup recommendations should not include xclip."
 assert_equals "0" "$(get_menu_default_selection_by_id win32yank)" "macOS setup recommendations should not include win32yank."
@@ -126,9 +144,9 @@ assert_equals "1" "$(get_menu_default_selection_by_id espanso)" "macOS setup rec
 set_test_platform "linux"
 _initialize_menu_catalog
 _validate_menu_catalog
+assert_menu_defaults_are_first "Linux setup menu should keep defaults first before allowlist checks."
 
-git_function_index="$(_find_menu_function_index install_git)"
-assert_equals "24" "$git_function_index" "Catalog allowlist should find setup installer functions."
+assert_success "Catalog allowlist should find setup installer functions." _find_menu_function_index install_git >/dev/null
 assert_failure "Catalog allowlist should reject functions outside setup installers." _find_menu_function_index rm
 
 same_window_render_result=0
