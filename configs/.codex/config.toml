@@ -1,6 +1,6 @@
 # :schema https://developers.openai.com/codex/config-schema.json
 
-model = "gpt-5.5"
+model = "gpt-5.3-codex"
 model_reasoning_effort = "medium"
 personality = "friendly"
 approval_policy = "never"
@@ -70,17 +70,17 @@ js_repl = true
 [tui]
 notification_method = "osc9"
 notifications = [
-    "agent-turn-complete",
-    "user-input-requested",
-    "approval-requested",
+  "agent-turn-complete",
+  "user-input-requested",
+  "approval-requested"
 ]
 status_line = [
-    "model-with-reasoning",
-    "context-remaining",
-    "current-dir",
-    "total-input-tokens",
-    "total-output-tokens",
-    "fast-mode",
+  "model-with-reasoning",
+  "context-remaining",
+  "current-dir",
+  "total-input-tokens",
+  "total-output-tokens",
+  "fast-mode"
 ]
 theme = "two-dark"
 
