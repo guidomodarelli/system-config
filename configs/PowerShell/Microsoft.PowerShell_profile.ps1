@@ -582,7 +582,9 @@ function gms { git merge --squash $args }
 function gmtl { git mergetool --no-prompt $args }
 function gmtlvim { git mergetool --no-prompt --tool=vimdiff $args }
 function gmum { git merge upstream/$(git_main_branch) $args }
-function gp { git push $args }
+# PowerShell ships with alias gp -> Get-ItemProperty; remove it so gp can be used for git push.
+if (Test-Path Alias:gp) { Remove-Item Alias:gp -Force }
+function gp { git push @args }
 function gpd { git push --dry-run $args }
 function gpf { git push --force-with-lease --force-if-includes $args }
 function gpf! { git push --force $args }
