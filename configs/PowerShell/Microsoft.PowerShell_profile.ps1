@@ -344,6 +344,12 @@ function git_develop_branch {
 Set-Alias -Name g -Value git
 Set-Alias -Name gk -Value gitk
 
+# Remove built-in aliases that conflict with git shorthand functions.
+$gitFunctionAliasConflicts = @('gc', 'gcm', 'gcs', 'gl', 'gm', 'gp', 'gpv')
+foreach ($aliasName in $gitFunctionAliasConflicts) {
+    if (Test-Path "Alias:$aliasName") { Remove-Item "Alias:$aliasName" -Force }
+}
+
 # Git command functions
 function ga { git add $args }
 function gaa { git add --all $args }
@@ -582,8 +588,6 @@ function gms { git merge --squash $args }
 function gmtl { git mergetool --no-prompt $args }
 function gmtlvim { git mergetool --no-prompt --tool=vimdiff $args }
 function gmum { git merge upstream/$(git_main_branch) $args }
-# PowerShell ships with alias gp -> Get-ItemProperty; remove it so gp can be used for git push.
-if (Test-Path Alias:gp) { Remove-Item Alias:gp -Force }
 function gp { git push @args }
 function gpd { git push --dry-run $args }
 function gpf { git push --force-with-lease --force-if-includes $args }
