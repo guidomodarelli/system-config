@@ -319,6 +319,10 @@ function Install-fnm {
   Install-WingetPackage Schniz.fnm
 }
 
+function Install-Zoxide {
+  Install-WingetPackage ajeetdsouza.zoxide
+}
+
 function New-SetupMenuItem {
   param (
     [string]$Id,

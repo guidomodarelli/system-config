@@ -18,6 +18,7 @@ jq|jq|install_jq||1|0|linux,wsl,darwin|0
 fzf|fzf|install_fzf|Install-Fzf|1|0|linux,wsl,darwin,windows|0
 ripgrep|ripgrep|install_ripgrep|Install-RipGrep|1|0|linux,wsl,darwin,windows|0
 zoxide|zoxide|install_zoxide||1|0|linux,wsl,darwin|0
+zoxide|zoxide||Install-Zoxide|1|0|windows|0
 gnu_grep|GNU grep (ggrep)|install_ggrep||1|0|darwin|0
 eza|eza|install_eza|Install-Eza|1|0|linux,wsl,darwin,windows|0
 fd_find|fd-find|install_fd_find|Install-FdFind|1|0|linux,wsl,darwin,windows|0

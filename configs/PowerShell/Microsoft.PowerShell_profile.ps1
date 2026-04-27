@@ -8,6 +8,15 @@
 function global:grep { & grep.exe --color=auto --exclude-dir=".bzr" --exclude-dir="CVS" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" --exclude-dir=".idea" --exclude-dir=".tox" --exclude-dir=".venv" --exclude-dir="venv" $args }
 function rg { & rg.exe --glob "!.git/*" $args }
 
+$zoxideCommand = Get-Command zoxide -ErrorAction SilentlyContinue
+if ($zoxideCommand) {
+    try {
+        Invoke-Expression (& $zoxideCommand.Source init powershell | Out-String)
+    } catch {
+        Write-Warning "Unable to initialize zoxide: $($_.Exception.Message)"
+    }
+}
+
 # Absolute repository root resolved via git anchored to this wrapper location.
 $script:REPO_ROOT = (& git -C $PSScriptRoot rev-parse --show-toplevel 2>$null)
 if ([string]::IsNullOrWhiteSpace($script:REPO_ROOT)) {
