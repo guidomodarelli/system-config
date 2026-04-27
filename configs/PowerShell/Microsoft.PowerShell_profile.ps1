@@ -1347,41 +1347,119 @@ function Invoke-FzfSelection {
 #  ██████  ██   ██  ██████
 #                      ▀▀
 
+if (-not $script:GhqSelectionCacheTtlSeconds) {
+    $script:GhqSelectionCacheTtlSeconds = 10
+}
+
+$script:GhqCommandInfoCache = $null
+$script:FzfCommandInfoCache = $null
+$script:GhqRootCache = $null
+$script:GhqRootCacheTimestamp = $null
+$script:GhqRepositoryListCache = $null
+$script:GhqRepositoryListCacheTimestamp = $null
+
+function Test-CacheEntryIsFresh {
+    param(
+        [Nullable[datetime]]$Timestamp,
+        [int]$TtlSeconds = 0
+    )
+
+    if (-not $Timestamp -or $TtlSeconds -le 0) {
+        return $false
+    }
+
+    $elapsedSeconds = ([datetime]::UtcNow - $Timestamp).TotalSeconds
+    return $elapsedSeconds -lt $TtlSeconds
+}
+
+function Get-CachedGhqCommandInfo {
+    if ($script:GhqCommandInfoCache) {
+        return $script:GhqCommandInfoCache
+    }
+
+    $script:GhqCommandInfoCache = Get-Command ghq -ErrorAction SilentlyContinue
+    return $script:GhqCommandInfoCache
+}
+
+function Get-CachedFzfCommandInfo {
+    if ($script:FzfCommandInfoCache) {
+        return $script:FzfCommandInfoCache
+    }
+
+    $script:FzfCommandInfoCache = Get-Command fzf -ErrorAction SilentlyContinue
+    return $script:FzfCommandInfoCache
+}
+
+function Get-CachedGhqRepositoryList {
+    $isFresh = Test-CacheEntryIsFresh -Timestamp $script:GhqRepositoryListCacheTimestamp -TtlSeconds $script:GhqSelectionCacheTtlSeconds
+    if ($isFresh -and $script:GhqRepositoryListCache) {
+        return $script:GhqRepositoryListCache
+    }
+
+    $ghqCommand = Get-CachedGhqCommandInfo
+    if (-not $ghqCommand) {
+        return $null
+    }
+
+    $repoList = & $ghqCommand.Source list 2> $null
+    $repoItems = [System.Collections.Generic.List[string]]::new()
+    foreach ($repo in $repoList) {
+        if (-not [string]::IsNullOrWhiteSpace($repo)) {
+            $repoItems.Add($repo.Trim())
+        }
+    }
+
+    $script:GhqRepositoryListCache = @($repoItems)
+    $script:GhqRepositoryListCacheTimestamp = [datetime]::UtcNow
+    return $script:GhqRepositoryListCache
+}
+
+function Get-CachedGhqRootPath {
+    $isFresh = Test-CacheEntryIsFresh -Timestamp $script:GhqRootCacheTimestamp -TtlSeconds $script:GhqSelectionCacheTtlSeconds
+    if ($isFresh -and -not [string]::IsNullOrWhiteSpace($script:GhqRootCache)) {
+        return $script:GhqRootCache
+    }
+
+    $ghqCommand = Get-CachedGhqCommandInfo
+    if (-not $ghqCommand) {
+        return $null
+    }
+
+    $rootOutput = & $ghqCommand.Source root 2> $null
+    foreach ($entry in $rootOutput) {
+        if (-not [string]::IsNullOrWhiteSpace($entry)) {
+            $script:GhqRootCache = $entry.Trim()
+            $script:GhqRootCacheTimestamp = [datetime]::UtcNow
+            return $script:GhqRootCache
+        }
+    }
+
+    return $null
+}
+
 function Select-GhqRepositoryPath {
     param(
         [string]$PromptLabel = 'GHQ',
         [string]$DefaultQuery = ''
     )
 
-    $ghqCommand = Get-Command ghq -ErrorAction SilentlyContinue
+    $ghqCommand = Get-CachedGhqCommandInfo
     if (-not $ghqCommand) {
         Write-Warning "ghq is not available on PATH; install it (for example, 'scoop install ghq')."
         return $null
     }
 
-    $fzfCommand = Get-Command fzf -ErrorAction SilentlyContinue
+    $fzfCommand = Get-CachedFzfCommandInfo
     if (-not $fzfCommand) {
         Write-Warning 'fzf is not available on PATH; ghq picker requires fzf.'
         return $null
     }
 
     try {
-        $repoList = & $ghqCommand.Source list 2> $null
+        $items = Get-CachedGhqRepositoryList
     } catch {
         Write-Warning "Failed to execute 'ghq list': $_"
         return $null
-    }
-
-    if (-not $repoList) {
-        Write-Warning 'No ghq repositories found.'
-        return $null
-    }
-
-    $items = @()
-    foreach ($repo in $repoList) {
-        if (-not [string]::IsNullOrWhiteSpace($repo)) {
-            $items += $repo.Trim()
-        }
     }
 
     if (-not $items) {
@@ -1412,25 +1490,17 @@ function Select-GhqRepositoryPath {
     }
 
     try {
-        $rootOutput = & $ghqCommand.Source root 2> $null
+        $primaryRoot = Get-CachedGhqRootPath
     } catch {
         Write-Warning "Failed to determine ghq root: $_"
         return $null
     }
 
-    $roots = @()
-    foreach ($entry in $rootOutput) {
-        if (-not [string]::IsNullOrWhiteSpace($entry)) {
-            $roots += $entry.Trim()
-        }
-    }
-
-    if (-not $roots) {
+    if ([string]::IsNullOrWhiteSpace($primaryRoot)) {
         Write-Warning 'ghq root returned no paths.'
         return $null
     }
 
-    $primaryRoot = $roots[0]
     $targetPath = [System.IO.Path]::Combine($primaryRoot, $selectedRelative)
 
     return $targetPath
