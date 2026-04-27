@@ -52,6 +52,7 @@ policy:
 - Si se agrega, modifica o elimina funcionalidad, se deben agregar o actualizar los tests correspondientes.
 - Si no es posible ejecutar tests en el entorno actual, se debe informar explícitamente qué faltó validar y por qué.
 - Preferir tests reales sobre mocks de librerías de UI, plataforma o SDK internos en cualquier proyecto: no mockear librerías internas o de plataforma del proyecto. Los paquetes `@andes/*`, `@meli/*`, `nordic/*` y `@kraken/*` son ejemplos, no una lista exhaustiva. Solo mockear estas dependencias por pedido explícito del usuario o imposibilidad técnica justificada; en esos casos, explicar por qué el mock es necesario y mantenerlo lo más acotado posible.
+- Las librerías internas o de plataforma no deben estar mockeadas antes, durante ni después de un test; no usar `jest.mock`, `jest.doMock`, `jest.unmock` ni `jest.dontMock` para esas dependencias. Los tests deben ejercer la integración real o aislarse en un borde propio del proyecto.
 
 ## Reglas globales de diseño y mantenimiento
 - Nombrar variables, funciones, métodos, clases, archivos, carpetas y demás elementos de forma clara, coherente, concisa, completa y autoexplicativa. → Skill: `enforce-naming-conventions`
