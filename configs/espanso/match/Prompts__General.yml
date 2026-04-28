@@ -101,34 +101,27 @@ matches:
         type: choice
         params:
           values:
-            - label: MAKE EASY FOR AUDIENCE
+            - label: SIMPLIFY
               id: |-
-                Rewrite the content so it can be presented to an audience.
-                Make it informal, without complex words.
+                Make the content very clear and easy to understand.
+                Use informal language and avoid complex words.
             - label: CLARITY
               id: |-
-                Change tone to straightforward. Text should be direct, clear,
-                and not ambiguous.
-            - label: REPHRASE
+                Make the content direct, clear, and unambiguous.
+                Keep the original meaning.
+            - label: REFINE
               id: |-
-                Rephrase to improve writing, flow, readability and coherence.
-                Fix grammar and spelling.
+                Improve writing, flow, readability, coherence, grammar, and
+                spelling. Keep the original meaning unless a small adjustment
+                improves clarity.
             - label: ADD EXAMPLES
-              id: Add a list of examples only.
+              id: Add only a concise list of examples.
             - label: ILLUSTRATE
               id: |-
                 Add examples, anecdotes, and other storytelling elements to
                 illustrate points.
             - label: GET TITLES
-              id: Suggesting a list of 10 titles about this content.
-            - label: REWRITE
-              id: Rewrite the content to make it more clear.
-            - label: SIMPLIFY
-              id: Make the content very clear and easy to understand.
-            - label: REFINE
-              id: |-
-                Improve sentences structure and flow, as well as coherence and
-                relevance by adding or removing information.
+              id: Suggest a list of 10 titles about this content.
             - label: ADD A TITLE
               id: |-
                 Add a simple and short title. It should not include colons.
