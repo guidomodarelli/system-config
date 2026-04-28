@@ -1,12 +1,4 @@
 global_vars:
-  - name: FIX_GRAMMAR
-    type: echo
-    params:
-      echo: |
-        I would like you to correct the grammar and spelling of the following
-        text. Output the text as it is, but correct any grammatical and spelling
-        errors it may contain. Remove unnecessary new lines in the middle of
-        each sentence. Add 1 new line between paragraphs.
   - name: lang
     type: choice
     params:
@@ -91,20 +83,6 @@ matches:
       {{task__tag_end}}
 
       {{user__text}}
-
-  - trigger: ";gra"
-    force_clipboard: true
-    replace: |
-      {{rules__tag_begin}}
-      {{rules__content}}
-      {{task__translate}}.
-      {{rules__tag_end}}
-
-      {{task__tag_begin}}
-      {{FIX_GRAMMAR}}
-      {{task__tag_end}}
-
-      {{user__text}}
   - trigger: ";rew"
     force_clipboard: true
     replace: |
@@ -127,12 +105,6 @@ matches:
               id: |-
                 Rewrite the content so it can be presented to an audience.
                 Make it informal, without complex words.
-            - label: FIX GRAMMAR
-              id: '{{FIX_GRAMMAR}}'
-            - label: ITEMIFY
-              id: Itemify.
-            - label: EMOJIFY
-              id: Emojify.
             - label: CLARITY
               id: |-
                 Change tone to straightforward. Text should be direct, clear,
@@ -141,14 +113,6 @@ matches:
               id: |-
                 Rephrase to improve writing, flow, readability and coherence.
                 Fix grammar and spelling.
-            - label: EXPAND
-              id: Make text longer.
-            - label: SHORTEN
-              id: Make text shorter.
-            - label: ADD HEADINGS
-              id: |-
-                Add headings, subheadings, bullet points, and other formatting
-                elements for readability.
             - label: ADD EXAMPLES
               id: Add a list of examples only.
             - label: ILLUSTRATE
@@ -161,28 +125,10 @@ matches:
               id: Rewrite the content to make it more clear.
             - label: SIMPLIFY
               id: Make the content very clear and easy to understand.
-            - label: COMPLICATE
-              id: Increase the linguistic complexity of the text.
-            - label: SUMMARIZE
-              id: Summarize the content.
-            - label: TONE TO PROFESSIONAL
-              id: Change tone to professional.
-            - label: TONE TO CASUAL
-              id: Change tone to casual.
-            - label: TONE TO CONFIDENT
-              id: Change tone to confident.
-            - label: TONE TO FRIENDLY
-              id: Change tone to friendly.
-            - label: 1ST PERSON
-              id: Change style to 1st person.
-            - label: 3RD PERSON
-              id: Change style to 3rd person.
             - label: REFINE
               id: |-
                 Improve sentences structure and flow, as well as coherence and
                 relevance by adding or removing information.
-            - label: ENRICH
-              id: Enhance vocabulary and tone.
             - label: ADD A TITLE
               id: |-
                 Add a simple and short title. It should not include colons.
