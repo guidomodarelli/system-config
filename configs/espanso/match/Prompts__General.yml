@@ -213,30 +213,14 @@ matches:
               id: Help me suggest a repository description for the
                 topics/features I provide below that reflects the main goal of
                 this repository.
-            - label: SUGGEST A DESCRIPTIVE TEST NAME
-              id: Help me suggest a descriptive test name in snake case for the
-                function I provide below that reflects what is being verified in
-                the function. You should start with "should".
             - label: SUGGEST A DESCRIPTIVE ISSUE TITLE
               id: Help me suggest a descriptive issue title for the description
                 I provide below. The title should be concise and summarize the
                 main problem or feature request.
-            - label: SUGGEST A DESCRIPTIVE ISSUE DESCRIPTION
-              id: Help me suggest a descriptive issue description for the
-                title I provide below. The description should provide more
-                context and details about the issue or feature request.
-            - label: SUGGEST A DESCRIPTIVE PR DESCRIPTION
-              id: Help me suggest a descriptive pull request description for
-                the changes I provide below. The description should summarize
-                the main changes made in the pull request and their purpose.
             - label: SUGGEST A DESCRIPTIVE FILE NAME
               id: Help me suggest a descriptive file name in kebab case for
                 the content I provide below that reflects the main purpose of
                 the file.
-            - label: SUGGEST A DESCRIPTIVE FUNCTION NAME
-              id: Help me suggest a descriptive function name in camel case
-                for the functionality I provide below that reflects what the
-                function does.
   - trigger: ";res"
     force_clipboard: true
     replace: |
@@ -287,8 +271,6 @@ matches:
 
       {{task__tag_begin}}
       Recrea esta imagen desde cero manteniendo el mismo contenido y mensaje central, pero rediseñándola completamente con un enfoque original e innovador.
-
-      No reutilices el estilo visual, composición, paleta de colores ni recursos gráficos de la imagen original.
 
       Propón una nueva dirección creativa: diferente estética, tipografía, layout, jerarquía visual y tratamiento gráfico.
 
