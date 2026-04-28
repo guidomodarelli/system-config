@@ -52,6 +52,10 @@ global_vars:
     type: echo
     params:
       echo: Translate the text to {{lang}}, and reply with the translation only
+  - name: task__respond_in_lang
+    type: echo
+    params:
+      echo: Write the response in {{lang}}
   - name: user__text
     type: echo
     params:
@@ -88,11 +92,11 @@ matches:
     replace: |
       {{rules__tag_begin}}
       {{rules__content}}
-      - {{task__translate}}.
       {{rules__tag_end}}
 
       {{task__tag_begin}}
       {{how_to_rewrite}}
+      - {{task__respond_in_lang}}, preserving the {{lang_style}} language style.
       {{task__tag_end}}
 
       {{user__text}}
@@ -116,21 +120,22 @@ matches:
                 improves clarity.
             - label: ADD EXAMPLES
               id: Add only a concise list of examples.
+            - label: RESTRUCTURE
+              id: |-
+                Reorder, reorganize, and restructure the text to improve
+                clarity and presentation.
+                Retain all original information--nothing should be added or
+                omitted.
+                Format the text in a clean, aesthetically appealing way for
+                better comprehension.
+                You can completely rewrite the text if it improves clarity.
+                Use numbered or unnumbered lists, sublists, headings, sections,
+                and subsections when they improve readability.
+                Ignore timestamps.
             - label: ILLUSTRATE
               id: |-
                 Add examples, anecdotes, and other storytelling elements to
                 illustrate points.
-            - label: GET TITLES
-              id: Suggest a list of 10 titles about this content.
-            - label: ADD A TITLE
-              id: |-
-                Add a simple and short title. It should not include colons.
-                Only display the title.
-            - label: ORGANIZE KEY POINTS
-              id: |-
-                From this conversation, extract and organize the key points
-                grouped by topics, next steps, conclusions, and any additional
-                relevant notes.
   - trigger: ";sug"
     force_clipboard: true
     replace: |
@@ -160,7 +165,13 @@ matches:
               id: Help me suggest a descriptive file name in kebab case for
                 the content I provide below that reflects the main purpose of
                 the file.
-  - trigger: ";res"
+            - label: SUGGEST A LIST OF TITLES
+              id: Suggest a list of 10 titles about this content.
+            - label: SUGGEST A TITLE
+              id: |-
+                Suggest a simple and short title. It should not include colons.
+                Only display the title.
+  - trigger: ";org"
     force_clipboard: true
     replace: |
       {{rules__tag_begin}}
@@ -168,36 +179,9 @@ matches:
       {{rules__tag_end}}
 
       {{task__tag_begin}}
-      Rewrite the following text to improve clarity, coherence, and flow while
-      maintaining the original meaning and preserving the language style
-      {{lang_style}}. {{task__translate}}. Correct any grammatical and spelling
-      errors, and enhance sentence structure to make the text easier to read and
-      understand. Do not add or remove information; only improve the writing.
-      {{task__tag_end}}
-
-      {{user__text}}
-  - trigger: ";rrr"
-    force_clipboard: true
-    replace: |
-      {{rules__tag_begin}}
-      {{rules__content}}
-      {{rules__tag_end}}
-
-      {{task__tag_begin}}
-      - Reorder, reorganize, and restructure the text to improve clarity and
-      presentation.
-      - {{task__translate}}, ensuring fluent readability while preserving the
-      {{lang_style}} language style.
-      - Retain all original information—nothing should be added or omitted.
-      - Format the text in a clean, aesthetically appealing way for better
-      comprehension.
-        <note>
-        - You can completely rewrite the text if you consider it appropriate,
-            creating your own presentation style. Feel free to use numbered or
-            unnumbered lists, sublists, emojis, headings, sections and
-            subsections: whatever best improves clarity and readability.
-        </note>
-      - Ignore timestamps.
+      From this conversation, extract and organize the key points grouped by
+      topics, next steps, conclusions, and any additional relevant notes.
+      - {{task__respond_in_lang}}, preserving the {{lang_style}} language style.
       {{task__tag_end}}
 
       {{user__text}}
