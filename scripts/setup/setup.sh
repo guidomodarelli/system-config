@@ -470,6 +470,10 @@ install_git() {
   fi
 }
 
+install_gh() {
+  _brew install gh # https://cli.github.com/
+}
+
 install_zsh() {
   if command -v zsh >/dev/null 2>&1; then
     echo "zsh already installed; skipping package installation"

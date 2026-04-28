@@ -197,6 +197,10 @@ function Install-Git {
   Install-WingetPackage Git.Git
 }
 
+function Install-Gh {
+  Install-WingetPackage GitHub.cli
+}
+
 function Install-VsCode {
   Install-WingetPackage Microsoft.VisualStudioCode
 }
