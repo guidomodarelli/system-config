@@ -3,9 +3,19 @@
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 ROOT_CONFIGS_DIR="$ROOT_DIR/configs"
 CONFIG_PATHS_FILE="$ROOT_DIR/symlinks.yml"
-source "$ROOT_CONFIGS_DIR/zsh/.zsh/functions/styleText.zsh"
-source "$ROOT_CONFIGS_DIR/zsh/.zsh/constants.zsh"
-source "$ROOT_CONFIGS_DIR/zsh/.zsh/functions/check_command.zsh"
+
+for required_source in \
+  "$ROOT_CONFIGS_DIR/zsh/.zsh/functions/styleText.zsh" \
+  "$ROOT_CONFIGS_DIR/zsh/.zsh/constants.zsh" \
+  "$ROOT_CONFIGS_DIR/zsh/.zsh/functions/check_command.zsh"; do
+  if [ ! -f "$required_source" ]; then
+    printf "[ ERROR ] Falta dependencia requerida: %s\n" "$required_source" >&2
+    exit 1
+  fi
+  # shellcheck source=/dev/null
+  source "$required_source"
+done
+unset required_source
 
 # Create temporary files (template must end with XXXXXX for mktemp portability).
 TMP_SCRIPT="$(mktemp "/tmp/wsl_symlink_XXXXXX")" || {
@@ -52,7 +62,7 @@ COUNT_SUDO_OPERATIONS=0
 LAST_OUTPUT_WAS_SEPARATOR=false
 
 is_debug() {
-  if [ "$DEBUG" = true ]; then
+  if [ "$DEBUG" = "true" ]; then
     return 0 # true
   fi
   return 1 # false
@@ -66,11 +76,8 @@ is_darwin() {
 }
 
 is_wsl() {
-  if [ -n "$(grep -i microsoft /proc/version 2>/dev/null)" ] || [ -n "$(grep -i WSL /proc/version 2>/dev/null)" ]; then
-    echo "true"
-  else
-    echo "false"
-  fi
+  [ -r /proc/version ] || return 1
+  grep -qiE 'microsoft|WSL' /proc/version 2>/dev/null
 }
 
 get_linux_distro() {
@@ -141,7 +148,7 @@ abbreviate_home_path() {
   printf "%s" "$path"
 }
 
-printPath() {
+print_path() {
   local path="$1"
   local normalized_path
   normalized_path=$(normalize_display_path "$path")
@@ -222,7 +229,7 @@ log_error_action() {
 print_group_header() {
   local group_path="$1"
   if can_print_details; then
-    printf "[ %s ] %s %s\n" "$(print_magenta -b "GRUPO")" "$(print_magenta -b "$(build_icon "$ICON_GROUP")")" "$(printPath "$group_path")"
+    printf "[ %s ] %s %s\n" "$(print_magenta -b "GRUPO")" "$(print_magenta -b "$(build_icon "$ICON_GROUP")")" "$(print_path "$group_path")"
     LAST_OUTPUT_WAS_SEPARATOR=false
   fi
 }
@@ -294,19 +301,31 @@ record_failed_target() {
   printf "%s\t%s\n" "$target" "$reason" >> "$FAILED_TARGETS_FILE"
 }
 
+# Counts entries persisted in $FAILED_TARGETS_FILE.
+# Used to recover failure counts that were incremented inside command
+# substitution subshells (e.g. retrieve_paths_for_platform), where
+# changes to COUNT_ERRORS are otherwise lost.
+recorded_failure_count() {
+  if [ ! -s "$FAILED_TARGETS_FILE" ]; then
+    echo 0
+    return 0
+  fi
+  awk 'NF { count++ } END { print count + 0 }' "$FAILED_TARGETS_FILE"
+}
+
 validate_paths_config() {
   if [ ! -f "$CONFIG_PATHS_FILE" ]; then
-    log_error_action "No se encontró el archivo de configuración: $(printPath "$CONFIG_PATHS_FILE")"
+    log_error_action "No se encontró el archivo de configuración: $(print_path "$CONFIG_PATHS_FILE")"
     return 1
   fi
 
   if ! yq eval '.paths' "$CONFIG_PATHS_FILE" >/dev/null 2>&1; then
-    log_error_action "Configuración inválida en $(printPath "$CONFIG_PATHS_FILE"): no se pudo interpretar YAML."
+    log_error_action "Configuración inválida en $(print_path "$CONFIG_PATHS_FILE"): no se pudo interpretar YAML."
     return 1
   fi
 
   if ! yq eval -o=json '.paths' "$CONFIG_PATHS_FILE" | jq -e 'type == "array"' >/dev/null 2>&1; then
-    log_error_action "Configuración inválida en $(printPath "$CONFIG_PATHS_FILE"): 'paths' debe ser un arreglo."
+    log_error_action "Configuración inválida en $(print_path "$CONFIG_PATHS_FILE"): 'paths' debe ser un arreglo."
     return 1
   fi
 
@@ -315,22 +334,22 @@ validate_paths_config() {
 
 # Get the current WSL distribution name
 get_wsl_distro_name() {
-  if [ "$(is_wsl)" = "true" ]; then
-    if [ -n "$WSL_DISTRO_NAME" ]; then
-      echo "$WSL_DISTRO_NAME"
-      return 0
-    fi
+  is_wsl || return 0
 
-    local win_root
-    win_root=$(wslpath -w / 2>/dev/null)
-    local distro_regex='^\\\\wsl(\\\\.localhost)?\\\\([^\\\\]+)\\\\'
-    if [[ $win_root =~ $distro_regex ]]; then
-      echo "${BASH_REMATCH[2]}"
-      return 0
-    fi
-
-    grep -oP '(?<=^NAME=").*(?=")' /etc/os-release | tr -d '\r\n'
+  if [ -n "$WSL_DISTRO_NAME" ]; then
+    echo "$WSL_DISTRO_NAME"
+    return 0
   fi
+
+  local win_root
+  win_root=$(wslpath -w / 2>/dev/null)
+  local distro_regex='^\\\\wsl(\\\\.localhost)?\\\\([^\\\\]+)\\\\'
+  if [[ $win_root =~ $distro_regex ]]; then
+    echo "${BASH_REMATCH[2]}"
+    return 0
+  fi
+
+  awk -F= '/^NAME=/ { gsub(/"/, "", $2); print $2; exit }' /etc/os-release | tr -d '\r\n'
 }
 
 # Format path for Windows when in WSL
@@ -350,19 +369,19 @@ create_backup() {
   local command_prefix="$2"
 
   if [ "$DRY_RUN" = "true" ]; then
-    ((COUNT_BACKUPS++))
-    log_backup_action "Crearía $(printPath "${path//\\/\\\\}.bak")"
+    ((++COUNT_BACKUPS))
+    log_backup_action "Crearía $(print_path "${path//\\/\\\\}.bak")"
     return 0
   fi
 
   if ! $command_prefix mv "${path}" "${path}.bak" 2>/dev/null; then
-    log_error_action "No se pudo crear respaldo para $(printPath "$path")"
+    log_error_action "No se pudo crear respaldo para $(print_path "$path")"
     record_failed_target "$path" "Fallo al crear respaldo"
     return 1
   fi
 
-  ((COUNT_BACKUPS++))
-  log_backup_action "Creado $(printPath "${path//\\/\\\\}.bak")"
+  ((++COUNT_BACKUPS))
+  log_backup_action "Creado $(print_path "${path//\\/\\\\}.bak")"
 }
 
 remove_old_symlink() {
@@ -370,23 +389,23 @@ remove_old_symlink() {
   local command_prefix="$2"
 
   if [ "$DRY_RUN" = "true" ]; then
-    log_delete_action "Eliminaría symlink anterior $(printPath "$target")"
+    log_delete_action "Eliminaría symlink anterior $(print_path "$target")"
     return 0
   fi
 
   if ! $command_prefix rm "$target"; then
-    log_error_action "No se pudo eliminar symlink anterior $(printPath "$target")"
+    log_error_action "No se pudo eliminar symlink anterior $(print_path "$target")"
     record_failed_target "$target" "Fallo al eliminar symlink anterior"
     return 1
   fi
 
-  log_delete_action "Symlink anterior eliminado $(printPath "$target")"
+  log_delete_action "Symlink anterior eliminado $(print_path "$target")"
 }
 
 is_home_path() {
   local path="$1"
 
-  [[ "$path" == "$HOME" || "$path" == "$HOME/"* ]]
+  [[ -n "$HOME" && ( "$path" == "$HOME" || "$path" == "$HOME/"* ) ]]
 }
 
 find_existing_parent_dir() {
@@ -431,13 +450,13 @@ make_symlink() {
   target_dir=$(dirname "$target")
 
   if [ "$DRY_RUN" = "true" ]; then
-    ((COUNT_SKIPPED++))
+    ((++COUNT_SKIPPED))
   fi
 
   if needs_elevated_permissions "$target" "$target_dir"; then
     command_prefix='sudo'
-    ((COUNT_SUDO_OPERATIONS++))
-    log_note_action "Usando permisos elevados para $(printPath "$target")"
+    ((++COUNT_SUDO_OPERATIONS))
+    log_note_action "Usando permisos elevados para $(print_path "$target")"
   fi
 
   if [ -L "${target}.bak" ]; then
@@ -450,49 +469,51 @@ make_symlink() {
     if ! remove_old_symlink "$target" "$command_prefix"; then
       return 1
     fi
-    ((COUNT_REPLACED++))
+    ((++COUNT_REPLACED))
   elif [ -e "$target" ]; then
     if ! create_backup "$target" "$command_prefix"; then
       return 1
     fi
-    ((COUNT_REPLACED++))
+    ((++COUNT_REPLACED))
   else
-    ((COUNT_CREATED++))
+    ((++COUNT_CREATED))
   fi
 
   if [ "$DRY_RUN" != "true" ]; then
     if ! $command_prefix mkdir -p "$(dirname "$target")"; then
-      log_error_action "No se pudo crear directorio padre para $(printPath "$target")"
+      log_error_action "No se pudo crear directorio padre para $(print_path "$target")"
       record_failed_target "$target" "Fallo al crear directorio padre"
       return 1
     fi
   fi
 
   if [[ $path =~ "\\\\wsl\$" ]]; then
-    log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") Preparando destino WSL del symlink $(printPath "${path//\\/\\\\}")"
+    log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") Preparando destino WSL del symlink $(print_path "${path//\\/\\\\}")"
 
     if [ "$DRY_RUN" = "true" ]; then
       ((COUNT_WINDOWS_QUEUED++))
       log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Encolaría comando de symlink para Windows"
     else
-      local win_target
+      local win_target ps_target ps_source
       win_target=$(wslpath -w "$target" 2>/dev/null)
-      echo "New-Item -ItemType SymbolicLink -Path '$win_target' -Target '$path' -Force" >> "$TMP_SCRIPT"
-      ((COUNT_WINDOWS_QUEUED++))
+      ps_target="${win_target//\'/\'\'}"
+      ps_source="${path//\'/\'\'}"
+      echo "New-Item -ItemType SymbolicLink -Path '$ps_target' -Target '$ps_source' -Force" >> "$TMP_SCRIPT"
+      ((++COUNT_WINDOWS_QUEUED))
     fi
   else
     if [ "$DRY_RUN" = "true" ]; then
       log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Crearía symlink"
     else
       if ! $command_prefix ln -s "$path" "$target"; then
-        log_error_action "No se pudo crear symlink $(printPath "$target") -> $(printPath "${path//\\/\\\\}")"
+        log_error_action "No se pudo crear symlink $(print_path "$target") -> $(print_path "${path//\\/\\\\}")"
         record_failed_target "$target" "Fallo al crear symlink"
         return 1
       fi
     fi
   fi
 
-  log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") $(printPath "$target") $(print_magenta -b -- "${POINTER}${POINTER}") $(printPath "${path//\\/\\\\}")"
+  log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") $(print_path "$target") $(print_magenta -b -- "${POINTER}${POINTER}") $(print_path "${path//\\/\\\\}")"
   print_operation_duration "$started_at_seconds"
 
   return 0
@@ -535,16 +556,17 @@ run_elevated_powershell_script() {
 
 # Get Windows username when in WSL
 get_windows_username() {
-  if [ "$(is_wsl)" = "true" ]; then
-    if [ -f /mnt/c/Windows/System32/cmd.exe ]; then
-      /mnt/c/Windows/System32/cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n'
-    elif command -v powershell.exe >/dev/null 2>&1; then
-      powershell.exe -Command '$env:USERNAME' 2>/dev/null | tr -d '\r'
-    elif [ -n "$WSLENV" ] && [ -n "$USERNAME" ]; then
-      echo "$USERNAME"
-    else
-      echo "$USER"
-    fi
+  if ! is_wsl; then
+    echo "$USER"
+    return 0
+  fi
+
+  if [ -f /mnt/c/Windows/System32/cmd.exe ]; then
+    /mnt/c/Windows/System32/cmd.exe /c "echo %USERNAME%" 2>/dev/null | tr -d '\r\n'
+  elif command -v powershell.exe >/dev/null 2>&1; then
+    powershell.exe -Command '$env:USERNAME' 2>/dev/null | tr -d '\r'
+  elif [ -n "$WSLENV" ] && [ -n "$USERNAME" ]; then
+    echo "$USERNAME"
   else
     echo "$USER"
   fi
@@ -585,12 +607,16 @@ get_abs_path() {
   realpath "$path" 2>/dev/null || true
 }
 
-# Expand environment variables in a path string
+# Expand environment variables in a path string.
+# Only expands `~` when it appears as the leading character so that
+# substrings like `archive~backup` are not mangled into `archiveHOMEbackup`.
 expand_env_vars() {
   local path="$1"
 
   path="${path//'$HOME'/$HOME}"
-  path="${path//\~/$HOME}"
+  if [[ "$path" == "~" || "$path" == "~/"* ]]; then
+    path="$HOME${path#\~}"
+  fi
 
   if [[ "$path" == /mnt/c/* ]] || [[ "$path" == WSL://* ]]; then
     path="${path//'$USER'/$USERNAME}"
@@ -617,9 +643,8 @@ add_path_to_output() {
   if [ -z "$path" ]; then
     log_warn_action "Ruta de origen inválida o inexistente: $original_path"
     record_failed_target "$selected_target" "Ruta de origen inexistente"
-    ((COUNT_ERRORS++))
     echo "$output"
-    return 0
+    return 1
   fi
 
   if [[ "$selected_target" == WSL://* ]]; then
@@ -670,8 +695,8 @@ process_path_entry() {
   target=$(expand_env_vars "$target")
 
   if is_debug; then
-    echo "Path: $(printPath "${path//\\/\\\\}")" >&2
-    echo "Target: $(printPath "$target")" >&2
+    echo "Path: $(print_path "${path//\\/\\\\}")" >&2
+    echo "Target: $(print_path "$target")" >&2
     echo "-----------" >&2
   fi
 
@@ -684,8 +709,8 @@ process_path_entry() {
     if [ -d "$abs_dir_path" ]; then
       while IFS= read -r item; do
         if is_debug; then
-          echo "Item: $(printPath "${item//\\/\\\\}")" >&2
-          echo "Target: $(printPath "$target")" >&2
+          echo "Item: $(print_path "${item//\\/\\\\}")" >&2
+          echo "Target: $(print_path "$target")" >&2
           echo "-----------" >&2
         fi
         output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target")
@@ -715,8 +740,10 @@ get_paths() {
 retrieve_linux_paths() {
   local current_distro
   current_distro=$(get_linux_distro)
-  local wsl_status
-  wsl_status=$(is_wsl)
+  local wsl_status="false"
+  if is_wsl; then
+    wsl_status="true"
+  fi
 
   local selector='(
     .excludeFor == null or (
@@ -778,6 +805,32 @@ retrieve_paths_for_platform() {
   fi
 }
 
+SUMMARY_METRIC_COLUMN_WIDTH=32
+SUMMARY_VALUE_COLUMN_WIDTH=20
+
+_print_summary_format_metric_cell() {
+  local metric_label="$1"
+  local metric_length=${#metric_label}
+  local dots_count=$((SUMMARY_METRIC_COLUMN_WIDTH - metric_length))
+  local dots=""
+
+  if [ "$dots_count" -lt 0 ]; then
+    dots_count=0
+  fi
+
+  while [ "$dots_count" -gt 0 ]; do
+    dots="${dots}."
+    dots_count=$((dots_count - 1))
+  done
+
+  printf "%s%s" "$metric_label" "$dots"
+}
+
+_print_summary_format_value_cell() {
+  local value_text="$1"
+  printf "%-${SUMMARY_VALUE_COLUMN_WIDTH}.${SUMMARY_VALUE_COLUMN_WIDTH}s" "$value_text"
+}
+
 print_summary() {
   local end_time_seconds
   end_time_seconds=$(date +%s)
@@ -786,31 +839,6 @@ print_summary() {
   local total_elapsed_seconds=$((end_time_seconds - START_TIME_SECONDS))
   local status_value="[OK] Sin errores"
   local execution_mode="Aplicación real"
-  local metric_column_width=32
-  local value_column_width=20
-
-  format_metric_cell() {
-    local metric_label="$1"
-    local metric_length=${#metric_label}
-    local dots_count=$((metric_column_width - metric_length))
-    local dots=""
-
-    if [ "$dots_count" -lt 0 ]; then
-      dots_count=0
-    fi
-
-    while [ "$dots_count" -gt 0 ]; do
-      dots="${dots}."
-      dots_count=$((dots_count - 1))
-    done
-
-    printf "%s%s" "$metric_label" "$dots"
-  }
-
-  format_value_cell() {
-    local value_text="$1"
-    printf "%-${value_column_width}.${value_column_width}s" "$value_text"
-  }
 
   if [ "$COUNT_ERRORS" -gt 0 ]; then
     status_value="[X] Con errores"
@@ -826,18 +854,18 @@ print_summary() {
   printf "%s\n" "$(print_gray -b "╔══════════════════════════════════╦══════════════════════╗")"
   printf "%s\n" "$(print_gray -b "║ Métrica                          ║ Valor                ║")"
   printf "%s\n" "$(print_gray -b "╠══════════════════════════════════╬══════════════════════╣")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Inicio (UTC)") ║ $(format_value_cell "$START_TIME_ISO_UTC") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Fin (UTC)") ║ $(format_value_cell "$end_time_iso_utc") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Tiempo total (s)") ║ $(format_value_cell "$total_elapsed_seconds") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Modo ejecución") ║ $(format_value_cell "$execution_mode") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Creados") ║ $(format_value_cell "$COUNT_CREATED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Reemplazados") ║ $(format_value_cell "$COUNT_REPLACED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Respaldos") ║ $(format_value_cell "$COUNT_BACKUPS") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Omitidos") ║ $(format_value_cell "$COUNT_SKIPPED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Ops. con sudo") ║ $(format_value_cell "$COUNT_SUDO_OPERATIONS") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Ops. Windows en cola (PS)") ║ $(format_value_cell "$COUNT_WINDOWS_QUEUED") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Errores") ║ $(format_value_cell "$COUNT_ERRORS") ║")"
-  printf "%s\n" "$(print_gray -b "║ $(format_metric_cell "Estado") ║ $(format_value_cell "$status_value") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Inicio (UTC)") ║ $(_print_summary_format_value_cell "$START_TIME_ISO_UTC") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Fin (UTC)") ║ $(_print_summary_format_value_cell "$end_time_iso_utc") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Tiempo total (s)") ║ $(_print_summary_format_value_cell "$total_elapsed_seconds") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Modo ejecución") ║ $(_print_summary_format_value_cell "$execution_mode") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Creados") ║ $(_print_summary_format_value_cell "$COUNT_CREATED") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Reemplazados") ║ $(_print_summary_format_value_cell "$COUNT_REPLACED") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Respaldos") ║ $(_print_summary_format_value_cell "$COUNT_BACKUPS") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Omitidos") ║ $(_print_summary_format_value_cell "$COUNT_SKIPPED") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Ops. con sudo") ║ $(_print_summary_format_value_cell "$COUNT_SUDO_OPERATIONS") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Ops. Windows en cola (PS)") ║ $(_print_summary_format_value_cell "$COUNT_WINDOWS_QUEUED") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Errores") ║ $(_print_summary_format_value_cell "$COUNT_ERRORS") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Estado") ║ $(_print_summary_format_value_cell "$status_value") ║")"
   printf "%s\n" "$(print_gray -b "╚══════════════════════════════════╩══════════════════════╝")"
 
   if [ "$DRY_RUN" = "true" ]; then
@@ -870,7 +898,7 @@ print_diagnostics() {
     printf "[ %s ] %s) destino=%s | causa=%s\n" \
       "$(print_red -b "ERROR")" \
       "$diagnostic_index" \
-      "$(printPath "$failed_target")" \
+      "$(print_path "$failed_target")" \
       "$failed_reason"
     diagnostic_index=$((diagnostic_index + 1))
     LAST_OUTPUT_WAS_SEPARATOR=false
@@ -918,8 +946,8 @@ main() {
     fi
 
     if ! make_symlink "$path" "$target"; then
-      ((COUNT_ERRORS++))
-      log_error_action "La operación falló para el destino $(printPath "$target")"
+      ((++COUNT_ERRORS))
+      log_error_action "La operación falló para el destino $(print_path "$target")"
     fi
 
     is_first_link="false"
@@ -930,7 +958,17 @@ main() {
   fi
 
   if ! run_elevated_powershell_script "$TMP_SCRIPT"; then
-    ((COUNT_ERRORS++))
+    ((++COUNT_ERRORS))
+  fi
+
+  # Reconcile errors recorded inside command substitution subshells
+  # (e.g. add_path_to_output during retrieve_paths_for_platform) so that
+  # the summary and exit code reflect failures that the in-process
+  # COUNT_ERRORS counter could not observe.
+  local recorded_failures
+  recorded_failures=$(recorded_failure_count)
+  if [ "$recorded_failures" -gt "$COUNT_ERRORS" ]; then
+    COUNT_ERRORS="$recorded_failures"
   fi
 
   print_summary

@@ -189,7 +189,7 @@ YAML
 @test "summary table snapshot remains stable in spanish without color" {
   install_fixture "debug_flow"
 
-  run_dotfiler "false" "--dry-run --quiet --no-color"
+  run_dotfiler "false" "--dry-run" "--quiet" "--no-color"
 
   [ "$status" -eq 0 ]
   assert_output_contains_line "$output" "RESUMEN"
@@ -216,7 +216,7 @@ exit 1
 BASH
   chmod +x "$FAKE_BIN_DIR/ln"
 
-  run_dotfiler "false" "--quiet --no-color"
+  run_dotfiler "false" "--quiet" "--no-color"
 
   [ "$status" -eq 1 ]
   assert_output_contains_line "$output" "DIAGNÓSTICO"
@@ -226,8 +226,78 @@ BASH
 @test "invalid config returns exit code 2" {
   printf "paths: [\n" > "$REPO_DIR/symlinks.yml"
 
-  run_dotfiler "false" "--quiet --no-color"
+  run_dotfiler "false" "--quiet" "--no-color"
 
   [ "$status" -eq 2 ]
   [[ "$output$stderr" == *"Configuración inválida"* ]]
+}
+
+@test "missing source path is counted as a runtime error" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: nonexistent-source
+    target: linked-files
+YAML
+
+  run_dotfiler "false" "--quiet" "--no-color"
+
+  [ "$status" -eq 1 ]
+  assert_output_contains_line "$output" "DIAGNÓSTICO"
+  assert_output_contains_line "$output" "Ruta de origen inexistente"
+  assert_path_missing "$HOME_DIR/linked-files/nonexistent-source"
+}
+
+@test "existing regular file is backed up before linking" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: backup-source
+    target: linked-files
+YAML
+  printf "source-content" > "$REPO_DIR/configs/backup-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "previous-content" > "$HOME_DIR/linked-files/backup-source"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/backup-source" \
+    "$REPO_DIR/configs/backup-source"
+  [ -f "$HOME_DIR/linked-files/backup-source.bak" ]
+  [ "$(cat "$HOME_DIR/linked-files/backup-source.bak")" = "previous-content" ]
+  assert_output_contains_line "$output" "Respaldos"
+}
+
+@test "source path supports USER variable expansion" {
+  mkdir -p "$REPO_DIR/configs/users/test-user"
+  printf "owned-by-user" > "$REPO_DIR/configs/users/test-user/profile.txt"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: users/$USER/profile.txt
+    target: linked-files
+YAML
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/profile.txt" \
+    "$REPO_DIR/configs/users/test-user/profile.txt"
+}
+
+@test "leading tilde in source is expanded but tilde inside path is preserved" {
+  mkdir -p "$REPO_DIR/configs"
+  printf "tilde-literal" > "$REPO_DIR/configs/has~tilde"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: has~tilde
+    target: linked-files
+YAML
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/has~tilde" \
+    "$REPO_DIR/configs/has~tilde"
 }
