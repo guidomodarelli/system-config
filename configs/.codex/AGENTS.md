@@ -5,47 +5,18 @@ alwaysApply: true
 
 # User Rules
 
-## Idioma y comunicación (executable policy)
-```yaml
-policy:
-  id: "spanish-communication-rules"
-  enabled: true
+## Idioma y comunicación
 
-  actions:
-    - enforce_output_language:
-        target: "agent_plans"
-        language: "Spanish"
-        mode: "required_always"
+- Los planes del agente deben escribirse siempre en español.
+- Las preguntas al usuario deben escribirse siempre en español.
+- Los hallazgos de review deben presentarse siempre en español.
 
-    - enforce_output_language:
-        target: "user_questions"
-        language: "Spanish"
-        mode: "required_always"
+### Validación mínima de idioma
 
-    - enforce_output_language:
-        target: "review_findings"
-        language: "Spanish"
-        mode: "required_always"
-
-  validate:
-    - check: "plan_language_is_spanish"
-      expected: true
-      on_fail:
-        severity: "error"
-        message: "Agent plans must always be written in Spanish."
-
-    - check: "user_questions_language_is_spanish"
-      expected: true
-      on_fail:
-        severity: "error"
-        message: "Questions to the user must always be asked in Spanish."
-
-    - check: "review_findings_language_is_spanish"
-      expected: true
-      on_fail:
-        severity: "error"
-        message: "Review findings must always be presented in Spanish."
-```
+Antes de cerrar una respuesta o cambio, confirmar que:
+- El plan, si existe, está escrito en español.
+- Las preguntas visibles al usuario, si existen, están escritas en español.
+- Los hallazgos de review, si existen, están escritos en español.
 
 ## Reglas de testing (obligatorias)
 - Antes de dar un cambio por terminado, ejecutar los tests relevantes y asegurar que pasen.
@@ -86,49 +57,27 @@ policy:
   - `Verificado zsh: <sí/no + evidencia>`
   - `Verificado PowerShell: <sí/no + evidencia>`
 
-## Project context and mandatory tooling (executable policy)
-```yaml
-policy:
-  id: "repo-location-nordic-rules"
-  enabled: true
+## Contexto de proyecto y tooling obligatorio
 
-  condition:
-    repository_path:
-      starts_with: "~/ghq/work/"
+Estas reglas aplican cuando el repositorio de trabajo está ubicado dentro de `~/ghq/work/`.
 
-  actions:
-    - set_project_context:
-        framework: "Nordic"
-        runtime: "Node.js"
-        extension: "Odin"
+- Tratar el proyecto como una aplicación Nordic.
+- Asumir runtime Node.js.
+- Asumir extensión Odin.
+- Usar siempre `frontender-web-mcp` antes de dar guía, implementar cambios o cerrar tareas del proyecto.
+- Mantener en inglés todos los términos de código:
+  - comentarios
+  - string literals
+  - nombres de funciones
+  - nombres de clases
+  - nombres de métodos
+  - nombres de variables
+  - nombres de constantes
+  - nombres de enums
+  - otros términos técnicos o de implementación
 
-    - enforce_tool:
-        name: "frontender-web-mcp"
-        mode: "required_always"
+### Validación mínima para repositorios en `~/ghq/work/`
 
-    - enforce_code_language:
-        language: "English"
-        targets:
-          - comments
-          - string_literals
-          - function_names
-          - class_names
-          - method_names
-          - variable_names
-          - constant_names
-          - enum_names
-          - other_code_terms
-
-  validate:
-    - check: "required_tool_present"
-      expected: true
-      on_fail:
-        severity: "error"
-        message: "frontender-web-mcp must be used for repositories under ~/ghq/work/."
-
-    - check: "non_english_text_in_targets"
-      expected: 0
-      on_fail:
-        severity: "error"
-        message: "All code-related text must be in English for repositories under ~/ghq/work/."
-```
+Antes de cerrar una respuesta o cambio, confirmar que:
+- Se usó `frontender-web-mcp` cuando el repositorio pertenece a `~/ghq/work/`.
+- Los comentarios, nombres y strings de implementación agregados o modificados están en inglés.
