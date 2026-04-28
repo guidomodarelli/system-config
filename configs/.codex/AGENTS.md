@@ -38,6 +38,7 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Antes de implementar cambios relevantes, identificar módulos y responsabilidades; después del cambio, verificar que cada módulo conserve una responsabilidad clara. → Skill: `frontend-structure-accessibility-best-practices`
 - Tras cada edición significativa, incluir una validación breve de 1 a 2 líneas indicando si se cumplió el objetivo del cambio y corregir si no se logró.
 - En cambios relevantes, listar y justificar brevemente las principales decisiones de diseño tomadas.
+- Antes de instalar o declarar una dependencia directa solo para resolver `import/no-extraneous-dependencies`, analizar primero si corresponde actualizar la configuración de ESLint `settings.import/core-modules` u otra configuración equivalente del resolver. Si esa configuración resuelve correctamente el caso y la dependencia ya llega por la plataforma/framework, preferir esa solución y no modificar `package.json`.
 
 ## Ubicación de habilidades (AgentSkills)
 - Mis **AgentSkills** están en: `~/.agents/skills`.
