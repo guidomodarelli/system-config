@@ -30,6 +30,8 @@ paths:
     target: .agents/skills
   - path: .codex/AGENTS.md
     target: .codex/
+  - path: .codex/AGENTS.md
+    exactTarget: .claude/CLAUDE.md
   - path: .codex/config.toml
     target: .codex
   - path: .codex/skills/frontend-skill

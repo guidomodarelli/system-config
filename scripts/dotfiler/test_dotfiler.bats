@@ -36,6 +36,27 @@ teardown() {
     "$REPO_DIR/configs/included-file"
 }
 
+@test "directorios anidados dentro de HOME no requieren sudo" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: nested-source
+    target: .agents/skills
+YAML
+  printf "nested" > "$REPO_DIR/configs/nested-source"
+  cat > "$FAKE_BIN_DIR/sudo" <<'BASH'
+#!/usr/bin/env bash
+exit 99
+BASH
+  chmod +x "$FAKE_BIN_DIR/sudo"
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/.agents/skills/nested-source" \
+    "$REPO_DIR/configs/nested-source"
+}
+
 @test "output does not print literal backslash-n sequences" {
   install_fixture "debug_flow"
 
@@ -136,6 +157,24 @@ YAML
   assert_symlink_points_to \
     "$HOME_DIR/linked-files/system.txt" \
     "$HOME_DIR/.codex/skills/system.txt"
+}
+
+@test "exactTarget se usa como ruta final del symlink" {
+  mkdir -p "$REPO_DIR/configs/.codex"
+  printf "agents" > "$REPO_DIR/configs/.codex/AGENTS.md"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: .codex/AGENTS.md
+    exactTarget: .claude/CLAUDE.md
+YAML
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/.claude/CLAUDE.md" \
+    "$REPO_DIR/configs/.codex/AGENTS.md"
+  assert_path_missing "$HOME_DIR/AGENTS.md"
 }
 
 @test "output does not print duplicated separators consecutively" {

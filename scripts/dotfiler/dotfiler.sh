@@ -383,6 +383,41 @@ remove_old_symlink() {
   log_delete_action "Symlink anterior eliminado $(printPath "$target")"
 }
 
+is_home_path() {
+  local path="$1"
+
+  [[ "$path" == "$HOME" || "$path" == "$HOME/"* ]]
+}
+
+find_existing_parent_dir() {
+  local path="$1"
+
+  while [ ! -d "$path" ] && [ "$path" != "/" ]; do
+    path=$(dirname "$path")
+  done
+
+  printf "%s" "$path"
+}
+
+needs_elevated_permissions() {
+  local target="$1"
+  local target_dir="$2"
+
+  if ! is_home_path "$target"; then
+    return 0
+  fi
+
+  if [ -d "$target_dir" ]; then
+    [ ! -w "$target_dir" ]
+    return $?
+  fi
+
+  local existing_parent_dir
+  existing_parent_dir=$(find_existing_parent_dir "$target_dir")
+
+  [ ! -w "$existing_parent_dir" ]
+}
+
 # This function creates a symbolic link from the source path to the target location
 # It handles existing files by creating backups and removes old symlinks if they exist
 make_symlink() {
@@ -399,7 +434,7 @@ make_symlink() {
     ((COUNT_SKIPPED++))
   fi
 
-  if [[ ! "$target" =~ "$HOME" ]] || [[ -d "$target_dir" && ! -w "$target_dir" ]] || [[ ! -d "$target_dir" && ! -w "$(dirname "$target_dir")" ]]; then
+  if needs_elevated_permissions "$target" "$target_dir"; then
     command_prefix='sudo'
     ((COUNT_SUDO_OPERATIONS++))
     log_note_action "Usando permisos elevados para $(printPath "$target")"
@@ -524,6 +559,20 @@ build_path_obj() {
   echo "$json"
 }
 
+json_has_key() {
+  local json="$1"
+  local key="$2"
+
+  echo "$json" | jq -e --arg key "$key" 'has($key)' >/dev/null 2>&1
+}
+
+json_get_value() {
+  local json="$1"
+  local key="$2"
+
+  echo "$json" | jq -r --arg key "$key" '.[$key]'
+}
+
 get_abs_path() {
   local path="$1"
 
@@ -556,28 +605,32 @@ add_path_to_output() {
   local path="$1"
   local target="$2"
   local output="$3"
+  local uses_exact_target="$4"
   local original_path="$1"
+  local selected_target="$target"
 
-  target="$target"/"$(basename "$path")"
+  if [ "$uses_exact_target" != "true" ]; then
+    selected_target="$target"/"$(basename "$path")"
+  fi
 
   path=$(get_abs_path "$path")
   if [ -z "$path" ]; then
     log_warn_action "Ruta de origen inválida o inexistente: $original_path"
-    record_failed_target "$target/$(basename "$original_path")" "Ruta de origen inexistente"
+    record_failed_target "$selected_target" "Ruta de origen inexistente"
     ((COUNT_ERRORS++))
     echo "$output"
     return 0
   fi
 
-  if [[ "$target" == WSL://* ]]; then
-    target=${target//WSL:\/\//}
-    target="/mnt/c/Users/$USERNAME/$target"
-    target=$(expand_env_vars "$target")
+  if [[ "$selected_target" == WSL://* ]]; then
+    selected_target=${selected_target//WSL:\/\//}
+    selected_target="/mnt/c/Users/$USERNAME/$selected_target"
+    selected_target=$(expand_env_vars "$selected_target")
     path=$(format_wsl_windows_path "$path")
   fi
 
   local path_obj
-  path_obj=$(build_path_obj "$path" "$target")
+  path_obj=$(build_path_obj "$path" "$selected_target")
   echo "$output" | jq -c ". + [$path_obj]"
 }
 
@@ -587,9 +640,24 @@ process_path_entry() {
 
   local path
   path=$(echo "$line" | jq -r '.path')
-  local override_target
-  override_target=$(echo "$line" | jq -r ".overrides[]? | select($selector_override) | .target")
-  local target=${override_target:-$(echo "$line" | jq -r '.target')}
+  local selected_override
+  selected_override=$(echo "$line" | jq -c "first(.overrides[]? | select($selector_override)) // empty")
+  local target
+  local uses_exact_target="false"
+
+  if [ -n "$selected_override" ]; then
+    if json_has_key "$selected_override" "exactTarget"; then
+      target=$(json_get_value "$selected_override" "exactTarget")
+      uses_exact_target="true"
+    else
+      target=$(json_get_value "$selected_override" "target")
+    fi
+  elif json_has_key "$line" "exactTarget"; then
+    target=$(json_get_value "$line" "exactTarget")
+    uses_exact_target="true"
+  else
+    target=$(json_get_value "$line" "target")
+  fi
 
   if [[ "$target" != WSL://* ]]; then
     if [ "$target" = "null" ]; then
@@ -620,13 +688,13 @@ process_path_entry() {
           echo "Target: $(printPath "$target")" >&2
           echo "-----------" >&2
         fi
-        output=$(add_path_to_output "$item" "$target" "$output")
+        output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target")
       done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
     else
       log_warn_action "Directorio no encontrado: $abs_dir_path"
     fi
   else
-    output=$(add_path_to_output "$path" "$target" "$output")
+    output=$(add_path_to_output "$path" "$target" "$output" "$uses_exact_target")
   fi
 
   echo "$output"
