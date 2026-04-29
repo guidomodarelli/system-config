@@ -467,11 +467,73 @@ function Get-ElevatedSymlinkProcessArguments {
   return ,$quotedProcessArguments
 }
 
+function Get-ElevationAllowedPrefixes {
+  $prefixCandidates = [System.Collections.Generic.List[string]]::new()
+
+  if (-not [string]::IsNullOrWhiteSpace($script:HomeDir)) {
+    $prefixCandidates.Add($script:HomeDir)
+  }
+  if (-not [string]::IsNullOrWhiteSpace($script:RootDir)) {
+    $prefixCandidates.Add($script:RootDir)
+  }
+  foreach ($envName in @('APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'ProgramData')) {
+    $envValue = [Environment]::GetEnvironmentVariable($envName)
+    if (-not [string]::IsNullOrWhiteSpace($envValue)) {
+      $prefixCandidates.Add($envValue)
+    }
+  }
+
+  $normalizedPrefixes = [System.Collections.Generic.List[string]]::new()
+  $seenPrefixes = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+  foreach ($prefix in $prefixCandidates) {
+    $normalizedPrefix = $prefix.TrimEnd([char[]]@('\', '/'))
+    if ([string]::IsNullOrWhiteSpace($normalizedPrefix)) {
+      continue
+    }
+    if ($seenPrefixes.Add($normalizedPrefix)) {
+      $normalizedPrefixes.Add($normalizedPrefix)
+    }
+  }
+
+  return @($normalizedPrefixes)
+}
+
+function Test-ElevationTargetAllowed {
+  param([Parameter(Mandatory = $true)][string]$TargetPath)
+
+  try {
+    $absoluteTarget = [System.IO.Path]::GetFullPath($TargetPath)
+  } catch {
+    return $false
+  }
+
+  foreach ($prefix in (Get-ElevationAllowedPrefixes)) {
+    try {
+      $absolutePrefix = [System.IO.Path]::GetFullPath($prefix)
+    } catch {
+      continue
+    }
+
+    $absolutePrefixWithSeparator = $absolutePrefix.TrimEnd([char[]]@('\', '/')) + [System.IO.Path]::DirectorySeparatorChar
+    if ($absoluteTarget.Equals($absolutePrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $absoluteTarget.StartsWith($absolutePrefixWithSeparator, [System.StringComparison]::OrdinalIgnoreCase)) {
+      return $true
+    }
+  }
+
+  return $false
+}
+
 function Invoke-ElevatedSymlinkCreation {
   param(
     [Parameter(Mandatory = $true)][string]$SourcePath,
     [Parameter(Mandatory = $true)][string]$TargetPath
   )
+
+  if (-not (Test-ElevationTargetAllowed -TargetPath $TargetPath)) {
+    throw "Auto-elevacion bloqueada: el destino '$TargetPath' esta fuera de las rutas permitidas (HOME, repo, APPDATA, LOCALAPPDATA, USERPROFILE, ProgramData). Cree el symlink manualmente desde una sesion administrativa si realmente lo necesita."
+  }
 
   $powerShellExecutable = Get-PowerShellExecutablePath
   $quotedProcessArguments = Get-ElevatedSymlinkProcessArguments -ScriptPath $PSCommandPath -SourcePath $SourcePath -TargetPath $TargetPath

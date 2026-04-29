@@ -401,6 +401,29 @@ YAML
   [[ "$output" == *"$home_twin"* ]]
 }
 
+@test "existing .bak file is preserved when creating a new backup" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: backup-source
+    target: linked-files
+YAML
+  printf "source-content" > "$REPO_DIR/configs/backup-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "previous-content" > "$HOME_DIR/linked-files/backup-source"
+  printf "older-backup" > "$HOME_DIR/linked-files/backup-source.bak"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/backup-source" \
+    "$REPO_DIR/configs/backup-source"
+  [ -f "$HOME_DIR/linked-files/backup-source.bak" ]
+  [ "$(cat "$HOME_DIR/linked-files/backup-source.bak")" = "older-backup" ]
+  [ -f "$HOME_DIR/linked-files/backup-source.bak.1" ]
+  [ "$(cat "$HOME_DIR/linked-files/backup-source.bak.1")" = "previous-content" ]
+}
+
 @test "leading tilde in source is expanded but tilde inside path is preserved" {
   mkdir -p "$REPO_DIR/configs"
   printf "tilde-literal" > "$REPO_DIR/configs/has~tilde"

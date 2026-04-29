@@ -21,7 +21,6 @@ unset required_source
 # umask 077 ensures generated files are owner-readable only, hardening against
 # tampering on shared /tmp systems before the elevated PowerShell step runs.
 DOTFILER_TMP_DIR="${TMPDIR:-/tmp}"
-(umask 077) 2>/dev/null
 _DOTFILER_PREVIOUS_UMASK=$(umask)
 umask 077
 TMP_SCRIPT="$(mktemp "${DOTFILER_TMP_DIR%/}/wsl_symlink_XXXXXX")" || {
@@ -342,31 +341,57 @@ validate_paths_config() {
   return 0
 }
 
+# Restrict distro name to a conservative charset to prevent path / PowerShell
+# injection when the value flows into the elevated script generation.
+SAFE_WSL_DISTRO_REGEX='^[A-Za-z0-9._-]+$'
+
+is_safe_wsl_distro_name() {
+  [[ "$1" =~ $SAFE_WSL_DISTRO_REGEX ]]
+}
+
 # Get the current WSL distribution name
 get_wsl_distro_name() {
   is_wsl || return 0
 
+  local candidate=""
+
   if [ -n "$WSL_DISTRO_NAME" ]; then
-    echo "$WSL_DISTRO_NAME"
-    return 0
+    candidate="$WSL_DISTRO_NAME"
   fi
 
-  local win_root
-  win_root=$(wslpath -w / 2>/dev/null)
-  local distro_regex='^\\\\wsl(\\\\.localhost)?\\\\([^\\\\]+)\\\\'
-  if [[ $win_root =~ $distro_regex ]]; then
-    echo "${BASH_REMATCH[2]}"
-    return 0
+  if [ -z "$candidate" ]; then
+    local win_root
+    win_root=$(wslpath -w / 2>/dev/null)
+    local distro_regex='^\\\\wsl(\\\\.localhost)?\\\\([^\\\\]+)\\\\'
+    if [[ $win_root =~ $distro_regex ]]; then
+      candidate="${BASH_REMATCH[2]}"
+    fi
   fi
 
-  awk -F= '/^NAME=/ { gsub(/"/, "", $2); print $2; exit }' /etc/os-release | tr -d '\r\n'
+  if [ -z "$candidate" ]; then
+    candidate=$(awk -F= '/^NAME=/ { gsub(/"/, "", $2); print $2; exit }' /etc/os-release | tr -d '\r\n')
+  fi
+
+  if ! is_safe_wsl_distro_name "$candidate"; then
+    log_error_action "Nombre de distribución WSL inválido o inseguro: $candidate"
+    return 1
+  fi
+
+  echo "$candidate"
 }
 
 # Format path for Windows when in WSL
 format_wsl_windows_path() {
   local path="$1"
   local distro_name
-  distro_name=$(get_wsl_distro_name)
+  if ! distro_name=$(get_wsl_distro_name); then
+    return 1
+  fi
+
+  if ! is_safe_wsl_distro_name "$distro_name"; then
+    log_error_action "Nombre de distribución WSL inválido o inseguro: $distro_name"
+    return 1
+  fi
 
   path="\\\\wsl\$\\$distro_name$path"
   path="${path//\//\\}"
@@ -374,25 +399,42 @@ format_wsl_windows_path() {
   echo "$path"
 }
 
+# Returns a backup path that does not collide with an existing entry.
+# Mirrors Resolve-BackupPath in dotfiler.ps1 so a previous .bak is never overwritten.
+resolve_backup_path() {
+  local target="$1"
+  local candidate="${target}.bak"
+  local suffix=1
+
+  while [ -e "$candidate" ] || [ -L "$candidate" ]; do
+    candidate="${target}.bak.${suffix}"
+    suffix=$((suffix + 1))
+  done
+
+  printf "%s" "$candidate"
+}
+
 create_backup() {
   local path="$1"
   shift
   local -a command_prefix=("$@")
+  local backup_path
+  backup_path=$(resolve_backup_path "$path")
 
   if [ "$DRY_RUN" = "true" ]; then
-    ((++COUNT_BACKUPS))
-    log_backup_action "Crearía $(print_path "${path//\\/\\\\}.bak")"
+    COUNT_BACKUPS=$((COUNT_BACKUPS + 1))
+    log_backup_action "Crearía $(print_path "${backup_path//\\/\\\\}")"
     return 0
   fi
 
-  if ! "${command_prefix[@]}" mv "${path}" "${path}.bak" 2>/dev/null; then
+  if ! "${command_prefix[@]}" mv "${path}" "${backup_path}" 2>/dev/null; then
     log_error_action "No se pudo crear respaldo para $(print_path "$path")"
     record_failed_target "$path" "Fallo al crear respaldo"
     return 1
   fi
 
-  ((++COUNT_BACKUPS))
-  log_backup_action "Creado $(print_path "${path//\\/\\\\}.bak")"
+  COUNT_BACKUPS=$((COUNT_BACKUPS + 1))
+  log_backup_action "Creado $(print_path "${backup_path//\\/\\\\}")"
 }
 
 remove_old_symlink() {
@@ -440,7 +482,7 @@ needs_elevated_permissions() {
 
   if [ -d "$target_dir" ]; then
     [ ! -w "$target_dir" ]
-    return
+    return $?
   fi
 
   local existing_parent_dir
@@ -462,12 +504,12 @@ make_symlink() {
   target_dir=$(dirname "$target")
 
   if [ "$DRY_RUN" = "true" ]; then
-    ((++COUNT_SKIPPED))
+    COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
   fi
 
   if needs_elevated_permissions "$target" "$target_dir"; then
     command_prefix=(sudo)
-    ((++COUNT_SUDO_OPERATIONS))
+    COUNT_SUDO_OPERATIONS=$((COUNT_SUDO_OPERATIONS + 1))
     log_note_action "Usando permisos elevados para $(print_path "$target")"
   fi
 
@@ -481,14 +523,14 @@ make_symlink() {
     if ! remove_old_symlink "$target" "${command_prefix[@]}"; then
       return 1
     fi
-    ((++COUNT_REPLACED))
+    COUNT_REPLACED=$((COUNT_REPLACED + 1))
   elif [ -e "$target" ]; then
     if ! create_backup "$target" "${command_prefix[@]}"; then
       return 1
     fi
-    ((++COUNT_REPLACED))
+    COUNT_REPLACED=$((COUNT_REPLACED + 1))
   else
-    ((++COUNT_CREATED))
+    COUNT_CREATED=$((COUNT_CREATED + 1))
   fi
 
   if [ "$DRY_RUN" != "true" ]; then
@@ -503,7 +545,7 @@ make_symlink() {
     log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") Preparando destino WSL del symlink $(print_path "${path//\\/\\\\}")"
 
     if [ "$DRY_RUN" = "true" ]; then
-      ((++COUNT_WINDOWS_QUEUED))
+      COUNT_WINDOWS_QUEUED=$((COUNT_WINDOWS_QUEUED + 1))
       log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Encolaría comando de symlink para Windows"
     else
       local win_target ps_target ps_source
@@ -511,7 +553,7 @@ make_symlink() {
       ps_target="${win_target//\'/\'\'}"
       ps_source="${path//\'/\'\'}"
       echo "New-Item -ItemType SymbolicLink -Path '$ps_target' -Target '$ps_source' -Force" >> "$TMP_SCRIPT"
-      ((++COUNT_WINDOWS_QUEUED))
+      COUNT_WINDOWS_QUEUED=$((COUNT_WINDOWS_QUEUED + 1))
     fi
   else
     if [ "$DRY_RUN" = "true" ]; then
@@ -663,7 +705,11 @@ add_path_to_output() {
     selected_target=${selected_target//WSL:\/\//}
     selected_target="/mnt/c/Users/$USERNAME/$selected_target"
     selected_target=$(expand_env_vars "$selected_target")
-    path=$(format_wsl_windows_path "$path")
+    if ! path=$(format_wsl_windows_path "$path"); then
+      record_failed_target "$selected_target" "Nombre de distribución WSL inválido"
+      echo "$output"
+      return 1
+    fi
   fi
 
   local path_obj
@@ -958,7 +1004,7 @@ main() {
     fi
 
     if ! make_symlink "$path" "$target"; then
-      ((++COUNT_ERRORS))
+      COUNT_ERRORS=$((COUNT_ERRORS + 1))
       log_error_action "La operación falló para el destino $(print_path "$target")"
     fi
 
@@ -970,7 +1016,7 @@ main() {
   fi
 
   if ! run_elevated_powershell_script "$TMP_SCRIPT"; then
-    ((++COUNT_ERRORS))
+    COUNT_ERRORS=$((COUNT_ERRORS + 1))
   fi
 
   # Reconcile errors recorded inside command substitution subshells
