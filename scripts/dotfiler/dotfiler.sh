@@ -491,7 +491,7 @@ make_symlink() {
     log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") Preparando destino WSL del symlink $(print_path "${path//\\/\\\\}")"
 
     if [ "$DRY_RUN" = "true" ]; then
-      ((COUNT_WINDOWS_QUEUED++))
+      ((++COUNT_WINDOWS_QUEUED))
       log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Encolaría comando de symlink para Windows"
     else
       local win_target ps_target ps_source
