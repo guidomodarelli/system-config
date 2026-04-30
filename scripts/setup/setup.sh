@@ -87,23 +87,19 @@ is_windows() {
 }
 
 is_ubuntu() {
-  if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    if [[ "${ID:-}" == "ubuntu" ]]; then
-      return 0  # true
-    fi
-  fi
-  return 1  # false
+  [ -f /etc/os-release ] || return 1
+  ( . /etc/os-release; [[ "${ID:-}" == "ubuntu" ]] )
 }
 
 is_debian_like() {
-  if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    if [[ "${ID:-}" == "debian" || "${ID:-}" == "ubuntu" || " ${ID_LIKE:-} " == *" debian "* ]]; then
-      return 0  # true
-    fi
-  fi
-  return 1  # false
+  [ -f /etc/os-release ] || return 1
+  ( . /etc/os-release; [[ "${ID:-}" == "debian" || "${ID:-}" == "ubuntu" || " ${ID_LIKE:-} " == *" debian "* ]] )
+}
+
+_setup_read_os_release_field() {
+  local field=$1
+  [ -f /etc/os-release ] || return 1
+  ( . /etc/os-release; printf "%s" "${!field:-}" )
 }
 
 is_darwin() {
@@ -205,11 +201,11 @@ install_docker() {
   fi
 
   local docker_distribution_id docker_distribution_codename
-  . /etc/os-release
-  docker_distribution_id="${ID:-}"
-  docker_distribution_codename="${VERSION_CODENAME:-}"
+  docker_distribution_id="$(_setup_read_os_release_field ID)"
+  docker_distribution_codename="$(_setup_read_os_release_field VERSION_CODENAME)"
   if [[ "$docker_distribution_id" == "ubuntu" ]]; then
-    docker_distribution_codename="${UBUNTU_CODENAME:-$docker_distribution_codename}"
+    docker_distribution_codename="$(_setup_read_os_release_field UBUNTU_CODENAME)"
+    [[ -z "$docker_distribution_codename" ]] && docker_distribution_codename="$(_setup_read_os_release_field VERSION_CODENAME)"
   elif [[ "$docker_distribution_id" != "debian" ]]; then
     echo "Docker solo puede configurar repositorios oficiales para Ubuntu o Debian. Distribución detectada: ${docker_distribution_id:-desconocida}." >&2
     return 1
@@ -245,12 +241,13 @@ install_docker() {
   else
     echo "systemctl no está disponible; se omite la activación del servicio Docker."
   fi
+  _setup_log_warning "Agregando '$USER' al grupo 'docker'. Esto otorga acceso equivalente a root al daemon Docker (montaje de '/' vía contenedores)."
   sudo usermod -aG docker "$USER"
   # NOTE: reboot
 }
 
 install_lazydocker() {
-  _brew install lazydocker
+  _brew install lazydocker # https://formulae.brew.sh/formula/lazydocker
 }
 
 install_antigen() {
@@ -298,48 +295,121 @@ install_nvm() {
   fi
 }
 
+_setup_fonts_install_dir() {
+  if is_darwin; then
+    printf "%s" "$HOME/Library/Fonts"
+  else
+    printf "%s" "$HOME/.fonts"
+  fi
+}
+
 install_font() {
   is_windows && return
 
   local folder_name="$1"
   local zip_name="${folder_name}.zip"
   local url="$2"
-  local temp_dir
+  local expected_sha256="${3:-}"
+  local temp_dir actual_sha256 fonts_dir
+  fonts_dir="$(_setup_fonts_install_dir)"
 
   temp_dir="$(_setup_create_temp_dir)"
-  (
-    cd "$temp_dir" || exit 1
-    curl -fsSLo "$zip_name" "$url"
-    unzip -q "$zip_name"
-    cd "$folder_name" || exit 1
-    mkdir -p "$HOME/.fonts"
-    mv ./*.ttf "$HOME/.fonts/"
-  )
-  local install_status=$?
+  if ! curl -fsSLo "$temp_dir/$zip_name" "$url"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+
+  if [[ -n "$expected_sha256" ]]; then
+    actual_sha256="$(_setup_compute_sha256 "$temp_dir/$zip_name")"
+    if [[ -z "$actual_sha256" || "$actual_sha256" != "$expected_sha256" ]]; then
+      echo "SHA256 inválido para $zip_name. Esperado: $expected_sha256, obtenido: ${actual_sha256:-vacío}." >&2
+      _setup_remove_temp_dir "$temp_dir"
+      return 1
+    fi
+  fi
+
+  if ! _setup_zip_entries_are_safe "$temp_dir/$zip_name"; then
+    echo "ZIP de fuente con entradas inseguras (path traversal o absoluta): $zip_name." >&2
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+
+  mkdir -p "$fonts_dir"
+  if ! unzip -j -o -q "$temp_dir/$zip_name" '*.ttf' -d "$fonts_dir"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+
   _setup_remove_temp_dir "$temp_dir"
-  [[ $install_status -eq 0 ]] || return "$install_status"
-  fc-cache -fv
+
+  if command -v fc-cache >/dev/null 2>&1; then
+    fc-cache -fv >/dev/null
+  fi
 }
 
 install_font_IosevkaTermCurly() {
-  install_font "IosevkaTermCurly" "https://github.com/be5invis/Iosevka/releases/download/v30.1.2/PkgTTF-IosevkaTermCurly-30.1.2.zip"
+  local iosevka_tag iosevka_version
+  iosevka_tag="$(_setup_resolve_github_latest_tag "be5invis" "Iosevka")"
+  if [[ -z "$iosevka_tag" ]]; then
+    echo "No se pudo resolver la última versión estable oficial de Iosevka." >&2
+    return 1
+  fi
+  iosevka_version="${iosevka_tag#v}"
+  install_font \
+    "IosevkaTermCurly" \
+    "https://github.com/be5invis/Iosevka/releases/download/${iosevka_tag}/PkgTTF-IosevkaTermCurly-${iosevka_version}.zip"
 }
 
 install_espanso() {
   is_windows && return
 
-  # https://espanso.org/docs/install/mac/#install-using-homebrew
+  if is_darwin; then
+    # https://espanso.org/docs/install/mac/#install-using-homebrew
+    _brew install --cask espanso
+    return 0
+  fi
 
-  _brew install --cask espanso
-  # Register espanso as a systemd service (required only once)
-  espanso service register
+  echo "Espanso en Linux requiere instalación manual desde https://espanso.org/docs/install/linux/. Se omite." >&2
+  return 0
 
-  # NOTE: espanso start
+  # NOTE: en macOS, ejecutar `espanso service register` y `espanso start` luego de la instalación.
+}
+
+_setup_resolve_go_platform() {
+  local kernel machine os arch
+  kernel="$(uname -s)"
+  machine="$(uname -m)"
+
+  case "$kernel" in
+    Linux) os="linux" ;;
+    Darwin) os="darwin" ;;
+    *) return 1 ;;
+  esac
+
+  case "$machine" in
+    x86_64|amd64) arch="amd64" ;;
+    arm64|aarch64) arch="arm64" ;;
+    *) return 1 ;;
+  esac
+
+  printf "%s-%s" "$os" "$arch"
+}
+
+_setup_resolve_go_release_sha256() {
+  local go_version=$1 file_name=$2
+  curl -fsSL "https://go.dev/dl/?mode=json&include=all" |
+    awk -v ver="go${go_version}" -v fname="$file_name" '
+      $0 ~ "\"version\"" { in_block = ($0 ~ ver) ? 1 : 0; next }
+      in_block && $0 ~ "\"filename\"" { match_file = ($0 ~ fname) ? 1 : 0 }
+      match_file && $0 ~ "\"sha256\"" {
+        gsub(/[",]/, "", $0); split($0, parts, ":"); print parts[2]; exit
+      }
+    ' | tr -d ' '
 }
 
 install_golang() {
   # https://go.dev/dl/
-  local go_version installed_go_version file_name temp_dir
+  local go_version installed_go_version go_platform file_name expected_sha256 actual_sha256 temp_dir
 
   go_version="$(_setup_resolve_latest_go_version)"
   if [ -z "$go_version" ]; then
@@ -353,13 +423,32 @@ install_golang() {
     return 0
   fi
 
-  _setup_log_info "Instalando Go $go_version, última versión estable oficial."
-  file_name="go${go_version}.linux-amd64.tar.gz"
+  go_platform="$(_setup_resolve_go_platform)" || {
+    echo "Plataforma no soportada para instalar Go: $(uname -s) $(uname -m)." >&2
+    return 1
+  }
+
+  _setup_log_info "Instalando Go $go_version ($go_platform), última versión estable oficial."
+  file_name="go${go_version}.${go_platform}.tar.gz"
+  expected_sha256="$(_setup_resolve_go_release_sha256 "$go_version" "$file_name")"
+  if [[ -z "$expected_sha256" ]]; then
+    echo "No se pudo resolver el SHA256 oficial de $file_name desde go.dev." >&2
+    return 1
+  fi
+
   temp_dir="$(_setup_create_temp_dir)"
   if ! curl -fsSLo "$temp_dir/$file_name" "https://go.dev/dl/$file_name"; then
     _setup_remove_temp_dir "$temp_dir"
     return 1
   fi
+
+  actual_sha256="$(_setup_compute_sha256 "$temp_dir/$file_name")"
+  if [[ -z "$actual_sha256" || "$actual_sha256" != "$expected_sha256" ]]; then
+    echo "SHA256 inválido para $file_name. Esperado: $expected_sha256, obtenido: ${actual_sha256:-vacío}." >&2
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+
   if ! sudo rm -rf /usr/local/go || ! sudo tar -C /usr/local -xzf "$temp_dir/$file_name"; then
     _setup_remove_temp_dir "$temp_dir"
     return 1
@@ -383,7 +472,7 @@ install_ghq() {
   mkdir -p "$HOME/ghq/projects"
 }
 
-install_VsCode() {
+install_vscode() {
   is_windows && return
 
   if is_ubuntu; then
@@ -392,17 +481,25 @@ install_VsCode() {
 }
 
 install_font_jetbrains_mono_pkg() {
+  is_darwin || return 0
   _brew install --cask font-jetbrains-mono
 }
 install_font_dejavu_pkg() {
+  is_darwin || return 0
   _brew install --cask font-dejavu-sans-mono-nerd-font
 }
 install_font_cascadia_code_pkg() {
+  is_darwin || return 0
   _brew install --cask font-cascadia-code
 }
 
 install_fonts() {
   is_windows && return
+
+  if ! is_darwin; then
+    echo "Las fuentes empaquetadas vía Homebrew Cask solo están disponibles en macOS. Se omite." >&2
+    return 0
+  fi
 
   install_font_jetbrains_mono_pkg
   install_font_dejavu_pkg
@@ -420,7 +517,31 @@ install_homebrew() {
     return 0
   fi
 
-  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  local temp_dir install_script
+  temp_dir="$(_setup_create_temp_dir)"
+  install_script="$temp_dir/homebrew-install.sh"
+  if ! curl -fsSLo "$install_script" "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  if ! NONINTERACTIVE=1 /bin/bash "$install_script"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  _setup_remove_temp_dir "$temp_dir"
+
+  local brew_binary
+  if is_darwin && [[ -x /opt/homebrew/bin/brew ]]; then
+    brew_binary="/opt/homebrew/bin/brew"
+  elif is_darwin && [[ -x /usr/local/bin/brew ]]; then
+    brew_binary="/usr/local/bin/brew"
+  elif [[ -x "$(_setup_default_linuxbrew_path)" ]]; then
+    brew_binary="$(_setup_default_linuxbrew_path)"
+  fi
+
+  if [[ -n "${brew_binary:-}" ]]; then
+    eval "$("$brew_binary" shellenv)"
+  fi
 }
 
 _brew() {
@@ -454,25 +575,29 @@ install_xclip() {
   is_windows && return
 
   if is_debian_like; then
-    sudo apt install -y xclip
+    sudo apt-get install -y xclip
   fi
 }
 
 install_git_filter_repo() {
   if is_debian_like; then
-    sudo apt install -y git-filter-repo
+    sudo apt-get install -y git-filter-repo
   fi
 }
 
 install_git() {
   if is_debian_like; then
-    sudo apt install -y git
+    sudo apt-get install -y git
   fi
+}
+
+install_gh() {
+  _brew install gh # https://cli.github.com/
 }
 
 install_zsh() {
   if command -v zsh >/dev/null 2>&1; then
-    echo "zsh already installed; skipping package installation"
+    echo "Zsh ya está instalado; se omite la instalación del paquete."
   else
     _brew install zsh
   fi
@@ -484,13 +609,13 @@ install_zsh() {
   fi
 }
 
-install_build_essential() { is_debian_like && sudo apt install -y build-essential; }
-install_gcc() { if is_debian_like; then sudo apt install -y gcc; fi }
-install_curl_pkg() { if is_debian_like; then sudo apt install -y curl; fi }
-install_wget_pkg() { if is_debian_like; then sudo apt install -y wget; fi }
-install_zip_pkg() { if is_debian_like; then sudo apt install -y zip; fi }
-install_unzip_pkg() { if is_debian_like; then sudo apt install -y unzip; fi }
-install_python3_venv() { is_debian_like && sudo apt install -y python3-venv; }
+install_build_essential() { is_debian_like && sudo apt-get install -y build-essential; }
+install_gcc() { if is_debian_like; then sudo apt-get install -y gcc; fi }
+install_curl_pkg() { if is_debian_like; then sudo apt-get install -y curl; fi }
+install_wget_pkg() { if is_debian_like; then sudo apt-get install -y wget; fi }
+install_zip_pkg() { if is_debian_like; then sudo apt-get install -y zip; fi }
+install_unzip_pkg() { if is_debian_like; then sudo apt-get install -y unzip; fi }
+install_python3_venv() { is_debian_like && sudo apt-get install -y python3-venv; }
 
 install_essentials() {
   install_build_essential
@@ -521,10 +646,7 @@ install_ggrep() {
   is_darwin || return
 
   _brew install grep # https://formulae.brew.sh/formula/grep (GNU grep provides ggrep)
-  local brew_prefix
-  brew_prefix="$(_brew --prefix)"
   _brew link --overwrite grep
-  ln -sf "${brew_prefix}/bin/ggrep" "${brew_prefix}/bin/grep"
 }
 
 install_sdkman() {
@@ -576,8 +698,13 @@ install_win32yank() {
     _setup_remove_temp_dir "$temp_dir"
     return 1
   fi
+  if ! _setup_zip_entries_are_safe "$temp_dir/$file_name"; then
+    echo "ZIP de win32yank con entradas inseguras (path traversal o absoluta)." >&2
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
   mkdir -p "$LOCAL_BINARIES"
-  if ! unzip -o "$temp_dir/$file_name" -d "$LOCAL_BINARIES/" || ! chmod +x "$LOCAL_BINARIES/win32yank.exe"; then
+  if ! unzip -j -o -q "$temp_dir/$file_name" 'win32yank.exe' -d "$LOCAL_BINARIES/" || ! chmod +x "$LOCAL_BINARIES/win32yank.exe"; then
     _setup_remove_temp_dir "$temp_dir"
     return 1
   fi
@@ -595,6 +722,33 @@ _setup_create_temp_dir() {
 _setup_remove_temp_dir() {
   local temp_dir=$1
   [[ -n "$temp_dir" && -d "$temp_dir" ]] && rm -rf "$temp_dir"
+}
+
+_setup_compute_sha256() {
+  local file_path=$1
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$file_path" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$file_path" | awk '{print $1}'
+  else
+    return 1
+  fi
+}
+
+_setup_zip_entries_are_safe() {
+  local zip_path=$1
+  command -v unzip >/dev/null 2>&1 || return 1
+  local entries
+  entries="$(unzip -Z1 "$zip_path" 2>/dev/null)" || return 1
+  local entry
+  while IFS= read -r entry; do
+    [[ -z "$entry" ]] && continue
+    case "$entry" in
+      /*) return 1 ;;
+      *..*) return 1 ;;
+    esac
+  done <<< "$entries"
+  return 0
 }
 
 _setup_resolve_github_latest_tag() {
@@ -698,7 +852,13 @@ ensure_sudo() {
   command -v sudo >/dev/null 2>&1 || return
   if [ -z "${SUDO_KEEPALIVE_PID:-}" ]; then
     sudo -v
-    ( while true; do sudo -n true; sleep 60; done ) &
+    local parent_pid=$$
+    (
+      while kill -0 "$parent_pid" 2>/dev/null; do
+        sudo -n true 2>/dev/null || exit 0
+        sleep 60
+      done
+    ) &
     SUDO_KEEPALIVE_PID=$!
     trap 'kill $SUDO_KEEPALIVE_PID 2>/dev/null' EXIT
   fi
@@ -721,16 +881,15 @@ _initialize_menu_catalog() {
   fi
 
   local expected_catalog_header="Id|Label|BashFunctionName|PowerShellFunctionName|DefaultSelected|RequiresAdmin|Platforms|RequiresRestart"
-  local catalog_header
-  IFS= read -r catalog_header < "$SETUP_CATALOG_PATH"
-  if [[ "$catalog_header" != "$expected_catalog_header" ]]; then
-    echo "ERROR: El catálogo de setup debe usar el encabezado común: $expected_catalog_header" >&2
-    return 1
-  fi
 
   local id label bash_function_name power_shell_function_name default_selected requires_admin supported_platforms requires_restart function_name
+  local catalog_header
   {
     IFS= read -r catalog_header
+    if [[ "$catalog_header" != "$expected_catalog_header" ]]; then
+      echo "ERROR: El catálogo de setup debe usar el encabezado común: $expected_catalog_header" >&2
+      return 1
+    fi
     while IFS='|' read -r id label bash_function_name power_shell_function_name default_selected requires_admin supported_platforms requires_restart; do
     [[ -z "$id" || "${id:0:1}" == "#" ]] && continue
     function_name="$bash_function_name"
@@ -828,6 +987,9 @@ _validate_menu_catalog() {
   fi
 }
 
+# Echoes the matching index and returns 0 on match.
+# On miss, returns 1 and echoes "-1" so callers using $(...) never receive
+# an empty string that bash would silently interpret as index 0.
 _find_menu_function_index() {
   local function_name=$1
   local menu_index
@@ -839,9 +1001,13 @@ _find_menu_function_index() {
     fi
   done
 
+  echo "-1"
   return 1
 }
 
+# Echoes the matching index and returns 0 on match.
+# On miss, returns 1 and echoes "-1" so callers using $(...) never receive
+# an empty string that bash would silently interpret as index 0.
 _find_menu_item_index() {
   local item_identifier=$1
   local menu_index
@@ -853,6 +1019,7 @@ _find_menu_item_index() {
     fi
   done
 
+  echo "-1"
   return 1
 }
 
@@ -1633,8 +1800,8 @@ interactive_menu() {
   fi
 
   if [[ $dry_run -eq 0 ]] && is_debian_like; then
-    sudo apt update
-    sudo apt --fix-broken install -y
+    sudo apt-get update
+    sudo apt-get --fix-broken install -y
   fi
 
   _run_selected_menu_items "$dry_run"

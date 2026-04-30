@@ -5,47 +5,18 @@ alwaysApply: true
 
 # User Rules
 
-## Idioma y comunicación (executable policy)
-```yaml
-policy:
-  id: "spanish-communication-rules"
-  enabled: true
+## Idioma y comunicación
 
-  actions:
-    - enforce_output_language:
-        target: "agent_plans"
-        language: "Spanish"
-        mode: "required_always"
+- Los planes del agente deben escribirse siempre en español.
+- Las preguntas al usuario deben escribirse siempre en español.
+- Los hallazgos de review deben presentarse siempre en español.
 
-    - enforce_output_language:
-        target: "user_questions"
-        language: "Spanish"
-        mode: "required_always"
+### Validación mínima de idioma
 
-    - enforce_output_language:
-        target: "review_findings"
-        language: "Spanish"
-        mode: "required_always"
-
-  validate:
-    - check: "plan_language_is_spanish"
-      expected: true
-      on_fail:
-        severity: "error"
-        message: "Agent plans must always be written in Spanish."
-
-    - check: "user_questions_language_is_spanish"
-      expected: true
-      on_fail:
-        severity: "error"
-        message: "Questions to the user must always be asked in Spanish."
-
-    - check: "review_findings_language_is_spanish"
-      expected: true
-      on_fail:
-        severity: "error"
-        message: "Review findings must always be presented in Spanish."
-```
+Antes de cerrar una respuesta o cambio, confirmar que:
+- El plan, si existe, está escrito en español.
+- Las preguntas visibles al usuario, si existen, están escritas en español.
+- Los hallazgos de review, si existen, están escritos en español.
 
 ## Reglas de testing (obligatorias)
 - Antes de dar un cambio por terminado, ejecutar los tests relevantes y asegurar que pasen.
@@ -53,6 +24,8 @@ policy:
 - Si no es posible ejecutar tests en el entorno actual, se debe informar explícitamente qué faltó validar y por qué.
 - Preferir tests reales sobre mocks de librerías de UI, plataforma o SDK internos en cualquier proyecto: no mockear librerías internas o de plataforma del proyecto. Los paquetes `@andes/*`, `@meli/*`, `nordic/*` y `@kraken/*` son ejemplos, no una lista exhaustiva. Solo mockear estas dependencias por pedido explícito del usuario o imposibilidad técnica justificada; en esos casos, explicar por qué el mock es necesario y mantenerlo lo más acotado posible.
 - Las librerías internas o de plataforma no deben estar mockeadas antes, durante ni después de un test; no usar `jest.mock`, `jest.doMock`, `jest.unmock` ni `jest.dontMock` para esas dependencias. Los tests deben ejercer la integración real o aislarse en un borde propio del proyecto.
+- Nunca testear el contenido textual exacto de un archivo fuente ni analizar sus strings internos como objetivo del test. Los tests deben validar comportamiento observable, contratos públicos, integración real, invocación posible, render, efectos esperados o errores controlados, no detalles de implementación como imports escritos de una forma específica.
+- No agregar tests que solo verifiquen que un módulo compila, se importa, se bundlea o se invoca en un arnés artificial si no validan comportamiento relevante del producto o contrato público real. Para problemas de build/bundle/runtime, preferir validar con el comando real de build, una prueba de integración existente del flujo afectado o una prueba E2E/funcional que reproduzca el escenario real.
 - Excepción: cualquier mock en tests o setup de tests puede conservarse cuando tenga una justificación técnica válida y documentada, por ejemplo evitar timers, listeners globales o efectos de runtime que impiden que Jest finalice. No eliminarlo sin reemplazar esa protección por una solución equivalente validada.
 
 ## Reglas globales de diseño y mantenimiento
@@ -65,6 +38,7 @@ policy:
 - Antes de implementar cambios relevantes, identificar módulos y responsabilidades; después del cambio, verificar que cada módulo conserve una responsabilidad clara. → Skill: `frontend-structure-accessibility-best-practices`
 - Tras cada edición significativa, incluir una validación breve de 1 a 2 líneas indicando si se cumplió el objetivo del cambio y corregir si no se logró.
 - En cambios relevantes, listar y justificar brevemente las principales decisiones de diseño tomadas.
+- Antes de instalar o declarar una dependencia directa solo para resolver `import/no-extraneous-dependencies`, analizar primero si corresponde actualizar la configuración de ESLint `settings.import/core-modules` u otra configuración equivalente del resolver. Si esa configuración resuelve correctamente el caso y la dependencia ya llega por la plataforma/framework, preferir esa solución y no modificar `package.json`.
 
 ## Ubicación de habilidades (AgentSkills)
 - Mis **AgentSkills** están en: `~/.agents/skills`.
@@ -84,49 +58,27 @@ policy:
   - `Verificado zsh: <sí/no + evidencia>`
   - `Verificado PowerShell: <sí/no + evidencia>`
 
-## Project context and mandatory tooling (executable policy)
-```yaml
-policy:
-  id: "repo-location-nordic-rules"
-  enabled: true
+## Contexto de proyecto y tooling obligatorio
 
-  condition:
-    repository_path:
-      starts_with: "~/ghq/work/"
+Estas reglas aplican cuando el repositorio de trabajo está ubicado dentro de `~/ghq/work/`.
 
-  actions:
-    - set_project_context:
-        framework: "Nordic"
-        runtime: "Node.js"
-        extension: "Odin"
+- Tratar el proyecto como una aplicación Nordic.
+- Asumir runtime Node.js.
+- Asumir extensión Odin.
+- Usar siempre `frontender-web-mcp` antes de dar guía, implementar cambios o cerrar tareas del proyecto.
+- Mantener en inglés todos los términos de código:
+  - comentarios
+  - string literals
+  - nombres de funciones
+  - nombres de clases
+  - nombres de métodos
+  - nombres de variables
+  - nombres de constantes
+  - nombres de enums
+  - otros términos técnicos o de implementación
 
-    - enforce_tool:
-        name: "frontender-web-mcp"
-        mode: "required_always"
+### Validación mínima para repositorios en `~/ghq/work/`
 
-    - enforce_code_language:
-        language: "English"
-        targets:
-          - comments
-          - string_literals
-          - function_names
-          - class_names
-          - method_names
-          - variable_names
-          - constant_names
-          - enum_names
-          - other_code_terms
-
-  validate:
-    - check: "required_tool_present"
-      expected: true
-      on_fail:
-        severity: "error"
-        message: "frontender-web-mcp must be used for repositories under ~/ghq/work/."
-
-    - check: "non_english_text_in_targets"
-      expected: 0
-      on_fail:
-        severity: "error"
-        message: "All code-related text must be in English for repositories under ~/ghq/work/."
-```
+Antes de cerrar una respuesta o cambio, confirmar que:
+- Se usó `frontender-web-mcp` cuando el repositorio pertenece a `~/ghq/work/`.
+- Los comentarios, nombres y strings de implementación agregados o modificados están en inglés.

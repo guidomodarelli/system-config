@@ -200,9 +200,9 @@ assert_failure "Bash catalog should not include Java JDK 21 as a recommended set
     install_git
     install_xclip
   )"
-  assert_contains "$apt_install_output" "apt install -y build-essential" "Debian setup should install build-essential through apt."
-  assert_contains "$apt_install_output" "apt install -y git" "Debian setup should install Git through apt."
-  assert_contains "$apt_install_output" "apt install -y xclip" "Debian setup should install xclip through apt."
+  assert_contains "$apt_install_output" "apt-get install -y build-essential" "Debian setup should install build-essential through apt."
+  assert_contains "$apt_install_output" "apt-get install -y git" "Debian setup should install Git through apt."
+  assert_contains "$apt_install_output" "apt-get install -y xclip" "Debian setup should install xclip through apt."
 )
 
 (
@@ -211,6 +211,13 @@ assert_failure "Bash catalog should not include Java JDK 21 as a recommended set
   _setup_default_linuxbrew_path() { printf "%s" "/bin/echo"; }
   brew_output="$(_brew install jq)"
   assert_contains "$brew_output" "install jq" "Debian setup should find Linuxbrew through the standard Homebrew path when PATH is not refreshed."
+)
+
+(
+  set_test_platform "darwin"
+  _brew() { printf "%s\n" "$*"; }
+  gh_install_output="$(install_gh)"
+  assert_contains "$gh_install_output" "install gh" "macOS setup should install GitHub CLI through Homebrew."
 )
 
 set_test_platform "wsl"
@@ -229,6 +236,7 @@ assert_equals "1" "$(get_menu_default_selection_by_id gnu_grep)" "macOS setup re
 assert_failure "macOS setup catalog should hide Linux-only xclip." get_menu_default_selection_by_id xclip
 assert_failure "macOS setup catalog should hide WSL-only win32yank." get_menu_default_selection_by_id win32yank
 assert_equals "1" "$(get_menu_default_selection_by_id espanso)" "macOS setup recommendations should include Espanso."
+assert_equals "1" "$(get_menu_default_selection_by_id gh)" "macOS setup recommendations should include GitHub CLI."
 
 set_test_platform "linux"
 _initialize_menu_catalog
@@ -236,8 +244,12 @@ _validate_menu_catalog
 assert_menu_defaults_are_first "Linux setup menu should keep defaults first before allowlist checks."
 
 assert_success "Catalog allowlist should find setup installer functions." _find_menu_function_index install_git >/dev/null
-assert_failure "Catalog allowlist should reject functions outside setup installers." _find_menu_function_index rm
+assert_success "Catalog allowlist should include GitHub CLI installer functions." _find_menu_function_index install_gh >/dev/null
+missed_lookup_output="$(_find_menu_function_index rm 2>/dev/null || true)"
+assert_equals "-1" "$missed_lookup_output" "Catalog miss should echo '-1' so callers using \$(...) never receive an empty string interpreted as index 0."
+assert_failure "Catalog allowlist should reject functions outside setup installers." _find_menu_function_index rm >/dev/null
 assert_equals "$(_find_menu_function_index install_git)" "$(_find_menu_item_index git)" "Catalog item lookup should accept setup ids."
+assert_equals "$(_find_menu_function_index install_gh)" "$(_find_menu_item_index gh)" "Catalog item lookup should accept the GitHub CLI setup id."
 
 _parse_setup_arguments install_git --dry-run fd_find --yes
 assert_equals "1" "$SETUP_DRY_RUN" "Bash CLI parsing should accept dry-run after commands."
@@ -299,9 +311,21 @@ assert_equals "v9.9.9" "$(curl() { printf "https://github.com/example/tool/relea
   mocked_installed_go_version="1.2.2"
   _setup_resolve_latest_go_version() { printf "1.2.3"; }
   _setup_installed_go_version() { printf "%s" "$mocked_installed_go_version"; }
+  _setup_resolve_go_platform() { printf "linux-amd64"; }
+  _setup_resolve_go_release_sha256() { printf "deadbeef"; }
+  _setup_compute_sha256() { printf "deadbeef"; }
   _setup_create_temp_dir() { printf "%s" "$temporary_directory"; }
   _setup_remove_temp_dir() { rm -rf "$1"; }
-  curl() { printf "archive" > "$2"; }
+  curl() {
+    local target=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -o|-fsSLo) target="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    [[ -n "$target" ]] && printf "archive" > "$target"
+  }
   sudo() { mocked_installed_go_version="1.2.3"; return 0; }
   install_golang >/dev/null
   if [[ -d "$temporary_directory" ]]; then

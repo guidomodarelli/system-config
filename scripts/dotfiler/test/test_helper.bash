@@ -50,9 +50,16 @@ install_fixture() {
 run_dotfiler() {
   local debug_value="$1"
   shift
-  local extra_args="$*"
 
-  run bash -lc "cd '$REPO_DIR/scripts/dotfiler' && HOME='$HOME_DIR' USER='test-user' DEBUG='$debug_value' PATH='$FAKE_BIN_DIR:$PATH' bash ./dotfiler.sh $extra_args"
+  run env -i \
+    HOME="$HOME_DIR" \
+    USER="test-user" \
+    DEBUG="$debug_value" \
+    PATH="$FAKE_BIN_DIR:$PATH" \
+    LANG="${LANG:-C.UTF-8}" \
+    LC_ALL="${LC_ALL:-C.UTF-8}" \
+    bash -c 'cd "$0" && bash ./dotfiler.sh "$@"' \
+    "$REPO_DIR/scripts/dotfiler" "$@"
 }
 
 assert_symlink_points_to() {

@@ -36,6 +36,27 @@ teardown() {
     "$REPO_DIR/configs/included-file"
 }
 
+@test "directorios anidados dentro de HOME no requieren sudo" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: nested-source
+    target: .agents/skills
+YAML
+  printf "nested" > "$REPO_DIR/configs/nested-source"
+  cat > "$FAKE_BIN_DIR/sudo" <<'BASH'
+#!/usr/bin/env bash
+exit 99
+BASH
+  chmod +x "$FAKE_BIN_DIR/sudo"
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/.agents/skills/nested-source" \
+    "$REPO_DIR/configs/nested-source"
+}
+
 @test "output does not print literal backslash-n sequences" {
   install_fixture "debug_flow"
 
@@ -138,6 +159,24 @@ YAML
     "$HOME_DIR/.codex/skills/system.txt"
 }
 
+@test "exactTarget se usa como ruta final del symlink" {
+  mkdir -p "$REPO_DIR/configs/.codex"
+  printf "agents" > "$REPO_DIR/configs/.codex/AGENTS.md"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: .codex/AGENTS.md
+    exactTarget: .claude/CLAUDE.md
+YAML
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/.claude/CLAUDE.md" \
+    "$REPO_DIR/configs/.codex/AGENTS.md"
+  assert_path_missing "$HOME_DIR/AGENTS.md"
+}
+
 @test "output does not print duplicated separators consecutively" {
   install_fixture "debug_flow"
 
@@ -150,7 +189,7 @@ YAML
 @test "summary table snapshot remains stable in spanish without color" {
   install_fixture "debug_flow"
 
-  run_dotfiler "false" "--dry-run --quiet --no-color"
+  run_dotfiler "false" "--dry-run" "--quiet" "--no-color"
 
   [ "$status" -eq 0 ]
   assert_output_contains_line "$output" "RESUMEN"
@@ -177,7 +216,7 @@ exit 1
 BASH
   chmod +x "$FAKE_BIN_DIR/ln"
 
-  run_dotfiler "false" "--quiet --no-color"
+  run_dotfiler "false" "--quiet" "--no-color"
 
   [ "$status" -eq 1 ]
   assert_output_contains_line "$output" "DIAGNÓSTICO"
@@ -187,8 +226,217 @@ BASH
 @test "invalid config returns exit code 2" {
   printf "paths: [\n" > "$REPO_DIR/symlinks.yml"
 
-  run_dotfiler "false" "--quiet --no-color"
+  run_dotfiler "false" "--quiet" "--no-color"
 
   [ "$status" -eq 2 ]
   [[ "$output$stderr" == *"Configuración inválida"* ]]
+}
+
+@test "missing source path is counted as a runtime error" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: nonexistent-source
+    target: linked-files
+YAML
+
+  run_dotfiler "false" "--quiet" "--no-color"
+
+  [ "$status" -eq 1 ]
+  assert_output_contains_line "$output" "DIAGNÓSTICO"
+  assert_output_contains_line "$output" "Ruta de origen inexistente"
+  assert_path_missing "$HOME_DIR/linked-files/nonexistent-source"
+}
+
+@test "existing regular file is backed up before linking" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: backup-source
+    target: linked-files
+YAML
+  printf "source-content" > "$REPO_DIR/configs/backup-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "previous-content" > "$HOME_DIR/linked-files/backup-source"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/backup-source" \
+    "$REPO_DIR/configs/backup-source"
+  [ -f "$HOME_DIR/linked-files/backup-source.bak" ]
+  [ "$(cat "$HOME_DIR/linked-files/backup-source.bak")" = "previous-content" ]
+  assert_output_contains_line "$output" "Respaldos"
+}
+
+@test "source path supports USER variable expansion" {
+  mkdir -p "$REPO_DIR/configs/users/test-user"
+  printf "owned-by-user" > "$REPO_DIR/configs/users/test-user/profile.txt"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: users/$USER/profile.txt
+    target: linked-files
+YAML
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/profile.txt" \
+    "$REPO_DIR/configs/users/test-user/profile.txt"
+}
+
+@test "existing symlink is replaced and counted as reemplazado" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: replace-source
+    target: linked-files
+YAML
+  printf "new" > "$REPO_DIR/configs/replace-source"
+  mkdir -p "$HOME_DIR/linked-files" "$HOME_DIR/old-target"
+  printf "old" > "$HOME_DIR/old-target/replace-source"
+  ln -s "$HOME_DIR/old-target/replace-source" "$HOME_DIR/linked-files/replace-source"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/replace-source" \
+    "$REPO_DIR/configs/replace-source"
+  assert_output_contains_line "$output" "Symlink anterior eliminado"
+  assert_output_contains_line "$output" "Reemplazados"
+}
+
+@test "stale .bak symlink is removed before recreating link" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: bak-source
+    target: linked-files
+YAML
+  printf "current" > "$REPO_DIR/configs/bak-source"
+  mkdir -p "$HOME_DIR/linked-files" "$HOME_DIR/dangling"
+  printf "stale" > "$HOME_DIR/dangling/bak-source"
+  ln -s "$HOME_DIR/dangling/bak-source" "$HOME_DIR/linked-files/bak-source.bak"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ ! -L "$HOME_DIR/linked-files/bak-source.bak" ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/bak-source" \
+    "$REPO_DIR/configs/bak-source"
+}
+
+@test "glob source expands every entry of its parent directory" {
+  mkdir -p "$REPO_DIR/configs/glob-dir"
+  printf "alpha" > "$REPO_DIR/configs/glob-dir/alpha"
+  printf "beta" > "$REPO_DIR/configs/glob-dir/beta"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: glob-dir/*
+    target: linked-files
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/alpha" \
+    "$REPO_DIR/configs/glob-dir/alpha"
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/beta" \
+    "$REPO_DIR/configs/glob-dir/beta"
+}
+
+@test "elevated permissions branch invokes the configured prefix" {
+  local non_home_dir="$TEST_DIR/non-home"
+  mkdir -p "$non_home_dir"
+  printf "elevated" > "$REPO_DIR/configs/elevated-source"
+  cat > "$REPO_DIR/symlinks.yml" <<YAML
+paths:
+  - path: elevated-source
+    exactTarget: ${non_home_dir}/elevated-link
+YAML
+  cat > "$FAKE_BIN_DIR/sudo" <<BASH
+#!/usr/bin/env bash
+printf "sudo %s\\n" "\$*" >> "$TEST_DIR/sudo.log"
+exec "\$@"
+BASH
+  chmod +x "$FAKE_BIN_DIR/sudo"
+
+  run_dotfiler "false" "--quiet" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ -f "$TEST_DIR/sudo.log" ]
+  grep -q "^sudo mkdir -p ${non_home_dir}\$" "$TEST_DIR/sudo.log"
+  grep -q "^sudo ln -s " "$TEST_DIR/sudo.log"
+  assert_symlink_points_to \
+    "${non_home_dir}/elevated-link" \
+    "$REPO_DIR/configs/elevated-source"
+}
+
+@test "verbose mode prints elapsed seconds for each operation" {
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--verbose" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"TIEMPO"* ]]
+  [[ "$output" == *"transcurrido="* ]]
+}
+
+@test "abbreviate_home_path no abrevia prefijos parciales del HOME" {
+  local home_twin="${HOME_DIR}-twin"
+  mkdir -p "$home_twin"
+  printf "home-prefix" > "$REPO_DIR/configs/home-prefix-source"
+  cat > "$REPO_DIR/symlinks.yml" <<YAML
+paths:
+  - path: home-prefix-source
+    exactTarget: ${home_twin}/home-prefix-source
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"~-twin"* ]]
+  [[ "$output" == *"$home_twin"* ]]
+}
+
+@test "existing .bak file is preserved when creating a new backup" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: backup-source
+    target: linked-files
+YAML
+  printf "source-content" > "$REPO_DIR/configs/backup-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "previous-content" > "$HOME_DIR/linked-files/backup-source"
+  printf "older-backup" > "$HOME_DIR/linked-files/backup-source.bak"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/backup-source" \
+    "$REPO_DIR/configs/backup-source"
+  [ -f "$HOME_DIR/linked-files/backup-source.bak" ]
+  [ "$(cat "$HOME_DIR/linked-files/backup-source.bak")" = "older-backup" ]
+  [ -f "$HOME_DIR/linked-files/backup-source.bak.1" ]
+  [ "$(cat "$HOME_DIR/linked-files/backup-source.bak.1")" = "previous-content" ]
+}
+
+@test "leading tilde in source is expanded but tilde inside path is preserved" {
+  mkdir -p "$REPO_DIR/configs"
+  printf "tilde-literal" > "$REPO_DIR/configs/has~tilde"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: has~tilde
+    target: linked-files
+YAML
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/linked-files/has~tilde" \
+    "$REPO_DIR/configs/has~tilde"
 }

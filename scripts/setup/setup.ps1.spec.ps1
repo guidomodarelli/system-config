@@ -98,6 +98,7 @@ $sharedCatalogPath = Join-Path $PSScriptRoot 'setup.catalog.csv'
 $sharedMenuCatalog = Get-SetupMenuCatalog -CatalogPath $sharedCatalogPath
 Test-SetupMenuCatalog -menuCatalog $sharedMenuCatalog
 Assert-Equal -Expected $true -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Install-Git') -Message 'Catalog allowlist should include setup installer functions.'
+Assert-Equal -Expected $true -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Install-Gh') -Message 'Catalog allowlist should include the GitHub CLI installer function.'
 Assert-Equal -Expected $false -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Get-ChildItem') -Message 'Catalog allowlist should reject functions outside setup installers.'
 Assert-Equal -Expected 'Chocolatey' -Actual $sharedMenuCatalog[0].Label -Message 'PowerShell catalog should be loaded from the shared setup catalog.'
 Assert-Equal -Expected 'chocolatey' -Actual $sharedMenuCatalog[0].Id -Message 'PowerShell catalog should preserve setup ids.'
@@ -163,10 +164,13 @@ $gitMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -
 $curlMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'curl'
 $vscodeMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'vscode'
 $batMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'bat'
+$ghMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'gh'
 Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$gitMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin Git installs.'
 Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$curlMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin curl installs.'
 Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$vscodeMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin VS Code installs.'
 Assert-Equal -Expected $true -Actual ($batMenuIndex -ge 0) -Message 'PowerShell catalog should include bat from the previous PowerShell catalog.'
+Assert-Equal -Expected $true -Actual ($ghMenuIndex -ge 0) -Message 'PowerShell catalog should include GitHub CLI.'
+Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$ghMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin GitHub CLI installs.'
 Assert-Equal -Expected $true -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Install-Bat') -Message 'PowerShell catalog allowlist should include Install-Bat.'
 
 $scriptDownloadPath = $null
@@ -196,6 +200,10 @@ function global:winget {
 
 Install-WingetPackage -appIds @('Example.Tool')
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('upgrade --exact --id Example.Tool')) -Message 'Winget installer should update installed packages to the latest stable version.'
+
+$wingetActions = @()
+Install-Gh
+Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('GitHub.cli')) -Message 'GitHub CLI installer should use the official Winget package id.'
 
 $failedSetupResults = @(
   [PSCustomObject]@{ Label = 'Git'; Status = 'OK'; Detail = ''; RequiresRestart = $false },
