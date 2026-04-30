@@ -1363,6 +1363,16 @@ $script:GhqRootCache = $null
 $script:GhqRootCacheTimestamp = $null
 $script:GhqRepositoryListCache = $null
 $script:GhqRepositoryListCacheTimestamp = $null
+$script:GhqRepositoryListCacheRootFingerprint = $null
+$script:GhqRepositoryScanDefaultExcludedDirectoryNames = @(
+    '.cache',
+    '.npm',
+    '.pnpm-store',
+    '.yarn',
+    '.terraform',
+    'node_modules'
+)
+$script:GhqRepositoryScanExcludedDirectoryNames = @()
 
 function Test-CacheEntryIsFresh {
     param(
@@ -1396,9 +1406,159 @@ function Get-CachedFzfCommandInfo {
     return $script:FzfCommandInfoCache
 }
 
+function Get-GhqRepositoryScanExcludedDirectoryNames {
+    $excludedDirectoryNames = [System.Collections.Generic.List[string]]::new()
+    $seenExcludedNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($defaultExcludedDirectoryName in $script:GhqRepositoryScanDefaultExcludedDirectoryNames) {
+        if ([string]::IsNullOrWhiteSpace($defaultExcludedDirectoryName)) { continue }
+        if ($seenExcludedNames.Add($defaultExcludedDirectoryName)) {
+            $excludedDirectoryNames.Add($defaultExcludedDirectoryName)
+        }
+    }
+
+    $environmentExcludedDirectoryNames = [Environment]::GetEnvironmentVariable('GHQ_SCAN_EXCLUDES')
+    if (-not [string]::IsNullOrWhiteSpace($environmentExcludedDirectoryNames)) {
+        $tokens = $environmentExcludedDirectoryNames -split '[,;]'
+        foreach ($token in $tokens) {
+            $trimmedToken = $token.Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmedToken)) { continue }
+            if ($seenExcludedNames.Add($trimmedToken)) {
+                $excludedDirectoryNames.Add($trimmedToken)
+            }
+        }
+    }
+
+    return @($excludedDirectoryNames)
+}
+
+function Test-ShouldSkipGhqScanDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DirectoryName
+    )
+
+    foreach ($excludedName in $script:GhqRepositoryScanExcludedDirectoryNames) {
+        if ($DirectoryName -ieq $excludedName) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Test-IsReparsePointDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$DirectoryInfo
+    )
+
+    if ($null -eq $DirectoryInfo -or $null -eq $DirectoryInfo.Attributes) {
+        return $false
+    }
+
+    return [bool]($DirectoryInfo.Attributes -band [System.IO.FileAttributes]::ReparsePoint)
+}
+
+function Test-IsBareGitRepositoryDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DirectoryPath
+    )
+
+    $headFilePath = Join-Path $DirectoryPath 'HEAD'
+    $objectsDirectoryPath = Join-Path $DirectoryPath 'objects'
+    $refsDirectoryPath = Join-Path $DirectoryPath 'refs'
+
+    if (-not (Test-Path -LiteralPath $headFilePath -PathType Leaf)) {
+        return $false
+    }
+    if (-not (Test-Path -LiteralPath $objectsDirectoryPath -PathType Container)) {
+        return $false
+    }
+    if (-not (Test-Path -LiteralPath $refsDirectoryPath -PathType Container)) {
+        return $false
+    }
+
+    return $true
+}
+
+function Test-IsGitRepositoryDirectory {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DirectoryPath
+    )
+
+    if (Test-Path -LiteralPath (Join-Path $DirectoryPath '.git')) {
+        return $true
+    }
+
+    return (Test-IsBareGitRepositoryDirectory -DirectoryPath $DirectoryPath)
+}
+
+function Get-RelativePathCompat {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BasePath,
+        [Parameter(Mandatory = $true)]
+        [string]$TargetPath
+    )
+
+    if ([System.IO.Path].GetMethod('GetRelativePath', [type[]]@([string], [string]))) {
+        return [System.IO.Path]::GetRelativePath($BasePath, $TargetPath)
+    }
+
+    $resolvedBasePath = (Resolve-Path -LiteralPath $BasePath).Path.TrimEnd('\', '/')
+    $resolvedTargetPath = (Resolve-Path -LiteralPath $TargetPath).Path
+
+    $baseUri = New-Object System.Uri(($resolvedBasePath -replace '\\', '/') + '/')
+    $targetUri = New-Object System.Uri(($resolvedTargetPath -replace '\\', '/'))
+    $relativeUri = $baseUri.MakeRelativeUri($targetUri).ToString()
+    return [System.Uri]::UnescapeDataString($relativeUri) -replace '/', '\'
+}
+
+function Get-GhqRootFingerprint {
+    param(
+        [string]$RootPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RootPath) -or -not (Test-Path -LiteralPath $RootPath)) {
+        return $null
+    }
+
+    try {
+        $rootDirectoryItem = Get-Item -LiteralPath $RootPath -ErrorAction Stop
+        $topLevelDirectories = @(Get-ChildItem -LiteralPath $RootPath -Directory -ErrorAction SilentlyContinue)
+        $topLevelDirectoryCount = $topLevelDirectories.Count
+        $secondLevelDirectoryCount = 0
+        $maxObservedTicks = $rootDirectoryItem.LastWriteTimeUtc.Ticks
+        foreach ($directory in $topLevelDirectories) {
+            $directoryTicks = $directory.LastWriteTimeUtc.Ticks
+            if ($directoryTicks -gt $maxObservedTicks) {
+                $maxObservedTicks = $directoryTicks
+            }
+
+            $secondLevelDirectories = @(Get-ChildItem -LiteralPath $directory.FullName -Directory -ErrorAction SilentlyContinue)
+            $secondLevelDirectoryCount += $secondLevelDirectories.Count
+            foreach ($secondLevelDirectory in $secondLevelDirectories) {
+                $secondLevelDirectoryTicks = $secondLevelDirectory.LastWriteTimeUtc.Ticks
+                if ($secondLevelDirectoryTicks -gt $maxObservedTicks) {
+                    $maxObservedTicks = $secondLevelDirectoryTicks
+                }
+            }
+        }
+
+        return '{0}:{1}:{2}:{3}' -f $rootDirectoryItem.LastWriteTimeUtc.Ticks, $topLevelDirectoryCount, $secondLevelDirectoryCount, $maxObservedTicks
+    } catch {
+        return $null
+    }
+}
+
 function Get-CachedGhqRepositoryList {
+    $ghqRootPath = Get-CachedGhqRootPath
+    $rootFingerprint = Get-GhqRootFingerprint -RootPath $ghqRootPath
     $isFresh = Test-CacheEntryIsFresh -Timestamp $script:GhqRepositoryListCacheTimestamp -TtlSeconds $script:GhqSelectionCacheTtlSeconds
-    if ($isFresh -and $script:GhqRepositoryListCache) {
+    if ($isFresh -and $script:GhqRepositoryListCache -and $script:GhqRepositoryListCacheRootFingerprint -eq $rootFingerprint) {
         return $script:GhqRepositoryListCache
     }
 
@@ -1407,16 +1567,66 @@ function Get-CachedGhqRepositoryList {
         return $null
     }
 
-    $repoList = & $ghqCommand.Source list 2> $null
+    $script:GhqRepositoryScanExcludedDirectoryNames = Get-GhqRepositoryScanExcludedDirectoryNames
     $repoItems = [System.Collections.Generic.List[string]]::new()
-    foreach ($repo in $repoList) {
-        if (-not [string]::IsNullOrWhiteSpace($repo)) {
-            $repoItems.Add($repo.Trim())
+    $repoItemSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    if (-not [string]::IsNullOrWhiteSpace($ghqRootPath) -and (Test-Path -LiteralPath $ghqRootPath)) {
+        try {
+            $pendingDirectories = [System.Collections.Generic.Stack[string]]::new()
+            foreach ($directory in (Get-ChildItem -LiteralPath $ghqRootPath -Directory -ErrorAction SilentlyContinue)) {
+                if (Test-ShouldSkipGhqScanDirectory -DirectoryName $directory.Name) { continue }
+                if (Test-IsReparsePointDirectory -DirectoryInfo $directory) { continue }
+                $pendingDirectories.Push($directory.FullName)
+            }
+
+            while ($pendingDirectories.Count -gt 0) {
+                $currentDirectoryPath = $pendingDirectories.Pop()
+                if (Test-IsGitRepositoryDirectory -DirectoryPath $currentDirectoryPath) {
+                    $relativePath = Get-RelativePathCompat -BasePath $ghqRootPath -TargetPath $currentDirectoryPath
+                    if (-not [string]::IsNullOrWhiteSpace($relativePath) -and $relativePath -ne '.') {
+                        $normalizedRelativePath = ($relativePath -replace '\\', '/')
+                        if ($repoItemSet.Add($normalizedRelativePath)) {
+                            $repoItems.Add($normalizedRelativePath)
+                        }
+                    }
+                    continue
+                }
+
+                foreach ($childDirectory in (Get-ChildItem -LiteralPath $currentDirectoryPath -Directory -ErrorAction SilentlyContinue)) {
+                    if (Test-ShouldSkipGhqScanDirectory -DirectoryName $childDirectory.Name) { continue }
+                    if (Test-IsReparsePointDirectory -DirectoryInfo $childDirectory) { continue }
+                    $pendingDirectories.Push($childDirectory.FullName)
+                }
+            }
+        } catch {
+            Write-Warning "Failed to scan repositories under ghq root '$ghqRootPath': $_"
+        }
+    }
+
+    if ($repoItems.Count -eq 0) {
+        $repoList = & $ghqCommand.Source list 2> $null
+        foreach ($repo in $repoList) {
+            if (-not [string]::IsNullOrWhiteSpace($repo)) {
+                $normalizedRepoPath = $repo.Trim()
+                if ($repoItemSet.Add($normalizedRepoPath)) {
+                    $repoItems.Add($normalizedRepoPath)
+                }
+            }
+        }
+    }
+
+    if ($repoItems.Count -gt 1) {
+        $uniqueRepoItems = $repoItems.ToArray()
+        [Array]::Sort($uniqueRepoItems, [System.StringComparer]::OrdinalIgnoreCase)
+        $repoItems = [System.Collections.Generic.List[string]]::new()
+        foreach ($item in $uniqueRepoItems) {
+            $repoItems.Add($item)
         }
     }
 
     $script:GhqRepositoryListCache = @($repoItems)
     $script:GhqRepositoryListCacheTimestamp = [datetime]::UtcNow
+    $script:GhqRepositoryListCacheRootFingerprint = $rootFingerprint
     return $script:GhqRepositoryListCache
 }
 
