@@ -40,6 +40,7 @@ vscode|Visual Studio Code||Install-VsCode|1|0|windows|0
 bat|bat||Install-Bat|1|0|windows|0
 mise|mise-en-place||Install-Mise-In-Place|1|0|windows|0
 fnm|fnm||Install-fnm|1|0|windows|0
+powershell|PowerShell||Install-PowerShell|1|0|windows|0
 python|Python||Install-Python|1|0|windows|0
 powertoys|PowerToys||Install-PowerToys|1|0|windows|0
 scoop|Scoop||Install-Scoop|0|0|windows|0

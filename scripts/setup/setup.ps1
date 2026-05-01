@@ -353,6 +353,31 @@ function Install-fnm {
   Install-WingetPackage Schniz.fnm
 }
 
+function Install-PowerShell {
+  Install-WingetPackage Microsoft.PowerShell
+}
+
+function Install-Pester {
+  $minimumSupportedPesterVersion = [Version]'5.0.0'
+  $installedPesterModule = Get-InstalledModule -Name Pester -ErrorAction SilentlyContinue
+
+  if ($null -ne $installedPesterModule -and $installedPesterModule.Version -ge $minimumSupportedPesterVersion) {
+    LogInfo "Pester ya está instalado en versión $($installedPesterModule.Version). Actualizando a la última estable de la rama 5.x..."
+  } elseif ($null -ne $installedPesterModule) {
+    LogInfo "Pester está en versión $($installedPesterModule.Version). Actualizando a la rama 5.x..."
+  } else {
+    LogInfo 'Instalando Pester 5.x desde PSGallery...'
+  }
+
+  try {
+    Install-Module -Name Pester -MinimumVersion '5.0.0' -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+  } catch {
+    throw "No se pudo instalar/actualizar Pester 5.x: $($_.Exception.Message)"
+  }
+
+  LogSuccess 'Pester 5.x quedó instalado/actualizado correctamente.'
+}
+
 function Install-Zoxide {
   Install-WingetPackage ajeetdsouza.zoxide
 }
