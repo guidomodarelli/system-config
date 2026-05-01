@@ -140,6 +140,14 @@ function Test-WingetPackageInstalled {
   return $LASTEXITCODE -eq 0
 }
 
+function Test-WingetNoUpgradeAvailableExitCode {
+  param (
+    [int]$ExitCode
+  )
+
+  return $ExitCode -eq -1978335189
+}
+
 function Install-WingetPackage {
   param (
     [string[]]$appIds
@@ -147,17 +155,39 @@ function Install-WingetPackage {
   foreach ($appId in $appIds) {
     if (Test-WingetPackageInstalled -AppId $appId) {
       LogInfo "El paquete '$appId' ya está instalado. Actualizando a la última versión estable oficial disponible..."
-      winget upgrade --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity
+      winget upgrade --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
       if ($LASTEXITCODE -ne 0) {
-        throw "Winget no pudo actualizar '$appId'. Código: $LASTEXITCODE."
+        $upgradeExitCode = $LASTEXITCODE
+        if (Test-WingetNoUpgradeAvailableExitCode -ExitCode $upgradeExitCode) {
+          $global:LASTEXITCODE = 0
+          LogSuccess "El paquete '$appId' ya está actualizado."
+          continue
+        }
+        LogWarning "Winget no pudo actualizar '$appId' (código: $upgradeExitCode). Intentando instalación idempotente para recuperar..."
+        winget install --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
+        if ($LASTEXITCODE -ne 0) {
+          if (Test-WingetNoUpgradeAvailableExitCode -ExitCode $LASTEXITCODE) {
+            $global:LASTEXITCODE = 0
+            LogSuccess "El paquete '$appId' ya está actualizado."
+            continue
+          }
+          throw "Winget no pudo actualizar '$appId' y el intento de recuperación con instalación también falló. Códigos: upgrade=$upgradeExitCode, install=$LASTEXITCODE."
+        }
+        LogSuccess "El paquete '$appId' quedó instalado/actualizado tras recuperación."
+        continue
       }
       LogSuccess "El paquete '$appId' quedó actualizado."
       continue
     }
 
     LogInfo "Instalando el paquete '$appId'..."
-    winget install --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity
+    winget install --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
     if ($LASTEXITCODE -ne 0) {
+      if (Test-WingetNoUpgradeAvailableExitCode -ExitCode $LASTEXITCODE) {
+        $global:LASTEXITCODE = 0
+        LogSuccess "El paquete '$appId' ya está actualizado."
+        continue
+      }
       throw "Winget no pudo instalar '$appId'. Código: $LASTEXITCODE."
     }
     LogSuccess "El paquete '$appId' se instaló correctamente."
@@ -982,12 +1012,57 @@ function Find-SetupMenuItemIndex {
   return $startIndex
 }
 
+function Update-SetupMenuSelectionForToggle {
+  param (
+    [System.Collections.Generic.HashSet[int]]$selectedIndexes,
+    [int]$cursorIndex,
+    [ref]$HasManualSelection
+  )
+
+  if (-not $HasManualSelection.Value) {
+    $HasManualSelection.Value = $true
+  }
+
+  if ($selectedIndexes.Contains($cursorIndex)) {
+    [void]$selectedIndexes.Remove($cursorIndex)
+  } else {
+    [void]$selectedIndexes.Add($cursorIndex)
+  }
+}
+
+function Update-SetupMenuSelectionForAll {
+  param (
+    [System.Collections.Generic.HashSet[int]]$selectedIndexes,
+    [int]$menuItemCount,
+    [ref]$HasManualSelection
+  )
+
+  $HasManualSelection.Value = $true
+  if ($selectedIndexes.Count -eq $menuItemCount) {
+    $selectedIndexes.Clear()
+    return
+  }
+
+  for ($menuIndex = 0; $menuIndex -lt $menuItemCount; $menuIndex++) {
+    [void]$selectedIndexes.Add($menuIndex)
+  }
+}
+
+function Get-SetupSelectedIndexArray {
+  param (
+    [System.Collections.Generic.HashSet[int]]$selectedIndexes
+  )
+
+  return @($selectedIndexes | Sort-Object)
+}
+
 function Invoke-SetupMenuSearch {
   param (
     [PSCustomObject[]]$menuCatalog,
     [System.Collections.Generic.HashSet[int]]$selectedIndexes,
     [int]$cursorIndex,
-    [int]$visibleItemCount
+    [int]$visibleItemCount,
+    [bool]$HasManualSelection = $false
   )
 
   $query = ''
@@ -1004,15 +1079,15 @@ function Invoke-SetupMenuSearch {
     $key = [Console]::ReadKey($true)
 
     if ($key.Key -eq [ConsoleKey]::Escape -or ($key.Key -eq [ConsoleKey]::C -and ($key.Modifiers -band [ConsoleModifiers]::Control))) {
-      return [PSCustomObject]@{ Cancelled = $true; CursorIndex = $cursorIndex }
+      return [PSCustomObject]@{ Cancelled = $true; CursorIndex = $cursorIndex; HasManualSelection = $HasManualSelection }
     }
 
     if ($key.Key -eq [ConsoleKey]::Enter) {
       if ($filteredIndexes.Count -eq 0) {
-        return [PSCustomObject]@{ Cancelled = $false; CursorIndex = $cursorIndex }
+        return [PSCustomObject]@{ Cancelled = $false; CursorIndex = $cursorIndex; HasManualSelection = $HasManualSelection }
       }
 
-      return [PSCustomObject]@{ Cancelled = $false; CursorIndex = $filteredIndexes[$filteredCursorIndex] }
+      return [PSCustomObject]@{ Cancelled = $false; CursorIndex = $filteredIndexes[$filteredCursorIndex]; HasManualSelection = $HasManualSelection }
     }
 
     if ($key.Key -eq [ConsoleKey]::UpArrow -or $key.KeyChar -eq 'k') {
@@ -1030,11 +1105,7 @@ function Invoke-SetupMenuSearch {
     } elseif ($key.Key -eq [ConsoleKey]::Spacebar) {
       if ($filteredIndexes.Count -gt 0) {
         $menuIndex = $filteredIndexes[$filteredCursorIndex]
-        if ($selectedIndexes.Contains($menuIndex)) {
-          [void]$selectedIndexes.Remove($menuIndex)
-        } else {
-          [void]$selectedIndexes.Add($menuIndex)
-        }
+        Update-SetupMenuSelectionForToggle -selectedIndexes $selectedIndexes -cursorIndex $menuIndex -HasManualSelection ([ref]$HasManualSelection)
       }
     } elseif ($key.Key -eq [ConsoleKey]::Backspace) {
       if ($query.Length -gt 0) {
@@ -1064,6 +1135,7 @@ function Select-SetupMenuClassic {
   $visibleItemCount = Get-SetupMenuVisibleItemCount -itemCount $menuCatalog.Count
   $renderedLineCount = Get-ClassicSetupMenuRenderedLineCount -visibleItemCount $visibleItemCount
   $selectedIndexes = Get-DefaultSetupMenuIndexes -menuCatalog $menuCatalog
+  $hasManualSelection = $false
   $menuTop = 0
 
   try {
@@ -1102,31 +1174,24 @@ function Select-SetupMenuClassic {
           $cursorIndex = $menuCatalog.Count - 1
         }
         'Toggle' {
-          if ($selectedIndexes.Contains($cursorIndex)) {
-            [void]$selectedIndexes.Remove($cursorIndex)
-          } else {
-            [void]$selectedIndexes.Add($cursorIndex)
-          }
+          Update-SetupMenuSelectionForToggle -selectedIndexes $selectedIndexes -cursorIndex $cursorIndex -HasManualSelection ([ref]$hasManualSelection)
+          $forceFullRender = $true
         }
         'All' {
-          if ($selectedIndexes.Count -eq $menuCatalog.Count) {
-            $selectedIndexes.Clear()
-          } else {
-            for ($menuIndex = 0; $menuIndex -lt $menuCatalog.Count; $menuIndex++) {
-              [void]$selectedIndexes.Add($menuIndex)
-            }
-          }
+          Update-SetupMenuSelectionForAll -selectedIndexes $selectedIndexes -menuItemCount $menuCatalog.Count -HasManualSelection ([ref]$hasManualSelection)
           $forceFullRender = $true
         }
         'Defaults' {
           $selectedIndexes = Get-DefaultSetupMenuIndexes -menuCatalog $menuCatalog
+          $hasManualSelection = $false
           $forceFullRender = $true
         }
         'Search' {
-          $searchResult = Invoke-SetupMenuSearch -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -cursorIndex $cursorIndex -visibleItemCount $visibleItemCount
+          $searchResult = Invoke-SetupMenuSearch -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -cursorIndex $cursorIndex -visibleItemCount $visibleItemCount -HasManualSelection $hasManualSelection
           if (-not $searchResult.Cancelled) {
             $cursorIndex = $searchResult.CursorIndex
           }
+          $hasManualSelection = $searchResult.HasManualSelection
           Clear-Host
           Write-SetupMenuReference
           $forceFullRender = $true
@@ -1134,7 +1199,7 @@ function Select-SetupMenuClassic {
         }
         'Enter' {
           Write-Host ''
-          return [PSCustomObject]@{ Cancelled = $false; SelectedIndexes = @($selectedIndexes) }
+          return [PSCustomObject]@{ Cancelled = $false; SelectedIndexes = (Get-SetupSelectedIndexArray -selectedIndexes $selectedIndexes) }
         }
         'Cancel' {
           Write-Host ''
@@ -1194,7 +1259,7 @@ function Invoke-SelectedSetupMenuItems {
       }
 
       $global:LASTEXITCODE = 0
-      & $menuItem.FunctionName
+      & $menuItem.FunctionName | Out-Host
       if ($global:LASTEXITCODE -ne 0) {
         throw "La función '$($menuItem.FunctionName)' terminó con código $global:LASTEXITCODE."
       }
@@ -1264,7 +1329,7 @@ function Write-SetupExecutionSummary {
     } elseif ($result.Status -eq 'Omitido') {
       LogWarning "$($result.Label): omitido"
     } else {
-      LogError "$($result.Label): falló ($($result.Detail))"
+      LogError (Get-SetupFailureSummaryMessage -Label $result.Label -Detail $result.Detail)
     }
   }
 
@@ -1272,6 +1337,19 @@ function Write-SetupExecutionSummary {
   if ($restartRequired) {
     LogWarning 'Algunos cambios requieren reiniciar o abrir una nueva sesión para aplicarse.'
   }
+}
+
+function Get-SetupFailureSummaryMessage {
+  param (
+    [string]$Label,
+    [string]$Detail
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Detail)) {
+    return "$Label`: falló"
+  }
+
+  return "$Label`: falló ($Detail)"
 }
 
 function Test-SetupExecutionResultsHaveFailures {

@@ -202,6 +202,47 @@ Install-WingetPackage -appIds @('Example.Tool')
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('upgrade --exact --id Example.Tool')) -Message 'Winget installer should update installed packages to the latest stable version.'
 
 $wingetActions = @()
+$script:wingetCallCount = 0
+function global:winget {
+  $joinedArguments = $args -join ' '
+  $script:wingetActions += $joinedArguments
+  if ($joinedArguments.Contains('upgrade --exact --id Recover.Tool')) {
+    $script:wingetCallCount += 1
+    $global:LASTEXITCODE = -42
+    return
+  }
+
+  $global:LASTEXITCODE = 0
+}
+
+Install-WingetPackage -appIds @('Recover.Tool')
+Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('upgrade --exact --id Recover.Tool')) -Message 'Winget installer should attempt package upgrade before fallback recovery.'
+Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('install --exact --id Recover.Tool')) -Message 'Winget installer should retry with idempotent install when upgrade fails.'
+Assert-Equal -Expected $true -Actual (Test-WingetNoUpgradeAvailableExitCode -ExitCode -1978335189) -Message 'Winget no-upgrade code should be treated as non-fatal.'
+
+$wingetActions = @()
+function global:Test-WingetPackageInstalled {
+  param (
+    [string]$AppId
+  )
+
+  return $false
+}
+function global:winget {
+  $joinedArguments = $args -join ' '
+  $script:wingetActions += $joinedArguments
+  if ($joinedArguments.Contains('install --exact --id Already.Latest.Tool')) {
+    $global:LASTEXITCODE = -1978335189
+    return
+  }
+
+  $global:LASTEXITCODE = 0
+}
+Install-WingetPackage -appIds @('Already.Latest.Tool')
+Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('install --exact --id Already.Latest.Tool')) -Message 'Winget installer should attempt install for non-installed packages.'
+Assert-Equal -Expected 0 -Actual $global:LASTEXITCODE -Message 'Winget installer should reset LASTEXITCODE after non-fatal no-upgrade responses.'
+
+$wingetActions = @()
 Install-Gh
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('GitHub.cli')) -Message 'GitHub CLI installer should use the official Winget package id.'
 
@@ -211,12 +252,30 @@ $failedSetupResults = @(
 )
 Assert-Equal -Expected $true -Actual (Test-SetupExecutionResultsHaveFailures -results $failedSetupResults) -Message 'PowerShell setup results should detect failed installer results.'
 
+function global:Install-TestOutputPackage {
+  Write-Output 'external installer output'
+  $global:LASTEXITCODE = 0
+}
+
+$outputPackageResults = @(Invoke-SelectedSetupMenuItems -menuCatalog @(
+  [PSCustomObject]@{ Id = 'output'; Label = 'Output package'; FunctionName = 'Install-TestOutputPackage'; DefaultSelected = $false; RequiresAdmin = $false; Platforms = 'windows'; RequiresRestart = $false }
+) -selectedIndexes @(0))
+Assert-Equal -Expected 1 -Actual $outputPackageResults.Count -Message 'PowerShell setup execution should not mix installer stdout into result objects.'
+Assert-Equal -Expected 'OK' -Actual $outputPackageResults[0].Status -Message 'PowerShell setup execution should keep only structured result objects.'
+Assert-Equal -Expected $false -Actual (Test-SetupExecutionResultsHaveFailures -results $outputPackageResults) -Message 'Installer stdout should not be interpreted as failed setup results.'
+
 $nonFailedSetupResults = @(
   [PSCustomObject]@{ Label = 'Git'; Status = 'OK'; Detail = ''; RequiresRestart = $false },
   [PSCustomObject]@{ Label = 'PowerToys'; Status = 'Dry-run'; Detail = 'No ejecutado'; RequiresRestart = $false },
   [PSCustomObject]@{ Label = 'VLC'; Status = 'Omitido'; Detail = 'Plataforma no soportada'; RequiresRestart = $false }
 )
 Assert-Equal -Expected $false -Actual (Test-SetupExecutionResultsHaveFailures -results $nonFailedSetupResults) -Message 'PowerShell setup results should not fail on successful, dry-run, or skipped results.'
+
+$emptyDetailSummaryMessage = Get-SetupFailureSummaryMessage -Label 'SinDetalle' -Detail ''
+$detailedSummaryMessage = Get-SetupFailureSummaryMessage -Label 'ConDetalle' -Detail 'boom'
+Assert-Equal -Expected $true -Actual ($emptyDetailSummaryMessage.Contains('SinDetalle:')) -Message 'Summary should include the failed item label.'
+Assert-Equal -Expected $false -Actual ($emptyDetailSummaryMessage.Contains('()')) -Message 'Summary should not render empty parenthesis when failure detail is empty.'
+Assert-Equal -Expected $true -Actual ($detailedSummaryMessage.Contains('(boom)')) -Message 'Summary should include failure details when they are available.'
 
 $menuCatalog = New-TestSetupMenuCatalog
 
@@ -235,6 +294,35 @@ Assert-Equal -Expected 1 -Actual $matchingMenuIndex -Message 'Find should return
 
 $invalidWildcardMenuIndex = Find-SetupMenuItemIndex -menuCatalog $menuCatalog -query '[' -startIndex 0
 Assert-Equal -Expected 0 -Actual $invalidWildcardMenuIndex -Message 'Find should keep the cursor when literal text has no match.'
+
+$selectedIndexesForSpaceShortcut = [System.Collections.Generic.HashSet[int]]::new()
+[void]$selectedIndexesForSpaceShortcut.Add(0)
+[void]$selectedIndexesForSpaceShortcut.Add(1)
+[void]$selectedIndexesForSpaceShortcut.Add(2)
+$hasManualSelectionForSpaceShortcut = $true
+Update-SetupMenuSelectionForToggle -selectedIndexes $selectedIndexesForSpaceShortcut -cursorIndex 1 -HasManualSelection ([ref]$hasManualSelectionForSpaceShortcut)
+$selectedIndexArrayForSpaceShortcut = @(Get-SetupSelectedIndexArray -selectedIndexes $selectedIndexesForSpaceShortcut)
+Assert-Equal -Expected 2 -Actual $selectedIndexArrayForSpaceShortcut.Count -Message 'Space should only toggle the cursor item when every item is selected.'
+Assert-Equal -Expected $false -Actual $selectedIndexesForSpaceShortcut.Contains(1) -Message 'Space should deselect the cursor item when it is selected.'
+Assert-Equal -Expected $true -Actual $selectedIndexesForSpaceShortcut.Contains(0) -Message 'Space should preserve other selected items.'
+Assert-Equal -Expected $true -Actual $selectedIndexesForSpaceShortcut.Contains(2) -Message 'Space should preserve other selected items.'
+
+$selectedIndexesForDefaultToggle = [System.Collections.Generic.HashSet[int]]::new()
+[void]$selectedIndexesForDefaultToggle.Add(0)
+[void]$selectedIndexesForDefaultToggle.Add(1)
+$hasManualSelectionForDefaultToggle = $false
+Update-SetupMenuSelectionForToggle -selectedIndexes $selectedIndexesForDefaultToggle -cursorIndex 1 -HasManualSelection ([ref]$hasManualSelectionForDefaultToggle)
+Assert-Equal -Expected $false -Actual $selectedIndexesForDefaultToggle.Contains(1) -Message 'Space should only toggle the cursor item even before manual selection exists.'
+Assert-Equal -Expected $true -Actual $selectedIndexesForDefaultToggle.Contains(0) -Message 'Space should keep default-selected siblings untouched.'
+Assert-Equal -Expected $true -Actual $hasManualSelectionForDefaultToggle -Message 'Space should mark the selection as manually edited.'
+
+$selectedIndexesForAllShortcut = [System.Collections.Generic.HashSet[int]]::new()
+$hasManualSelectionForAllShortcut = $false
+Update-SetupMenuSelectionForAll -selectedIndexes $selectedIndexesForAllShortcut -menuItemCount 3 -HasManualSelection ([ref]$hasManualSelectionForAllShortcut)
+Assert-Equal -Expected 3 -Actual $selectedIndexesForAllShortcut.Count -Message 'The a shortcut should select every item when not all items are selected.'
+Assert-Equal -Expected $true -Actual $hasManualSelectionForAllShortcut -Message 'The a shortcut should mark the selection as manually edited.'
+Update-SetupMenuSelectionForAll -selectedIndexes $selectedIndexesForAllShortcut -menuItemCount 3 -HasManualSelection ([ref]$hasManualSelectionForAllShortcut)
+Assert-Equal -Expected 0 -Actual $selectedIndexesForAllShortcut.Count -Message 'The a shortcut should clear every item when all items are selected.'
 
 $defaultSelectedRowSegments = @(Get-SetupMenuRowSegments -menuItem $menuCatalog[0] -IsSelected $true -IsCursor $false)
 Assert-Equal -Expected '   [x] @ Git' -Actual (($defaultSelectedRowSegments | ForEach-Object Text) -join '') -Message 'Default selected row should keep the visible menu text.'
