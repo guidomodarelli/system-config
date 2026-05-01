@@ -17,6 +17,8 @@ if ($zoxideCommand) {
     }
 }
 
+fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+
 # Absolute repository root resolved via git anchored to this wrapper location.
 $script:REPO_ROOT = (& git -C $PSScriptRoot rev-parse --show-toplevel 2>$null)
 if ([string]::IsNullOrWhiteSpace($script:REPO_ROOT)) {
