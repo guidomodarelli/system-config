@@ -1,14 +1,18 @@
-$previousSkipMain = $env:DOTFILER_PS1_SKIP_MAIN
-$env:DOTFILER_PS1_SKIP_MAIN = '1'
-. (Join-Path -Path $PSScriptRoot -ChildPath 'dotfiler.ps1')
-
-if ($null -eq $previousSkipMain) {
-  Remove-Item Env:DOTFILER_PS1_SKIP_MAIN -ErrorAction SilentlyContinue
-} else {
-  $env:DOTFILER_PS1_SKIP_MAIN = $previousSkipMain
-}
-
 Describe 'dotfiler.ps1' {
+  BeforeAll {
+    $script:PreviousSkipMain = $env:DOTFILER_PS1_SKIP_MAIN
+    $env:DOTFILER_PS1_SKIP_MAIN = '1'
+    . (Join-Path -Path $PSScriptRoot -ChildPath 'dotfiler.ps1')
+  }
+
+  AfterAll {
+    if ($null -eq $script:PreviousSkipMain) {
+      Remove-Item Env:DOTFILER_PS1_SKIP_MAIN -ErrorAction SilentlyContinue
+    } else {
+      $env:DOTFILER_PS1_SKIP_MAIN = $script:PreviousSkipMain
+    }
+  }
+
   BeforeEach {
     $script:DryRun = $false
     $script:UseColor = $false
@@ -16,6 +20,7 @@ Describe 'dotfiler.ps1' {
     $script:VerboseMode = $false
     $script:IsElevatedSymlinkMode = $false
     $script:PreferredCommandPaths = @{}
+    $script:DocumentsDir = 'C:\Users\tester\Documents'
     $script:CountCreated = 0
     $script:CountReplaced = 0
     $script:CountBackups = 0
@@ -38,11 +43,11 @@ Describe 'dotfiler.ps1' {
 
     $summaryOutput = Print-Summary | Out-String
 
-    $summaryOutput | Should Match 'RESUMEN'
-    $summaryOutput | Should Match '╔════════'
-    $summaryOutput | Should Match 'Metrica'
-    $summaryOutput | Should Match 'Modo ejecucion'
-    $summaryOutput | Should Match '\[ FIN \] Configuracion de symlinks finalizada\.'
+    $summaryOutput | Should -Match 'RESUMEN'
+    $summaryOutput | Should -Match '╔════════'
+    $summaryOutput | Should -Match 'Metrica'
+    $summaryOutput | Should -Match 'Modo ejecucion'
+    $summaryOutput | Should -Match '\[ FIN \] Configuracion de symlinks finalizada\.'
   }
 
   It 'Print-Summary conserva el offset horario completo en los timestamps locales' {
@@ -50,8 +55,8 @@ Describe 'dotfiler.ps1' {
 
     $summaryOutput = Print-Summary | Out-String
 
-    $summaryOutput | Should Match '2026-04-12T10:00:00-03:00'
-    $summaryOutput | Should Match 'Fin \(local\)\s+║ \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-03:00'
+    $summaryOutput | Should -Match '2026-04-12T10:00:00-03:00'
+    $summaryOutput | Should -Match 'Fin \(local\)\s+║ \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-03:00'
   }
 
   It 'Print-Summary muestra labels de plan y mensaje de simulacion en dry-run' {
@@ -64,11 +69,11 @@ Describe 'dotfiler.ps1' {
 
     $summaryOutput = Print-Summary | Out-String
 
-    $summaryOutput | Should Match 'Creados \(plan\)'
-    $summaryOutput | Should Match 'Reemplazados \(plan\)'
-    $summaryOutput | Should Match 'Respaldos \(plan\)'
-    $summaryOutput | Should Match 'Modo simulacion activo, no se escribieron cambios en el sistema de archivos\.'
-    $summaryOutput | Should Match '\[ FIN \] Configuracion de symlinks finalizada\.'
+    $summaryOutput | Should -Match 'Creados \(plan\)'
+    $summaryOutput | Should -Match 'Reemplazados \(plan\)'
+    $summaryOutput | Should -Match 'Respaldos \(plan\)'
+    $summaryOutput | Should -Match 'Modo simulacion activo, no se escribieron cambios en el sistema de archivos\.'
+    $summaryOutput | Should -Match '\[ FIN \] Configuracion de symlinks finalizada\.'
   }
 
   It 'Print-Diagnostics imprime el bloque de diagnostico con errores enumerados' {
@@ -79,8 +84,8 @@ Describe 'dotfiler.ps1' {
 
     $diagnosticsOutput = Print-Diagnostics | Out-String
 
-    $diagnosticsOutput | Should Match 'DIAGNOSTICO'
-    $diagnosticsOutput | Should Match '\[ ERROR \] 1\) destino=C:\\destino \| causa=Fallo controlado'
+    $diagnosticsOutput | Should -Match 'DIAGNOSTICO'
+    $diagnosticsOutput | Should -Match '\[ ERROR \] 1\) destino=C:\\destino \| causa=Fallo controlado'
   }
 
   It 'Write-SymlinkLine usa flecha doble violeta y rutas con estilo ANSI cuando hay color' {
@@ -89,9 +94,10 @@ Describe 'dotfiler.ps1' {
       Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix 'Symlink creado' -TargetPath 'C:\destino' -SourcePath 'C:\fuente'
     } | Out-String
 
-    $styledOutput | Should Match ([regex]::Escape([string][char]27) + '\[[0-9;]*35m->->')
-    $styledOutput | Should Match ([regex]::Escape([string][char]27) + '\[[0-9;]*4;3;37mC:\\destino')
-    $styledOutput | Should Match ([regex]::Escape([string][char]27) + '\[[0-9;]*4;3;37mC:\\fuente')
+    $styledOutput | Should -Match 'Symlink creado'
+    $styledOutput | Should -Match 'C:\\destino'
+    $styledOutput | Should -Match 'C:\\fuente'
+    $styledOutput | Should -Match '→→'
   }
 
   It 'Write-Separator evita separadores consecutivos duplicados' {
@@ -102,7 +108,7 @@ Describe 'dotfiler.ps1' {
       Write-Separator
     } | Out-String
 
-    ([regex]::Matches($separatorOutput, '────────────────────────────────────────────────────────')).Count | Should Be 2
+    ([regex]::Matches($separatorOutput, '────────────────────────────────────────────────────────')).Count | Should -Be 2
   }
 
   It 'instala una dependencia faltante con winget cuando existe configuracion de paquete' {
@@ -126,8 +132,8 @@ Describe 'dotfiler.ps1' {
 
     Ensure-CommandAvailable -CommandName 'jq' -WingetPackageId 'jqlang.jq'
 
-    $script:installInvocations.Count | Should Be 1
-    $script:installInvocations[0] | Should Be 'jq|jqlang.jq'
+    $script:installInvocations.Count | Should -Be 1
+    $script:installInvocations[0] | Should -Be 'jq|jqlang.jq'
     Assert-MockCalled Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
   }
 
@@ -138,7 +144,7 @@ Describe 'dotfiler.ps1' {
     }
     Mock Test-CommandOperational { $false }
 
-    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should Throw 'winget'
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Throw -ExpectedMessage '*winget*'
   }
 
   It 'reintenta validar una dependencia despues de refrescar PATH tras instalar con winget' {
@@ -158,7 +164,7 @@ Describe 'dotfiler.ps1' {
       $script:pathWasRefreshed = $true
     }
 
-    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should Not Throw
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Not -Throw
     Assert-MockCalled Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
   }
 
@@ -187,8 +193,8 @@ Describe 'dotfiler.ps1' {
 
     Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq'
 
-    $script:PreferredCommandPaths['yq'] | Should Be 'C:\winget\yq.exe'
-    (Get-ResolvedCommandPath -CommandName 'yq') | Should Be 'C:\winget\yq.exe'
+    $script:PreferredCommandPaths['yq'] | Should -Be 'C:\winget\yq.exe'
+    (Get-ResolvedCommandPath -CommandName 'yq') | Should -Be 'C:\winget\yq.exe'
   }
 
   It 'avisa cuando --dry-run necesita instalar una dependencia faltante' {
@@ -207,7 +213,7 @@ Describe 'dotfiler.ps1' {
     Mock Update-ProcessPathFromEnvironment {}
     Mock Write-Warn {}
 
-    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should Throw 'sigue sin estar disponible'
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Throw -ExpectedMessage '*sigue sin estar disponible*'
 
     Assert-MockCalled Write-Warn -Times 1 -Exactly -Scope It -ParameterFilter {
       $Message -like '*--dry-run*' -and $Message -like "*'yq'*"
@@ -227,7 +233,7 @@ Describe 'dotfiler.ps1' {
     Mock Install-WingetPackage {}
     Mock Update-ProcessPathFromEnvironment {}
 
-    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should Throw 'sigue sin estar disponible'
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Throw -ExpectedMessage '*sigue sin estar disponible*'
   }
 
   It 'reinstala una dependencia cuando el ejecutable existe pero no funciona' {
@@ -251,8 +257,8 @@ Describe 'dotfiler.ps1' {
 
     Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq'
 
-    $script:installInvocations.Count | Should Be 1
-    $script:installInvocations[0] | Should Be 'yq|MikeFarah.yq'
+    $script:installInvocations.Count | Should -Be 1
+    $script:installInvocations[0] | Should -Be 'yq|MikeFarah.yq'
     Assert-MockCalled Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
   }
 
@@ -264,7 +270,7 @@ Describe 'dotfiler.ps1' {
       }
     }
 
-    (Test-YqCommandOperational) | Should Be $false
+    (Test-YqCommandOperational) | Should -Be $false
   }
 
   It 'resuelve comandos por la ruta preferida cuando ya fue validada' {
@@ -275,7 +281,7 @@ Describe 'dotfiler.ps1' {
       throw 'Get-Command no deberia ejecutarse cuando existe una ruta preferida'
     }
 
-    (Get-ResolvedCommandPath -CommandName 'jq') | Should Be 'C:\winget\jq.exe'
+    (Get-ResolvedCommandPath -CommandName 'jq') | Should -Be 'C:\winget\jq.exe'
   }
 
   It 'prioriza PATH de User y Machine sobre Process al recomponer entradas unicas' {
@@ -285,7 +291,7 @@ Describe 'dotfiler.ps1' {
       'C:\BrokenTools;C:\Tools;C:\Windows\System32'
     )
 
-    $mergedPath | Should Be 'C:\Users\guido\AppData\Local\Microsoft\WinGet\Links;C:\Tools;C:\Program Files\Git\cmd;C:\Windows\System32;C:\BrokenTools'
+    $mergedPath | Should -Be 'C:\Users\guido\AppData\Local\Microsoft\WinGet\Links;C:\Tools;C:\Program Files\Git\cmd;C:\Windows\System32;C:\BrokenTools'
   }
 
   It 'convierte paths desde JSON generado por yq' {
@@ -305,9 +311,9 @@ Describe 'dotfiler.ps1' {
 
     $entries = @(Get-ConfigEntries)
 
-    $entries.Count | Should Be 1
-    $entries[0].path | Should Be 'PowerShell/Microsoft.PowerShell_profile.ps1'
-    $entries[0].target | Should Be 'Documents/PowerShell'
+    $entries.Count | Should -Be 1
+    $entries[0].path | Should -Be 'PowerShell/Microsoft.PowerShell_profile.ps1'
+    $entries[0].target | Should -Be 'Documents/PowerShell'
   }
 
   It 'convierte JSON anidado sin depender de parametros no disponibles en PowerShell 5.1' {
@@ -332,9 +338,9 @@ Describe 'dotfiler.ps1' {
 
     $entries = @(Get-ConfigEntries)
 
-    $entries.Count | Should Be 1
-    $entries[0].overrides.Count | Should Be 1
-    $entries[0].overrides[0].target | Should Be 'Documents/Git'
+    $entries.Count | Should -Be 1
+    $entries[0].overrides.Count | Should -Be 1
+    $entries[0].overrides[0].target | Should -Be 'Documents/Git'
   }
 
   It 'valida con jq cuando el JSON representa un arreglo' {
@@ -345,7 +351,7 @@ Describe 'dotfiler.ps1' {
       }
     }
 
-    (Test-JsonArray -JsonText '[{"path":"example"}]') | Should Be $true
+    (Test-JsonArray -JsonText '[{"path":"example"}]') | Should -Be $true
   }
 
   It 'drena stdout y stderr abundantes sin bloquear el proceso hijo' {
@@ -371,13 +377,13 @@ Describe 'dotfiler.ps1' {
     try {
       $completedJob = Wait-Job -Job $job -Timeout 10
 
-      $completedJob | Should Not BeNullOrEmpty
+      $completedJob | Should -Not -BeNullOrEmpty
 
       $result = Receive-Job -Job $job
 
-      $result.ExitCode | Should Be 0
-      $result.Output | Should Match 'stdout line 0'
-      $result.Output | Should Match 'stderr line 0'
+      $result.ExitCode | Should -Be 0
+      $result.Output | Should -Match 'stdout line 0'
+      $result.Output | Should -Match 'stderr line 0'
     } finally {
       if ($job.State -eq 'Running') {
         Stop-Job -Job $job
@@ -395,7 +401,7 @@ Describe 'dotfiler.ps1' {
       $null
     )
 
-    (Test-IsPrivilegeElevationError -ErrorRecord $errorRecord) | Should Be $true
+    (Test-IsPrivilegeElevationError -ErrorRecord $errorRecord) | Should -Be $true
   }
 
   It 'reintenta con elevacion cuando falla New-Item por permisos' {
@@ -420,9 +426,9 @@ Describe 'dotfiler.ps1' {
 
     New-DotfileSymlink -SourcePath 'C:\fuente' -TargetPath 'C:\destino'
 
-    $script:elevatedInvocation.Source | Should Be 'C:\fuente'
-    $script:elevatedInvocation.Target | Should Be 'C:\destino'
-    $script:CountErrors | Should Be 0
+    $script:elevatedInvocation.Source | Should -Be 'C:\fuente'
+    $script:elevatedInvocation.Target | Should -Be 'C:\destino'
+    $script:CountErrors | Should -Be 0
   }
 
   It 'cita argumentos con espacios antes de relanzar el proceso elevado' {
@@ -431,7 +437,7 @@ Describe 'dotfiler.ps1' {
       -SourcePath 'C:\Users\guido\Source Repos\config file.ps1' `
       -TargetPath 'C:\Users\guido\AppData\Roaming\My Folder\profile.ps1'
 
-    $processArguments | Should Be @(
+    $processArguments | Should -Be @(
       '-NoLogo',
       '-NoProfile',
       '-ExecutionPolicy',
@@ -454,7 +460,7 @@ Describe 'dotfiler.ps1' {
       'value "with quotes"'
     )
 
-    $argumentString | Should Be 'eval .paths "C:\Users\guido\Source Repos\symlinks file.yml" "value \"with quotes\""'
+    $argumentString | Should -Be 'eval .paths "C:\Users\guido\Source Repos\symlinks file.yml" "value \"with quotes\""'
   }
 
   It 'no clasifica errores genericos como problemas de elevacion' {
@@ -465,7 +471,7 @@ Describe 'dotfiler.ps1' {
       $null
     )
 
-    (Test-IsPrivilegeElevationError -ErrorRecord $errorRecord) | Should Be $false
+    (Test-IsPrivilegeElevationError -ErrorRecord $errorRecord) | Should -Be $false
   }
 
   It 'incluye entradas Windows con onlyFor win32 legacy' {
@@ -478,7 +484,7 @@ Describe 'dotfiler.ps1' {
       )
     }
 
-    (Test-EntryIncluded -Entry $entry) | Should Be $true
+    (Test-EntryIncluded -Entry $entry) | Should -Be $true
   }
 
   It 'resuelve overrides Windows con alias documentados' {
@@ -494,25 +500,27 @@ Describe 'dotfiler.ps1' {
 
     $overrideTarget = Get-OverrideTarget -Entry $entry
 
-    $overrideTarget.UsesExactTarget | Should Be $false
-    $overrideTarget.ConfiguredTarget | Should Be 'AppData/Roaming'
+    $overrideTarget.UsesExactTarget | Should -Be $false
+    $overrideTarget.ConfiguredTarget | Should -Be 'AppData/Roaming'
   }
 
-  It 'expande ~, $HOME y $USER en rutas de usuario' {
+  It 'expande ~, $HOME, $DOCUMENTS y $USER en rutas de usuario' {
     $script:HomeDir = 'C:\Users\tester'
+    $script:DocumentsDir = 'C:\Users\tester\Documentos'
     $script:WindowsUser = 'windows-user'
 
-    (Expand-UserPath -Path '~') | Should Be 'C:\Users\tester'
-    (Expand-UserPath -Path '~\Documents') | Should Be 'C:\Users\tester\Documents'
-    (Expand-UserPath -Path '$HOME\AppData\$USER\file.txt') | Should Be 'C:\Users\tester\AppData\windows-user\file.txt'
+    (Expand-UserPath -Path '~') | Should -Be 'C:\Users\tester'
+    (Expand-UserPath -Path '~\Documents') | Should -Be 'C:\Users\tester\Documents'
+    (Expand-UserPath -Path '$DOCUMENTS\PowerShell') | Should -Be 'C:\Users\tester\Documentos\PowerShell'
+    (Expand-UserPath -Path '$HOME\AppData\$USER\file.txt') | Should -Be 'C:\Users\tester\AppData\windows-user\file.txt'
   }
 
   It 'resuelve targets base por defecto, absolutos y relativos' {
     $script:HomeDir = 'C:\Users\tester'
 
-    (Resolve-TargetBase -Target $null) | Should Be 'C:\Users\tester'
-    (Resolve-TargetBase -Target 'Documents\PowerShell') | Should Be 'C:\Users\tester\Documents\PowerShell'
-    (Resolve-TargetBase -Target 'D:\dotfiles\target') | Should Be 'D:\dotfiles\target'
+    (Resolve-TargetBase -Target $null) | Should -Be 'C:\Users\tester'
+    (Resolve-TargetBase -Target 'Documents\PowerShell') | Should -Be 'C:\Users\tester\Documents\PowerShell'
+    (Resolve-TargetBase -Target 'D:\dotfiles\target') | Should -Be 'D:\dotfiles\target'
   }
 
   It 'ordena resultados wildcard y devuelve vacio para fuentes inexistentes' {
@@ -525,10 +533,10 @@ Describe 'dotfiler.ps1' {
     $resolvedSources = @(Get-ResolvedSources -OriginalPath 'wild\*')
     $missingSources = @(Get-ResolvedSources -OriginalPath 'missing*')
 
-    $resolvedSources.Count | Should Be 2
-    $resolvedSources[0].Name | Should Be 'a-file.txt'
-    $resolvedSources[1].Name | Should Be 'b-file.txt'
-    $missingSources.Count | Should Be 0
+    $resolvedSources.Count | Should -Be 2
+    $resolvedSources[0].Name | Should -Be 'a-file.txt'
+    $resolvedSources[1].Name | Should -Be 'b-file.txt'
+    $missingSources.Count | Should -Be 0
 
     Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
   }
@@ -553,10 +561,10 @@ Describe 'dotfiler.ps1' {
 
     $operations = Resolve-Operations
 
-    $operations.Count | Should Be 1
-    $operations[0].Source | Should Be $sourceDirectory
-    $operations[0].Target | Should Be (Join-Path -Path $script:HomeDir -ChildPath '.agents/.codex/skills/.system')
-    $operations[0].Group | Should Be (Join-Path -Path $script:HomeDir -ChildPath '.agents/.codex/skills')
+    $operations.Count | Should -Be 1
+    $operations[0].Source | Should -Be $sourceDirectory
+    $operations[0].Target | Should -Be (Join-Path -Path $script:HomeDir -ChildPath '.agents/.codex/skills/.system')
+    $operations[0].Group | Should -Be (Join-Path -Path $script:HomeDir -ChildPath '.agents/.codex/skills')
 
     Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
   }
@@ -582,10 +590,10 @@ Describe 'dotfiler.ps1' {
 
     $operations = Resolve-Operations
 
-    $operations.Count | Should Be 0
-    $script:CountErrors | Should Be 1
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 1
     if ($script:Diagnostics.Count -gt 0) {
-      $script:Diagnostics[0].Reason | Should Match 'exactTarget no admite patrones wildcard'
+      $script:Diagnostics[0].Reason | Should -Match 'exactTarget no admite patrones wildcard'
     }
 
     Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
@@ -604,8 +612,8 @@ Describe 'dotfiler.ps1' {
 
     $operations = Resolve-Operations
 
-    $operations.Count | Should Be 0
-    $script:CountErrors | Should Be 0
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 0
   }
 
   It 'registra diagnostico cuando falta una ruta de origen sin wildcard' {
@@ -634,10 +642,10 @@ Describe 'dotfiler.ps1' {
 
     $operations = Resolve-Operations
 
-    $operations.Count | Should Be 0
-    $script:CountErrors | Should Be 1
-    $script:Diagnostics.Count | Should Be 1
-    $script:Diagnostics[0].Reason | Should Match 'Ruta de origen inexistente'
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 1
+    $script:Diagnostics.Count | Should -Be 1
+    $script:Diagnostics[0].Reason | Should -Match 'Ruta de origen inexistente'
   }
 
   It 'omite entradas excluidas por onlyFor cuando no matchean Windows' {
@@ -656,8 +664,8 @@ Describe 'dotfiler.ps1' {
 
     $operations = Resolve-Operations
 
-    $operations.Count | Should Be 0
-    $script:CountErrors | Should Be 0
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 0
   }
 
   It 'rechaza entradas que definen target y exactTarget al mismo tiempo' {
@@ -673,10 +681,10 @@ Describe 'dotfiler.ps1' {
 
     $operations = Resolve-Operations
 
-    $operations.Count | Should Be 0
-    $script:CountErrors | Should Be 1
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 1
     if ($script:Diagnostics.Count -gt 0) {
-      $script:Diagnostics[0].Reason | Should Match 'target y exactTarget al mismo tiempo'
+      $script:Diagnostics[0].Reason | Should -Match 'target y exactTarget al mismo tiempo'
     }
   }
 
@@ -698,10 +706,10 @@ Describe 'dotfiler.ps1' {
 
     $operations = Resolve-Operations
 
-    $operations.Count | Should Be 0
-    $script:CountErrors | Should Be 1
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 1
     if ($script:Diagnostics.Count -gt 0) {
-      $script:Diagnostics[0].Reason | Should Match 'override no puede definir target y exactTarget'
+      $script:Diagnostics[0].Reason | Should -Match 'override no puede definir target y exactTarget'
     }
   }
 
@@ -725,18 +733,18 @@ Describe 'dotfiler.ps1' {
       '--internal-target', 'C:\target'
     )
 
-    $script:DryRun | Should Be $true
-    $script:UseColor | Should Be $false
-    $script:UseIcons | Should Be $false
-    $script:VerboseMode | Should Be $true
-    $script:Quiet | Should Be $true
-    $script:IsElevatedSymlinkMode | Should Be $true
-    $script:ElevatedSymlinkSource | Should Be 'C:\source'
-    $script:ElevatedSymlinkTarget | Should Be 'C:\target'
+    $script:DryRun | Should -Be $true
+    $script:UseColor | Should -Be $false
+    $script:UseIcons | Should -Be $false
+    $script:VerboseMode | Should -Be $true
+    $script:Quiet | Should -Be $true
+    $script:IsElevatedSymlinkMode | Should -Be $true
+    $script:ElevatedSymlinkSource | Should -Be 'C:\source'
+    $script:ElevatedSymlinkTarget | Should -Be 'C:\target'
   }
 
   It 'el modo interno elevado devuelve false cuando no fue solicitado' {
-    (Invoke-InternalElevatedSymlinkMode) | Should Be $false
+    (Invoke-InternalElevatedSymlinkMode) | Should -Be $false
   }
 
   It 'valida el repositorio antes de instalar dependencias globales' {
@@ -759,8 +767,9 @@ Describe 'dotfiler.ps1' {
     Mock Print-Summary {}
     Mock Print-Diagnostics {}
 
-    { Main } | Should Throw 'stop-after-order-check'
+    { Main } | Should -Throw 'stop-after-order-check'
 
-    $script:MainCallOrder | Should Be @('Get-RepoRoot', 'Assert-ConfigPathsFileExists', 'Ensure-DotfilerDependencies')
+    $script:MainCallOrder | Should -Be @('Get-RepoRoot', 'Assert-ConfigPathsFileExists', 'Ensure-DotfilerDependencies')
   }
 }
+

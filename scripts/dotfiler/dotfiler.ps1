@@ -18,6 +18,7 @@ $script:RootDir = $null
 $script:ConfigsDir = $null
 $script:ConfigPathsFile = $null
 $script:HomeDir = [Environment]::GetFolderPath('UserProfile')
+$script:DocumentsDir = [Environment]::GetFolderPath('MyDocuments')
 $script:WindowsUser = $env:USERNAME
 $script:StartTime = Get-Date
 
@@ -927,6 +928,7 @@ function Expand-UserPath {
   }
 
   $expanded = $expanded.Replace('$HOME', $script:HomeDir)
+  $expanded = $expanded.Replace('$DOCUMENTS', $script:DocumentsDir)
   $expanded = $expanded.Replace('$USER', $script:WindowsUser)
 
   return (Normalize-Separators -Path $expanded)

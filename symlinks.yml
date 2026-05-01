@@ -21,7 +21,7 @@ paths:
       - target: AppData/Roaming
         platform: win32
   - path: PowerShell/Microsoft.PowerShell_profile.ps1
-    target: OneDrive/Documents/PowerShell
+    target: $DOCUMENTS/PowerShell
     onlyFor:
       - platform: win32
   - path: .agents/skills/my-skills
