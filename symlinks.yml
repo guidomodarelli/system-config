@@ -24,6 +24,10 @@ paths:
     target: $DOCUMENTS/PowerShell
     onlyFor:
       - platform: win32
+  - path: PowerShell/Microsoft.PowerShell_profile.ps1
+    target: $DOCUMENTS/WindowsPowerShell
+    onlyFor:
+      - platform: win32
   - path: .agents/skills/my-skills
     target: .agents/skills
   - path: .agents/skills/commands
