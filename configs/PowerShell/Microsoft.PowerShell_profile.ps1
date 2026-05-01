@@ -121,7 +121,9 @@ function cx {
     $yolo = $false
     $commitMode = $false
     $enableMcps = $false
-    $rest = New-Object System.Collections.Generic.List[string]
+    $codexArgs = New-Object System.Collections.Generic.List[string]
+    $promptArgs = New-Object System.Collections.Generic.List[string]
+    $promptMode = $false
     $mcpConfigArgs = @()
 
     for ($i = 0; $i -lt $cliArgs.Count; $i++) {
@@ -148,15 +150,16 @@ function cx {
                 $yolo = $true
             }
             '--' {
+                $promptMode = $true
                 if ($i + 1 -lt $cliArgs.Count) {
                     for ($j = $i + 1; $j -lt $cliArgs.Count; $j++) {
-                        $rest.Add($cliArgs[$j])
+                        $promptArgs.Add($cliArgs[$j])
                     }
                 }
                 break
             }
             default {
-                $rest.Add($cliArgs[$i])
+                $codexArgs.Add($cliArgs[$i])
             }
         }
     }
@@ -164,8 +167,10 @@ function cx {
     if ($commitMode) {
         # `--commit` has priority over any user-provided query tokens.
         $yolo = $true
-        $rest.Clear()
-        $rest.Add((Get-CxCommitPrompt))
+        $promptMode = $true
+        $codexArgs.Clear()
+        $promptArgs.Clear()
+        $promptArgs.Add((Get-CxCommitPrompt))
     }
 
     if (-not $enableMcps) {
@@ -186,10 +191,12 @@ function cx {
     } else {
         $cmd += @('--sandbox','workspace-write','--ask-for-approval','on-failure')
     }
-    if ($rest.Count -gt 0) {
+    if ($promptMode -and $promptArgs.Count -gt 0) {
         # Ensure prompts that start with "-" are treated as positional payload.
         $cmd += '--'
-        $cmd += $rest.ToArray()
+        $cmd += $promptArgs.ToArray()
+    } elseif ($codexArgs.Count -gt 0) {
+        $cmd += $codexArgs.ToArray()
     }
 
     Write-Host "Running: $($cmd -join ' ')"

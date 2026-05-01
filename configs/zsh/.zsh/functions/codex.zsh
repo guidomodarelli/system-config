@@ -138,7 +138,9 @@ cx() {
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
   local enable_mcps=""
-  local rest=()
+  local codex_args=()
+  local prompt_args=()
+  local prompt_mode=""
   local mcp_config_args=()
 
   while [[ $# -gt 0 ]]; do
@@ -174,12 +176,13 @@ cx() {
         shift
         ;;
       --)
+        prompt_mode=1
         shift
-        rest+=("$@")
+        prompt_args+=("$@")
         break
         ;;
       *)
-        rest+=("$1")
+        codex_args+=("$1")
         shift
         ;;
     esac
@@ -190,7 +193,9 @@ cx() {
     local commit_prompt
     commit_prompt="$(_cx_commit_prompt)" || return 1
     yolo=1
-    rest=("$commit_prompt")
+    prompt_mode=1
+    codex_args=()
+    prompt_args=("$commit_prompt")
   fi
 
   if [[ -z "$enable_mcps" ]]; then
@@ -212,9 +217,11 @@ cx() {
   else
     cmd+=(--sandbox workspace-write --ask-for-approval on-failure)
   fi
-  if (( ${#rest[@]} > 0 )); then
+  if [[ -n "$prompt_mode" && ${#prompt_args[@]} -gt 0 ]]; then
     # Ensure prompts that start with "-" are treated as positional payload.
-    cmd+=(--search -- "${rest[@]}")
+    cmd+=(--search -- "${prompt_args[@]}")
+  elif (( ${#codex_args[@]} > 0 )); then
+    cmd+=("${codex_args[@]}")
   else
     cmd+=(--search)
   fi
