@@ -215,7 +215,7 @@ cx() {
   if [[ -n "$yolo" ]]; then
     cmd+=(--yolo)
   else
-    cmd+=(--sandbox workspace-write --ask-for-approval on-failure)
+    cmd+=(--sandbox workspace-write --ask-for-approval never)
   fi
   if [[ -n "$prompt_mode" && ${#prompt_args[@]} -gt 0 ]]; then
     # Ensure prompts that start with "-" are treated as positional payload.

@@ -204,7 +204,7 @@ function cx {
     if ($yolo) {
         $cmd += '--yolo'
     } else {
-        $cmd += @('--sandbox','workspace-write','--ask-for-approval','on-failure')
+        $cmd += @('--sandbox','workspace-write','--ask-for-approval','never')
     }
     if ($promptMode -and $promptArgs.Count -gt 0) {
         # Ensure prompts that start with "-" are treated as positional payload.
