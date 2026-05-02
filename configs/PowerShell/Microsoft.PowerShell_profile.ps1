@@ -104,6 +104,21 @@ function Get-CxDisableMcpConfigArgs {
     return $disableArgs.ToArray()
 }
 
+function Resolve-CxCodexExecutable {
+    $codexCommand = Get-Command codex -ErrorAction Stop
+
+    if ($codexCommand.CommandType -eq [System.Management.Automation.CommandTypes]::ExternalScript -and
+        [System.IO.Path]::GetExtension($codexCommand.Source) -eq '.ps1') {
+        $codexCmdShim = [System.IO.Path]::ChangeExtension($codexCommand.Source, '.cmd')
+
+        if (Test-Path -LiteralPath $codexCmdShim) {
+            return $codexCmdShim
+        }
+    }
+
+    return $codexCommand.Source
+}
+
 # Unified implementation: cx handles both safe and yolo modes.
 function cx {
     Clear-Host
@@ -182,7 +197,7 @@ function cx {
         }
     }
 
-    $cmd = @('codex','-m', $model,'-c',"model_reasoning_effort=$reasoning")
+    $cmd = @((Resolve-CxCodexExecutable),'-m', $model,'-c',"model_reasoning_effort=$reasoning")
     if ($mcpConfigArgs.Count -gt 0) {
         $cmd += $mcpConfigArgs
     }
@@ -201,7 +216,10 @@ function cx {
 
     Write-Host "Running: $($cmd -join ' ')"
 
-    & $cmd[0] $cmd[1..($cmd.Count-1)]
+    $codexExecutable = $cmd[0]
+    $codexArguments = $cmd[1..($cmd.Count - 1)]
+
+    & $codexExecutable @codexArguments
 }
 
 # Dangerous alias for codex (bypass approvals & sandbox)
