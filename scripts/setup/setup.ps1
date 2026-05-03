@@ -378,9 +378,11 @@ function Install-PowerShell {
 
 function Install-Pester {
   $minimumSupportedPesterVersion = [Version]'5.0.0'
-  $installedPesterModule = Get-InstalledModule -Name Pester -ErrorAction SilentlyContinue
+  $installedPesterModule = Get-InstalledModule -Name Pester -ErrorAction SilentlyContinue |
+    Sort-Object Version -Descending |
+    Select-Object -First 1
 
-  if ($null -ne $installedPesterModule -and $installedPesterModule.Version -ge $minimumSupportedPesterVersion) {
+  if ($null -ne $installedPesterModule -and $installedPesterModule.Version.Major -eq 5 -and $installedPesterModule.Version -ge $minimumSupportedPesterVersion) {
     LogInfo "Pester ya está instalado en versión $($installedPesterModule.Version). Actualizando a la última estable de la rama 5.x..."
   } elseif ($null -ne $installedPesterModule) {
     LogInfo "Pester está en versión $($installedPesterModule.Version). Actualizando a la rama 5.x..."
@@ -389,7 +391,16 @@ function Install-Pester {
   }
 
   try {
-    Install-Module -Name Pester -MinimumVersion '5.0.0' -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+    $latestPesterFiveModule = Find-Module -Name Pester -AllVersions -ErrorAction Stop |
+      Where-Object { $_.Version.Major -eq 5 -and $_.Version -ge $minimumSupportedPesterVersion } |
+      Sort-Object Version -Descending |
+      Select-Object -First 1
+
+    if ($null -eq $latestPesterFiveModule) {
+      throw 'No se encontró una versión estable disponible de Pester 5.x en PSGallery.'
+    }
+
+    Install-Module -Name Pester -RequiredVersion $latestPesterFiveModule.Version -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
   } catch {
     throw "No se pudo instalar/actualizar Pester 5.x: $($_.Exception.Message)"
   }

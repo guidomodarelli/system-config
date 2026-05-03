@@ -269,6 +269,58 @@ $wingetActions = @()
 Install-Gh
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('GitHub.cli')) -Message 'GitHub CLI installer should use the official Winget package id.'
 
+$pesterFindModuleUsedAllVersions = $false
+$pesterInstallModuleName = $null
+$pesterInstallRequiredVersion = $null
+
+function global:Get-InstalledModule {
+  param (
+    [string]$Name,
+    [string]$ErrorAction
+  )
+
+  return [PSCustomObject]@{ Version = [Version]'5.5.0' }
+}
+
+function global:Find-Module {
+  param (
+    [string]$Name,
+    [switch]$AllVersions,
+    [string]$ErrorAction
+  )
+
+  $script:pesterFindModuleUsedAllVersions = $AllVersions.IsPresent
+
+  return @(
+    [PSCustomObject]@{ Version = [Version]'6.0.0' },
+    [PSCustomObject]@{ Version = [Version]'5.7.1' },
+    [PSCustomObject]@{ Version = [Version]'5.6.0' }
+  )
+}
+
+function global:Install-Module {
+  param (
+    [string]$Name,
+    [Version]$RequiredVersion,
+    [string]$Scope,
+    [switch]$Force,
+    [switch]$AllowClobber,
+    [string]$ErrorAction
+  )
+
+  $script:pesterInstallModuleName = $Name
+  $script:pesterInstallRequiredVersion = $RequiredVersion
+}
+
+Install-Pester
+Assert-Equal -Expected $true -Actual $pesterFindModuleUsedAllVersions -Message 'Pester installer should inspect all available versions before choosing a version.'
+Assert-Equal -Expected 'Pester' -Actual $pesterInstallModuleName -Message 'Pester installer should install the Pester module.'
+Assert-Equal -Expected ([Version]'5.7.1') -Actual $pesterInstallRequiredVersion -Message 'Pester installer should pin the latest available 5.x version and avoid 6.x.'
+
+Remove-Item -Path Function:\Get-InstalledModule -Force
+Remove-Item -Path Function:\Find-Module -Force
+Remove-Item -Path Function:\Install-Module -Force
+
 $espansoActions = @()
 function global:Install-WingetPackage {
   param (
