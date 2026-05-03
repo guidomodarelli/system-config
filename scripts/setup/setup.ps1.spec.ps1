@@ -114,7 +114,7 @@ try {
 } catch {
   $invalidHeaderFailed = $true
 } finally {
-  Remove-Item -Path $invalidHeaderCatalogPath -Force
+  Remove-Item -Path $invalidHeaderCatalogPath -Force -ErrorAction SilentlyContinue
 }
 Assert-Equal -Expected $true -Actual $invalidHeaderFailed -Message 'PowerShell catalog loading should reject non-shared headers.'
 
@@ -218,7 +218,30 @@ function global:winget {
 Install-WingetPackage -appIds @('Recover.Tool')
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('upgrade --exact --id Recover.Tool')) -Message 'Winget installer should attempt package upgrade before fallback recovery.'
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('install --exact --id Recover.Tool')) -Message 'Winget installer should retry with idempotent install when upgrade fails.'
-Assert-Equal -Expected $true -Actual (Test-WingetNoUpgradeAvailableExitCode -ExitCode -1978335189) -Message 'Winget no-upgrade code should be treated as non-fatal.'
+Assert-Equal -Expected $true -Actual (Test-WingetIdempotentSuccessExitCode -ExitCode -1978335189) -Message 'Winget no-upgrade code should be treated as non-fatal.'
+Assert-Equal -Expected $true -Actual (Test-WingetIdempotentSuccessExitCode -ExitCode -1978334964) -Message 'Winget already-installed code should be treated as non-fatal.'
+
+$wingetActions = @()
+function global:winget {
+  $joinedArguments = $args -join ' '
+  $script:wingetActions += $joinedArguments
+  if ($joinedArguments.Contains('upgrade --exact --id Installed.Tool')) {
+    $global:LASTEXITCODE = -42
+    return
+  }
+
+  if ($joinedArguments.Contains('install --exact --id Installed.Tool')) {
+    $global:LASTEXITCODE = -1978334964
+    return
+  }
+
+  $global:LASTEXITCODE = 0
+}
+
+Install-WingetPackage -appIds @('Installed.Tool')
+Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('upgrade --exact --id Installed.Tool')) -Message 'Winget installer should attempt upgrade before installed-package recovery.'
+Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('install --exact --id Installed.Tool')) -Message 'Winget installer should retry install before accepting already-installed recovery responses.'
+Assert-Equal -Expected 0 -Actual $global:LASTEXITCODE -Message 'Winget installer should reset LASTEXITCODE after already-installed recovery responses.'
 
 $wingetActions = @()
 function global:Test-WingetPackageInstalled {
@@ -245,6 +268,33 @@ Assert-Equal -Expected 0 -Actual $global:LASTEXITCODE -Message 'Winget installer
 $wingetActions = @()
 Install-Gh
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('GitHub.cli')) -Message 'GitHub CLI installer should use the official Winget package id.'
+
+$espansoActions = @()
+function global:Install-WingetPackage {
+  param (
+    [string[]]$appIds
+  )
+
+  $script:espansoActions += "winget:$($appIds -join ',')"
+  $global:LASTEXITCODE = 0
+}
+function global:_espanso {
+  $joinedArguments = $args -join ' '
+  $script:espansoActions += "espanso:$joinedArguments"
+  if ($joinedArguments -eq 'start') {
+    $global:LASTEXITCODE = 3
+    return
+  }
+
+  $global:LASTEXITCODE = 0
+}
+
+Install-Espanso
+Assert-Equal -Expected $true -Actual (($espansoActions -join '|').Contains('winget:Espanso.Espanso')) -Message 'Espanso installer should install or update the official Winget package.'
+Assert-Equal -Expected $true -Actual (($espansoActions -join '|').Contains('espanso:service register')) -Message 'Espanso installer should register the service.'
+Assert-Equal -Expected $true -Actual (($espansoActions -join '|').Contains('espanso:start')) -Message 'Espanso installer should start the service.'
+Assert-Equal -Expected $true -Actual (Test-EspansoAlreadyRunningExitCode -ExitCode 3) -Message 'Espanso already-running exit code should be treated as non-fatal.'
+Assert-Equal -Expected 0 -Actual $global:LASTEXITCODE -Message 'Espanso installer should reset LASTEXITCODE when Espanso is already running.'
 
 $failedSetupResults = @(
   [PSCustomObject]@{ Label = 'Git'; Status = 'OK'; Detail = ''; RequiresRestart = $false },

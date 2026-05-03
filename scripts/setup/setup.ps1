@@ -140,12 +140,17 @@ function Test-WingetPackageInstalled {
   return $LASTEXITCODE -eq 0
 }
 
-function Test-WingetNoUpgradeAvailableExitCode {
+function Test-WingetIdempotentSuccessExitCode {
   param (
     [int]$ExitCode
   )
 
-  return $ExitCode -eq -1978335189
+  $wingetIdempotentSuccessExitCodes = @(
+    -1978335189,
+    -1978334964
+  )
+
+  return $ExitCode -in $wingetIdempotentSuccessExitCodes
 }
 
 function Install-WingetPackage {
@@ -158,7 +163,7 @@ function Install-WingetPackage {
       winget upgrade --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
       if ($LASTEXITCODE -ne 0) {
         $upgradeExitCode = $LASTEXITCODE
-        if (Test-WingetNoUpgradeAvailableExitCode -ExitCode $upgradeExitCode) {
+        if (Test-WingetIdempotentSuccessExitCode -ExitCode $upgradeExitCode) {
           $global:LASTEXITCODE = 0
           LogSuccess "El paquete '$appId' ya está actualizado."
           continue
@@ -166,7 +171,7 @@ function Install-WingetPackage {
         LogWarning "Winget no pudo actualizar '$appId' (código: $upgradeExitCode). Intentando instalación idempotente para recuperar..."
         winget install --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
         if ($LASTEXITCODE -ne 0) {
-          if (Test-WingetNoUpgradeAvailableExitCode -ExitCode $LASTEXITCODE) {
+          if (Test-WingetIdempotentSuccessExitCode -ExitCode $LASTEXITCODE) {
             $global:LASTEXITCODE = 0
             LogSuccess "El paquete '$appId' ya está actualizado."
             continue
@@ -183,7 +188,7 @@ function Install-WingetPackage {
     LogInfo "Instalando el paquete '$appId'..."
     winget install --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
     if ($LASTEXITCODE -ne 0) {
-      if (Test-WingetNoUpgradeAvailableExitCode -ExitCode $LASTEXITCODE) {
+      if (Test-WingetIdempotentSuccessExitCode -ExitCode $LASTEXITCODE) {
         $global:LASTEXITCODE = 0
         LogSuccess "El paquete '$appId' ya está actualizado."
         continue
@@ -209,6 +214,14 @@ function _espanso {
   & "$env:USERPROFILE\AppData\Local\Programs\Espanso\espanso.cmd" @args
 }
 
+function Test-EspansoAlreadyRunningExitCode {
+  param (
+    [int]$ExitCode
+  )
+
+  return $ExitCode -eq 3
+}
+
 function Install-Espanso {
   Install-WingetPackage Espanso.Espanso
 
@@ -219,6 +232,12 @@ function Install-Espanso {
 
   _espanso start
   if ($LASTEXITCODE -ne 0) {
+    if (Test-EspansoAlreadyRunningExitCode -ExitCode $LASTEXITCODE) {
+      $global:LASTEXITCODE = 0
+      LogSuccess 'Espanso ya está en ejecución.'
+      return
+    }
+
     throw "Espanso no pudo iniciar. Código: $LASTEXITCODE."
   }
 }
