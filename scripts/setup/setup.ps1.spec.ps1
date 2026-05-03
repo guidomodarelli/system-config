@@ -269,6 +269,41 @@ $wingetActions = @()
 Install-Gh
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('GitHub.cli')) -Message 'GitHub CLI installer should use the official Winget package id.'
 
+$originalUserProfile = $env:USERPROFILE
+$scoopTestHome = Join-Path $PSScriptRoot '.scoop-test-home'
+Remove-Item -LiteralPath $scoopTestHome -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $scoopTestHome -Force | Out-Null
+$env:USERPROFILE = $scoopTestHome
+
+$scoopActions = @()
+function global:Install-Scoop {
+  $script:scoopActions += 'ensure-scoop'
+  $global:LASTEXITCODE = 0
+}
+function global:scoop {
+  $script:scoopActions += ($args -join ' ')
+  $global:LASTEXITCODE = 0
+}
+
+try {
+  Install-ScoopPackage -packages @('ripgrep')
+  Assert-Equal -Expected $true -Actual (($scoopActions -join '|').Contains('ensure-scoop')) -Message 'Scoop package installer should ensure Scoop before package installation.'
+  Assert-Equal -Expected $true -Actual (($scoopActions -join '|').Contains('install ripgrep')) -Message 'Scoop package installer should install packages that are not present.'
+
+  $scoopActions = @()
+  New-Item -ItemType Directory -Path (Join-Path $scoopTestHome 'scoop/apps/ripgrep/current') -Force | Out-Null
+  Install-ScoopPackage -packages @('ripgrep')
+  Assert-Equal -Expected $true -Actual (($scoopActions -join '|').Contains('update ripgrep')) -Message 'Scoop package installer should update packages that are already present.'
+
+  $scoopActions = @()
+  Remove-Item -LiteralPath (Join-Path $scoopTestHome 'scoop/apps/ripgrep') -Recurse -Force -ErrorAction SilentlyContinue
+  Install-RipGrep
+  Assert-Equal -Expected $true -Actual (($scoopActions -join '|').Contains('install ripgrep')) -Message 'ripgrep installer should use the Scoop package.'
+} finally {
+  $env:USERPROFILE = $originalUserProfile
+  Remove-Item -LiteralPath $scoopTestHome -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 $pesterFindModuleUsedAllVersions = $false
 $pesterInstallModuleName = $null
 $pesterInstallRequiredVersion = $null

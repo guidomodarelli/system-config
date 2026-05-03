@@ -99,6 +99,40 @@ function Install-Scoop {
   }
 }
 
+function Test-ScoopPackageInstalled {
+  param (
+    [string]$Package
+  )
+
+  return Test-Path -LiteralPath "$env:USERPROFILE\scoop\apps\$Package\current"
+}
+
+function Install-ScoopPackage {
+  param (
+    [string[]]$packages
+  )
+
+  Install-Scoop
+
+  foreach ($package in $packages) {
+    if (Test-ScoopPackageInstalled -Package $package) {
+      LogInfo "El paquete '$package' ya está instalado con Scoop. Actualizando a la última versión estable oficial disponible..."
+      scoop update $package
+      if ($LASTEXITCODE -ne 0) {
+        throw "Scoop no pudo actualizar '$package'. Código: $LASTEXITCODE."
+      }
+      LogSuccess "El paquete '$package' se actualizó correctamente con Scoop."
+    } else {
+      LogInfo "Instalando el paquete '$package' con Scoop..."
+      scoop install $package
+      if ($LASTEXITCODE -ne 0) {
+        throw "Scoop no pudo instalar '$package'. Código: $LASTEXITCODE."
+      }
+      LogSuccess "El paquete '$package' se instaló correctamente con Scoop."
+    }
+  }
+}
+
 function Test-ChocoPackageInstalled {
   param (
     [string]$Package
@@ -271,7 +305,9 @@ function Install-Fzf {
 }
 
 function Install-RipGrep {
-  Install-WingetPackage BurntSushi.ripgrep.GNU
+  # Scoop instala ripgrep como un binario/shim de usuario normal. Winget puede crear
+  # aliases o stubs en WindowsApps/WinGet Links que Codex Sandbox no puede ejecutar.
+  Install-ScoopPackage ripgrep
 }
 
 function Install-Bitwarden {
