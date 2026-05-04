@@ -1,4 +1,4 @@
 interface:
   display_name: "Revisar mantenibilidad"
   short_description: "Revisa cambios por riesgos de mantenibilidad"
-  default_prompt: "Usa $review-maintainability para revisar esta rama contra develop, con fallback a main o master si hace falta."
+  default_prompt: "Usa $review-maintainability para revisar HEAD incluyendo cambios no commiteados."

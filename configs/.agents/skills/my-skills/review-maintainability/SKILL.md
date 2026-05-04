@@ -1,6 +1,6 @@
 ---
 name: review-maintainability
-description: Review maintainability risks in the current branch against develop, falling back to main or master when develop does not exist. Use when the user asks for a maintainability review, review against develop/main/master, or focused review of concurrency and thread safety, race conditions, deadlocks, unbounded concurrency, logic bugs, null handling, edge cases, type errors, memory leaks, connection leaks, resource leaks, or unbounded growth in changed code.
+description: Review maintainability risks in HEAD, uncommitted changes, or the current branch against develop, falling back to main or master when develop does not exist. Use when the user asks for a maintainability review, Review Maintainability HEAD, review including uncommitted changes, review against develop/main/master, or focused review of concurrency and thread safety, race conditions, deadlocks, unbounded concurrency, logic bugs, null handling, edge cases, type errors, memory leaks, connection leaks, resource leaks, or unbounded growth in changed code.
 ---
 
 # Review Maintainability
@@ -8,6 +8,28 @@ description: Review maintainability risks in the current branch against develop,
 ## Goal
 
 Review only the changes introduced by the current branch against the best available base branch. Prioritize defects that can cause incorrect behavior, unsafe concurrent execution, or resource growth/leaks. Report findings first, in Spanish, with precise file and line references.
+
+## Review Scope
+
+If the user has not already chosen the scope, ask in Spanish before reviewing:
+
+`¿Querés que revise solo los cambios no commiteados, o HEAD contra develop/main/master incluyendo cambios no commiteados?`
+
+Use these scopes:
+
+- **Uncommitted only**: inspect staged, unstaged, and untracked files relative to `HEAD`.
+- **HEAD against base including uncommitted changes**: inspect commits from the merge base to `HEAD`, then include staged, unstaged, and untracked files.
+
+Useful commands:
+
+```bash
+git status --short
+git diff --cached --name-status
+git diff --name-status
+git ls-files --others --exclude-standard
+git diff --cached
+git diff
+```
 
 ## Base Selection
 
@@ -18,7 +40,7 @@ Prefer remote tracking branches when available because they reflect the shared b
 3. Otherwise use `origin/master`.
 4. If remotes are unavailable, fall back to local `develop`, then `main`, then `master`.
 
-Use `git merge-base HEAD <base>` and review from that merge base to `HEAD`. If the working tree has uncommitted changes, inspect them too and say explicitly that the review includes uncommitted changes.
+Use `git merge-base HEAD <base>` and review from that merge base to `HEAD`. When the selected scope includes uncommitted changes, inspect staged, unstaged, and untracked files too and say explicitly that the review includes uncommitted changes.
 
 Useful commands:
 

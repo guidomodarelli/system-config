@@ -1,4 +1,4 @@
 interface:
   display_name: "Revisar performance"
   short_description: "Detecta riesgos de performance en producción"
-  default_prompt: "Usa $review-performance para revisar los cambios por N+1 queries, algoritmos O(n²) y asignaciones innecesarias."
+  default_prompt: "Usa $review-performance para revisar HEAD incluyendo cambios no commiteados por N+1 queries, algoritmos O(n²) y asignaciones innecesarias."

@@ -1,6 +1,6 @@
 ---
 name: review-performance
-description: Review production-impacting performance issues in changed code. Use when the user asks for a performance review, performance risks, latency or throughput review, or focused detection of N+1 queries, O(n²) or worse algorithms, repeated expensive work, unnecessary allocations, excessive rendering, unbounded loops, missing batching, inefficient I/O, cache misuse, or avoidable production load.
+description: Review production-impacting performance issues in HEAD, uncommitted changes, or changed code against develop/main/master. Use when the user asks for a performance review, Review Performance HEAD, review including uncommitted changes, performance risks, latency or throughput review, or focused detection of N+1 queries, O(n²) or worse algorithms, repeated expensive work, unnecessary allocations, excessive rendering, unbounded loops, missing batching, inefficient I/O, cache misuse, or avoidable production load.
 ---
 
 # Review Performance
@@ -8,6 +8,32 @@ description: Review production-impacting performance issues in changed code. Use
 ## Goal
 
 Review changed code for performance defects that can affect production latency, throughput, cost, memory, rendering responsiveness, or service reliability. Prioritize issues with a plausible real workload impact over speculative micro-optimizations.
+
+## Review Scope
+
+If the user has not already chosen the scope, ask in Spanish before reviewing:
+
+`¿Querés que revise solo los cambios no commiteados, o HEAD contra develop/main/master incluyendo cambios no commiteados?`
+
+Use these scopes:
+
+- **Uncommitted only**: inspect staged, unstaged, and untracked files relative to `HEAD`.
+- **HEAD against base including uncommitted changes**: inspect commits from the merge base to `HEAD`, then include staged, unstaged, and untracked files.
+
+Prefer remote tracking branches for the base: `origin/develop`, then `origin/main`, then `origin/master`. If remotes are unavailable, fall back to local `develop`, then `main`, then `master`.
+
+Useful commands:
+
+```bash
+git status --short
+git branch -r --list origin/develop origin/main origin/master
+git branch --list develop main master
+git merge-base HEAD <base>
+git diff --name-status <merge-base>...HEAD
+git diff --cached --name-status
+git diff --name-status
+git ls-files --others --exclude-standard
+```
 
 ## Review Workflow
 
