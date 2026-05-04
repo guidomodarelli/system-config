@@ -22,6 +22,10 @@ Collect the information required to draft and apply a high-quality commit messag
 - Why it changed: inferred intent or problem being solved.
 - Impact: behavior, UX, DX, performance, or operational effects.
 - Risks: edge cases, regressions, or follow-up considerations.
+- Commit message rules: inspect repository commitlint configuration files before drafting.
+  Check common locations such as `.commitlintrc`, `.commitlintrc.js`,
+  `.commitlintrc.cjs`, `.commitlintrc.json`, `commitlint.config.js`,
+  `commitlint.config.cjs`, and `package.json` commitlint settings.
 
 ## Apply Step
 
@@ -30,8 +34,14 @@ Collect the information required to draft and apply a high-quality commit messag
 ## Style Constraints
 
 - Keep everything concrete and repository-specific.
-- Use conventional commit style semantics, but omit the type prefix.
-  Example: write «add new feature» instead of «feat: add new feature».
+- Respect the repository commitlint configuration when it exists.
+- If commitlint extends `@commitlint/config-conventional` or otherwise requires
+  `type-empty`/`subject-empty`, include a conventional header with type prefix.
+  Example: write «feat: Add new feature» instead of «add new feature».
+- If commitlint defines `header-max-length`, keep the header within that limit.
+- If commitlint defines `body-max-line-length`, wrap body lines within that limit.
+- If commitlint defines `subject-case`, format the subject to match that rule.
+- Only omit the type prefix when no repository commitlint rule requires it.
 - Do not include issue numbers in the title or description.
 - Use imperative mood for the commit title and body where applicable.
   Examples: «add feature», «fix bug», «update docs».
