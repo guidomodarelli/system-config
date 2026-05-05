@@ -595,6 +595,10 @@ install_gh() {
   _brew install gh # https://cli.github.com/
 }
 
+install_ghostty() {
+  _brew install --cask ghostty # https://ghostty.org/
+}
+
 install_zsh() {
   if command -v zsh >/dev/null 2>&1; then
     echo "Zsh ya está instalado; se omite la instalación del paquete."

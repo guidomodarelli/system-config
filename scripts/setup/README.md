@@ -28,7 +28,11 @@ Si Homebrew está en otra ruta, ajusta la función `_brew` en
 - En macOS, el selector recomienda `ggrep` y no recomienda `xclip`.
 - En Linux nativo, el selector recomienda `xclip` y no recomienda `ggrep` ni
   `win32yank`.
-- En WSL, el selector recomienda `win32yank` y no recomienda `Espanso`.
+- En macOS y Linux nativo, el selector recomienda `Ghostty`.
+- En WSL, el selector recomienda `win32yank` y no recomienda `Espanso` ni
+  `Ghostty`.
+- En Windows, `Ghostty` queda disponible como ítem opcional y muestra un aviso
+  porque aún no hay instalador oficial para esa plataforma.
 - `wget` y Java 21 ya no forman parte de los paquetes recomendados.
 
 ### Ejecutar el script completo

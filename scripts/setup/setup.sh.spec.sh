@@ -218,6 +218,8 @@ assert_failure "Bash catalog should not include Java JDK 21 as a recommended set
   _brew() { printf "%s\n" "$*"; }
   gh_install_output="$(install_gh)"
   assert_contains "$gh_install_output" "install gh" "macOS setup should install GitHub CLI through Homebrew."
+  ghostty_install_output="$(install_ghostty)"
+  assert_contains "$ghostty_install_output" "install --cask ghostty" "macOS setup should install Ghostty through Homebrew Cask."
 )
 
 set_test_platform "wsl"
@@ -226,6 +228,7 @@ _validate_menu_catalog
 assert_menu_defaults_are_first "WSL setup menu should keep defaults first."
 assert_equals "1" "$(get_menu_default_selection_by_id win32yank)" "WSL setup recommendations should include win32yank."
 assert_failure "WSL setup catalog should hide Espanso." get_menu_default_selection_by_id espanso
+assert_failure "WSL setup catalog should hide Ghostty." get_menu_default_selection_by_id ghostty
 assert_failure "WSL setup catalog should hide Linux-only xclip." get_menu_default_selection_by_id xclip
 
 set_test_platform "darwin"
@@ -237,11 +240,13 @@ assert_failure "macOS setup catalog should hide Linux-only xclip." get_menu_defa
 assert_failure "macOS setup catalog should hide WSL-only win32yank." get_menu_default_selection_by_id win32yank
 assert_equals "1" "$(get_menu_default_selection_by_id espanso)" "macOS setup recommendations should include Espanso."
 assert_equals "1" "$(get_menu_default_selection_by_id gh)" "macOS setup recommendations should include GitHub CLI."
+assert_equals "1" "$(get_menu_default_selection_by_id ghostty)" "macOS setup recommendations should include Ghostty."
 
 set_test_platform "linux"
 _initialize_menu_catalog
 _validate_menu_catalog
 assert_menu_defaults_are_first "Linux setup menu should keep defaults first before allowlist checks."
+assert_equals "1" "$(get_menu_default_selection_by_id ghostty)" "Linux setup recommendations should include Ghostty."
 
 assert_success "Catalog allowlist should find setup installer functions." _find_menu_function_index install_git >/dev/null
 assert_success "Catalog allowlist should include GitHub CLI installer functions." _find_menu_function_index install_gh >/dev/null
