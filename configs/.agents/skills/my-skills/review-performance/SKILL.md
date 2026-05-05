@@ -13,18 +13,29 @@ Review changed code for performance defects that can affect production latency, 
 
 If the user has not already chosen the scope, ask in Spanish before reviewing:
 
-`¿Querés que revise solo los cambios no commiteados, o HEAD contra develop/main/master incluyendo cambios no commiteados?`
+> Seleccioná un preset de review
+> 1. Review contra develop (PR Style)
+> 2. Review contra main/master (PR Style)
+> 3. Review cambios no commiteados
+> 4. Review con instrucciones personalizadas
+
+Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
+
+Always run `git fetch --all --prune` before resolving branches, selecting files, or reading diffs. If fetch fails, stop the review and report the fetch error instead of continuing with stale refs.
 
 Use these scopes:
 
 - **Uncommitted only**: inspect staged, unstaged, and untracked files relative to `HEAD`.
-- **HEAD against base including uncommitted changes**: inspect commits from the merge base to `HEAD`, then include staged, unstaged, and untracked files.
+- **HEAD against develop including uncommitted changes**: inspect commits from the merge base with `develop` to `HEAD`, then include staged, unstaged, and untracked files.
+- **HEAD against main/master including uncommitted changes**: inspect commits from the merge base with `main` or `master` to `HEAD`, then include staged, unstaged, and untracked files.
+- **Custom review instructions**: ask the user for the exact scope and review focus, then apply the closest matching scope above.
 
-Prefer remote tracking branches for the base: `origin/develop`, then `origin/main`, then `origin/master`. If remotes are unavailable, fall back to local `develop`, then `main`, then `master`.
+For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`.
 
 Useful commands:
 
 ```bash
+git fetch --all --prune
 git status --short
 git branch -r --list origin/develop origin/main origin/master
 git branch --list develop main master

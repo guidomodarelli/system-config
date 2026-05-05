@@ -13,16 +13,27 @@ Review only the changes introduced by the current branch against the best availa
 
 If the user has not already chosen the scope, ask in Spanish before reviewing:
 
-`¿Querés que revise solo los cambios no commiteados, o HEAD contra develop/main/master incluyendo cambios no commiteados?`
+> Seleccioná un preset de review
+> 1. Review contra develop (PR Style)
+> 2. Review contra main/master (PR Style)
+> 3. Review cambios no commiteados
+> 4. Review con instrucciones personalizadas
+
+Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
+
+Always run `git fetch --all --prune` before resolving branches, selecting files, or reading diffs. If fetch fails, stop the review and report the fetch error instead of continuing with stale refs.
 
 Use these scopes:
 
 - **Uncommitted only**: inspect staged, unstaged, and untracked files relative to `HEAD`.
-- **HEAD against base including uncommitted changes**: inspect commits from the merge base to `HEAD`, then include staged, unstaged, and untracked files.
+- **HEAD against develop including uncommitted changes**: inspect commits from the merge base with `develop` to `HEAD`, then include staged, unstaged, and untracked files.
+- **HEAD against main/master including uncommitted changes**: inspect commits from the merge base with `main` or `master` to `HEAD`, then include staged, unstaged, and untracked files.
+- **Custom review instructions**: ask the user for the exact scope and review focus, then apply the closest matching scope above.
 
 Useful commands:
 
 ```bash
+git fetch --all --prune
 git status --short
 git diff --cached --name-status
 git diff --name-status
@@ -35,16 +46,17 @@ git diff
 
 Prefer remote tracking branches when available because they reflect the shared base more reliably:
 
-1. Use `origin/develop` if it exists.
-2. Otherwise use `origin/main`.
-3. Otherwise use `origin/master`.
-4. If remotes are unavailable, fall back to local `develop`, then `main`, then `master`.
+- For option `1`, use `origin/develop` if it exists; otherwise use local `develop`.
+- For option `2`, use `origin/main` if it exists; otherwise use `origin/master`, then local `main`, then local `master`.
+- For option `3`, do not select a base branch; review staged, unstaged, and untracked files relative to `HEAD`.
+- For option `4`, ask for custom instructions first, then select the requested base or file scope.
 
 Use `git merge-base HEAD <base>` and review from that merge base to `HEAD`. When the selected scope includes uncommitted changes, inspect staged, unstaged, and untracked files too and say explicitly that the review includes uncommitted changes.
 
 Useful commands:
 
 ```bash
+git fetch --all --prune
 git branch --list develop main master
 git branch -r --list origin/develop origin/main origin/master
 git merge-base HEAD <base>
