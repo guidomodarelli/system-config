@@ -18,10 +18,10 @@ gpt-5.3-codex"
 }
 
 _cx_reasoning() {
-  echo "xhigh
-  high
+  echo "low
 medium
-low"
+high
+xhigh"
 }
 
 _cx_model_select() {

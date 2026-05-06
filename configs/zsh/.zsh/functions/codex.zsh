@@ -134,7 +134,7 @@ cx() {
 
   # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit, --mcps
   local model="gpt-5.5"
-  local reasoning="medium"
+  local reasoning="low"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
   local enable_mcps=""
