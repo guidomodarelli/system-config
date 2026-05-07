@@ -1373,6 +1373,319 @@ function Invoke-FzfSelection {
     return $selection
 }
 
+function Invoke-PSReadLinePromptRefresh {
+    $psConsoleReadLineType = 'Microsoft.PowerShell.PSConsoleReadLine' -as [type]
+    if (-not $psConsoleReadLineType) {
+        return
+    }
+
+    try {
+        $invokePromptMethod = $psConsoleReadLineType.GetMethod('InvokePrompt', [Type[]]@())
+        if ($invokePromptMethod) {
+            $psConsoleReadLineType::InvokePrompt()
+        } else {
+            $psConsoleReadLineType::Repaint()
+        }
+    } catch {
+        try { $psConsoleReadLineType::Repaint() } catch { }
+    }
+}
+
+function Invoke-PSReadLineInsertText {
+    param(
+        [Parameter(Mandatory = $true)][string]$Text
+    )
+
+    $psConsoleReadLineType = 'Microsoft.PowerShell.PSConsoleReadLine' -as [type]
+    if ($psConsoleReadLineType) {
+        try {
+            $psConsoleReadLineType::Insert($Text)
+            return
+        } catch {
+            # Fallback for hosts that do not support PSReadLine insertion.
+        }
+    }
+
+    Write-Host $Text
+}
+
+function Invoke-FzfGitCheckoutRef {
+    param(
+        [Parameter(Mandatory = $true)][string]$RefKind,
+        [Parameter(Mandatory = $true)][string]$PromptText,
+        [Parameter(Mandatory = $true)][scriptblock]$GetRefs
+    )
+
+    $gitCommand = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $gitCommand) {
+        Write-Warning 'git no esta disponible en PATH; se omite el selector de checkout.'
+        return
+    }
+
+    $items = @(& $GetRefs) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    if (-not $items) {
+        Write-Host "No se encontraron elementos Git de tipo $RefKind." -ForegroundColor Yellow
+        return
+    }
+
+    $selection = Invoke-FzfSelection -Items $items -PromptText $PromptText
+    if (-not $selection) {
+        return
+    }
+
+    $selectedRef = if ($selection -is [System.Array]) { $selection[0] } else { $selection }
+    if ([string]::IsNullOrWhiteSpace($selectedRef)) {
+        return
+    }
+
+    if ($RefKind -eq 'branch') {
+        git show-ref --verify --quiet "refs/remotes/$selectedRef"
+        if ($LASTEXITCODE -eq 0 -and $selectedRef -match '^[^/]+/(?<branchName>.+)$') {
+            $localBranchName = $Matches['branchName']
+
+            git show-ref --verify --quiet "refs/heads/$localBranchName"
+            if ($LASTEXITCODE -eq 0) {
+                git checkout $localBranchName
+            } else {
+                git checkout --track $selectedRef
+            }
+
+            Invoke-PSReadLinePromptRefresh
+            return
+        }
+    }
+
+    git checkout $selectedRef
+    Invoke-PSReadLinePromptRefresh
+}
+
+function Invoke-FzfGitCheckoutBranch {
+    Invoke-FzfGitCheckoutRef -RefKind 'branch' -PromptText 'Branch Git >' -GetRefs {
+        git branch --all --format='%(refname:short)' 2> $null |
+            ForEach-Object { $_.Trim() } |
+            Where-Object { $_ -and $_ -notmatch '^origin/HEAD$' } |
+            Sort-Object -Unique
+    }
+}
+
+function Invoke-FzfGitCheckoutTag {
+    Invoke-FzfGitCheckoutRef -RefKind 'tag' -PromptText 'Tag Git >' -GetRefs {
+        git tag --sort=-creatordate 2> $null
+    }
+}
+
+function Invoke-FzfGitCheckoutCommit {
+    $commitItems = git log --oneline --decorate --color=always --max-count=200 2> $null
+    if (-not $commitItems) {
+        Write-Host 'No se encontraron commits Git.' -ForegroundColor Yellow
+        return
+    }
+
+    $selection = Invoke-FzfSelection -Items $commitItems -PromptText 'Commit Git >'
+    if (-not $selection) {
+        return
+    }
+
+    $selectedLine = if ($selection -is [System.Array]) { $selection[0] } else { $selection }
+    $cleanLine = $selectedLine -replace "`e\[[0-9;]*m", ''
+    $commitHash = ($cleanLine -split '\s+')[0]
+    if ([string]::IsNullOrWhiteSpace($commitHash)) {
+        return
+    }
+
+    git checkout $commitHash
+    Invoke-PSReadLinePromptRefresh
+}
+
+function Invoke-FzfHistoryInsert {
+    $historyItems = Get-History |
+        Sort-Object -Property Id -Descending |
+        ForEach-Object { $_.CommandLine } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+    if (-not $historyItems) {
+        Write-Host 'No se encontro historial de PowerShell.' -ForegroundColor Yellow
+        return
+    }
+
+    $selection = Invoke-FzfSelection -Items $historyItems -PromptText 'Historial >'
+    if (-not $selection) {
+        return
+    }
+
+    $selectedCommand = if ($selection -is [System.Array]) { $selection[0] } else { $selection }
+    Invoke-PSReadLineInsertText -Text $selectedCommand
+}
+
+function Get-FzfProcessItems {
+    param(
+        [switch]$CurrentUserOnly
+    )
+
+    $currentUserName = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    Get-Process -IncludeUserName -ErrorAction SilentlyContinue |
+        Where-Object { -not $CurrentUserOnly -or $_.UserName -eq $currentUserName } |
+        Sort-Object -Property ProcessName, Id |
+        ForEach-Object {
+            '{0,8}  {1,-30}  {2}' -f $_.Id, $_.ProcessName, $_.UserName
+        }
+}
+
+function Select-FzfProcessId {
+    param(
+        [string]$PromptText = 'Process >',
+        [switch]$CurrentUserOnly
+    )
+
+    $processItems = Get-FzfProcessItems -CurrentUserOnly:$CurrentUserOnly
+    if (-not $processItems) {
+        Write-Host 'No se encontraron procesos.' -ForegroundColor Yellow
+        return $null
+    }
+
+    $selection = Invoke-FzfSelection -Items $processItems -PromptText $PromptText
+    if (-not $selection) {
+        return $null
+    }
+
+    $selectedProcessLine = if ($selection -is [System.Array]) { $selection[0] } else { $selection }
+    if ($selectedProcessLine -match '^\s*(?<processId>\d+)\s+') {
+        return [int]$Matches['processId']
+    }
+
+    return $null
+}
+
+function Invoke-FzfProcessKill {
+    param(
+        [switch]$CurrentUserOnly
+    )
+
+    $processId = Select-FzfProcessId -PromptText 'Matar proceso >' -CurrentUserOnly:$CurrentUserOnly
+    if (-not $processId) {
+        return
+    }
+
+    try {
+        Stop-Process -Id $processId -Force -ErrorAction Stop
+        Write-Host "Proceso terminado: $processId" -ForegroundColor Green
+    } catch {
+        Write-Warning "No se pudo terminar el proceso '$processId': $($_.Exception.Message)"
+    }
+}
+
+function Invoke-FzfProcessIdCopy {
+    $processId = Select-FzfProcessId -PromptText 'Copiar process id >'
+    if (-not $processId) {
+        return
+    }
+
+    if (Get-Command Set-Clipboard -ErrorAction SilentlyContinue) {
+        Set-Clipboard -Value $processId
+        Write-Host "Process id copiado: $processId" -ForegroundColor Green
+        return
+    }
+
+    Invoke-PSReadLineInsertText -Text ([string]$processId)
+}
+
+function Invoke-FzfWidgetSelector {
+    $widgetItems = @(
+        'Ctrl+b           Checkout de branch Git',
+        'Ctrl+x,Ctrl+w    Repositorio GHQ work',
+        'Ctrl+x,Ctrl+p    Repositorio GHQ projects',
+        'Ctrl+x,Ctrl+g    Repositorio GHQ global',
+        'Ctrl+h           Insertar comando del historial',
+        'Ctrl+t           Checkout de tag Git',
+        'Ctrl+g,c         Checkout de commit Git',
+        'Ctrl+x,k         Terminar proceso del usuario actual',
+        'Ctrl+x,r         Terminar proceso',
+        'Ctrl+x,p         Copiar process id',
+        'Alt+e            Editar linea actual'
+    )
+
+    $selection = Invoke-FzfSelection -Items $widgetItems -PromptText 'Widget >'
+    if ($selection) {
+        Write-Host $selection
+    }
+}
+
+function Split-EditorCommand {
+    param(
+        [Parameter(Mandatory = $true)][string]$CommandLine
+    )
+
+    [regex]::Matches($CommandLine, "`"[^`"]*`"|'[^']*'|\S+") |
+        ForEach-Object {
+            $commandPart = $_.Value
+            if (($commandPart.StartsWith('"') -and $commandPart.EndsWith('"')) -or
+                ($commandPart.StartsWith("'") -and $commandPart.EndsWith("'"))) {
+                $commandPart.Substring(1, $commandPart.Length - 2)
+            } else {
+                $commandPart
+            }
+        }
+}
+
+function Invoke-ConfiguredEditor {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    $editorCommand = if ($env:EDITOR) { $env:EDITOR } elseif ($env:VISUAL) { $env:VISUAL } else { 'notepad' }
+    $editorCommandParts = @(Split-EditorCommand -CommandLine $editorCommand)
+    if (-not $editorCommandParts) {
+        Write-Warning 'No se pudo resolver el editor configurado.'
+        return
+    }
+
+    $editorExecutable = $editorCommandParts[0]
+    $editorArguments = @($editorCommandParts | Select-Object -Skip 1)
+    $editorName = [System.IO.Path]::GetFileNameWithoutExtension($editorExecutable)
+    if ($editorName -in @('code', 'code-insiders', 'codium') -and $editorArguments -notcontains '--wait') {
+        $editorArguments += '--wait'
+    }
+
+    & $editorExecutable @editorArguments $Path
+}
+
+function Invoke-PSReadLineEditCurrentLine {
+    $psConsoleReadLineType = 'Microsoft.PowerShell.PSConsoleReadLine' -as [type]
+    if (-not $psConsoleReadLineType) {
+        return
+    }
+
+    $line = $null
+    $cursor = $null
+    try {
+        $psConsoleReadLineType::GetBufferState([ref]$line, [ref]$cursor)
+    } catch {
+        return
+    }
+
+    $temporaryFile = [System.IO.Path]::GetTempFileName()
+    try {
+        Set-Content -LiteralPath $temporaryFile -Value $line -NoNewline -Encoding UTF8
+        Invoke-ConfiguredEditor -Path $temporaryFile
+        $editedLine = Get-Content -LiteralPath $temporaryFile -Raw
+        if ($null -ne $editedLine) {
+            $editedLine = $editedLine.TrimEnd("`r", "`n")
+            $psConsoleReadLineType::RevertLine()
+            $psConsoleReadLineType::Insert($editedLine)
+        }
+    } finally {
+        Remove-Item -LiteralPath $temporaryFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Set-PSReadLineAcceptSuggestionKeyHandler {
+    try {
+        Set-PSReadLineKeyHandler -Chord 'Ctrl+e' -Function AcceptSuggestion -ErrorAction Stop
+    } catch {
+        Set-PSReadLineKeyHandler -Chord 'Ctrl+e' -Function EndOfLine
+    }
+}
+
 #  ██████  ██   ██  ██████
 # ██       ██   ██ ██    ██
 # ██   ███ ███████ ██    ██
@@ -1819,19 +2132,73 @@ function Invoke-GhqKeyHandler {
 
 $psConsoleReadLineType = 'Microsoft.PowerShell.PSConsoleReadLine' -as [type]
 if ($psConsoleReadLineType) {
-    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+g' -BriefDescription 'GHQ Global' -LongDescription 'Jump to ghq repository (excluding work/*)' -ScriptBlock {
+    Set-PSReadLineOption -EditMode Emacs
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+b' -BriefDescription 'Branch Git' -LongDescription 'Hace checkout de una branch Git seleccionada con fzf' -ScriptBlock {
+        param($key, $arg)
+        Invoke-FzfGitCheckoutBranch
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+h' -BriefDescription 'Insertar Historial' -LongDescription 'Inserta un comando seleccionado desde el historial de PowerShell' -ScriptBlock {
+        param($key, $arg)
+        Invoke-FzfHistoryInsert
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+t' -BriefDescription 'Tag Git' -LongDescription 'Hace checkout de un tag Git seleccionado con fzf' -ScriptBlock {
+        param($key, $arg)
+        Invoke-FzfGitCheckoutTag
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+g,c' -BriefDescription 'Commit Git' -LongDescription 'Hace checkout de un commit Git seleccionado con fzf' -ScriptBlock {
+        param($key, $arg)
+        Invoke-FzfGitCheckoutCommit
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+g' -BriefDescription 'GHQ Global' -LongDescription 'Salta a un repositorio ghq excluyendo work/*' -ScriptBlock {
         param($key, $arg)
         Invoke-GhqKeyHandler -PromptLabel 'Global' -DefaultQuery '!work/ '
     }
 
-    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+w' -BriefDescription 'GHQ Work' -LongDescription 'Jump to work ghq repositories' -ScriptBlock {
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+w' -BriefDescription 'GHQ Work' -LongDescription 'Salta a un repositorio ghq de work' -ScriptBlock {
         param($key, $arg)
         Invoke-GhqKeyHandler -PromptLabel 'Work' -DefaultQuery 'work/ !forks '
     }
 
-    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+p' -BriefDescription 'GHQ Projects' -LongDescription 'Jump to personal/project ghq repositories' -ScriptBlock {
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,Ctrl+p' -BriefDescription 'GHQ Projects' -LongDescription 'Salta a un repositorio ghq de projects' -ScriptBlock {
         param($key, $arg)
         Invoke-GhqKeyHandler -PromptLabel 'Projects' -DefaultQuery 'projects/ '
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,k' -BriefDescription 'Terminar Proceso Usuario' -LongDescription 'Termina un proceso del usuario actual seleccionado con fzf' -ScriptBlock {
+        param($key, $arg)
+        Invoke-FzfProcessKill -CurrentUserOnly
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,r' -BriefDescription 'Terminar Proceso' -LongDescription 'Termina un proceso seleccionado con fzf' -ScriptBlock {
+        param($key, $arg)
+        Invoke-FzfProcessKill
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,p' -BriefDescription 'Copiar Process Id' -LongDescription 'Copia un process id seleccionado con fzf' -ScriptBlock {
+        param($key, $arg)
+        Invoke-FzfProcessIdCopy
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+x,x' -BriefDescription 'Selector Widgets' -LongDescription 'Muestra los equivalentes copiados de mappings.zsh' -ScriptBlock {
+        param($key, $arg)
+        Invoke-FzfWidgetSelector
+    }
+
+    Set-PSReadLineKeyHandler -Chord 'End' -Function EndOfLine
+    Set-PSReadLineKeyHandler -Chord 'Home' -Function BeginningOfLine
+    Set-PSReadLineKeyHandler -Chord 'Alt+n' -Function NextHistory
+    Set-PSReadLineKeyHandler -Chord 'Alt+p' -Function PreviousHistory
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+n' -Function HistorySearchForward
+    Set-PSReadLineKeyHandler -Chord 'Ctrl+p' -Function HistorySearchBackward
+    Set-PSReadLineAcceptSuggestionKeyHandler
+    Set-PSReadLineKeyHandler -Chord 'Alt+e' -BriefDescription 'Editar Linea' -LongDescription 'Edita la linea de comando actual en el editor configurado' -ScriptBlock {
+        param($key, $arg)
+        Invoke-PSReadLineEditCurrentLine
     }
 }
 

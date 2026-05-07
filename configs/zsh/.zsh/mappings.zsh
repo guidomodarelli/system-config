@@ -13,7 +13,7 @@ if command -v fzf &>/dev/null; then
   bindkey '^t' anyframe-widget-git-checkout-tag
   bindkey '^gc' anyframe-widget-git-checkout-commit
   bindkey '^xk' anyframe-widget-process-kill-user
-  bindkey '^xkr' anyframe-widget-process-kill-root
+  bindkey '^xr' anyframe-widget-process-kill-root
   bindkey '^xp' anyframe-widget-process-copy-id
 
   # List all widgets
