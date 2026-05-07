@@ -20,6 +20,10 @@ paths:
     overrides:
       - target: AppData/Roaming
         platform: win32
+  - path: ghostty/config.ghostty
+    exactTarget: Library/Application Support/com.mitchellh.ghostty/config.ghostty
+    onlyFor:
+      - platform: darwin
   - path: PowerShell/Microsoft.PowerShell_profile.ps1
     target: $DOCUMENTS/PowerShell
     onlyFor:
