@@ -367,6 +367,45 @@ function git_develop_branch {
     return "develop"
 }
 
+function Get-GitLocalBranchCompletion {
+    param([string]$WordToComplete)
+
+    git for-each-ref --format='%(refname:short)' refs/heads 2> $null |
+        Where-Object { $_ -like "$WordToComplete*" } |
+        Sort-Object -Unique |
+        ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new(
+                $_,
+                $_,
+                [System.Management.Automation.CompletionResultType]::ParameterValue,
+                'Git local branch'
+            )
+        }
+}
+
+$gitLocalBranchCompletionScriptBlock = {
+    param($wordToComplete, $commandAst, $cursorPosition)
+
+    Get-GitLocalBranchCompletion -WordToComplete $wordToComplete
+}
+
+Register-ArgumentCompleter -CommandName @(
+    'gbD',
+    'gbd',
+    'gbm',
+    'gco',
+    'gcor',
+    'gsw',
+    'gm',
+    'gms',
+    'grb',
+    'grbi',
+    'grhh',
+    'grhk',
+    'grhs',
+    'grss'
+) -ScriptBlock $gitLocalBranchCompletionScriptBlock
+
 # Simple aliases
 Set-Alias -Name g -Value git
 Set-Alias -Name gk -Value gitk
