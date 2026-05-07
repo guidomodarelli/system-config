@@ -105,3 +105,6 @@ enabled = true
 
 [plugins."github@openai-curated"]
 enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
