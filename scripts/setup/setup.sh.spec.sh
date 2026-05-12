@@ -185,6 +185,7 @@ assert_failure "Linux setup catalog should hide macOS-only GNU grep." get_menu_d
 assert_failure "Linux setup catalog should hide WSL-only win32yank." get_menu_default_selection_by_id win32yank
 assert_failure "Linux setup catalog should hide Windows-only bat." get_menu_default_selection_by_id bat
 assert_equals "1" "$(get_menu_default_selection_by_id espanso)" "Linux setup recommendations should include Espanso."
+assert_equals "1" "$(get_menu_default_selection_by_id hunk)" "Las recomendaciones de setup para Linux deben incluir hunk."
 assert_failure "Bash catalog should not include wget as a recommended setup item." get_menu_default_selection_by_id wget
 assert_failure "Bash catalog should not include Java JDK 21 as a recommended setup item." get_menu_default_selection_by_id java_jdk
 
@@ -220,6 +221,8 @@ assert_failure "Bash catalog should not include Java JDK 21 as a recommended set
   assert_contains "$gh_install_output" "install gh" "macOS setup should install GitHub CLI through Homebrew."
   ghostty_install_output="$(install_ghostty)"
   assert_contains "$ghostty_install_output" "install --cask ghostty" "macOS setup should install Ghostty through Homebrew Cask."
+  hunk_install_output="$(install_hunk)"
+  assert_contains "$hunk_install_output" "install modem-dev/tap/hunk" "El setup de macOS debe instalar hunk desde el tap de Homebrew."
 )
 
 set_test_platform "wsl"
@@ -241,6 +244,7 @@ assert_failure "macOS setup catalog should hide WSL-only win32yank." get_menu_de
 assert_equals "1" "$(get_menu_default_selection_by_id espanso)" "macOS setup recommendations should include Espanso."
 assert_equals "1" "$(get_menu_default_selection_by_id gh)" "macOS setup recommendations should include GitHub CLI."
 assert_equals "1" "$(get_menu_default_selection_by_id ghostty)" "macOS setup recommendations should include Ghostty."
+assert_equals "1" "$(get_menu_default_selection_by_id hunk)" "Las recomendaciones de setup para macOS deben incluir hunk."
 
 set_test_platform "linux"
 _initialize_menu_catalog

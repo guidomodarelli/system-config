@@ -165,13 +165,17 @@ $curlMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog 
 $vscodeMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'vscode'
 $batMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'bat'
 $ghMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'gh'
+$hunkMenuIndex = Find-SetupMenuCatalogItemIndex -menuCatalog $sharedMenuCatalog -ItemIdentifier 'hunk'
 Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$gitMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin Git installs.'
 Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$curlMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin curl installs.'
 Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$vscodeMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin VS Code installs.'
 Assert-Equal -Expected $true -Actual ($batMenuIndex -ge 0) -Message 'PowerShell catalog should include bat from the previous PowerShell catalog.'
 Assert-Equal -Expected $true -Actual ($ghMenuIndex -ge 0) -Message 'PowerShell catalog should include GitHub CLI.'
+Assert-Equal -Expected $true -Actual ($hunkMenuIndex -ge 0) -Message 'El catálogo de PowerShell debe incluir hunk.'
 Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$ghMenuIndex].RequiresAdmin -Message 'PowerShell catalog should preserve non-admin GitHub CLI installs.'
+Assert-Equal -Expected $false -Actual $sharedMenuCatalog[$hunkMenuIndex].RequiresAdmin -Message 'El catálogo de PowerShell debe conservar hunk como instalación sin privilegios de administrador.'
 Assert-Equal -Expected $true -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Install-Bat') -Message 'PowerShell catalog allowlist should include Install-Bat.'
+Assert-Equal -Expected $true -Actual (Test-SetupFunctionAllowed -menuCatalog $sharedMenuCatalog -FunctionName 'Install-Hunk') -Message 'La allowlist del catálogo de PowerShell debe incluir Install-Hunk.'
 
 $scriptDownloadPath = $null
 function global:Invoke-RestMethod {
@@ -268,6 +272,15 @@ Assert-Equal -Expected 0 -Actual $global:LASTEXITCODE -Message 'Winget installer
 $wingetActions = @()
 Install-Gh
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('GitHub.cli')) -Message 'GitHub CLI installer should use the official Winget package id.'
+
+$npmActions = @()
+function global:npm {
+  $script:npmActions += ($args -join ' ')
+  $global:LASTEXITCODE = 0
+}
+
+Install-Hunk
+Assert-Equal -Expected $true -Actual (($npmActions -join '|').Contains('i -g hunkdiff')) -Message 'El instalador de hunk debe usar el paquete npm hunkdiff.'
 
 $originalUserProfile = $env:USERPROFILE
 $scoopTestHome = Join-Path $PSScriptRoot '.scoop-test-home'

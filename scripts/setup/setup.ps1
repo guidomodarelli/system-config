@@ -284,6 +284,13 @@ function Install-Gh {
   Install-WingetPackage GitHub.cli
 }
 
+function Install-Hunk {
+  npm i -g hunkdiff
+  if ($LASTEXITCODE -ne 0) {
+    throw "npm no pudo instalar 'hunkdiff'. Código: $LASTEXITCODE."
+  }
+}
+
 function Install-VsCode {
   Install-WingetPackage Microsoft.VisualStudioCode
 }

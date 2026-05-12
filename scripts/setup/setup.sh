@@ -595,6 +595,10 @@ install_gh() {
   _brew install gh # https://cli.github.com/
 }
 
+install_hunk() {
+  _brew install modem-dev/tap/hunk
+}
+
 install_ghostty() {
   _brew install --cask ghostty # https://ghostty.org/
 }
