@@ -273,14 +273,109 @@ $wingetActions = @()
 Install-Gh
 Assert-Equal -Expected $true -Actual (($wingetActions -join '|').Contains('GitHub.cli')) -Message 'GitHub CLI installer should use the official Winget package id.'
 
-$npmActions = @()
+$originalLocalAppData = $env:LOCALAPPDATA
+$fnmLinkTestHome = Join-Path $PSScriptRoot '.fnm-link-test-home'
+$fnmLinkPath = Join-Path $fnmLinkTestHome 'Microsoft/WinGet/Links/fnm.exe'
+Remove-Item -LiteralPath $fnmLinkTestHome -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path (Split-Path -Path $fnmLinkPath -Parent) -Force | Out-Null
+New-Item -ItemType File -Path $fnmLinkPath -Force | Out-Null
+$env:LOCALAPPDATA = $fnmLinkTestHome
+function global:Get-Command {
+  param (
+    [string]$Name,
+    [object]$ErrorAction
+  )
+
+  return $null
+}
+try {
+  Assert-Equal -Expected $fnmLinkPath -Actual (Resolve-FnmExecutable) -Message 'El resolver de fnm debe encontrar el shim de WinGet aunque la sesión todavía no haya recargado PATH.'
+} finally {
+  $env:LOCALAPPDATA = $originalLocalAppData
+  Remove-Item -LiteralPath $fnmLinkTestHome -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -Path Function:\Get-Command -Force
+}
+
+$npmShimTestHome = Join-Path $PSScriptRoot '.npm-shim-test-home'
+$npmPowerShellShimPath = Join-Path $npmShimTestHome 'npm.ps1'
+$npmCommandShimPath = Join-Path $npmShimTestHome 'npm.cmd'
+Remove-Item -LiteralPath $npmShimTestHome -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $npmShimTestHome -Force | Out-Null
+New-Item -ItemType File -Path $npmPowerShellShimPath -Force | Out-Null
+New-Item -ItemType File -Path $npmCommandShimPath -Force | Out-Null
+function global:Get-Command {
+  param (
+    [string]$Name,
+    [object]$ErrorAction
+  )
+
+  if ($Name -eq 'npm') {
+    return [PSCustomObject]@{
+      Source = $npmPowerShellShimPath
+      CommandType = [System.Management.Automation.CommandTypes]::ExternalScript
+    }
+  }
+
+  return $null
+}
+try {
+  Assert-Equal -Expected $npmCommandShimPath -Actual (Resolve-NpmExecutable) -Message 'El resolver de npm debe preferir el shim .cmd cuando PowerShell resuelve npm.ps1.'
+} finally {
+  Remove-Item -LiteralPath $npmShimTestHome -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -Path Function:\Get-Command -Force
+}
+
+$nodeSetupActions = @()
+$script:npmAvailableInCurrentSession = $false
+function global:Get-Command {
+  param (
+    [string]$Name,
+    [object]$ErrorAction
+  )
+
+  if ($Name -eq 'npm' -and $script:npmAvailableInCurrentSession) {
+    return [PSCustomObject]@{ Source = 'npm' }
+  }
+
+  if ($Name -eq 'fnm') {
+    return [PSCustomObject]@{ Source = 'fnm' }
+  }
+
+  return $null
+}
+function global:Install-fnm {
+  $script:nodeSetupActions += 'install-fnm'
+  $global:LASTEXITCODE = 0
+}
+function global:fnm {
+  $joinedArguments = $args -join ' '
+  $script:nodeSetupActions += "fnm:$joinedArguments"
+  if ($joinedArguments -eq 'default latest') {
+    $script:npmAvailableInCurrentSession = $true
+  }
+  if ($joinedArguments -eq 'env --use-on-cd --shell powershell') {
+    '$env:PATH = $env:PATH'
+  }
+  $global:LASTEXITCODE = 0
+}
 function global:npm {
-  $script:npmActions += ($args -join ' ')
+  $script:nodeSetupActions += "npm:$($args -join ' ')"
   $global:LASTEXITCODE = 0
 }
 
-Install-Hunk
-Assert-Equal -Expected $true -Actual (($npmActions -join '|').Contains('i -g hunkdiff')) -Message 'El instalador de hunk debe usar el paquete npm hunkdiff.'
+try {
+  Install-Hunk
+  Assert-Equal -Expected $true -Actual (($nodeSetupActions -join '|').Contains('install-fnm')) -Message 'El instalador de hunk debe asegurar fnm cuando npm no está disponible en la sesión actual.'
+  Assert-Equal -Expected $true -Actual (($nodeSetupActions -join '|').Contains('fnm:install latest')) -Message 'El instalador de hunk debe instalar la última versión estable oficial de Node.js con fnm antes de usar npm.'
+  Assert-Equal -Expected $true -Actual (($nodeSetupActions -join '|').Contains('fnm:default latest')) -Message 'El instalador de hunk debe dejar la última versión estable oficial de Node.js como versión predeterminada.'
+  Assert-Equal -Expected $true -Actual (($nodeSetupActions -join '|').Contains('fnm:env --use-on-cd --shell powershell')) -Message 'El instalador de hunk debe activar fnm en la misma sesión de PowerShell.'
+  Assert-Equal -Expected $true -Actual (($nodeSetupActions -join '|').Contains('npm:i -g hunkdiff')) -Message 'El instalador de hunk debe usar el paquete npm hunkdiff.'
+} finally {
+  Remove-Item -Path Function:\Get-Command -Force
+  Remove-Item -Path Function:\Install-fnm -Force
+  Remove-Item -Path Function:\fnm -Force
+  Remove-Item -Path Function:\npm -Force
+}
 
 $originalUserProfile = $env:USERPROFILE
 $scoopTestHome = Join-Path $PSScriptRoot '.scoop-test-home'

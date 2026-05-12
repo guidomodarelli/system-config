@@ -284,8 +284,98 @@ function Install-Gh {
   Install-WingetPackage GitHub.cli
 }
 
+function Resolve-FnmExecutable {
+  $fnmCommand = Get-Command fnm -ErrorAction SilentlyContinue
+  if ($fnmCommand) {
+    return $fnmCommand.Source
+  }
+
+  $candidatePaths = @()
+  if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    $candidatePaths += Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\fnm.exe'
+  }
+  if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
+    $candidatePaths += Join-Path $env:ProgramFiles 'fnm\fnm.exe'
+  }
+
+  foreach ($candidatePath in $candidatePaths) {
+    if (Test-Path -LiteralPath $candidatePath) {
+      return $candidatePath
+    }
+  }
+
+  return $null
+}
+
+function Invoke-FnmEnvironment {
+  param (
+    [string]$FnmExecutable
+  )
+
+  & $FnmExecutable env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+  if ($LASTEXITCODE -ne 0) {
+    throw "fnm no pudo activar el entorno de Node.js para esta sesión. Código: $LASTEXITCODE."
+  }
+}
+
+function Resolve-NpmExecutable {
+  $npmCommand = Get-Command npm -ErrorAction SilentlyContinue
+  if ($npmCommand) {
+    if ($npmCommand.CommandType -eq [System.Management.Automation.CommandTypes]::ExternalScript -and
+        [System.IO.Path]::GetExtension($npmCommand.Source) -eq '.ps1') {
+      $npmCmdShim = [System.IO.Path]::ChangeExtension($npmCommand.Source, '.cmd')
+      if (Test-Path -LiteralPath $npmCmdShim) {
+        return $npmCmdShim
+      }
+    }
+
+    return $npmCommand.Source
+  }
+
+  return $null
+}
+
+function Install-NodeWithFnm {
+  Install-fnm
+
+  $fnmExecutable = Resolve-FnmExecutable
+  if ([string]::IsNullOrWhiteSpace($fnmExecutable)) {
+    throw 'fnm se instaló, pero no se encontró el ejecutable en PATH ni en WinGet Links.'
+  }
+
+  & $fnmExecutable install latest
+  if ($LASTEXITCODE -ne 0) {
+    throw "fnm no pudo instalar la última versión estable oficial de Node.js. Código: $LASTEXITCODE."
+  }
+
+  & $fnmExecutable default latest
+  if ($LASTEXITCODE -ne 0) {
+    throw "fnm no pudo configurar la última versión estable oficial de Node.js como versión predeterminada. Código: $LASTEXITCODE."
+  }
+
+  Invoke-FnmEnvironment -FnmExecutable $fnmExecutable
+
+  $npmExecutable = Resolve-NpmExecutable
+  if ([string]::IsNullOrWhiteSpace($npmExecutable)) {
+    throw 'npm no quedó disponible en la sesión actual después de activar fnm.'
+  }
+
+  return $npmExecutable
+}
+
+function Resolve-SetupNpmExecutable {
+  $npmExecutable = Resolve-NpmExecutable
+  if (-not [string]::IsNullOrWhiteSpace($npmExecutable)) {
+    return $npmExecutable
+  }
+
+  return Install-NodeWithFnm
+}
+
 function Install-Hunk {
-  npm i -g hunkdiff
+  $npmExecutable = Resolve-SetupNpmExecutable
+
+  & $npmExecutable i -g hunkdiff
   if ($LASTEXITCODE -ne 0) {
     throw "npm no pudo instalar 'hunkdiff'. Código: $LASTEXITCODE."
   }
