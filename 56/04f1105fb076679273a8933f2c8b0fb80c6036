@@ -1,0 +1,19 @@
+configs/.agents/skills/my-skills/refactor-decouple-ts-react/SKILL.md
+  s_9c07deab19b6e1::t_cf3d92316d721d 1-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "5604f1105fb076679273a8933f2c8b0fb80c6036",
+  "prompts": {},
+  "sessions": {
+    "s_9c07deab19b6e1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e2319-4eba-71c2-b2df-352c595ea2d1",
+        "model": "gpt-5.5"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
