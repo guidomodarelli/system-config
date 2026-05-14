@@ -1,0 +1,4 @@
+interface:
+  display_name: "Optimistic Action Mutations"
+  short_description: "Apply reusable optimistic mutation patterns for fast UI actions."
+  default_prompt: "Apply optimistic action mutation patterns to a fast user interaction."
