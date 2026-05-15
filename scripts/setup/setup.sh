@@ -603,6 +603,10 @@ install_ghostty() {
   _brew install --cask ghostty # https://ghostty.org/
 }
 
+install_mcp_remote_proxy() {
+  python3 -m pip install --user --upgrade --index-url https://pypi.artifacts.furycloud.io/simple/ mcp-remote-proxy
+}
+
 install_zsh() {
   if command -v zsh >/dev/null 2>&1; then
     echo "Zsh ya está instalado; se omite la instalación del paquete."

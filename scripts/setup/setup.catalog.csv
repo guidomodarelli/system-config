@@ -31,6 +31,7 @@ git|Git||Install-Git|1|0|windows|0
 git_filter_repo|git-filter-repo|install_git_filter_repo||1|1|linux,wsl|0
 gh|GitHub CLI|install_gh|Install-Gh|1|0|linux,wsl,darwin,windows|0
 hunk|hunk|install_hunk|Install-Hunk|1|0|linux,wsl,darwin,windows|0
+mcp_remote_proxy|mcp-remote-proxy|install_mcp_remote_proxy|Install-McpRemoteProxy|1|0|linux,wsl,darwin,windows|0
 ghostty|Ghostty|install_ghostty||1|0|linux,darwin|0
 ghostty|Ghostty||Install-Ghostty|0|0|windows|0
 ghq|ghq|install_ghq|Install-Ghq|1|0|linux,wsl,darwin,windows|0

@@ -38,6 +38,76 @@ function Get-CxCommitPrompt {
     return (Get-Content -LiteralPath $promptFile -Raw)
 }
 
+function Get-CxPluginIdForMcpServer {
+    param([string]$ServerName)
+
+    if ([string]::IsNullOrWhiteSpace($ServerName)) {
+        return $null
+    }
+
+    $codexHome = if ([string]::IsNullOrWhiteSpace($env:CODEX_HOME)) {
+        Join-Path $HOME '.codex'
+    } else {
+        $env:CODEX_HOME
+    }
+    $pluginCacheDir = Join-Path $codexHome 'plugins/cache'
+
+    if (-not (Test-Path -LiteralPath $pluginCacheDir -PathType Container)) {
+        return $null
+    }
+
+    foreach ($marketplaceDir in (Get-ChildItem -LiteralPath $pluginCacheDir -Directory -ErrorAction SilentlyContinue)) {
+        foreach ($pluginDir in (Get-ChildItem -LiteralPath $marketplaceDir.FullName -Directory -ErrorAction SilentlyContinue)) {
+            foreach ($versionDir in (Get-ChildItem -LiteralPath $pluginDir.FullName -Directory -ErrorAction SilentlyContinue)) {
+                $pluginManifestPath = Join-Path $versionDir.FullName '.codex-plugin/plugin.json'
+                if (-not (Test-Path -LiteralPath $pluginManifestPath -PathType Leaf)) {
+                    continue
+                }
+
+                try {
+                    $pluginManifest = Get-Content -LiteralPath $pluginManifestPath -Raw | ConvertFrom-Json
+                } catch {
+                    continue
+                }
+
+                if ([string]::IsNullOrWhiteSpace($pluginManifest.mcpServers)) {
+                    continue
+                }
+
+                $mcpConfigPath = if ([System.IO.Path]::IsPathRooted($pluginManifest.mcpServers)) {
+                    $pluginManifest.mcpServers
+                } else {
+                    Join-Path $versionDir.FullName $pluginManifest.mcpServers
+                }
+                if (-not (Test-Path -LiteralPath $mcpConfigPath -PathType Leaf)) {
+                    continue
+                }
+
+                try {
+                    $mcpConfig = Get-Content -LiteralPath $mcpConfigPath -Raw | ConvertFrom-Json
+                } catch {
+                    continue
+                }
+
+                $mcpServerNames = @($mcpConfig.mcpServers.PSObject.Properties.Name)
+                if ($mcpServerNames -notcontains $ServerName) {
+                    continue
+                }
+
+                $pluginName = if ([string]::IsNullOrWhiteSpace($pluginManifest.name)) {
+                    $pluginDir.Name
+                } else {
+                    $pluginManifest.name
+                }
+
+                return "$pluginName@$($marketplaceDir.Name)"
+            }
+        }
+    }
+
+    return $null
+}
+
 # Returns `-c` overrides to disable all configured MCP servers for the current run.
 function Get-CxDisableMcpConfigArgs {
     $disableArgs = New-Object System.Collections.Generic.List[string]
@@ -56,14 +126,21 @@ function Get-CxDisableMcpConfigArgs {
             if ($server.enabled -eq $false) { continue }
 
             $configKey = "mcp_servers.$($server.name).enabled=false"
+            $pluginId = $null
             $transportCwd = $server.transport.cwd
             if (-not [string]::IsNullOrWhiteSpace($transportCwd)) {
                 $normalizedCwd = ($transportCwd -replace '\\', '/')
                 $pluginPathPattern = '/plugins/cache/(?<marketplace>[^/]+)/(?<plugin>[^/]+)/'
                 if ($normalizedCwd -match $pluginPathPattern) {
                     $pluginId = "$($Matches['plugin'])@$($Matches['marketplace'])"
-                    $configKey = "plugins.`"$pluginId`".enabled=false"
                 }
+            }
+
+            if ([string]::IsNullOrWhiteSpace($pluginId)) {
+                $pluginId = Get-CxPluginIdForMcpServer -ServerName $server.name
+            }
+            if (-not [string]::IsNullOrWhiteSpace($pluginId)) {
+                $configKey = "plugins.`"$pluginId`".enabled=false"
             }
 
             if (-not $seenConfigKeys.ContainsKey($configKey)) {

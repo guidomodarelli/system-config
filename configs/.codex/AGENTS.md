@@ -1,3 +1,14 @@
+<!-- meli-codex-memory-plugin -->
+## meli-memory — memory MCP (Codex)
+
+This environment has the **meli-claude-memory** plugin installed for Codex,
+providing persistent memory across sessions via the `mcmemory-mcp` MCP server.
+
+Read `~/.codex/meli-memory.md` for the complete instructions on when and how to
+use the memory tools. Do this before answering any question that involves recent
+work, past decisions, or project context.
+<!-- /meli-codex-memory-plugin -->
+
 ---
 description: Rules for the agents.
 alwaysApply: true

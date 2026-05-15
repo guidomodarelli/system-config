@@ -21,6 +21,108 @@ _cx_commit_prompt() {
   fi
 }
 
+_cx_plugin_id_for_mcp_server() {
+  local server_name="$1"
+  local codex_home="${CODEX_HOME:-${HOME}/.codex}"
+  local plugin_cache_dir="${codex_home}/plugins/cache"
+  local plugin_id
+
+  [[ -n "$server_name" && -d "$plugin_cache_dir" ]] || return 1
+
+  if command -v node >/dev/null 2>&1; then
+    plugin_id="$(
+      command node -e '
+        const fs = require("fs");
+        const path = require("path");
+
+        const serverName = process.argv[1];
+        const pluginCacheDir = process.argv[2];
+
+        const readJson = (filePath) => {
+          try {
+            return JSON.parse(fs.readFileSync(filePath, "utf8"));
+          } catch {
+            return null;
+          }
+        };
+
+        const listDirectories = (directoryPath) => {
+          try {
+            return fs
+              .readdirSync(directoryPath, { withFileTypes: true })
+              .filter((entry) => entry.isDirectory())
+              .map((entry) => entry.name);
+          } catch {
+            return [];
+          }
+        };
+
+        for (const marketplaceName of listDirectories(pluginCacheDir)) {
+          const marketplaceDir = path.join(pluginCacheDir, marketplaceName);
+
+          for (const pluginDirName of listDirectories(marketplaceDir)) {
+            const pluginDir = path.join(marketplaceDir, pluginDirName);
+
+            for (const versionName of listDirectories(pluginDir)) {
+              const pluginRoot = path.join(pluginDir, versionName);
+              const pluginManifest = readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json"));
+
+              if (!pluginManifest || typeof pluginManifest.mcpServers !== "string") {
+                continue;
+              }
+
+              const mcpConfigPath = path.resolve(pluginRoot, pluginManifest.mcpServers);
+              const mcpConfig = readJson(mcpConfigPath);
+
+              if (!mcpConfig?.mcpServers?.[serverName]) {
+                continue;
+              }
+
+              const pluginName = pluginManifest.name || pluginDirName;
+              process.stdout.write(`${pluginName}@${marketplaceName}`);
+              process.exit(0);
+            }
+          }
+        }
+
+        process.exit(1);
+      ' "$server_name" "$plugin_cache_dir" 2>/dev/null
+    )" && [[ -n "$plugin_id" ]] && {
+      print -r -- "$plugin_id"
+      return 0
+    }
+  fi
+
+  command -v jq >/dev/null 2>&1 || return 1
+
+  local plugin_manifest plugin_root plugin_dir_name marketplace_name
+  local mcp_servers_path mcp_config_path plugin_name
+
+  for plugin_manifest in "${plugin_cache_dir}"/*/*/*/.codex-plugin/plugin.json(N); do
+    plugin_root="${plugin_manifest:h:h}"
+    plugin_dir_name="${plugin_root:h:t}"
+    marketplace_name="${plugin_root:h:h:t}"
+    mcp_servers_path="$(command jq -r '.mcpServers // empty' "$plugin_manifest" 2>/dev/null)"
+    [[ -n "$mcp_servers_path" ]] || continue
+
+    if [[ "$mcp_servers_path" = /* ]]; then
+      mcp_config_path="$mcp_servers_path"
+    else
+      mcp_config_path="${plugin_root}/${mcp_servers_path}"
+    fi
+    mcp_config_path="${mcp_config_path:A}"
+    [[ -r "$mcp_config_path" ]] || continue
+
+    command jq -e --arg server_name "$server_name" '.mcpServers[$server_name] != null' "$mcp_config_path" >/dev/null 2>&1 || continue
+    plugin_name="$(command jq -r '.name // empty' "$plugin_manifest" 2>/dev/null)"
+    [[ -n "$plugin_name" ]] || plugin_name="$plugin_dir_name"
+    print -r -- "${plugin_name}@${marketplace_name}"
+    return 0
+  done
+
+  return 1
+}
+
 # Returns `-c` overrides to disable all configured MCP servers for the current run.
 _cx_disable_mcp_config_args() {
   local -a disable_args
@@ -32,6 +134,10 @@ _cx_disable_mcp_config_args() {
 
   while IFS=$'\t' read -r server_name plugin_id; do
     [[ -z "$server_name" ]] && continue
+
+    if [[ -z "$plugin_id" ]]; then
+      plugin_id="$(_cx_plugin_id_for_mcp_server "$server_name")"
+    fi
 
     if [[ -n "$plugin_id" ]]; then
       config_key="plugins.\"${plugin_id}\".enabled=false"
