@@ -1,0 +1,36 @@
+scripts/codex/test_cx_mcp_config.bats
+  s_a19d7c73042746::t_8ccca1a358ae4a 1-89
+configs/PowerShell/Microsoft.PowerShell_profile.ps1
+  s_a19d7c73042746::t_c74fdc4255bcf0 41-110,129,139-143
+scripts/setup/setup.sh
+  s_a19d7c73042746::t_50830c2ce0a535 606-609
+scripts/setup/setup.sh.spec.sh
+  s_a19d7c73042746::t_3e354d6edc540d 189,227-228,252
+  s_a19d7c73042746::t_a0a96ceae60130 229
+scripts/setup/setup.catalog.csv
+  s_a19d7c73042746::t_6a195526e31ab7 34
+configs/zsh/.zsh/functions/codex.zsh
+  s_a19d7c73042746::t_3d79e5c3c1441a 28,31-56,58,60-61,63-72,74-85,88-123
+  s_a19d7c73042746::t_7b55b853139e4b 24-27,29-30,57,59,62,73,86-87,124-125,138-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "406e586fbba10ed3d1febdb9a09cfdbb5da619d6",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_a19d7c73042746": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e2c1a-73dd-7790-98de-b132caf7f983",
+        "model": "gpt-5.5"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
