@@ -1,11 +1,16 @@
-export FZF_HEADER_MULTI_SELECT_PROMPT='(Multi-select) Move with TAB/Shift+TAB, mark with SPACE, ENTER to confirm'
-export FZF_HEADER_SINGLE_SELECT_PROMPT='(Single-select) Move with TAB/Shift+TAB and confirm with ENTER'
-export FZF_PREFIX_PROMPT='🔍'
-export FZF_DEFAULT_BIND='tab:down,btab:up,ctrl-a:select-all,ctrl-d:deselect-all,ctrl-t:toggle-all,ctrl-x:toggle'
-export FZF_COLOR_MOLOKAI='bg+:#293739,bg:#1B1D1E,border:#808080,spinner:#E6DB74,hl:#7E8E91,fg:#F8F8F2,header:#7E8E91,info:#A6E22E,pointer:#A6E22E,marker:#F92672,fg+:#F8F8F2,prompt:#F92672,hl+:#F92672'
+typeset -g FZF_HEADER_MULTI_SELECT_PROMPT='(Multi-select) Move with TAB/Shift+TAB, mark with SPACE, ENTER to confirm'
+typeset -g FZF_HEADER_SINGLE_SELECT_PROMPT='(Single-select) Move with TAB/Shift+TAB and confirm with ENTER'
+typeset -g FZF_PREFIX_PROMPT='> '
+typeset -g FZF_DEFAULT_BIND='tab:down,btab:up,ctrl-a:select-all,ctrl-d:deselect-all,ctrl-t:toggle-all,ctrl-x:toggle'
+typeset -g FZF_COLOR_MOLOKAI='bg+:#293739,bg:#1B1D1E,border:#808080,spinner:#E6DB74,hl:#7E8E91,fg:#F8F8F2,header:#7E8E91,info:#A6E22E,pointer:#A6E22E,marker:#F92672,fg+:#F8F8F2,prompt:#F92672,hl+:#F92672'
+typeset -g FZF_POINTER='>'
+typeset -g FZF_MARKER='*'
+
+typeset +x FZF_HEADER_MULTI_SELECT_PROMPT FZF_HEADER_SINGLE_SELECT_PROMPT FZF_PREFIX_PROMPT \
+  FZF_DEFAULT_BIND FZF_COLOR_MOLOKAI FZF_POINTER FZF_MARKER 2>/dev/null || true
 
 # color=tomasr/molokai
-export FZF_DEFAULT_OPTS="--color=\"${FZF_COLOR_MOLOKAI}\" --ansi --cycle --border=rounded --prompt=\"${FZF_PREFIX_PROMPT} \" --pointer=${POINTER} --marker=${MARKER} --header=\"${FZF_HEADER_SINGLE_SELECT_PROMPT}\" --multi=0 --bind=\"${FZF_DEFAULT_BIND}\""
+export FZF_DEFAULT_OPTS="--color=${FZF_COLOR_MOLOKAI} --ansi --cycle --border=rounded --prompt=> --pointer=${FZF_POINTER} --marker=${FZF_MARKER} --multi=0 --bind=${FZF_DEFAULT_BIND}"
 
 fzf_multi() {
   fzf --header="$FZF_HEADER_MULTI_SELECT_PROMPT" --multi "$@"
