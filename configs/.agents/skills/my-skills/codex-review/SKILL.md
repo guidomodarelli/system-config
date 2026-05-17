@@ -20,6 +20,9 @@ Use when:
 - Reject unrealistic edge cases, speculative risks, broad rewrites, and fixes that over-complicate the codebase.
 - Prefer small fixes at the right ownership boundary; no refactor unless it clearly improves the bug class.
 - Keep going until Codex review returns no accepted/actionable findings.
+- When Codex review reports accepted/actionable findings, enter the mandatory loop: review -> verify findings -> fix accepted/actionable findings -> run relevant tests -> rerun review -> repeat until 0 accepted/actionable findings.
+- Never stop after reporting findings with a passive closeout such as "No hice cambios; esto fue solo review." If there are accepted/actionable findings, fix them before ending the task unless the user explicitly asks to review only or forbids changes.
+- If every reported finding is rejected after verification, document the rejection reason and rerun Codex review only when the code or review target changed; otherwise close with the verified rejection summary.
 - If a review-triggered fix changes code, rerun focused tests and rerun Codex review.
 - Stop as soon as the review command/helper exits 0 with no accepted/actionable findings. Do not run an extra direct `codex review` just to get a nicer "clean" line, a second opinion, or clearer closeout wording.
 - Treat the helper's successful exit plus absence of actionable findings as the clean review result, even if the underlying Codex CLI output is terse.
