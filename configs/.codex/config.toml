@@ -64,6 +64,14 @@ multi_agent = true
 default_mode_request_user_input = false
 responses_websockets = false
 js_repl = true
+terminal_resize_reflow = true
+goals = true
+memories = true
+
+[memories]
+generate_memories = true
+use_memories = true
+disable_on_external_context = false
 
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
@@ -75,15 +83,9 @@ notifications = [
   "user-input-requested",
   "approval-requested"
 ]
-status_line = [
-  "model-with-reasoning",
-  "context-remaining",
-  "current-dir",
-  "total-input-tokens",
-  "total-output-tokens",
-  "fast-mode"
-]
+status_line = ["model-with-reasoning", "git-branch", "pull-request-number", "task-progress", "project-name", "context-remaining", "run-state"]
 theme = "two-dark"
+status_line_use_colors = true
 
 [tui.model_availability_nux]
 "gpt-5.5" = 4
@@ -106,5 +108,11 @@ enabled = true
 [plugins."github@openai-curated"]
 enabled = true
 
+[plugins."chrome@openai-bundled"]
+enabled = true
+
 [plugins."computer-use@openai-bundled"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
 enabled = true
