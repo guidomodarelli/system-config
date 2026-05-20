@@ -5,23 +5,12 @@ model_reasoning_effort = "low"
 personality = "friendly"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
-service_tier = "fast"
 
 [features]
 # Habilita modos de colaboración como plan mode.Beneficio: ayuda a que Codex
 # trabaje con modos más estructurados para planificar antes de ejecutar.
 collaboration_modes = true
 prevent_idle_sleep = true
-# OpenAI documenta Fast mode como una forma de aumentar velocidad: en GPT-5.4 da
-# aproximadamente 1.5x más velocidad a cambio de 2x consumo de créditos. También
-# indican que hoy está disponible cuando iniciás sesión con ChatGPT, no con API
-# key, y el changelog dice que ya está habilitado por defecto en versiones
-# recientes, con toggle persistente /fast.
-#
-# Mi recomendación: útil para iteración rápida, pero no lo dejaría como apuesta
-# universal si te importa optimizar consumo; mejor usarlo cuando realmente
-# querés latencia baja.
-fast_mode = true
 # =============================================================================
 # Beta features below (use with caution)
 # =============================================================================
@@ -67,6 +56,7 @@ js_repl = true
 terminal_resize_reflow = true
 goals = true
 memories = true
+mentions_v2 = true
 
 [memories]
 generate_memories = true
