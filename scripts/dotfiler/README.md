@@ -163,6 +163,65 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
     - `.local/share/app-settings/config.json` → `/ruta/absoluta/configs/.config/settings/config.json`
     - `.local/share/app-settings/profile.ini` → `/ruta/absoluta/configs/.config/settings/profile.ini`
 
+  ### Filtrado de globs con `descendInto` / `markerFile` / `exclude`
+
+  Cuando el `path` termina con `/*`, se pueden agregar tres campos opcionales
+  para refinar qué hijos se enlazan, atravesar agrupadores anidados y enlazar
+  unidades terminales con un archivo marcador.
+
+  | Campo | Tipo | Aplica a | Significado |
+  | --- | --- | --- | --- |
+  | `descendInto` | string (regex con `/.../` opcional) | folders | Las carpetas cuyo basename matchee son **agrupadores**: se desciende dentro recursivamente sin enlazarlas. |
+  | `markerFile` | string (basename) | folders hoja | Sólo se enlazan carpetas que contengan este archivo al raíz. No aplica a archivos. |
+  | `exclude` | string (regex con `/.../` opcional) | folders y archivos | Lo matcheado se descarta totalmente (sin enlazar y sin descender). Gana sobre `descendInto` y `markerFile`. |
+
+  **Ejemplo (caso skills)**:
+
+  ```yaml
+  - path: .agents/skills/my-skills/*
+    target: .claude/skills
+    descendInto: /^\(.*\)$/        # agrupadores con paréntesis (recursivos)
+    markerFile: SKILL.md            # solo carpetas con SKILL.md se enlazan
+    exclude: /^(dist|\.dist)$/      # descartar build outputs
+  ```
+
+  Árbol fuente:
+
+  ```text
+  my-skills/
+  ├── enforce-naming-conventions/SKILL.md
+  ├── (javascript)/
+  │   ├── react-best/SKILL.md
+  │   └── (otro)/(otromas)/deep-skill/SKILL.md
+  ├── (meli)/nordic-rules/SKILL.md
+  └── dist/                          # descartado
+  ```
+
+  Symlinks producidos (aplanados al basename bajo `target`):
+
+  - `~/.claude/skills/enforce-naming-conventions`
+  - `~/.claude/skills/react-best`
+  - `~/.claude/skills/deep-skill`
+  - `~/.claude/skills/nordic-rules`
+
+  **Reglas**:
+
+  - `exclude` gana sobre `descendInto` y `markerFile`.
+  - `descendInto` siempre es recursivo, sin flag adicional.
+  - Los slashes en `/pattern/` son decorativos y se descartan si están presentes en ambos extremos.
+  - `descendInto` aplica sólo a carpetas; `exclude` aplica a carpetas y archivos; `markerFile` nombra un archivo dentro de una carpeta hoja.
+  - El destino siempre se aplana al basename, incluso en carpetas profundas.
+  - Los archivos siempre se enlazan en cualquier nivel del recorrido, sujetos a `exclude`. `markerFile` no aplica a archivos.
+  - Los tres campos requieren `path` con `/*` final. Si no, se ignoran con una advertencia.
+  - Si dos hojas terminan con el mismo basename al aplanar el destino, gana la primera (orden alfabético por path absoluto); la segunda se descarta con advertencia y se cuenta como error.
+  - `exactTarget` no acepta patrones wildcard, por lo que tampoco acepta estos filtros.
+
+  **Portabilidad regex (PowerShell .NET ↔ bash ERE)**: usar el subconjunto seguro
+  para que ambos motores produzcan el mismo resultado: anclas (`^`, `$`),
+  clases de caracteres (`[...]`), cuantificadores (`*`, `+`, `?`, `{}`),
+  grupos `(...)` y alternancia `|`. Evitar lookaheads/lookbehinds (`(?=...)`,
+  `(?!...)`) y backreferences.
+
 3. **Creación de Enlaces Simbólicos**
 
 - Para cada destino, verifica su estado actual:

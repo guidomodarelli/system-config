@@ -1112,13 +1112,173 @@ function Test-GlobPattern {
   return $Path.IndexOfAny([char[]]'*?[') -ge 0
 }
 
+function ConvertTo-StrippedRegexPattern {
+  param([string]$Pattern)
+
+  if ([string]::IsNullOrEmpty($Pattern)) {
+    return $null
+  }
+
+  $stripped = $Pattern
+  if ($stripped.Length -ge 2 -and $stripped.StartsWith('/') -and $stripped.EndsWith('/')) {
+    $stripped = $stripped.Substring(1, $stripped.Length - 2)
+  }
+
+  try {
+    return [regex]::new($stripped)
+  } catch {
+    throw "Patron regex invalido '$Pattern': $($_.Exception.Message)"
+  }
+}
+
+function Get-DescendIntoRegex {
+  param([object]$Entry)
+
+  $value = Get-TextPropertyValue -Object $Entry -Name 'descendInto'
+  if ([string]::IsNullOrEmpty($value)) {
+    return $null
+  }
+
+  return (ConvertTo-StrippedRegexPattern -Pattern $value)
+}
+
+function Get-MarkerFileName {
+  param([object]$Entry)
+
+  $value = Get-TextPropertyValue -Object $Entry -Name 'markerFile'
+  if ([string]::IsNullOrEmpty($value)) {
+    return $null
+  }
+
+  return $value
+}
+
+function Get-ExcludeRegex {
+  param([object]$Entry)
+
+  $value = Get-TextPropertyValue -Object $Entry -Name 'exclude'
+  if ([string]::IsNullOrEmpty($value)) {
+    return $null
+  }
+
+  return (ConvertTo-StrippedRegexPattern -Pattern $value)
+}
+
+function Test-FolderShouldDescend {
+  param(
+    [string]$Name,
+    [AllowNull()][regex]$DescendIntoRegex
+  )
+
+  if ($null -eq $DescendIntoRegex) {
+    return $false
+  }
+
+  return $DescendIntoRegex.IsMatch($Name)
+}
+
+function Test-FolderExcluded {
+  param(
+    [string]$Name,
+    [AllowNull()][regex]$ExcludeRegex
+  )
+
+  if ($null -eq $ExcludeRegex) {
+    return $false
+  }
+
+  return $ExcludeRegex.IsMatch($Name)
+}
+
+function Test-LeafHasMarkerFile {
+  param(
+    [string]$Path,
+    [AllowNull()][string]$MarkerFile
+  )
+
+  if ([string]::IsNullOrEmpty($MarkerFile)) {
+    return $true
+  }
+
+  return (Test-Path -LiteralPath (Join-Path -Path $Path -ChildPath $MarkerFile) -PathType Leaf)
+}
+
+function Get-FlattenedEmissionsRecursive {
+  param(
+    [string]$RootPath,
+    [AllowNull()][regex]$DescendIntoRegex,
+    [AllowNull()][regex]$ExcludeRegex,
+    [AllowNull()][string]$MarkerFile
+  )
+
+  $results = [System.Collections.Generic.List[object]]::new()
+  if ([string]::IsNullOrWhiteSpace($RootPath) -or -not (Test-Path -LiteralPath $RootPath)) {
+    return $results.ToArray()
+  }
+
+  $stack = [System.Collections.Generic.Stack[string]]::new()
+  $stack.Push($RootPath)
+
+  while ($stack.Count -gt 0) {
+    $current = $stack.Pop()
+    $children = @(Get-ChildItem -LiteralPath $current -Force -ErrorAction SilentlyContinue | Sort-Object Name)
+    foreach ($child in $children) {
+      $name = $child.Name
+      if (Test-FolderExcluded -Name $name -ExcludeRegex $ExcludeRegex) {
+        continue
+      }
+
+      if (-not $child.PSIsContainer) {
+        $results.Add($child) | Out-Null
+        continue
+      }
+
+      if (Test-FolderShouldDescend -Name $name -DescendIntoRegex $DescendIntoRegex) {
+        $stack.Push($child.FullName)
+        continue
+      }
+
+      if (Test-LeafHasMarkerFile -Path $child.FullName -MarkerFile $MarkerFile) {
+        $results.Add($child) | Out-Null
+      }
+    }
+  }
+
+  return @($results | Sort-Object FullName)
+}
+
 function Get-ResolvedSources {
-  param([string]$OriginalPath)
+  param(
+    [string]$OriginalPath,
+    [AllowNull()][regex]$DescendIntoRegex = $null,
+    [AllowNull()][regex]$ExcludeRegex = $null,
+    [AllowNull()][string]$MarkerFile = $null
+  )
 
   $pattern = Resolve-SourcePattern -Path $OriginalPath
   if (Test-GlobPattern -Path $OriginalPath) {
+    if ($null -ne $DescendIntoRegex) {
+      $rootPath = Split-Path -Path $pattern -Parent
+      return @(Get-FlattenedEmissionsRecursive -RootPath $rootPath -DescendIntoRegex $DescendIntoRegex -ExcludeRegex $ExcludeRegex -MarkerFile $MarkerFile)
+    }
+
     $items = @(Get-ChildItem -Path $pattern -Force -ErrorAction SilentlyContinue | Sort-Object Name)
-    return $items
+
+    if ($null -eq $ExcludeRegex -and [string]::IsNullOrEmpty($MarkerFile)) {
+      return $items
+    }
+
+    $filtered = [System.Collections.Generic.List[object]]::new()
+    foreach ($item in $items) {
+      if (Test-FolderExcluded -Name $item.Name -ExcludeRegex $ExcludeRegex) {
+        continue
+      }
+      if ($item.PSIsContainer -and -not (Test-LeafHasMarkerFile -Path $item.FullName -MarkerFile $MarkerFile)) {
+        continue
+      }
+      $filtered.Add($item) | Out-Null
+    }
+    return @($filtered)
   }
 
   if (-not (Test-Path -LiteralPath $pattern)) {
@@ -1286,6 +1446,16 @@ function Get-ConfigEntries {
   return @($entries)
 }
 
+function Test-PathEndsWithGlobStar {
+  param([string]$Path)
+
+  if ([string]::IsNullOrEmpty($Path)) {
+    return $false
+  }
+
+  return $Path.EndsWith('/*') -or $Path.EndsWith('\*')
+}
+
 function Resolve-Operations {
   $operations = [System.Collections.Generic.List[object]]::new()
 
@@ -1317,26 +1487,53 @@ function Resolve-Operations {
       continue
     }
 
+    $entryPath = [string]$entry.path
+    $descendIntoRegex = $null
+    $excludeRegex = $null
+    $markerFile = $null
+    $hasFilters = $false
+
+    try {
+      $descendIntoRegex = Get-DescendIntoRegex -Entry $entry
+      $excludeRegex = Get-ExcludeRegex -Entry $entry
+      $markerFile = Get-MarkerFileName -Entry $entry
+      $hasFilters = ($null -ne $descendIntoRegex) -or ($null -ne $excludeRegex) -or (-not [string]::IsNullOrEmpty($markerFile))
+    } catch {
+      $script:CountErrors += 1
+      Add-Diagnostic -Target $entryPath -Reason $_.Exception.Message
+      Write-Warn "$($_.Exception.Message) Ruta: $entryPath"
+      continue
+    }
+
+    if ($hasFilters -and -not (Test-PathEndsWithGlobStar -Path $entryPath)) {
+      Write-Warn "descendInto/markerFile/exclude solo aplican con path terminado en '/*'. Ignorando filtros para: $entryPath"
+      $descendIntoRegex = $null
+      $excludeRegex = $null
+      $markerFile = $null
+    }
+
     $targetBase = Resolve-TargetBase -Target $selectedTarget
 
-    $sources = @(Get-ResolvedSources -OriginalPath ([string]$entry.path))
+    $sources = @(Get-ResolvedSources -OriginalPath $entryPath -DescendIntoRegex $descendIntoRegex -ExcludeRegex $excludeRegex -MarkerFile $markerFile)
     if ($sources.Count -eq 0) {
-      if (Test-GlobPattern -Path ([string]$entry.path)) {
-        Write-Warn "El patron no produjo resultados: $($entry.path)"
+      if (Test-GlobPattern -Path $entryPath) {
+        Write-Warn "El patron no produjo resultados: $entryPath"
       } else {
         $script:CountErrors += 1
-        Add-Diagnostic -Target $targetBase -Reason "Ruta de origen inexistente: $($entry.path)"
-        Write-Warn "Ruta de origen invalida o inexistente: $($entry.path)"
+        Add-Diagnostic -Target $targetBase -Reason "Ruta de origen inexistente: $entryPath"
+        Write-Warn "Ruta de origen invalida o inexistente: $entryPath"
       }
       continue
     }
 
-    if ($selectedTargetDefinition.UsesExactTarget -and (Test-GlobPattern -Path ([string]$entry.path))) {
+    if ($selectedTargetDefinition.UsesExactTarget -and (Test-GlobPattern -Path $entryPath)) {
       $script:CountErrors += 1
-      Add-Diagnostic -Target $targetBase -Reason "exactTarget no admite patrones wildcard: $($entry.path)"
-      Write-Warn "No se permite exactTarget con patrones wildcard: $($entry.path)"
+      Add-Diagnostic -Target $targetBase -Reason "exactTarget no admite patrones wildcard: $entryPath"
+      Write-Warn "No se permite exactTarget con patrones wildcard: $entryPath"
       continue
     }
+
+    $seenBasenames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
     foreach ($sourceItem in $sources) {
       $targetPath = if ($selectedTargetDefinition.UsesExactTarget) {
@@ -1344,6 +1541,16 @@ function Resolve-Operations {
       } else {
         Join-Path -Path $targetBase -ChildPath $sourceItem.Name
       }
+
+      if (-not $selectedTargetDefinition.UsesExactTarget) {
+        if (-not $seenBasenames.Add($sourceItem.Name)) {
+          $script:CountErrors += 1
+          Add-Diagnostic -Target $targetPath -Reason "Colision de basename para '$($sourceItem.Name)' (primero gana, segundo descartado): $entryPath"
+          Write-Warn "Colision de basename '$($sourceItem.Name)' para $entryPath. Conservando el primer source, descartando $($sourceItem.FullName)."
+          continue
+        }
+      }
+
       $operations.Add([PSCustomObject]@{
           Group  = (Split-Path -Path $targetPath -Parent)
           Source = $sourceItem.FullName

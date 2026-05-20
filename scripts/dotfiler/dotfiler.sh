@@ -717,6 +717,132 @@ add_path_to_output() {
   echo "$output" | jq -c ". + [$path_obj]"
 }
 
+strip_regex_slashes() {
+  local p="$1"
+  if [ ${#p} -ge 2 ] && [ "${p:0:1}" = "/" ] && [ "${p: -1}" = "/" ]; then
+    p="${p:1:${#p}-2}"
+  fi
+  printf '%s' "$p"
+}
+
+validate_regex() {
+  local pattern="$1"
+  ( [[ "" =~ $pattern ]] ) 2>/dev/null
+  local rc=$?
+  [ "$rc" -ne 2 ]
+}
+
+read_descend_into_pattern() {
+  local entry_json="$1"
+  local raw
+  raw=$(echo "$entry_json" | jq -r '.descendInto // empty')
+  [ -z "$raw" ] && return 0
+  raw=$(strip_regex_slashes "$raw")
+  if ! validate_regex "$raw"; then
+    return 1
+  fi
+  printf '%s' "$raw"
+}
+
+read_marker_file() {
+  local entry_json="$1"
+  echo "$entry_json" | jq -r '.markerFile // empty'
+}
+
+read_exclude_pattern() {
+  local entry_json="$1"
+  local raw
+  raw=$(echo "$entry_json" | jq -r '.exclude // empty')
+  [ -z "$raw" ] && return 0
+  raw=$(strip_regex_slashes "$raw")
+  if ! validate_regex "$raw"; then
+    return 1
+  fi
+  printf '%s' "$raw"
+}
+
+folder_should_descend() {
+  local name="$1"
+  local pat="$2"
+  [ -z "$pat" ] && return 1
+  [[ "$name" =~ $pat ]]
+}
+
+folder_is_excluded() {
+  local name="$1"
+  local pat="$2"
+  [ -z "$pat" ] && return 1
+  [[ "$name" =~ $pat ]]
+}
+
+leaf_has_marker_file() {
+  local dir="$1"
+  local marker="$2"
+  [ -z "$marker" ] && return 0
+  [ -f "$dir/$marker" ]
+}
+
+walk_emissions_recursive() {
+  local root="$1"
+  local descend_pat="$2"
+  local exclude_pat="$3"
+  local marker="$4"
+
+  [ ! -d "$root" ] && return 0
+
+  local stack=("$root")
+  local emissions=()
+
+  while [ ${#stack[@]} -gt 0 ]; do
+    local last_index=$((${#stack[@]} - 1))
+    local current="${stack[$last_index]}"
+    unset 'stack[last_index]'
+
+    local children=()
+    local entry
+    shopt -s nullglob dotglob
+    for entry in "$current"/*; do
+      children+=("$entry")
+    done
+    shopt -u nullglob dotglob
+
+    if [ ${#children[@]} -gt 1 ]; then
+      local sorted=()
+      mapfile -t sorted < <(printf '%s\n' "${children[@]}" | LC_ALL=C sort)
+      children=("${sorted[@]}")
+    fi
+
+    local child
+    for child in "${children[@]}"; do
+      local name
+      name=$(basename "$child")
+      if folder_is_excluded "$name" "$exclude_pat"; then
+        continue
+      fi
+      if [ -d "$child" ] && [ ! -L "$child" ]; then
+        if folder_should_descend "$name" "$descend_pat"; then
+          stack+=("$child")
+          continue
+        fi
+        if leaf_has_marker_file "$child" "$marker"; then
+          emissions+=("$child")
+        fi
+      else
+        emissions+=("$child")
+      fi
+    done
+  done
+
+  if [ ${#emissions[@]} -gt 0 ]; then
+    printf '%s\n' "${emissions[@]}" | LC_ALL=C sort
+  fi
+}
+
+path_ends_with_glob_star() {
+  local p="$1"
+  [[ "$p" == *"/*" ]]
+}
+
 process_path_entry() {
   local line="$1"
   local selector_override="$2"
@@ -752,6 +878,46 @@ process_path_entry() {
 
   target=$(expand_env_vars "$target")
 
+  local descend_into_pat=""
+  local exclude_pat=""
+  local marker_file=""
+  local filter_parse_failed="false"
+
+  if descend_into_pat=$(read_descend_into_pattern "$line"); then
+    :
+  else
+    log_warn_action "Patron regex invalido en descendInto para $path"
+    record_failed_target "$path" "Patron regex invalido en descendInto"
+    filter_parse_failed="true"
+  fi
+
+  if exclude_pat=$(read_exclude_pattern "$line"); then
+    :
+  else
+    log_warn_action "Patron regex invalido en exclude para $path"
+    record_failed_target "$path" "Patron regex invalido en exclude"
+    filter_parse_failed="true"
+  fi
+
+  if [ "$filter_parse_failed" = "true" ]; then
+    echo "[]"
+    return 0
+  fi
+
+  marker_file=$(read_marker_file "$line")
+
+  local has_filters="false"
+  if [ -n "$descend_into_pat" ] || [ -n "$exclude_pat" ] || [ -n "$marker_file" ]; then
+    has_filters="true"
+  fi
+
+  if [ "$has_filters" = "true" ] && ! path_ends_with_glob_star "$path"; then
+    log_warn_action "descendInto/markerFile/exclude solo aplican con path terminado en '/*'. Ignorando filtros para: $path"
+    descend_into_pat=""
+    exclude_pat=""
+    marker_file=""
+  fi
+
   if is_debug; then
     echo "Path: $(print_path "${path//\\/\\\\}")" >&2
     echo "Target: $(print_path "$target")" >&2
@@ -759,27 +925,71 @@ process_path_entry() {
   fi
 
   local output="[]"
+  declare -A seen_basenames=()
+
+  add_with_collision_check() {
+    local item="$1"
+    if [ "$uses_exact_target" = "true" ]; then
+      output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target")
+      return
+    fi
+    local base
+    base=$(basename "$item")
+    if [ -n "${seen_basenames[$base]:-}" ]; then
+      log_warn_action "Colision de basename '$base' para $path (primero gana, descartando $item)"
+      record_failed_target "$target/$base" "Colision de basename: $item"
+      return
+    fi
+    seen_basenames[$base]=1
+    output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target")
+  }
+
   if [[ "$path" == *"*" ]]; then
     local dir_path="${path%/*}"
     local abs_dir_path
     abs_dir_path=$(get_abs_path "$dir_path")
 
-    if [ -d "$abs_dir_path" ]; then
+    if [ ! -d "$abs_dir_path" ]; then
+      log_warn_action "Directorio no encontrado: $abs_dir_path"
+      echo "$output"
+      return 0
+    fi
+
+    if [ -n "$descend_into_pat" ]; then
+      local item
       while IFS= read -r item; do
+        [ -z "$item" ] && continue
         if is_debug; then
           echo "Item: $(print_path "${item//\\/\\\\}")" >&2
           echo "Target: $(print_path "$target")" >&2
           echo "-----------" >&2
         fi
-        output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target")
-      done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1)
+        add_with_collision_check "$item"
+      done < <(walk_emissions_recursive "$abs_dir_path" "$descend_into_pat" "$exclude_pat" "$marker_file")
     else
-      log_warn_action "Directorio no encontrado: $abs_dir_path"
+      local item
+      while IFS= read -r item; do
+        local name
+        name=$(basename "$item")
+        if folder_is_excluded "$name" "$exclude_pat"; then
+          continue
+        fi
+        if [ -d "$item" ] && [ ! -L "$item" ] && ! leaf_has_marker_file "$item" "$marker_file"; then
+          continue
+        fi
+        if is_debug; then
+          echo "Item: $(print_path "${item//\\/\\\\}")" >&2
+          echo "Target: $(print_path "$target")" >&2
+          echo "-----------" >&2
+        fi
+        add_with_collision_check "$item"
+      done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1 | LC_ALL=C sort)
     fi
   else
     output=$(add_path_to_output "$path" "$target" "$output" "$uses_exact_target")
   fi
 
+  unset -f add_with_collision_check
   echo "$output"
 }
 

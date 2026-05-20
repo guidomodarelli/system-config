@@ -440,3 +440,301 @@ YAML
     "$HOME_DIR/linked-files/has~tilde" \
     "$REPO_DIR/configs/has~tilde"
 }
+
+# Helper for filter-related tests: builds the standard skills-like tree.
+seed_filter_tree() {
+  mkdir -p "$REPO_DIR/configs/skills-tree/leaf-a"
+  mkdir -p "$REPO_DIR/configs/skills-tree/leaf-b"
+  mkdir -p "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
+  mkdir -p "$REPO_DIR/configs/skills-tree/(group1)/(deep)/very-deep"
+  mkdir -p "$REPO_DIR/configs/skills-tree/no-marker"
+  mkdir -p "$REPO_DIR/configs/skills-tree/dist/anything"
+  printf "a" > "$REPO_DIR/configs/skills-tree/leaf-a/SKILL.md"
+  printf "b" > "$REPO_DIR/configs/skills-tree/leaf-b/SKILL.md"
+  printf "x" > "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf/SKILL.md"
+  printf "y" > "$REPO_DIR/configs/skills-tree/(group1)/(deep)/very-deep/SKILL.md"
+  printf "z" > "$REPO_DIR/configs/skills-tree/dist/anything/SKILL.md"
+  printf "top" > "$REPO_DIR/configs/skills-tree/file.txt"
+  printf "tmp" > "$REPO_DIR/configs/skills-tree/excluded.tmp"
+}
+
+@test "exclude descarta basenames top-level matcheados" {
+  seed_filter_tree
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    exclude: /^(dist|excluded\.tmp)$/
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/file.txt" "$REPO_DIR/configs/skills-tree/file.txt"
+  assert_path_missing "$HOME_DIR/linked-files/dist"
+  assert_path_missing "$HOME_DIR/linked-files/excluded.tmp"
+}
+
+@test "markerFile filtra top-level folders sin el archivo" {
+  seed_filter_tree
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    markerFile: SKILL.md
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-b" "$REPO_DIR/configs/skills-tree/leaf-b"
+  assert_path_missing "$HOME_DIR/linked-files/no-marker"
+  # markerFile no aplica a archivos top-level
+  assert_symlink_points_to "$HOME_DIR/linked-files/file.txt" "$REPO_DIR/configs/skills-tree/file.txt"
+}
+
+@test "descendInto recursivo enlaza hojas dentro de agrupadores anidados" {
+  seed_filter_tree
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+    exclude: /^dist$/
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-b" "$REPO_DIR/configs/skills-tree/leaf-b"
+  assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
+  assert_symlink_points_to "$HOME_DIR/linked-files/very-deep" "$REPO_DIR/configs/skills-tree/(group1)/(deep)/very-deep"
+  assert_path_missing "$HOME_DIR/linked-files/(group1)"
+  assert_path_missing "$HOME_DIR/linked-files/no-marker"
+  assert_path_missing "$HOME_DIR/linked-files/dist"
+}
+
+@test "exclude profundo dentro de un agrupador descarta el subtree" {
+  mkdir -p "$REPO_DIR/configs/tree/(group)/keep/leaf"
+  mkdir -p "$REPO_DIR/configs/tree/(group)/skip/inner"
+  printf "k" > "$REPO_DIR/configs/tree/(group)/keep/leaf/SKILL.md"
+  printf "s" > "$REPO_DIR/configs/tree/(group)/skip/inner/SKILL.md"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: tree/*
+    target: linked-files
+    descendInto: /^(\(group\)|keep)$/
+    markerFile: SKILL.md
+    exclude: /^skip$/
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf" "$REPO_DIR/configs/tree/(group)/keep/leaf"
+  assert_path_missing "$HOME_DIR/linked-files/inner"
+}
+
+@test "path sin /* con filtros emite advertencia y los ignora" {
+  mkdir -p "$REPO_DIR/configs/single-dir"
+  printf "x" > "$REPO_DIR/configs/single-dir/payload"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: single-dir
+    target: linked-files
+    descendInto: /foo/
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/single-dir" "$REPO_DIR/configs/single-dir"
+  [[ "$output" == *"solo aplican con path terminado en"* ]]
+}
+
+@test "regex invalido en descendInto cuenta como error y omite la entrada" {
+  mkdir -p "$REPO_DIR/configs/bad-tree/leaf"
+  printf "x" > "$REPO_DIR/configs/bad-tree/leaf/SKILL.md"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: bad-tree/*
+    target: linked-files
+    descendInto: "/[/"
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -ne 0 ]
+  assert_path_missing "$HOME_DIR/linked-files/leaf"
+}
+
+@test "colision de basename al aplanar conserva el primero y reporta error" {
+  mkdir -p "$REPO_DIR/configs/colliding/(g1)/dup"
+  mkdir -p "$REPO_DIR/configs/colliding/(g2)/dup"
+  printf "1" > "$REPO_DIR/configs/colliding/(g1)/dup/SKILL.md"
+  printf "2" > "$REPO_DIR/configs/colliding/(g2)/dup/SKILL.md"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: colliding/*
+    target: linked-files
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -ne 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/dup" "$REPO_DIR/configs/colliding/(g1)/dup"
+  [[ "$output" == *"Colision de basename"* ]]
+}
+
+@test "slashes decorativos producen el mismo resultado que sin ellos" {
+  mkdir -p "$REPO_DIR/configs/slash-test/keeper"
+  mkdir -p "$REPO_DIR/configs/slash-test/dropper"
+  printf "k" > "$REPO_DIR/configs/slash-test/keeper/SKILL.md"
+  printf "d" > "$REPO_DIR/configs/slash-test/dropper/SKILL.md"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: slash-test/*
+    target: linked-files
+    exclude: /^dropper$/
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/keeper" "$REPO_DIR/configs/slash-test/keeper"
+  assert_path_missing "$HOME_DIR/linked-files/dropper"
+}
+
+@test "archivos dentro de agrupador se enlazan con descendInto activo" {
+  mkdir -p "$REPO_DIR/configs/withfiles/(grp)"
+  printf "f" > "$REPO_DIR/configs/withfiles/(grp)/utility.js"
+  mkdir -p "$REPO_DIR/configs/withfiles/(grp)/leaf"
+  printf "l" > "$REPO_DIR/configs/withfiles/(grp)/leaf/SKILL.md"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: withfiles/*
+    target: linked-files
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/utility.js" "$REPO_DIR/configs/withfiles/(grp)/utility.js"
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf" "$REPO_DIR/configs/withfiles/(grp)/leaf"
+}
+
+@test "Combinacion (-,-,-): sin filtros mantiene comportamiento del glob original" {
+  seed_filter_tree
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/no-marker" "$REPO_DIR/configs/skills-tree/no-marker"
+  assert_symlink_points_to "$HOME_DIR/linked-files/dist" "$REPO_DIR/configs/skills-tree/dist"
+  assert_symlink_points_to "$HOME_DIR/linked-files/file.txt" "$REPO_DIR/configs/skills-tree/file.txt"
+  assert_symlink_points_to "$HOME_DIR/linked-files/excluded.tmp" "$REPO_DIR/configs/skills-tree/excluded.tmp"
+  # No desciende en (group1) sin descendInto
+  assert_path_missing "$HOME_DIR/linked-files/inner-leaf"
+}
+
+@test "Combinacion (-,markerFile,exclude): filtra ambos en top-level" {
+  seed_filter_tree
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    markerFile: SKILL.md
+    exclude: /^dist$/
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-b" "$REPO_DIR/configs/skills-tree/leaf-b"
+  assert_symlink_points_to "$HOME_DIR/linked-files/file.txt" "$REPO_DIR/configs/skills-tree/file.txt"
+  assert_path_missing "$HOME_DIR/linked-files/no-marker"
+  assert_path_missing "$HOME_DIR/linked-files/dist"
+}
+
+@test "Combinacion (descendInto,-,-): trata no-matches como hojas" {
+  seed_filter_tree
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    descendInto: /^\(.*\)$/
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  # Hojas top-level que no matchean descendInto
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/no-marker" "$REPO_DIR/configs/skills-tree/no-marker"
+  assert_symlink_points_to "$HOME_DIR/linked-files/dist" "$REPO_DIR/configs/skills-tree/dist"
+  # Hojas dentro del agrupador descubiertas (sin marker, toda hoja-folder vale)
+  assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
+  assert_symlink_points_to "$HOME_DIR/linked-files/file.txt" "$REPO_DIR/configs/skills-tree/file.txt"
+  # El agrupador en si NO se enlaza
+  assert_path_missing "$HOME_DIR/linked-files/(group1)"
+}
+
+@test "Combinacion (descendInto,-,exclude): poda subtrees sin requerir marker" {
+  seed_filter_tree
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    descendInto: /^\(.*\)$/
+    exclude: /^(dist|no-marker)$/
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-b" "$REPO_DIR/configs/skills-tree/leaf-b"
+  assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
+  assert_path_missing "$HOME_DIR/linked-files/no-marker"
+  assert_path_missing "$HOME_DIR/linked-files/dist"
+}
+
+@test "Combinacion (descendInto,markerFile,-): solo hojas con marker, sin exclude" {
+  seed_filter_tree
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-b" "$REPO_DIR/configs/skills-tree/leaf-b"
+  assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
+  assert_symlink_points_to "$HOME_DIR/linked-files/very-deep" "$REPO_DIR/configs/skills-tree/(group1)/(deep)/very-deep"
+  # no-marker no tiene SKILL.md, no se enlaza
+  assert_path_missing "$HOME_DIR/linked-files/no-marker"
+  # dist no matchea descendInto y no tiene marker -> hoja-folder sin marker -> skip
+  # ademas, sin exclude, dist no fue descartado, pero su tratamiento como hoja sin marker es lo que aplica
+  assert_path_missing "$HOME_DIR/linked-files/dist"
+  assert_path_missing "$HOME_DIR/linked-files/anything"
+}

@@ -771,5 +771,224 @@ Describe 'dotfiler.ps1' {
 
     $script:MainCallOrder | Should -Be @('Get-RepoRoot', 'Assert-ConfigPathsFileExists', 'Ensure-DotfilerDependencies')
   }
+
+  Context 'Filtros descendInto / markerFile / exclude' {
+    BeforeEach {
+      $script:FilterRoot = Join-Path -Path $TestDrive -ChildPath ("filters-{0}" -f ([guid]::NewGuid().ToString('N')))
+      New-Item -ItemType Directory -Path $script:FilterRoot -Force | Out-Null
+
+      $script:OriginalConfigsDir = $script:ConfigsDir
+      $script:ConfigsDir = $script:FilterRoot
+
+      $treeRoot = Join-Path -Path $script:FilterRoot -ChildPath 'skills-tree'
+      New-Item -ItemType Directory -Path $treeRoot -Force | Out-Null
+
+      foreach ($leaf in @('leaf-a', 'leaf-b', 'no-marker')) {
+        $leafPath = Join-Path -Path $treeRoot -ChildPath $leaf
+        New-Item -ItemType Directory -Path $leafPath -Force | Out-Null
+        if ($leaf -ne 'no-marker') {
+          New-Item -ItemType File -Path (Join-Path -Path $leafPath -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+        }
+      }
+
+      $group1 = Join-Path -Path $treeRoot -ChildPath '(group1)'
+      New-Item -ItemType Directory -Path $group1 -Force | Out-Null
+      $innerLeaf = Join-Path -Path $group1 -ChildPath 'inner-leaf'
+      New-Item -ItemType Directory -Path $innerLeaf -Force | Out-Null
+      New-Item -ItemType File -Path (Join-Path -Path $innerLeaf -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+
+      $deep = Join-Path -Path $group1 -ChildPath '(deep)'
+      New-Item -ItemType Directory -Path $deep -Force | Out-Null
+      $veryDeep = Join-Path -Path $deep -ChildPath 'very-deep'
+      New-Item -ItemType Directory -Path $veryDeep -Force | Out-Null
+      New-Item -ItemType File -Path (Join-Path -Path $veryDeep -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+
+      $dist = Join-Path -Path $treeRoot -ChildPath 'dist'
+      New-Item -ItemType Directory -Path $dist -Force | Out-Null
+      $distInner = Join-Path -Path $dist -ChildPath 'anything'
+      New-Item -ItemType Directory -Path $distInner -Force | Out-Null
+      New-Item -ItemType File -Path (Join-Path -Path $distInner -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+
+      New-Item -ItemType File -Path (Join-Path -Path $treeRoot -ChildPath 'file.txt') -Value 'top' -Force | Out-Null
+      New-Item -ItemType File -Path (Join-Path -Path $treeRoot -ChildPath 'excluded.tmp') -Value 'tmp' -Force | Out-Null
+    }
+
+    AfterEach {
+      $script:ConfigsDir = $script:OriginalConfigsDir
+      if (Test-Path -LiteralPath $script:FilterRoot) {
+        Remove-Item -LiteralPath $script:FilterRoot -Recurse -Force -ErrorAction SilentlyContinue
+      }
+    }
+
+    It 'ConvertTo-StrippedRegexPattern stripea slashes decorativos' {
+      $regex = ConvertTo-StrippedRegexPattern -Pattern '/^foo$/'
+      $regex.ToString() | Should -Be '^foo$'
+      $regex.IsMatch('foo') | Should -BeTrue
+      $regex.IsMatch('foobar') | Should -BeFalse
+    }
+
+    It 'ConvertTo-StrippedRegexPattern acepta pattern sin slashes' {
+      $regex = ConvertTo-StrippedRegexPattern -Pattern '^foo$'
+      $regex.IsMatch('foo') | Should -BeTrue
+    }
+
+    It 'ConvertTo-StrippedRegexPattern lanza con regex invalido' {
+      { ConvertTo-StrippedRegexPattern -Pattern '/[/' } | Should -Throw '*regex invalido*'
+    }
+
+    It 'Test-LeafHasMarkerFile retorna true sin marker definido' {
+      Test-LeafHasMarkerFile -Path $script:FilterRoot -MarkerFile $null | Should -BeTrue
+      Test-LeafHasMarkerFile -Path $script:FilterRoot -MarkerFile '' | Should -BeTrue
+    }
+
+    It 'Test-LeafHasMarkerFile valida presencia del archivo en la carpeta' {
+      $leafA = Join-Path $script:FilterRoot 'skills-tree/leaf-a'
+      Test-LeafHasMarkerFile -Path $leafA -MarkerFile 'SKILL.md' | Should -BeTrue
+      $noMarker = Join-Path $script:FilterRoot 'skills-tree/no-marker'
+      Test-LeafHasMarkerFile -Path $noMarker -MarkerFile 'SKILL.md' | Should -BeFalse
+    }
+
+    It 'Get-ResolvedSources sin filtros enlaza todos los hijos top-level' {
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Contain 'no-marker'
+      $names | Should -Contain '(group1)'
+      $names | Should -Contain 'dist'
+      $names | Should -Contain 'file.txt'
+    }
+
+    It 'Get-ResolvedSources con exclude descarta basenames matcheados' {
+      $excludeRegex = ConvertTo-StrippedRegexPattern -Pattern '/^(dist|excluded\.tmp)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -ExcludeRegex $excludeRegex
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Not -Contain 'dist'
+      $names | Should -Not -Contain 'excluded.tmp'
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'file.txt'
+    }
+
+    It 'Get-ResolvedSources con markerFile filtra folders sin el archivo' {
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Not -Contain 'no-marker'
+      # archivos top-level pasan porque markerFile no aplica
+      $names | Should -Contain 'file.txt'
+    }
+
+    It 'Get-ResolvedSources con descendInto recursivo aplana hojas anidadas' {
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Contain 'inner-leaf'
+      $names | Should -Contain 'very-deep'
+      $names | Should -Not -Contain '(group1)'
+      $names | Should -Not -Contain '(deep)'
+      $names | Should -Not -Contain 'no-marker'
+    }
+
+    It 'Get-ResolvedSources con exclude profundo evita descender en subtree' {
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $excludeRegex = ConvertTo-StrippedRegexPattern -Pattern '/^dist$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend -ExcludeRegex $excludeRegex -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Not -Contain 'anything'
+      $names | Should -Not -Contain 'dist'
+    }
+
+    It 'Combinacion (-,markerFile,exclude): filtra ambos en top-level' {
+      $excludeRegex = ConvertTo-StrippedRegexPattern -Pattern '/^dist$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -ExcludeRegex $excludeRegex -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Not -Contain 'dist'
+      $names | Should -Not -Contain 'no-marker'
+      $names | Should -Contain 'file.txt'
+      $names | Should -Contain 'excluded.tmp'
+    }
+
+    It 'Combinacion (descendInto,-,-): solo descendInto trata no-matches como hojas' {
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'no-marker'
+      $names | Should -Contain 'dist'
+      $names | Should -Contain 'file.txt'
+      $names | Should -Not -Contain '(group1)'
+      $names | Should -Contain 'inner-leaf'
+    }
+
+    It 'Combinacion (descendInto,-,exclude): poda subtrees sin requerir marker' {
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $excludeRegex = ConvertTo-StrippedRegexPattern -Pattern '/^(dist|no-marker)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend -ExcludeRegex $excludeRegex
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Contain 'inner-leaf'
+      $names | Should -Not -Contain 'no-marker'
+      $names | Should -Not -Contain 'dist'
+    }
+
+    It 'Combinacion (-,-,-): sin ningun filtro produce el comportamiento del glob original' {
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Contain 'no-marker'
+      $names | Should -Contain '(group1)'
+      $names | Should -Contain 'dist'
+      $names | Should -Contain 'file.txt'
+      $names | Should -Contain 'excluded.tmp'
+      $names | Should -Not -Contain 'inner-leaf'
+    }
+
+    It 'Get-ResolvedSources con descendInto enlaza archivos sueltos del agrupador' {
+      $files = Join-Path $script:FilterRoot 'skills-tree/(group1)/utility.js'
+      New-Item -ItemType File -Path $files -Value 'js' -Force | Out-Null
+
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'utility.js'
+    }
+
+    It 'Test-PathEndsWithGlobStar detecta paths terminados con /* o \*' {
+      Test-PathEndsWithGlobStar -Path 'foo/*' | Should -BeTrue
+      Test-PathEndsWithGlobStar -Path 'foo\*' | Should -BeTrue
+      Test-PathEndsWithGlobStar -Path 'foo' | Should -BeFalse
+      Test-PathEndsWithGlobStar -Path 'foo/*/bar' | Should -BeFalse
+      Test-PathEndsWithGlobStar -Path '' | Should -BeFalse
+    }
+
+    It 'Get-DescendIntoRegex retorna null si el campo no existe' {
+      $entry = [PSCustomObject]@{ path = 'foo/*'; target = 'bar' }
+      Get-DescendIntoRegex -Entry $entry | Should -BeNullOrEmpty
+    }
+
+    It 'Get-DescendIntoRegex compila el regex stripeando slashes' {
+      $entry = [PSCustomObject]@{ descendInto = '/^\(.*\)$/' }
+      $regex = Get-DescendIntoRegex -Entry $entry
+      $regex | Should -Not -BeNullOrEmpty
+      $regex.IsMatch('(javascript)') | Should -BeTrue
+      $regex.IsMatch('plain') | Should -BeFalse
+    }
+
+    It 'Get-MarkerFileName retorna null si el campo no existe' {
+      $entry = [PSCustomObject]@{ path = 'foo/*' }
+      Get-MarkerFileName -Entry $entry | Should -BeNullOrEmpty
+    }
+
+    It 'Get-MarkerFileName retorna el nombre cuando esta presente' {
+      $entry = [PSCustomObject]@{ markerFile = 'SKILL.md' }
+      Get-MarkerFileName -Entry $entry | Should -Be 'SKILL.md'
+    }
+  }
 }
 

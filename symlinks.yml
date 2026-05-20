@@ -34,8 +34,16 @@ paths:
       - platform: win32
   - path: .agents/skills/my-skills
     target: .agents/skills
-  - path: .agents/skills/my-skills
+  - path: .agents/skills/my-skills/*
     target: .claude/skills
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+    exclude: /^(dist|\.dist|AGENTS.md)$/
+  - path: .agents/skills/commands/*
+    target: .claude/skills
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+    exclude: /^(AGENTS.md)$/
   - path: .agents/skills/commands
     target: .agents/skills
   - path: .codex/AGENTS.md

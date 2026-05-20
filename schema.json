@@ -127,6 +127,18 @@
             "$ref": "#/$defs/platformConfigArray",
             "description": "Excludes this path configuration from specific platforms or environments"
           },
+          "descendInto": {
+            "type": "string",
+            "description": "Regex pattern (optional surrounding slashes /pattern/) matching folder basenames to treat as containers: walk into them recursively instead of linking. Only applies when path ends with /*."
+          },
+          "markerFile": {
+            "type": "string",
+            "description": "Basename of a file that must exist at the root of a leaf folder for it to be linked. Does not apply to files. Only applies when path ends with /*."
+          },
+          "exclude": {
+            "type": "string",
+            "description": "Regex pattern (optional surrounding slashes /pattern/) matching folder OR file basenames to discard. Folders matched are skipped entirely (no descent). Only applies when path ends with /*."
+          },
           "overrides": {
             "type": "array",
             "description": "Platform-specific overrides for this path configuration",
