@@ -1,0 +1,31 @@
+scripts/AGENTS.md
+  h_75c375681f3642 1
+scripts/dotfiler/dotfiler.sh
+  s_0abdbb6624d659::t_50f9c4304ecfcf 811-814
+  s_0abdbb6624d659::t_38218b8ebe5080 931,941,946
+scripts/CLAUDE.md
+  h_75c375681f3642 1-37
+symlinks.yml
+  h_75c375681f3642 41,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "cb4ea735a104ba6fb97dd8dd72ff073a7c7eb254",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_0abdbb6624d659": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c44e0c1f-366c-4c7d-ae7a-17f956db0f2d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
