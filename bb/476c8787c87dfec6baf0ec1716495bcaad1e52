@@ -1,0 +1,14 @@
+configs/zsh/.zsh/settings/git-ai.zsh
+  h_75c375681f3642 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.11",
+  "base_commit_sha": "bb476c8787c87dfec6baf0ec1716495bcaad1e52",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
