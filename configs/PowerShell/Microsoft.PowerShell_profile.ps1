@@ -19,6 +19,12 @@ if ($zoxideCommand) {
 
 fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
 
+# Ensure ~\.local\bin (used by native installers such as Claude Code) is on PATH.
+$localBin = Join-Path $env:USERPROFILE '.local\bin'
+if ((Test-Path $localBin) -and ($env:Path -split [IO.Path]::PathSeparator) -notcontains $localBin) {
+    $env:Path = "$localBin$([IO.Path]::PathSeparator)$env:Path"
+}
+
 # Absolute repository root resolved via git anchored to this wrapper location.
 $script:REPO_ROOT = (& git -C $PSScriptRoot rev-parse --show-toplevel 2>$null)
 if ([string]::IsNullOrWhiteSpace($script:REPO_ROOT)) {
