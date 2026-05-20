@@ -38,12 +38,12 @@ paths:
     target: .claude/skills
     descendInto: /^\(.*\)$/
     markerFile: SKILL.md
-    exclude: /^(dist|\.dist|AGENTS.md)$/
+    exclude: /^(dist|\.dist|AGENTS.md|CLAUDE.md)$/
   - path: .agents/skills/commands/*
     target: .claude/skills
     descendInto: /^\(.*\)$/
     markerFile: SKILL.md
-    exclude: /^(AGENTS.md)$/
+    exclude: /^(AGENTS.md|CLAUDE.md)$/
   - path: .agents/skills/commands
     target: .agents/skills
   - path: .codex/AGENTS.md

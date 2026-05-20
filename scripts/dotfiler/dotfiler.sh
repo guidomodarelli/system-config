@@ -808,7 +808,10 @@ walk_emissions_recursive() {
 
     if [ ${#children[@]} -gt 1 ]; then
       local sorted=()
-      mapfile -t sorted < <(printf '%s\n' "${children[@]}" | LC_ALL=C sort)
+      local sorted_line
+      while IFS= read -r sorted_line; do
+        sorted+=("$sorted_line")
+      done < <(printf '%s\n' "${children[@]}" | LC_ALL=C sort)
       children=("${sorted[@]}")
     fi
 
@@ -925,7 +928,7 @@ process_path_entry() {
   fi
 
   local output="[]"
-  declare -A seen_basenames=()
+  local seen_basenames=$'\n'
 
   add_with_collision_check() {
     local item="$1"
@@ -935,12 +938,12 @@ process_path_entry() {
     fi
     local base
     base=$(basename "$item")
-    if [ -n "${seen_basenames[$base]:-}" ]; then
+    if [[ "$seen_basenames" == *$'\n'"$base"$'\n'* ]]; then
       log_warn_action "Colision de basename '$base' para $path (primero gana, descartando $item)"
       record_failed_target "$target/$base" "Colision de basename: $item"
       return
     fi
-    seen_basenames[$base]=1
+    seen_basenames+="$base"$'\n'
     output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target")
   }
 
