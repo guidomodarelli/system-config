@@ -34,6 +34,8 @@ paths:
       - platform: win32
   - path: .agents/skills/my-skills
     target: .agents/skills
+  - path: .agents/skills/my-skills
+    target: .claude/skills
   - path: .agents/skills/commands
     target: .agents/skills
   - path: .codex/AGENTS.md
