@@ -25,6 +25,53 @@ if ((Test-Path $localBin) -and ($env:Path -split [IO.Path]::PathSeparator) -notc
     $env:Path = "$localBin$([IO.Path]::PathSeparator)$env:Path"
 }
 
+# Asegura que openssl.exe sea spawneable por Node (portless, etc.) y apunta
+# OPENSSL_CONF al openssl.cnf que acompaña al binario detectado.
+$opensslInstallCandidates = @(
+    'C:\Program Files\Git\mingw64\bin\openssl.exe',
+    'C:\Program Files\Git\usr\bin\openssl.exe',
+    'C:\Program Files\OpenSSL-Win64\bin\openssl.exe',
+    'C:\Program Files\OpenSSL\bin\openssl.exe',
+    'C:\Program Files (x86)\OpenSSL-Win32\bin\openssl.exe',
+    'C:\Program Files (x86)\OpenSSL\bin\openssl.exe'
+)
+$opensslExecutablePath = $null
+$opensslCommand = Get-Command openssl.exe -ErrorAction SilentlyContinue
+if ($opensslCommand) {
+    $opensslExecutablePath = $opensslCommand.Source
+} else {
+    foreach ($candidateExecutable in $opensslInstallCandidates) {
+        if (Test-Path -LiteralPath $candidateExecutable -PathType Leaf) {
+            $opensslExecutablePath = $candidateExecutable
+            break
+        }
+    }
+}
+
+if ($opensslExecutablePath) {
+    $opensslBinaryDirectory = Split-Path -Parent $opensslExecutablePath
+    if (($env:Path -split [IO.Path]::PathSeparator) -notcontains $opensslBinaryDirectory) {
+        $env:Path = "$opensslBinaryDirectory$([IO.Path]::PathSeparator)$env:Path"
+    }
+
+    if (-not $env:OPENSSL_CONF) {
+        $opensslConfigCandidates = @(
+            (Join-Path $opensslBinaryDirectory '..\ssl\openssl.cnf'),
+            (Join-Path $opensslBinaryDirectory '..\etc\ssl\openssl.cnf'),
+            (Join-Path $opensslBinaryDirectory '..\..\etc\ssl\openssl.cnf'),
+            (Join-Path $opensslBinaryDirectory '..\..\ssl\openssl.cnf'),
+            (Join-Path $opensslBinaryDirectory 'cnf\openssl.cnf'),
+            (Join-Path $opensslBinaryDirectory 'openssl.cnf')
+        )
+        foreach ($candidatePath in $opensslConfigCandidates) {
+            if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+                $env:OPENSSL_CONF = (Resolve-Path -LiteralPath $candidatePath).Path
+                break
+            }
+        }
+    }
+}
+
 # Absolute repository root resolved via git anchored to this wrapper location.
 $script:REPO_ROOT = (& git -C $PSScriptRoot rev-parse --show-toplevel 2>$null)
 if ([string]::IsNullOrWhiteSpace($script:REPO_ROOT)) {
