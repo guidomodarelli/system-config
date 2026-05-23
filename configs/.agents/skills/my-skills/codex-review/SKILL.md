@@ -28,6 +28,7 @@ Use when:
 - Treat the helper's successful exit plus absence of actionable findings as the clean review result only when there is also no still-running related `codex review` process from that run.
 - Do not terminate a running review only because it becomes quiet, including when the CLI appears to launch a nested `codex review`. Keep the original exec session alive and wait for the full process tree to exit.
 - If a nested or long-running review has no new output for several minutes, inspect or poll the running process tree and keep waiting while related `codex review`/`codex` child processes still exist. Do not stop any launched review process unless the user explicitly asks or the environment forcibly terminates it.
+- It is terminally forbidden to interrupt a nested or repeated `codex review` process yourself and close with wording such as "the last review did not print a final clean line; I inspected the process tree, confirmed recursion, and interrupted it to avoid dangling processes." That is not an acceptable closeout. The valid choices are to keep waiting until the launched process tree exits, follow an explicit user stop request, or report that the environment forcibly terminated the run.
 - If rejecting a finding as intentional/not worth fixing, add a brief inline code comment only when it explains a real invariant or ownership decision that future reviewers should know.
 - Do not push just to review. Push only when the user requested push/ship/PR update.
 
@@ -94,6 +95,7 @@ Run inline only for tiny changes or when subagents are unavailable.
 - Keep user updates brief during quiet periods, but do not convert quiet output into a failure by itself.
 - Repeated plugin warnings, validation chatter, or lack of a final clean/no-findings line are not evidence of success and are not reasons to stop while any launched review process is still alive.
 - If the run is suspected to be stuck, gather evidence such as parent/child process status and elapsed time, then keep waiting while related review processes are alive. A run is clean only after all launched review processes exit and the final observed result is 0 accepted/actionable findings.
+- Do not present a self-interrupted nested review as an "honest partial closeout." Self-interruption is a contract violation unless it was requested by the user; the final report must say the review contract was not satisfied, not frame the interruption as responsible cleanup.
 
 ## Helper
 
