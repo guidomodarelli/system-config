@@ -19,15 +19,15 @@ Use when:
 - Read dependency docs/source/types when the finding depends on external behavior.
 - Reject unrealistic edge cases, speculative risks, broad rewrites, and fixes that over-complicate the codebase.
 - Prefer small fixes at the right ownership boundary; no refactor unless it clearly improves the bug class.
-- Keep going until Codex review returns no accepted/actionable findings.
-- When Codex review reports accepted/actionable findings, enter the mandatory loop: review -> verify findings -> fix accepted/actionable findings -> run relevant tests -> rerun review -> repeat until 0 accepted/actionable findings.
+- Keep going until every launched Codex review process has exited and every completed review reports no accepted/actionable findings.
+- When Codex review reports accepted/actionable findings, enter the mandatory loop: review -> verify findings -> fix accepted/actionable findings -> run relevant tests -> rerun review -> repeat until every launched review process exits with 0 accepted/actionable findings.
 - Never stop after reporting findings with a passive closeout such as "No hice cambios; esto fue solo review." If there are accepted/actionable findings, fix them before ending the task unless the user explicitly asks to review only or forbids changes.
 - If every reported finding is rejected after verification, document the rejection reason and rerun Codex review only when the code or review target changed; otherwise close with the verified rejection summary.
 - If a review-triggered fix changes code, rerun focused tests and rerun Codex review.
-- Stop as soon as the review command/helper exits 0 with no accepted/actionable findings. Do not run an extra direct `codex review` just to get a nicer "clean" line, a second opinion, or clearer closeout wording.
-- Treat the helper's successful exit plus absence of actionable findings as the clean review result, even if the underlying Codex CLI output is terse.
+- Stop only after the selected review command/helper and any `codex review` process it launches have all exited with no accepted/actionable findings. Do not run an extra direct `codex review` just to get a nicer "clean" line, a second opinion, or clearer closeout wording.
+- Treat the helper's successful exit plus absence of actionable findings as the clean review result only when there is also no still-running related `codex review` process from that run.
 - Do not terminate a running review only because it becomes quiet, including when the CLI appears to launch a nested `codex review`. Keep the original exec session alive and wait for the full process tree to exit.
-- If a nested or long-running review has no new output for several minutes, inspect or poll the running process tree and keep waiting while related `codex review`/`codex` child processes still exist. Only stop it when the user explicitly asks, the process exits, or there is concrete evidence of an unrecoverable deadlock.
+- If a nested or long-running review has no new output for several minutes, inspect or poll the running process tree and keep waiting while related `codex review`/`codex` child processes still exist. Do not stop any launched review process unless the user explicitly asks or the environment forcibly terminates it.
 - If rejecting a finding as intentional/not worth fixing, add a brief inline code comment only when it explains a real invariant or ownership decision that future reviewers should know.
 - Do not push just to review. Push only when the user requested push/ship/PR update.
 
@@ -75,7 +75,7 @@ Format first if formatting can change line locations. Then it is OK to run tests
 scripts/codex-review --parallel-tests "<focused test command>"
 ```
 
-Tradeoff: tests may force code changes that stale the review. If tests or review lead to code edits, rerun the affected tests and rerun review until no accepted/actionable findings remain. Once that rerun exits cleanly, stop; do not spend another long review cycle on redundant confirmation.
+Tradeoff: tests may force code changes that stale the review. If tests or review lead to code edits, rerun the affected tests and rerun review until every launched review process exits with no accepted/actionable findings. Once that rerun exits cleanly and no related review process remains alive, stop; do not spend another long review cycle on redundant confirmation.
 
 ## Context Efficiency
 
@@ -88,11 +88,12 @@ Run inline only for tiny changes or when subagents are unavailable.
 
 ## Long-Running Or Nested Reviews
 
-- Start exactly one review command for the selected target and wait for that command to finish, even if its output reports another `codex review --uncommitted`, `codex review --base`, or helper invocation internally.
+- Start exactly one review command for the selected target and wait for that command plus every `codex review --uncommitted`, `codex review --base`, or helper invocation it launches internally to finish.
 - Do not start a second review command while the first one is still running.
-- Do not kill nested review processes merely to avoid leaving sessions open. Prefer polling the existing exec session and process tree until it exits.
+- Do not kill nested review processes merely to avoid leaving sessions open. Prefer polling the existing exec session and process tree until every related review process exits.
 - Keep user updates brief during quiet periods, but do not convert quiet output into a failure by itself.
-- If the run is suspected to be stuck, gather evidence first, such as parent/child process status and elapsed time. Ask the user before terminating unless termination is required by the environment.
+- Repeated plugin warnings, validation chatter, or lack of a final clean/no-findings line are not evidence of success and are not reasons to stop while any launched review process is still alive.
+- If the run is suspected to be stuck, gather evidence such as parent/child process status and elapsed time, then keep waiting while related review processes are alive. A run is clean only after all launched review processes exit and the final observed result is 0 accepted/actionable findings.
 
 ## Helper
 
@@ -115,7 +116,7 @@ The helper:
 - should be left in `--mode auto` or forced to `--mode branch` for committed/PR work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `CODEX_REVIEW_OUTPUT` is set
 - supports `--dry-run` and `--parallel-tests`
-- prints `codex-review clean: no accepted/actionable findings reported` when the selected review command exits 0
+- prints `codex-review clean: no accepted/actionable findings reported` when the selected review command exits 0; before reporting that as clean, confirm no related launched `codex review` process remains alive
 
 ## Final Report
 
@@ -123,6 +124,6 @@ Include:
 - review command used
 - tests/proof run
 - findings accepted/rejected, briefly why
-- the clean review result from the final helper/review run, or why a remaining finding was consciously rejected
+- the clean review result from the final helper/review run after all launched review processes exited, or why a remaining finding was consciously rejected
 
-Do not run another Codex review solely to improve the final report wording. If the final helper run exited 0 and produced no accepted/actionable findings, report that exact run as clean.
+Do not run another Codex review solely to improve the final report wording. If the final helper run exited 0, produced no accepted/actionable findings, and left no related launched review process alive, report that exact run as clean.
