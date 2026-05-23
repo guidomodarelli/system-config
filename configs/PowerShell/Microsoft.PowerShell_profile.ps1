@@ -1630,9 +1630,9 @@ function Invoke-FzfGitCheckoutRef {
 
 function Invoke-FzfGitCheckoutBranch {
     Invoke-FzfGitCheckoutRef -RefKind 'branch' -PromptText 'Branch Git >' -GetRefs {
-        git branch --all --format='%(refname:short)' 2> $null |
+        git branch --format='%(refname:short)' 2> $null |
             ForEach-Object { $_.Trim() } |
-            Where-Object { $_ -and $_ -notmatch '^origin/HEAD$' } |
+            Where-Object { $_ } |
             Sort-Object -Unique
     }
 }
