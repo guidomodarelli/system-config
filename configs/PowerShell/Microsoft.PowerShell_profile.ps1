@@ -1866,13 +1866,6 @@ if (-not $script:GhqSelectionCacheTtlSeconds) {
     $script:GhqSelectionCacheTtlSeconds = 10
 }
 
-if (-not $script:GhqRepositoryListPersistedTtlSeconds) {
-    $script:GhqRepositoryListPersistedTtlSeconds = 86400
-}
-
-$script:GhqRepositoryListCacheFilePath = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'pwsh-ghq-repo-list-cache.json'
-$script:GhqRepositoryListWarmupStarted = $false
-
 $script:GhqCommandInfoCache = $null
 $script:FzfCommandInfoCache = $null
 $script:GhqRootCache = $null
@@ -2070,78 +2063,11 @@ function Get-GhqRootFingerprint {
     }
 }
 
-function Save-GhqRepositoryListPersistedCache {
-    param(
-        [string[]]$Repositories,
-        [string]$RootFingerprint,
-        [string]$RootPath
-    )
-
-    if ([string]::IsNullOrWhiteSpace($script:GhqRepositoryListCacheFilePath)) { return }
-
-    try {
-        $payload = [pscustomobject]@{
-            timestamp = [datetime]::UtcNow.ToString('o')
-            rootPath = $RootPath
-            rootFingerprint = $RootFingerprint
-            repositories = @($Repositories)
-        }
-        $cacheDirectory = Split-Path -Parent $script:GhqRepositoryListCacheFilePath
-        if ($cacheDirectory -and -not (Test-Path -LiteralPath $cacheDirectory)) {
-            New-Item -ItemType Directory -Path $cacheDirectory -Force | Out-Null
-        }
-        $payload | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $script:GhqRepositoryListCacheFilePath -Encoding UTF8
-    } catch {
-    }
-}
-
-function Get-GhqRepositoryListPersistedCache {
-    param(
-        [string]$ExpectedRootFingerprint
-    )
-
-    if ([string]::IsNullOrWhiteSpace($script:GhqRepositoryListCacheFilePath)) { return $null }
-    if (-not (Test-Path -LiteralPath $script:GhqRepositoryListCacheFilePath -PathType Leaf)) { return $null }
-
-    try {
-        $rawContent = Get-Content -LiteralPath $script:GhqRepositoryListCacheFilePath -Raw -ErrorAction Stop
-        $payload = $rawContent | ConvertFrom-Json -ErrorAction Stop
-    } catch {
-        return $null
-    }
-
-    if (-not $payload -or -not $payload.repositories) { return $null }
-    if (-not [string]::IsNullOrWhiteSpace($ExpectedRootFingerprint) -and $payload.rootFingerprint -ne $ExpectedRootFingerprint) { return $null }
-
-    try {
-        $persistedTimestamp = [datetime]::Parse(
-            $payload.timestamp,
-            [System.Globalization.CultureInfo]::InvariantCulture,
-            [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal
-        )
-    } catch {
-        return $null
-    }
-
-    $elapsedSeconds = ([datetime]::UtcNow - $persistedTimestamp).TotalSeconds
-    if ($elapsedSeconds -lt 0 -or $elapsedSeconds -gt $script:GhqRepositoryListPersistedTtlSeconds) { return $null }
-
-    return @($payload.repositories)
-}
-
 function Get-CachedGhqRepositoryList {
     $ghqRootPath = Get-CachedGhqRootPath
     $rootFingerprint = Get-GhqRootFingerprint -RootPath $ghqRootPath
     $isFresh = Test-CacheEntryIsFresh -Timestamp $script:GhqRepositoryListCacheTimestamp -TtlSeconds $script:GhqSelectionCacheTtlSeconds
     if ($isFresh -and $script:GhqRepositoryListCache -and $script:GhqRepositoryListCacheRootFingerprint -eq $rootFingerprint) {
-        return $script:GhqRepositoryListCache
-    }
-
-    $persistedRepositories = Get-GhqRepositoryListPersistedCache -ExpectedRootFingerprint $rootFingerprint
-    if ($persistedRepositories -and $persistedRepositories.Count -gt 0) {
-        $script:GhqRepositoryListCache = $persistedRepositories
-        $script:GhqRepositoryListCacheTimestamp = [datetime]::UtcNow
-        $script:GhqRepositoryListCacheRootFingerprint = $rootFingerprint
         return $script:GhqRepositoryListCache
     }
 
@@ -2210,9 +2136,6 @@ function Get-CachedGhqRepositoryList {
     $script:GhqRepositoryListCache = @($repoItems)
     $script:GhqRepositoryListCacheTimestamp = [datetime]::UtcNow
     $script:GhqRepositoryListCacheRootFingerprint = $rootFingerprint
-
-    Save-GhqRepositoryListPersistedCache -Repositories $script:GhqRepositoryListCache -RootFingerprint $rootFingerprint -RootPath $ghqRootPath
-
     return $script:GhqRepositoryListCache
 }
 
@@ -2375,110 +2298,6 @@ function Invoke-GhqKeyHandler {
         }
     }
 }
-
-function Start-GhqRepositoryListWarmup {
-    if ($script:GhqRepositoryListWarmupStarted) { return }
-
-    if (-not (Get-Command Start-ThreadJob -ErrorAction SilentlyContinue)) { return }
-    if (-not (Get-Command ghq -ErrorAction SilentlyContinue)) { return }
-    if ([string]::IsNullOrWhiteSpace($script:GhqRepositoryListCacheFilePath)) { return }
-
-    $script:GhqRepositoryListWarmupStarted = $true
-
-    $cacheFilePath = $script:GhqRepositoryListCacheFilePath
-    $persistedTtlSeconds = $script:GhqRepositoryListPersistedTtlSeconds
-
-    try {
-        Start-ThreadJob -Name 'GhqRepositoryListWarmup' -ScriptBlock {
-            param($CacheFilePath, $PersistedTtlSeconds)
-
-            try {
-                if (Test-Path -LiteralPath $CacheFilePath -PathType Leaf) {
-                    $rawExisting = Get-Content -LiteralPath $CacheFilePath -Raw -ErrorAction Stop
-                    $existing = $rawExisting | ConvertFrom-Json -ErrorAction Stop
-                    if ($existing -and $existing.timestamp) {
-                        $existingTimestamp = [datetime]::Parse(
-                            $existing.timestamp,
-                            [System.Globalization.CultureInfo]::InvariantCulture,
-                            [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal
-                        )
-                        $existingAgeSeconds = ([datetime]::UtcNow - $existingTimestamp).TotalSeconds
-                        if ($existingAgeSeconds -ge 0 -and $existingAgeSeconds -lt ($PersistedTtlSeconds / 2)) {
-                            return
-                        }
-                    }
-                }
-            } catch {
-            }
-
-            $rootOutput = & ghq root 2>$null | Select-Object -First 1
-            if ([string]::IsNullOrWhiteSpace($rootOutput)) { return }
-            $ghqRootPath = $rootOutput.Trim()
-            if (-not (Test-Path -LiteralPath $ghqRootPath)) { return }
-
-            try {
-                $rootDirectoryItem = Get-Item -LiteralPath $ghqRootPath -ErrorAction Stop
-                $topLevelDirectories = @(Get-ChildItem -LiteralPath $ghqRootPath -Directory -ErrorAction SilentlyContinue)
-                $topLevelDirectoryCount = $topLevelDirectories.Count
-                $secondLevelDirectoryCount = 0
-                $maxObservedTicks = $rootDirectoryItem.LastWriteTimeUtc.Ticks
-                foreach ($directory in $topLevelDirectories) {
-                    $directoryTicks = $directory.LastWriteTimeUtc.Ticks
-                    if ($directoryTicks -gt $maxObservedTicks) {
-                        $maxObservedTicks = $directoryTicks
-                    }
-                    $secondLevelDirectories = @(Get-ChildItem -LiteralPath $directory.FullName -Directory -ErrorAction SilentlyContinue)
-                    $secondLevelDirectoryCount += $secondLevelDirectories.Count
-                    foreach ($secondLevelDirectory in $secondLevelDirectories) {
-                        $secondLevelDirectoryTicks = $secondLevelDirectory.LastWriteTimeUtc.Ticks
-                        if ($secondLevelDirectoryTicks -gt $maxObservedTicks) {
-                            $maxObservedTicks = $secondLevelDirectoryTicks
-                        }
-                    }
-                }
-                $rootFingerprint = '{0}:{1}:{2}:{3}' -f $rootDirectoryItem.LastWriteTimeUtc.Ticks, $topLevelDirectoryCount, $secondLevelDirectoryCount, $maxObservedTicks
-            } catch {
-                return
-            }
-
-            $repoList = @()
-            try {
-                $repoList = @(& ghq list 2>$null | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
-            } catch {
-                return
-            }
-
-            if ($repoList.Count -eq 0) { return }
-
-            $uniqueRepositories = [System.Collections.Generic.List[string]]::new()
-            $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-            foreach ($repo in $repoList) {
-                if ($seen.Add($repo)) { $uniqueRepositories.Add($repo) }
-            }
-            $sortedRepositories = $uniqueRepositories.ToArray()
-            [Array]::Sort($sortedRepositories, [System.StringComparer]::OrdinalIgnoreCase)
-
-            try {
-                $payload = [pscustomobject]@{
-                    timestamp = [datetime]::UtcNow.ToString('o')
-                    rootPath = $ghqRootPath
-                    rootFingerprint = $rootFingerprint
-                    repositories = $sortedRepositories
-                }
-                $cacheDirectory = Split-Path -Parent $CacheFilePath
-                if ($cacheDirectory -and -not (Test-Path -LiteralPath $cacheDirectory)) {
-                    New-Item -ItemType Directory -Path $cacheDirectory -Force | Out-Null
-                }
-                $payload | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $CacheFilePath -Encoding UTF8
-            } catch {
-            }
-        } -ArgumentList $cacheFilePath, $persistedTtlSeconds | Out-Null
-    } catch {
-        $script:GhqRepositoryListWarmupStarted = $false
-    }
-}
-
-Start-GhqRepositoryListWarmup
 
 $psConsoleReadLineType = 'Microsoft.PowerShell.PSConsoleReadLine' -as [type]
 if ($psConsoleReadLineType) {
