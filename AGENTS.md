@@ -24,6 +24,11 @@
 - Español para contenido orientado a personas.
 - Inglés para elementos técnicos ejecutables o de implementación.
 
+## Regla Para Especificaciones
+
+- Al escribir, actualizar o revisar specs, consultar y aplicar la guía visual de `configs/.agents/DESIGN.md`.
+- Si una spec no puede seguir esa guía por una restricción técnica o de formato, dejar explícita la razón en la respuesta final.
+
 ## Regla Específica Para `cx` Y `cxd` (Mandatorio)
 
 - Si una solicitud menciona `cx` o `cxd`, el agente debe verificar SIEMPRE ambos contextos antes de cerrar el trabajo:
