@@ -584,6 +584,20 @@ function gbgD {
     }
 }
 function gbgd {
+    # PowerShell function names are case-insensitive, so gbgd and gbgD collide.
+    # Both force-delete gone branches; use gbgs for the safe (-d) variant.
+    $previousLang = $env:LANG
+    try {
+        $env:LANG = 'C'
+        git branch --no-color -vv | Select-String ": gone\]" | ForEach-Object {
+            git branch -D ($_.ToString() -replace "^.*?(\S+).*$", '$1')
+        }
+    } finally {
+        $env:LANG = $previousLang
+    }
+}
+function gbgs {
+    # Safe delete of gone branches (-d): skips branches not fully merged.
     $previousLang = $env:LANG
     try {
         $env:LANG = 'C'
