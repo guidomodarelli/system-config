@@ -14,6 +14,8 @@ Collect the information required to draft and apply a high-quality commit messag
 - If there are no staged changes, analyze all current uncommitted changes and stage them with «git add -A» before commit.
 - Do not propose new code changes.
 - Do not execute destructive commands.
+- Do not run typecheck, lint, build, tests, test coverage, validation scripts, or
+  any equivalent quality gate.
 - Run «git commit» directly using the generated message after the selected scope is properly staged.
 
 ## Gather
@@ -30,6 +32,9 @@ Collect the information required to draft and apply a high-quality commit messag
 ## Apply Step
 
 - Run «git commit» without asking for confirmation.
+- If a test, lint, typecheck, build, or validation command would normally be
+  expected before committing, skip it and keep the workflow focused only on the
+  commit message and commit operation.
 
 ## Style Constraints
 
