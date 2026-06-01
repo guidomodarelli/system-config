@@ -11,6 +11,7 @@ description: Fix a GitHub or repository issue from a brand-new ephemeral git wor
 - Always create a new and fresh temporary `git worktree` for the task; never reuse an existing worktree or stale directory.
 - Ensure the current branch has the latest remote changes before creating the temporary worktree.
 - Copy `.env` and `.env.*` files from the original checkout into the fresh worktree before testing, so validation can use the same local environment.
+- Link the original checkout's `node_modules` into the fresh worktree when it exists, so dependency installs are not duplicated.
 - Do all exploratory implementation work in the fresh temporary `git worktree`.
 - Apply the final validated patch back to the original current branch only when ready to commit, and only if it does not overwrite unrelated user changes.
 - Use the branch currently checked out in the original repository; do not create, switch to, or choose another branch unless the user explicitly asks for one.
@@ -56,20 +57,43 @@ git worktree add --detach "$worktree_path" "$current_branch"
 find . -maxdepth 1 -type f \( -name ".env" -o -name ".env.*" \) -exec cp -p {} "$worktree_path"/ \;
 ```
 
-4. Implement only inside the worktree.
+4. Link `node_modules` into the worktree when available.
+   - If the original checkout root has a `node_modules` directory and the fresh worktree does not, create a link at `<worktree>/node_modules` pointing back to the original checkout's `node_modules`.
+   - Prefer a symbolic link on Unix-like shells.
+   - On Windows, use a directory junction when symbolic links are unavailable or require elevated permissions.
+   - Do not copy `node_modules`.
+   - Do not overwrite an existing `node_modules` in the fresh worktree; inspect first if it unexpectedly exists.
+   - If linking fails, continue with the repo's normal install command inside the worktree and report that dependencies were not linked.
+
+```bash
+if [ -d node_modules ] && [ ! -e "$worktree_path/node_modules" ]; then
+  ln -s "$(pwd)/node_modules" "$worktree_path/node_modules"
+fi
+```
+
+```powershell
+$sourceNodeModules = Join-Path (Get-Location) 'node_modules'
+$targetNodeModules = Join-Path $worktreePath 'node_modules'
+if ((Test-Path -LiteralPath $sourceNodeModules -PathType Container) -and -not (Test-Path -LiteralPath $targetNodeModules)) {
+  New-Item -ItemType Junction -Path $targetNodeModules -Target $sourceNodeModules | Out-Null
+}
+```
+
+5. Implement only inside the worktree.
    - Re-read relevant project instructions from inside the worktree.
    - Inspect existing modules before changing code.
    - Keep edits scoped to the issue and preserve unrelated local changes in the original checkout.
    - Follow any project-specific testing, language, review, and style rules discovered in the worktree.
 
-5. Validate with real commands.
+6. Validate with real commands.
    - Run the smallest relevant test or quality gate that proves the fix.
    - If the issue is a build, lint, runtime, or CI failure, reproduce or run the real failing command when feasible.
    - If validation cannot run, explain the exact command that was skipped and the concrete blocker.
 
-6. Commit on the current branch.
+7. Commit on the current branch.
    - Review the diff with `git diff --check`, `git diff`, and `git status --short`.
    - Confirm `.env` and `.env.*` files are not staged.
+   - Confirm `node_modules` is not staged.
    - If the worktree is detached because the current branch is already checked out elsewhere, apply the final patch back onto the original current branch before committing.
    - Stage only files belonging to the fix on the current branch.
    - Write a concise commit message that references the issue when useful.
@@ -79,7 +103,7 @@ git add <files>
 git commit -m "Fix issue #123 short topic"
 ```
 
-7. Push the branch.
+8. Push the branch.
    - Push with upstream tracking.
    - Do not force-push.
 
@@ -87,7 +111,7 @@ git commit -m "Fix issue #123 short topic"
 git push -u origin "$current_branch"
 ```
 
-8. Close out.
+9. Close out.
    - Report the worktree path, branch, commit hash, push target, and validation commands.
    - Remove the temporary worktree after the commit and push succeed.
    - Use `git worktree remove <path>` from the original repo and then `git worktree prune` if needed.
