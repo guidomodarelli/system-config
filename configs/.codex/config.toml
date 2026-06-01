@@ -7,7 +7,7 @@ approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
 approvals_reviewer = "auto_review"
-service_tier = "fast"
+
 [features]
 # Habilita modos de colaboración como plan mode.Beneficio: ayuda a que Codex
 # trabaje con modos más estructurados para planificar antes de ejecutar.
@@ -96,7 +96,7 @@ git-show-sidebar-pr-icons = true
 notifications-turn-mode = "always"
 selected-avatar-id = "rocky"
 keepRemoteControlAwakeWhilePluggedIn = true
-default-service-tier = "priority"
+show-context-window-usage = true
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#1f6feb"
