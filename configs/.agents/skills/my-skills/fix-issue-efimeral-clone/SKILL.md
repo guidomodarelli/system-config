@@ -124,15 +124,22 @@ git commit -m "Fix issue #123 short topic"
    - Rebase the local fix commit or commits on top of the latest remote branch.
    - Compare the remote branch commit before and after `git fetch`.
    - If the remote branch did not change, do not rerun validation; the already validated code is still based on the same remote state.
-   - If the remote branch changed and the rebase is clean, rerun the relevant validation before pushing.
+   - If the remote branch changed, inspect the remote-only diff before deciding whether to revalidate.
+   - If the remote-only changes are clearly unrelated to the fix files, runtime path, dependency graph, or validation surface, do not rerun validation.
+   - If the remote-only changes touch the same files, nearby modules, shared configuration, dependencies, generated contracts, test setup, or anything that could affect the fix, rerun the relevant validation before pushing.
+   - If relatedness is unclear, prefer rerunning the relevant validation before pushing.
    - If the rebase reports conflicts, resolve them in the same temporary clone with the normal rebase flow, then rerun the relevant validation before pushing.
 
 ```bash
 remote_before_fetch=$(git rev-parse "origin/$remote_branch")
 git fetch origin "$remote_branch"
 remote_after_fetch=$(git rev-parse "origin/$remote_branch")
-git rebase "origin/$remote_branch"
 if [ "$remote_before_fetch" != "$remote_after_fetch" ]; then
+  git diff --name-only "$remote_before_fetch" "$remote_after_fetch"
+fi
+git rebase "origin/$remote_branch"
+remote_changes_are_related=false # Set to true when the remote diff affects the fix or is unclear.
+if [ "$remote_before_fetch" != "$remote_after_fetch" ] && [ "$remote_changes_are_related" = true ]; then
   <rerun relevant validation command>
 fi
 ```
