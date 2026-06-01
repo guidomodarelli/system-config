@@ -15,7 +15,7 @@ description: Fix a GitHub or repository issue from a brand-new ephemeral depth-1
 - Link the original checkout's `node_modules` into the fresh clone only when it is safe for the platform and package manager. On Windows or when the repo uses `pnpm`, install dependencies inside the clone instead of linking.
 - Do all implementation, validation, commit, and push work inside the fresh temporary clone.
 - Before pushing, fetch the latest remote state of the original branch and rebase or fast-forward safely.
-- If updating before push creates conflicts, abort the rebase or merge, delete the temporary clone, create a brand-new depth-1 clone from the newly updated remote branch, and re-apply the fix from scratch.
+- If updating before push creates conflicts, resolve them through the active rebase inside the same temporary clone, then revalidate before pushing.
 - Push the original branch only after tests pass on the latest remote state.
 - Remove the temporary clone after a successful push.
 - Never force-push, delete user branches, or discard user changes unless explicitly requested.
@@ -125,7 +125,7 @@ git commit -m "Fix issue #123 short topic"
    - Compare the remote branch commit before and after `git fetch`.
    - If the remote branch did not change, do not rerun validation; the already validated code is still based on the same remote state.
    - If the remote branch changed and the rebase is clean, rerun the relevant validation before pushing.
-   - If the rebase reports conflicts, abort it, delete the clone, create a brand-new depth-1 clone from the updated remote branch, and redo the fix there. Do not resolve conflicts in the stale clone.
+   - If the rebase reports conflicts, resolve them in the same temporary clone with the normal rebase flow, then rerun the relevant validation before pushing.
 
 ```bash
 remote_before_fetch=$(git rev-parse "origin/$remote_branch")
@@ -162,14 +162,17 @@ Set-Location -LiteralPath $originalRepo
 Remove-Item -LiteralPath $clonePath -Recurse -Force
 ```
 
-## Conflict Restart Rule
+## Conflict Rebase Rule
 
-- Treat conflicts during the final remote refresh as evidence that the disposable clone is stale.
-- Run `git rebase --abort` if a rebase conflict occurred.
-- Save no partial conflict resolution from the stale clone unless the user explicitly asks.
-- Delete the stale clone.
-- Create a brand-new depth-1 clone from the latest remote branch.
-- Re-implement or re-apply the fix intentionally in the new clone, rerun validation, commit, refresh from remote again, and push only if no conflicts occur.
+- Treat conflicts during the final remote refresh as normal rebase work inside the temporary clone.
+- Inspect conflicts with `git status` and the conflicted files.
+- Resolve conflicts intentionally, preserving the issue fix and the latest remote changes.
+- Stage resolved files with `git add <files>`.
+- Continue with `git rebase --continue`.
+- Repeat until the rebase completes or a conflict cannot be resolved safely.
+- Rerun the relevant validation after any conflict resolution before pushing.
+- Use `git rebase --abort` only if the conflict cannot be resolved safely or the user asks to stop.
+- If the rebase is aborted, keep the temporary clone for inspection and report the clone path, branch, and conflict details.
 
 ## Failure Handling
 
