@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fix Issue Efimeral Clone"
+  short_description: "Fix an issue from a depth-1 clone"
+  default_prompt: "Use $fix-issue-efimeral-clone to create a fresh depth-1 clone of the current branch, fix this issue there, refresh from remote before pushing, restart on conflicts, push the original branch, and delete the clone."
