@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fix Issue Worktree"
+  short_description: "Fix an issue from a temporary worktree"
+  default_prompt: "Use $fix-issue-ephimeral-worktree to update the current branch, fix this issue from a fresh ephemeral worktree, commit, push, and remove the worktree."

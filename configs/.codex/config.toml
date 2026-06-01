@@ -1,11 +1,13 @@
 # :schema https://developers.openai.com/codex/config-schema.json
 
 model = "gpt-5.5"
-model_reasoning_effort = "low"
+model_reasoning_effort = "medium"
 personality = "friendly"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
+approvals_reviewer = "auto_review"
+service_tier = "fast"
 [features]
 # Habilita modos de colaboración como plan mode.Beneficio: ayuda a que Codex
 # trabaje con modos más estructurados para planificar antes de ejecutar.
@@ -82,6 +84,34 @@ status_line_use_colors = true
 
 [windows]
 sandbox = "elevated"
+
+[desktop]
+appearanceDarkCodeThemeId = "github"
+usePointerCursors = true
+dictationDictionary = []
+followUpQueueMode = "steer"
+reviewDelivery = "detached"
+git-branch-prefix = "feature/"
+git-show-sidebar-pr-icons = true
+notifications-turn-mode = "always"
+selected-avatar-id = "rocky"
+keepRemoteControlAwakeWhilePluggedIn = true
+default-service-tier = "priority"
+
+[desktop.appearanceDarkChromeTheme]
+accent = "#1f6feb"
+contrast = 60
+ink = "#e6edf3"
+opaqueWindows = true
+surface = "#0d1117"
+
+[desktop.appearanceDarkChromeTheme.fonts]
+ui = "Inter"
+
+[desktop.appearanceDarkChromeTheme.semanticColors]
+diffAdded = "#3fb950"
+diffRemoved = "#f85149"
+skill = "#bc8cff"
 
 [plugins."documents@openai-primary-runtime"]
 enabled = true
