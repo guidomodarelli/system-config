@@ -34,7 +34,8 @@ description: Fix a GitHub or repository issue from a brand-new ephemeral depth-1
 2. Create a brand-new depth-1 clone from the latest remote branch.
    - Fetch the remote in the original checkout with `git fetch origin`.
    - Use the remote URL from the original checkout.
-   - Create a unique new temporary path outside the current working tree, for example under the OS temp directory.
+   - Always create the clone path inside the operating system's temporary directory.
+   - Use the best native temporary-directory mechanism for the current shell and OS, such as `mktemp -d` on Unix-like shells or `[System.IO.Path]::GetTempPath()` on Windows PowerShell.
    - If the intended path already exists, choose a different fresh path. Do not clean or reuse the existing path.
    - Clone the current branch from its remote with `--depth 1`.
 
@@ -45,10 +46,25 @@ upstream_branch=$(git rev-parse --abbrev-ref --symbolic-full-name @{u})
 remote_name=${upstream_branch%%/*}
 remote_branch=${upstream_branch#*/}
 remote_url=$(git remote get-url "$remote_name")
-clone_path="../repo-issue-123-$(date +%Y%m%d%H%M%S)"
+clone_path=$(mktemp -d -t repo-issue-123-XXXXXXXXXX)
 git fetch "$remote_name" "$remote_branch"
 git clone --depth 1 --branch "$remote_branch" "$remote_url" "$clone_path"
 cd "$clone_path"
+```
+
+```powershell
+$originalRepo = (Get-Location).Path
+$currentBranch = git branch --show-current
+$upstreamBranch = git rev-parse --abbrev-ref --symbolic-full-name '@{u}'
+$remoteName = $upstreamBranch.Split('/')[0]
+$remoteBranch = $upstreamBranch.Substring($remoteName.Length + 1)
+$remoteUrl = git remote get-url $remoteName
+$tempRoot = [System.IO.Path]::GetTempPath()
+$clonePath = Join-Path $tempRoot ("repo-issue-123-" + [System.Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $clonePath | Out-Null
+git fetch $remoteName $remoteBranch
+git clone --depth 1 --branch $remoteBranch $remoteUrl $clonePath
+Set-Location -LiteralPath $clonePath
 ```
 
 3. Copy local environment files into the clone.
