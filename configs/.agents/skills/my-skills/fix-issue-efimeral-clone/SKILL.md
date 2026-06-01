@@ -122,12 +122,19 @@ git commit -m "Fix issue #123 short topic"
 8. Refresh from remote immediately before pushing.
    - Fetch the latest remote branch inside the clone.
    - Rebase the local fix commit or commits on top of the latest remote branch.
-   - If the rebase is clean, rerun the relevant validation before pushing.
+   - Compare the remote branch commit before and after `git fetch`.
+   - If the remote branch did not change, do not rerun validation; the already validated code is still based on the same remote state.
+   - If the remote branch changed and the rebase is clean, rerun the relevant validation before pushing.
    - If the rebase reports conflicts, abort it, delete the clone, create a brand-new depth-1 clone from the updated remote branch, and redo the fix there. Do not resolve conflicts in the stale clone.
 
 ```bash
+remote_before_fetch=$(git rev-parse "origin/$remote_branch")
 git fetch origin "$remote_branch"
+remote_after_fetch=$(git rev-parse "origin/$remote_branch")
 git rebase "origin/$remote_branch"
+if [ "$remote_before_fetch" != "$remote_after_fetch" ]; then
+  <rerun relevant validation command>
+fi
 ```
 
 9. Push the original branch.
