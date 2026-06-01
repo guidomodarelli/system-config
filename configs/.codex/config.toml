@@ -61,6 +61,7 @@ memories = true
 mentions_v2 = true
 
 [memories]
+disable_on_external_context = false
 generate_memories = true
 use_memories = true
 disable_on_external_context = false
