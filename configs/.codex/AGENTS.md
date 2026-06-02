@@ -18,6 +18,12 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Las preguntas visibles al usuario, si existen, están escritas en español.
 - Los hallazgos de review, si existen, están escritos en español.
 
+## Memoria persistente (MCP `memory`) — Mandatorio
+
+- Al inicio de cada sesión o tarea, antes de planificar o responder, consultar la memoria con el MCP `memory` (`search_nodes`/`read_graph`) para recuperar contexto relevante del usuario y del proyecto.
+- Tratar lo recuperado como contexto de fondo (refleja lo que era cierto al guardarse): si una memoria nombra un archivo, símbolo o flag, verificar que siga existiendo antes de recomendarlo.
+- Cuando se descubra un hecho duradero (preferencia del usuario, decisión de proyecto, gotcha técnico reusable), guardarlo con el MCP `memory` y commitearlo en `system-config` (el grafo vive en `configs/.mcp-memory/memory.json`, symlinkeado a `~/.mcp-memory/memory.json`).
+
 ## Reglas de testing (obligatorias)
 - Antes de dar un cambio por terminado, ejecutar los tests relevantes y asegurar que pasen.
 - Si se agrega, modifica o elimina funcionalidad, se deben agregar o actualizar los tests correspondientes.
