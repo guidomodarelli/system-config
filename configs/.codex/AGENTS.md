@@ -28,7 +28,7 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Antes de dar un cambio por terminado, ejecutar los tests relevantes y asegurar que pasen.
 - Si se agrega, modifica o elimina funcionalidad, se deben agregar o actualizar los tests correspondientes.
 - Si no es posible ejecutar tests en el entorno actual, se debe informar explícitamente qué faltó validar y por qué.
-- Preferir tests reales sobre mocks de librerías de UI, plataforma o SDK internos en cualquier proyecto: no mockear librerías internas o de plataforma del proyecto. Los paquetes `@andes/*`, `@meli/*`, `nordic/*` y `@kraken/*` son ejemplos, no una lista exhaustiva. Solo mockear estas dependencias por pedido explícito del usuario o imposibilidad técnica justificada; en esos casos, explicar por qué el mock es necesario y mantenerlo lo más acotado posible.
+- Preferir tests reales sobre mocks de librerías de UI, plataforma o SDK internos en cualquier proyecto: no mockear librerías internas o de plataforma del proyecto. Solo mockear estas dependencias por pedido explícito del usuario o imposibilidad técnica justificada; en esos casos, explicar por qué el mock es necesario y mantenerlo lo más acotado posible.
 - Las librerías internas o de plataforma no deben estar mockeadas antes, durante ni después de un test; no usar `jest.mock`, `jest.doMock`, `jest.unmock` ni `jest.dontMock` para esas dependencias. Los tests deben ejercer la integración real o aislarse en un borde propio del proyecto.
 - Nunca testear el contenido textual exacto de un archivo fuente ni analizar sus strings internos como objetivo del test. Los tests deben validar comportamiento observable, contratos públicos, integración real, invocación posible, render, efectos esperados o errores controlados, no detalles de implementación como imports escritos de una forma específica.
 - No agregar tests que solo verifiquen que un módulo compila, se importa, se bundlea o se invoca en un arnés artificial si no validan comportamiento relevante del producto o contrato público real. Para problemas de build/bundle/runtime, preferir validar con el comando real de build, una prueba de integración existente del flujo afectado o una prueba E2E/funcional que reproduzca el escenario real.
@@ -64,27 +64,8 @@ Antes de cerrar una respuesta o cambio, confirmar que:
   - `Verificado zsh: <sí/no + evidencia>`
   - `Verificado PowerShell: <sí/no + evidencia>`
 
-## Contexto de proyecto y tooling obligatorio
+## Reglas específicas para repositorios bajo `~/ghq/work/` (carga condicional)
 
-Estas reglas aplican cuando el repositorio de trabajo está ubicado dentro de `~/ghq/work/`.
-
-- Tratar el proyecto como una aplicación Nordic.
-- Asumir runtime Node.js.
-- Asumir extensión Odin.
-- Usar siempre `frontender-web-mcp` antes de dar guía, implementar cambios o cerrar tareas del proyecto.
-- Mantener en inglés todos los términos de código:
-  - comentarios
-  - string literals
-  - nombres de funciones
-  - nombres de clases
-  - nombres de métodos
-  - nombres de variables
-  - nombres de constantes
-  - nombres de enums
-  - otros términos técnicos o de implementación
-
-### Validación mínima para repositorios en `~/ghq/work/`
-
-Antes de cerrar una respuesta o cambio, confirmar que:
-- Se usó `frontender-web-mcp` cuando el repositorio pertenece a `~/ghq/work/`.
-- Los comentarios, nombres y strings de implementación agregados o modificados están en inglés.
+- Las reglas de plataforma Nordic/MELI (tooling obligatorio, código en inglés y testing específico de `@andes`/`@meli`/`nordic`/`@kraken`) viven en un archivo aparte para no aplicarse fuera de su contexto.
+- Condición de carga: leer y aplicar `~/system-config/configs/.codex/AGENTS.work.md` **solo** cuando el directorio de trabajo actual esté ubicado dentro de `~/ghq/work/`.
+- Si el repositorio no está bajo esa ruta, no leer ese archivo ni aplicar esas reglas.
