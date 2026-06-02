@@ -52,6 +52,8 @@ paths:
     exactTarget: .claude/CLAUDE.md
   - path: .codex/config.toml
     target: .codex
+  - path: .mcp-memory/memory.json
+    target: .mcp-memory
   - path: .codex/skills/frontend-skill
     target: .codex/skills
   - path: $HOME/.codex/skills/.system

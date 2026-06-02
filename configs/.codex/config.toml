@@ -64,7 +64,6 @@ mentions_v2 = true
 disable_on_external_context = false
 generate_memories = true
 use_memories = true
-disable_on_external_context = false
 
 [notice.model_migrations]
 "gpt-5.3-codex" = "gpt-5.4"
@@ -137,3 +136,11 @@ enabled = true
 
 [plugins."browser@openai-bundled"]
 enabled = true
+
+[mcp_servers.memory]
+command = "cmd"
+args = ["/c", "npx", "-y", "@modelcontextprotocol/server-memory"]
+startup_timeout_sec = 120
+
+[mcp_servers.memory.env]
+MEMORY_FILE_PATH = 'C:\Users\guido\.mcp-memory\memory.json'
