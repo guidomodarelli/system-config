@@ -54,12 +54,12 @@ unified_exec = true
 multi_agent = true
 default_mode_request_user_input = false
 responses_websockets = true
-js_repl = false
 terminal_resize_reflow = true
 goals = true
 hooks = true
 memories = true
-mentions_v2 = true
+mentions_v2 = false
+js_repl = false
 
 [memories]
 disable_on_external_context = false
