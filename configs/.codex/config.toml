@@ -1,8 +1,8 @@
 # :schema https://developers.openai.com/codex/config-schema.json
 
 model = "gpt-5.5"
-model_reasoning_effort = "medium"
-personality = "friendly"
+model_reasoning_effort = "low"
+personality = "pragmatic"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
@@ -64,9 +64,6 @@ mentions_v2 = true
 disable_on_external_context = false
 generate_memories = false
 use_memories = false
-
-[notice.model_migrations]
-"gpt-5.3-codex" = "gpt-5.4"
 
 [tui]
 notification_method = "osc9"
