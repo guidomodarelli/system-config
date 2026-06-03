@@ -53,10 +53,11 @@ unified_exec = true
 # results, and closing agent threads.
 multi_agent = true
 default_mode_request_user_input = false
-responses_websockets = false
-js_repl = true
+responses_websockets = true
+js_repl = false
 terminal_resize_reflow = true
 goals = true
+hooks = true
 memories = true
 mentions_v2 = true
 
@@ -74,16 +75,30 @@ wire_api = "responses"
 [model_providers.meli.http_headers]
 X-GenAI-Agentic = "codex-cli"
 
+[plugins."meli-frontend-web@tech-plugins-marketplace"]
+enabled = true
+
+[plugins."meli-claude-memory@tech-plugins-marketplace"]
+enabled = true
+
 [tui]
 notification_method = "osc9"
 notifications = [
   "agent-turn-complete",
   "user-input-requested",
-  "approval-requested"
+    "approval-requested",
 ]
-status_line = ["model-with-reasoning", "git-branch", "pull-request-number", "task-progress", "project-name", "context-remaining", "run-state"]
-theme = "two-dark"
+status_line = [
+    "model-with-reasoning",
+    "git-branch",
+    "pull-request-number",
+    "task-progress",
+    "project-name",
+    "context-remaining",
+    "run-state",
+]
 status_line_use_colors = true
+theme = "two-dark"
 
 [tui.model_availability_nux]
 "gpt-5.5" = 4
@@ -93,22 +108,29 @@ sandbox = "elevated"
 
 [desktop]
 appearanceDarkCodeThemeId = "github"
-usePointerCursors = true
-dictationDictionary = []
+appearanceLightCodeThemeId = "one"
+appearanceTheme = "system"
+composerEnterBehavior = "enter"
+conversationDetailMode = "STEPS_COMMANDS"
 followUpQueueMode = "steer"
-reviewDelivery = "detached"
 git-branch-prefix = "feature/"
+git-create-pull-request-as-draft = true
+git-pull-request-merge-method = "merge"
 git-show-sidebar-pr-icons = true
-notifications-turn-mode = "always"
-selected-avatar-id = "rocky"
 keepRemoteControlAwakeWhilePluggedIn = true
+localeOverride = "en-US"
+notifications-turn-mode = "always"
+preventSleepWhileRunning = true
+reviewDelivery = "detached"
+selected-avatar-id = "codex"
+usePointerCursors = true
 show-context-window-usage = true
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#1f6feb"
 contrast = 60
 ink = "#e6edf3"
-opaqueWindows = true
+opaqueWindows = false
 surface = "#0d1117"
 
 [desktop.appearanceDarkChromeTheme.fonts]
@@ -118,6 +140,25 @@ ui = "Inter"
 diffAdded = "#3fb950"
 diffRemoved = "#f85149"
 skill = "#bc8cff"
+
+[desktop.appearanceLightChromeTheme]
+accent = "#526fff"
+contrast = 45
+ink = "#383a42"
+opaqueWindows = true
+surface = "#fafafa"
+
+[desktop.appearanceLightChromeTheme.fonts]
+ui = "Inter"
+
+[desktop.appearanceLightChromeTheme.semanticColors]
+diffAdded = "#3bba54"
+diffRemoved = "#e45649"
+skill = "#526fff"
+
+[desktop.open-in-target-preferences]
+global = "vscode"
+
 
 [plugins."documents@openai-primary-runtime"]
 enabled = true
@@ -141,6 +182,9 @@ enabled = true
 enabled = true
 
 [plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."grid-sharing@tech-plugins-marketplace"]
 enabled = true
 
 [mcp_servers.memory]
