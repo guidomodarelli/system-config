@@ -2,6 +2,5 @@ matches:
   - triggers: [";2r"]
     label: "Pending Review"
     force_clipboard: true
-    replace: |-
-      :github: PENDING REVIEW 👀
+    replace: ":github: PENDING REVIEW 👀 --> "
 
