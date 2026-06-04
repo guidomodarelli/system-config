@@ -265,7 +265,7 @@ function cx {
     $reasoning = 'low'
     $yolo = $false
     $commitMode = $false
-    $enableMcps = $false
+    $disableMcps = $false
     $codexArgs = New-Object System.Collections.Generic.List[string]
     $promptArgs = New-Object System.Collections.Generic.List[string]
     $promptMode = $false
@@ -287,9 +287,9 @@ function cx {
             }
             '-c' { $commitMode = $true }
             '--commit' { $commitMode = $true }
-            '--mcps' { $enableMcps = $true }
-            # Kept as a no-op for compatibility; MCPs are disabled by default.
-            '--no-mcps' {}
+            # Kept as a no-op for compatibility; MCPs are enabled by default.
+            '--mcps' {}
+            '--no-mcps' { $disableMcps = $true }
             # Internal-only flag, exposed via `cxd`.
             '--yolo' {
                 $yolo = $true
@@ -318,7 +318,7 @@ function cx {
         $promptArgs.Add((Get-CxCommitPrompt))
     }
 
-    if (-not $enableMcps) {
+    if ($disableMcps) {
         $disableMcpConfigArgs = Get-CxDisableMcpConfigArgs
         if ($disableMcpConfigArgs.Count -gt 0) {
             $mcpConfigArgs = $disableMcpConfigArgs
@@ -373,8 +373,8 @@ if (Get-Command codex -ErrorAction SilentlyContinue) {
             @{ Text = '-re'; List = '-re'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Esfuerzo de razonamiento del modelo' }
             @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Usa el prompt interno de commit' }
             @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Usa el prompt interno de commit' }
-            @{ Text = '--mcps'; List = '--mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Activa los servidores MCP para esta ejecución' }
-            @{ Text = '--no-mcps'; List = '--no-mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Comportamiento por defecto: los servidores MCP quedan desactivados' }
+            @{ Text = '--mcps'; List = '--mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Compatibilidad: los servidores MCP ya están activos por defecto' }
+            @{ Text = '--no-mcps'; List = '--no-mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Desactiva los servidores MCP para esta ejecución' }
             @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Actualiza Codex desde el wrapper' }
         )
         $modelOptions = @(

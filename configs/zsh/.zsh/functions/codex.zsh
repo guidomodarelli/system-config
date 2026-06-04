@@ -243,7 +243,7 @@ cx() {
   local reasoning="low"
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
-  local enable_mcps=""
+  local disable_mcps=""
   local codex_args=()
   local prompt_args=()
   local prompt_mode=""
@@ -270,11 +270,11 @@ cx() {
         shift
         ;;
       --mcps)
-        enable_mcps=1
+        # Kept as a no-op for compatibility; MCPs are enabled by default.
         shift
         ;;
       --no-mcps)
-        # Kept as a no-op for compatibility; MCPs are disabled by default.
+        disable_mcps=1
         shift
         ;;
       --yolo)          # internal flag used by cxd
@@ -304,7 +304,7 @@ cx() {
     prompt_args=("$commit_prompt")
   fi
 
-  if [[ -z "$enable_mcps" ]]; then
+  if [[ -n "$disable_mcps" ]]; then
     local disable_mcp_config_output
     disable_mcp_config_output="$(_cx_disable_mcp_config_args)"
     if [[ -n "$disable_mcp_config_output" ]]; then
