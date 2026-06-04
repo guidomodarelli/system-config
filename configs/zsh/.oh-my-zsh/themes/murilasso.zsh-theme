@@ -1,6 +1,12 @@
-# === Async PR URL cache ===
+# === Async PR cache (URL + state) ===
 typeset -g _MURILASSO_PR_URL=""
+typeset -g _MURILASSO_PR_STATE=""
 typeset -g _MURILASSO_PR_BRANCH=""
+
+_murilasso_read_pr_cache() {
+  local cache_file="$1"
+  { IFS= read -r _MURILASSO_PR_URL; IFS= read -r _MURILASSO_PR_STATE; } < "$cache_file"
+}
 
 _murilasso_refresh_pr() {
   local branch
@@ -8,26 +14,26 @@ _murilasso_refresh_pr() {
 
   if [[ -z "$branch" || "$branch" == "HEAD" ]]; then
     _MURILASSO_PR_URL=""
+    _MURILASSO_PR_STATE=""
     _MURILASSO_PR_BRANCH=""
     return
   fi
 
-  local cache_file="${TMPDIR:-/tmp}/.murilasso_pr_url_${branch//\//_}"
+  local cache_file="${TMPDIR:-/tmp}/.murilasso_pr_v2_${branch//\//_}"
 
   if [[ "$branch" != "$_MURILASSO_PR_BRANCH" ]]; then
     _MURILASSO_PR_BRANCH="$branch"
     _MURILASSO_PR_URL=""
+    _MURILASSO_PR_STATE=""
     if [[ -f "$cache_file" ]]; then
-      _MURILASSO_PR_URL=$(cat "$cache_file")
+      _murilasso_read_pr_cache "$cache_file"
     else
       (
-        local pr_url
-        pr_url=$(gh pr view --json url -q '.url' 2>/dev/null)
-        echo "$pr_url" > "$cache_file"
+        gh pr view --json url,state -q '.url + "\n" + .state' 2>/dev/null > "$cache_file"
       ) &!
     fi
   elif [[ -z "$_MURILASSO_PR_URL" && -f "$cache_file" ]]; then
-    _MURILASSO_PR_URL=$(cat "$cache_file")
+    _murilasso_read_pr_cache "$cache_file"
   fi
 }
 
@@ -51,7 +57,14 @@ _murilasso_git_segment() {
     local pr_number="${_MURILASSO_PR_URL##*/}"
     local osc8_open=$'\e]8;;'"${_MURILASSO_PR_URL}"$'\a'
     local osc8_close=$'\e]8;;\a'
-    pr_seg=" — %{${osc8_open}%}%{$fg[yellow]%}PR #${pr_number}%{$reset_color%}%{${osc8_close}%}"
+    local pr_icon pr_color
+    case "$_MURILASSO_PR_STATE" in
+      OPEN)   pr_icon="○"  pr_color="$fg[green]" ;;
+      MERGED) pr_icon="⊕"  pr_color="$fg[magenta]" ;;
+      CLOSED) pr_icon="⊗"  pr_color="$fg[red]" ;;
+      *)      pr_icon="⎇"  pr_color="$fg[yellow]" ;;
+    esac
+    pr_seg=" — %{${osc8_open}%}%{${pr_color}%}${pr_icon} #${pr_number}%{$reset_color%}%{${osc8_close}%}"
   fi
 
   print -P " — %{$terminfo[bold]$fg[blue]%}${branch}%{$reset_color%}${pr_seg} ${dirty_marker}"
