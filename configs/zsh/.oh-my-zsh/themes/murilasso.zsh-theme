@@ -3,6 +3,7 @@ typeset -g _MURILASSO_PR_URL=""
 typeset -g _MURILASSO_PR_STATE=""
 typeset -g _MURILASSO_PR_BRANCH=""
 typeset -g _MURILASSO_PR_REPO=""
+typeset -g _MURILASSO_PR_LAST_FETCH=-999
 
 _murilasso_read_pr_cache() {
   local cache_file="$1"
@@ -19,6 +20,7 @@ _murilasso_refresh_pr() {
     _MURILASSO_PR_STATE=""
     _MURILASSO_PR_BRANCH=""
     _MURILASSO_PR_REPO=""
+    _MURILASSO_PR_LAST_FETCH=-999
     return
   fi
 
@@ -29,15 +31,24 @@ _murilasso_refresh_pr() {
     _MURILASSO_PR_REPO="$repo"
     _MURILASSO_PR_URL=""
     _MURILASSO_PR_STATE=""
+    _MURILASSO_PR_LAST_FETCH=$SECONDS
     if [[ -f "$cache_file" ]]; then
       _murilasso_read_pr_cache "$cache_file"
-    else
-      (
-        gh pr view --json url,state -q '.url + "\n" + .state' 2>/dev/null > "$cache_file"
-      ) &!
     fi
+    # Siempre refresca en background al entrar a una branch (el cache puede estar viejos)
+    (gh pr view --json url,state -q '.url + "\n" + .state' 2>/dev/null > "$cache_file") &!
   elif [[ -z "$_MURILASSO_PR_URL" && -f "$cache_file" ]]; then
+    # El fetch en background terminó — leer el resultado
     _murilasso_read_pr_cache "$cache_file"
+    _MURILASSO_PR_LAST_FETCH=$SECONDS
+  elif [[ "$_MURILASSO_PR_STATE" == "OPEN" ]]; then
+    # Re-leer cache en cada precmd (~1ms) para detectar merges/closes
+    [[ -f "$cache_file" ]] && _murilasso_read_pr_cache "$cache_file"
+    # Re-fetchear en background cada 30 segundos
+    if (( SECONDS - _MURILASSO_PR_LAST_FETCH > 30 )); then
+      _MURILASSO_PR_LAST_FETCH=$SECONDS
+      (gh pr view --json url,state -q '.url + "\n" + .state' 2>/dev/null > "$cache_file") &!
+    fi
   fi
 }
 
