@@ -43,6 +43,42 @@ _murilasso_refresh_pr() {
 
 (( ${precmd_functions[(Ie)_murilasso_refresh_pr]} )) || precmd_functions+=(_murilasso_refresh_pr)
 
+# === Async CI status (refresca cada 2 minutos via $SECONDS builtin) ===
+typeset -g _MURILASSO_PR_CI=""
+typeset -g _MURILASSO_CI_LAST_FETCH=-999
+typeset -g _MURILASSO_CI_LAST_KEY=""
+
+_murilasso_refresh_ci() {
+  [[ -z "$_MURILASSO_PR_URL" ]] && { _MURILASSO_PR_CI=""; return; }
+
+  local key="${_MURILASSO_PR_REPO}:${_MURILASSO_PR_BRANCH}"
+  local ci_cache="${TMPDIR:-/tmp}/.murilasso_ci_${_MURILASSO_PR_REPO//\//_}_${_MURILASSO_PR_BRANCH//\//_}"
+
+  # Refresca si: cambió de branch/repo O pasaron más de 2 minutos
+  if [[ "$key" != "$_MURILASSO_CI_LAST_KEY" ]] || (( SECONDS - _MURILASSO_CI_LAST_FETCH > 120 )); then
+    _MURILASSO_CI_LAST_KEY="$key"
+    _MURILASSO_CI_LAST_FETCH=$SECONDS
+    (
+      gh pr view --json statusCheckRollup -q '
+        if (.statusCheckRollup // [] | length) == 0 then ""
+        elif .statusCheckRollup | any(
+          .conclusion == "FAILURE" or .conclusion == "TIMED_OUT" or
+          .state == "FAILURE" or .state == "ERROR"
+        ) then "FAILURE"
+        elif .statusCheckRollup | any(
+          .status == "IN_PROGRESS" or .status == "QUEUED" or .status == "PENDING" or
+          .state == "PENDING"
+        ) then "PENDING"
+        else "SUCCESS"
+        end' 2>/dev/null > "$ci_cache"
+    ) &!
+  fi
+
+  [[ -f "$ci_cache" ]] && IFS= read -r _MURILASSO_PR_CI < "$ci_cache"
+}
+
+(( ${precmd_functions[(Ie)_murilasso_refresh_ci]} )) || precmd_functions+=(_murilasso_refresh_ci)
+
 # === Node.js version (RPS1) ===
 typeset -g _MURILASSO_NODE_BIN=""
 typeset -g _MURILASSO_NODE_VERSION=""
@@ -115,10 +151,19 @@ _murilasso_git_segment() {
       CLOSED) pr_icon="⊗"  pr_color="$fg[red]" ;;
       *)      pr_icon="⎇"  pr_color="$fg[yellow]" ;;
     esac
-    pr_seg=" — %{${osc8_open}%}%{${pr_color}%}${pr_icon} #${pr_number}%{$reset_color%}%{${osc8_close}%}"
+
+    local ci_marker
+    case "$_MURILASSO_PR_CI" in
+      SUCCESS) ci_marker=" %{$fg[green]%}✔%{$reset_color%}" ;;
+      FAILURE) ci_marker=" %{$fg[red]%}✗%{$reset_color%}" ;;
+      PENDING) ci_marker=" %{$fg[yellow]%}●%{$reset_color%}" ;;
+      *)       ci_marker=" %{$fg[white]%}◦%{$reset_color%}" ;;
+    esac
+
+    pr_seg=" — %{${osc8_open}%}%{${pr_color}%}${pr_icon} #${pr_number}%{$reset_color%}%{${osc8_close}%}${ci_marker}"
   fi
 
-  print -P " — %{$terminfo[bold]$fg[blue]%}${branch}%{$reset_color%}${pr_seg} ${dirty_marker}"
+  print -P " — %{$terminfo[bold]$fg[blue]%}${branch}%{$reset_color%} ${dirty_marker}${pr_seg}"
 }
 
 # === Prompt ===
