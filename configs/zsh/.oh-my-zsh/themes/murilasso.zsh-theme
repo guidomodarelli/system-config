@@ -2,6 +2,7 @@
 typeset -g _MURILASSO_PR_URL=""
 typeset -g _MURILASSO_PR_STATE=""
 typeset -g _MURILASSO_PR_BRANCH=""
+typeset -g _MURILASSO_PR_REPO=""
 
 _murilasso_read_pr_cache() {
   local cache_file="$1"
@@ -9,20 +10,23 @@ _murilasso_read_pr_cache() {
 }
 
 _murilasso_refresh_pr() {
-  local branch
+  local branch repo
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  repo=$(git rev-parse --show-toplevel 2>/dev/null)
 
-  if [[ -z "$branch" || "$branch" == "HEAD" ]]; then
+  if [[ -z "$branch" || "$branch" == "HEAD" || -z "$repo" ]]; then
     _MURILASSO_PR_URL=""
     _MURILASSO_PR_STATE=""
     _MURILASSO_PR_BRANCH=""
+    _MURILASSO_PR_REPO=""
     return
   fi
 
-  local cache_file="${TMPDIR:-/tmp}/.murilasso_pr_v2_${branch//\//_}"
+  local cache_file="${TMPDIR:-/tmp}/.murilasso_pr_v2_${repo//\//_}_${branch//\//_}"
 
-  if [[ "$branch" != "$_MURILASSO_PR_BRANCH" ]]; then
+  if [[ "$branch" != "$_MURILASSO_PR_BRANCH" || "$repo" != "$_MURILASSO_PR_REPO" ]]; then
     _MURILASSO_PR_BRANCH="$branch"
+    _MURILASSO_PR_REPO="$repo"
     _MURILASSO_PR_URL=""
     _MURILASSO_PR_STATE=""
     if [[ -f "$cache_file" ]]; then
