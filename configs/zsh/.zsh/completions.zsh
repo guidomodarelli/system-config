@@ -59,17 +59,43 @@ generate_completions() {
   generate_completions "setup.py" "$HOME/system-config/scripts/setup/setup.sh" 2>/dev/null
 ) &!
 
+# discover_completion_dirs hace find+grep en cada startup (~390ms).
+# Se cachea el resultado y se regenera automáticamente si:
+#   - el cache no existe (primera vez)
+#   - se agrega un archivo _* nuevo (mtime del archivo > mtime del cache)
+#   - se modifica un archivo _* existente (idem, modificar cambia el mtime)
+# find -newer sale al primer match → ~1ms cuando no hay cambios.
+# Para forzar regeneración manual: rm "$_COMPLETIONS_DIRS_CACHE"
+_COMPLETIONS_DIRS_CACHE="${ZSH_CACHE_DIR:-$HOME/.cache/oh-my-zsh}/.custom_completion_dirs"
+
+_completion_dirs_cache_stale() {
+  [[ ! -f "$_COMPLETIONS_DIRS_CACHE" ]] && return 0
+  local root
+  for root in "${(@s/:/)ZSH_COMPLETION_SEARCH_ROOTS}"; do
+    [[ -n "$(find -L "$root" -name '_*' -newer "$_COMPLETIONS_DIRS_CACHE" -print -quit 2>/dev/null)" ]] && return 0
+  done
+  return 1
+}
+
+if _completion_dirs_cache_stale; then
+  discover_completion_dirs > "$_COMPLETIONS_DIRS_CACHE"
+fi
+
 # Prepend local completions; let OMZ handle compinit once
 typeset -a discovered_completion_dirs
-discovered_completion_dirs=("${(@f)$(discover_completion_dirs)}")
+discovered_completion_dirs=("${(@f)$(< "$_COMPLETIONS_DIRS_CACHE")}")
 typeset -U fpath
 fpath=(/usr/local/share/zsh-completions $ZSH_COMPLETION $discovered_completion_dirs $fpath)
 
-# If this file is sourced manually in an active shell, refresh completion cache.
-if (( ${+_comps} )); then
+# compinit lo corre omz/antigen una sola vez. No repetir aquí — causaba double-compinit
+# (~400ms extra) porque _comps ya estaba seteado cuando este archivo se sourceable.
+# Para recargar completions manualmente en una sesión activa usar: zsh_reload_completions
+zsh_reload_completions() {
+  rm -f "$_COMPLETIONS_DIRS_CACHE"
   autoload -Uz compinit
   compinit -i -d "${ZSH_COMPDUMP:-${ZSH_CACHE_DIR:-$HOME/.cache/oh-my-zsh}/zcompdump-$HOST-$ZSH_VERSION}" >/dev/null 2>&1
-fi
+  echo "Completions reloaded."
+}
 
 # Styles must be defined before compinit (OMZ will run it)
 zstyle :compinstall filename "${ZDOTDIR:-$HOME}/.zshrc"
