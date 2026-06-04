@@ -81,7 +81,7 @@ _murilasso_refresh_node() {
     nvmrc_ver="${${nvmrc_ver// /}#v}"
     running_ver="${_MURILASSO_NODE_VERSION#v}"
     if [[ "$running_ver" != "$nvmrc_ver"* ]]; then
-      version_seg="${version_seg} %{$fg[yellow]%}(.nvmrc: v${nvmrc_ver})%{$reset_color%}"
+      version_seg="${version_seg} %{$fg[yellow]%}≠ v${nvmrc_ver} .nvmrc%{$reset_color%}"
     fi
   fi
 
