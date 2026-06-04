@@ -45,24 +45,47 @@ _murilasso_refresh_pr() {
 
 # === Node.js version (RPS1) ===
 typeset -g _MURILASSO_NODE_BIN=""
+typeset -g _MURILASSO_NODE_VERSION=""
 typeset -g _MURILASSO_NODE_SEG=""
 
 _murilasso_refresh_node() {
-  local node_bin
-  node_bin=$(command -v node 2>/dev/null)
+  # NVM_BIN cambia inmediatamente con `nvm use`; fallback a whence para setups sin NVM
+  local node_bin="${NVM_BIN:+${NVM_BIN}/node}"
+  [[ -z "$node_bin" ]] && node_bin=$(whence -p node 2>/dev/null)
 
   if [[ -z "$node_bin" ]]; then
     _MURILASSO_NODE_BIN=""
+    _MURILASSO_NODE_VERSION=""
     _MURILASSO_NODE_SEG=""
     return
   fi
 
+  # Solo llama node -v cuando cambia el binario (ej. nvm use)
   if [[ "$node_bin" != "$_MURILASSO_NODE_BIN" ]]; then
     _MURILASSO_NODE_BIN="$node_bin"
-    local node_version
-    node_version=$(node -v 2>/dev/null)
-    _MURILASSO_NODE_SEG="%{$fg[green]%}⬡ ${node_version}%{$reset_color%}  "
+    _MURILASSO_NODE_VERSION=$(node -v 2>/dev/null)
   fi
+
+  # Busca .nvmrc subiendo desde PWD
+  local nvmrc_path="" dir="$PWD"
+  while [[ "$dir" != "/" && "$dir" != "$HOME" ]]; do
+    [[ -f "$dir/.nvmrc" ]] && { nvmrc_path="$dir/.nvmrc"; break; }
+    dir="${dir:h}"
+  done
+
+  local version_seg="%{$fg[green]%}⬡ ${_MURILASSO_NODE_VERSION}%{$reset_color%}"
+
+  if [[ -n "$nvmrc_path" ]]; then
+    local nvmrc_ver running_ver
+    nvmrc_ver=$(< "$nvmrc_path")
+    nvmrc_ver="${${nvmrc_ver// /}#v}"
+    running_ver="${_MURILASSO_NODE_VERSION#v}"
+    if [[ "$running_ver" != "$nvmrc_ver"* ]]; then
+      version_seg="${version_seg} %{$fg[yellow]%}(.nvmrc: v${nvmrc_ver})%{$reset_color%}"
+    fi
+  fi
+
+  _MURILASSO_NODE_SEG="${version_seg}  "
 }
 
 (( ${precmd_functions[(Ie)_murilasso_refresh_node]} )) || precmd_functions+=(_murilasso_refresh_node)
