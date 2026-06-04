@@ -85,7 +85,7 @@ fi
 typeset -a discovered_completion_dirs
 discovered_completion_dirs=("${(@f)$(< "$_COMPLETIONS_DIRS_CACHE")}")
 typeset -U fpath
-fpath=(/usr/local/share/zsh-completions $ZSH_COMPLETION $discovered_completion_dirs $fpath)
+fpath=(/usr/local/share/zsh-completions "$HOME/system-config/third-party/zsh-completions/src" $ZSH_COMPLETION $discovered_completion_dirs $fpath)
 
 # compinit lo corre omz/antigen una sola vez. No repetir aquí — causaba double-compinit
 # (~400ms extra) porque _comps ya estaba seteado cuando este archivo se sourceable.
