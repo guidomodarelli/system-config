@@ -148,6 +148,11 @@ _murilasso_git_segment() {
     dirty_marker="%{$fg[green]%}✔%{$reset_color%}"
   fi
 
+  local branch_color="$terminfo[bold]$fg[blue]"
+  local upstream_track
+  upstream_track=$(git for-each-ref --format='%(upstream:track)' "refs/heads/${branch}" 2>/dev/null)
+  [[ "$upstream_track" == *"gone"* ]] && branch_color="$terminfo[bold]$fg[red]"
+
   local pr_seg=""
   if [[ -n "$_MURILASSO_PR_URL" ]]; then
     local pr_number="${_MURILASSO_PR_URL##*/}"
@@ -172,7 +177,7 @@ _murilasso_git_segment() {
     pr_seg=" — %{${osc8_open}%}%{${pr_color}%}${pr_icon} #${pr_number}%{$reset_color%}%{${osc8_close}%}${ci_marker}"
   fi
 
-  print -P " — %{$terminfo[bold]$fg[blue]%}${branch}%{$reset_color%} ${dirty_marker}${pr_seg}"
+  print -P " — %{${branch_color}%}${branch}%{$reset_color%} ${dirty_marker}${pr_seg}"
 }
 
 # === Prompt ===
