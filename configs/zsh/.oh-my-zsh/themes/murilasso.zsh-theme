@@ -43,6 +43,30 @@ _murilasso_refresh_pr() {
 
 (( ${precmd_functions[(Ie)_murilasso_refresh_pr]} )) || precmd_functions+=(_murilasso_refresh_pr)
 
+# === Node.js version (RPS1) ===
+typeset -g _MURILASSO_NODE_BIN=""
+typeset -g _MURILASSO_NODE_SEG=""
+
+_murilasso_refresh_node() {
+  local node_bin
+  node_bin=$(command -v node 2>/dev/null)
+
+  if [[ -z "$node_bin" ]]; then
+    _MURILASSO_NODE_BIN=""
+    _MURILASSO_NODE_SEG=""
+    return
+  fi
+
+  if [[ "$node_bin" != "$_MURILASSO_NODE_BIN" ]]; then
+    _MURILASSO_NODE_BIN="$node_bin"
+    local node_version
+    node_version=$(node -v 2>/dev/null)
+    _MURILASSO_NODE_SEG="%{$fg[green]%}⬡ ${node_version}%{$reset_color%}  "
+  fi
+}
+
+(( ${precmd_functions[(Ie)_murilasso_refresh_node]} )) || precmd_functions+=(_murilasso_refresh_node)
+
 # === Git info segment ===
 _murilasso_git_segment() {
   local branch
@@ -77,7 +101,7 @@ _murilasso_git_segment() {
 # === Prompt ===
 PROMPT='%{$terminfo[bold]$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%}$(_murilasso_git_segment)
 %B$%b '
-RPS1='%(?..%{$fg[red]%}%? ↵%{$reset_color%})'
+RPS1='${_MURILASSO_NODE_SEG}%(?..%{$fg[red]%}%? ↵%{$reset_color%})'
 
 ZSH_THEME_GIT_PROMPT_DIRTY=" %{$fg[red]%}✗%{$reset_color%}"
 ZSH_THEME_GIT_PROMPT_CLEAN=" %{$fg[green]%}✔%{$reset_color%}"
