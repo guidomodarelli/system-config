@@ -23,7 +23,7 @@ _murilasso_refresh_pr() {
       (
         local pr_url
         pr_url=$(gh pr view --json url -q '.url' 2>/dev/null)
-        [[ -n "$pr_url" ]] && echo "$pr_url" > "$cache_file"
+        echo "$pr_url" > "$cache_file"
       ) &!
     fi
   elif [[ -z "$_MURILASSO_PR_URL" && -f "$cache_file" ]]; then
