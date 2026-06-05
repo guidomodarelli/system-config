@@ -118,7 +118,7 @@ _murilasso_refresh_node() {
     dir="${dir:h}"
   done
 
-  local version_seg="%{$fg[green]%}⬡ ${_MURILASSO_NODE_VERSION}%{$reset_color%}"
+  local version_seg="%F{green}⬡ ${_MURILASSO_NODE_VERSION}%f"
 
   if [[ -n "$nvmrc_path" ]]; then
     local nvmrc_ver running_ver
@@ -126,11 +126,12 @@ _murilasso_refresh_node() {
     nvmrc_ver="${${nvmrc_ver// /}#v}"
     running_ver="${_MURILASSO_NODE_VERSION#v}"
     if [[ "$running_ver" != "$nvmrc_ver"* ]]; then
-      version_seg="${version_seg} %{$fg[yellow]%}≠ v${nvmrc_ver} .nvmrc%{$reset_color%}"
+      version_seg="${version_seg} %F{yellow}≠ v${nvmrc_ver} .nvmrc%f"
     fi
   fi
 
   _MURILASSO_NODE_SEG="${version_seg}  "
+  RPS1="${_MURILASSO_NODE_SEG}%(?..%F{red}%? ↵%f)"
 }
 
 (( ${precmd_functions[(Ie)_murilasso_refresh_node]} )) || precmd_functions+=(_murilasso_refresh_node)
@@ -186,7 +187,7 @@ _murilasso_git_segment() {
 # === Prompt ===
 PROMPT='%{$terminfo[bold]$fg[green]%}%n%{$reset_color%}:%{$fg[blue]%}%2~%{$reset_color%}$(_murilasso_git_segment)
 %B$%b '
-RPS1='${_MURILASSO_NODE_SEG}%(?..%{$fg[red]%}%? ↵%{$reset_color%})'
+RPS1="%(?..%F{red}%? ↵%f)"
 
 ZSH_THEME_GIT_PROMPT_DIRTY=" %{$fg[red]%}✗%{$reset_color%}"
 ZSH_THEME_GIT_PROMPT_CLEAN=" %{$fg[green]%}✔%{$reset_color%}"
