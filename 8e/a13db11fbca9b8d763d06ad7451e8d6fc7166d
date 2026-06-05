@@ -1,0 +1,14 @@
+configs/zsh/.oh-my-zsh/themes/murilasso.zsh-theme
+  h_75c375681f3642 187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "8ea13db11fbca9b8d763d06ad7451e8d6fc7166d",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
