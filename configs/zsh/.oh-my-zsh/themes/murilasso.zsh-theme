@@ -184,7 +184,7 @@ _murilasso_git_segment() {
 }
 
 # === Prompt ===
-PROMPT='%{$terminfo[bold]$fg[green]%}%n%{$reset_color%}:%{$fg[blue]%}%3~%{$reset_color%}$(_murilasso_git_segment)
+PROMPT='%{$terminfo[bold]$fg[green]%}%n%{$reset_color%}:%{$fg[blue]%}%2~%{$reset_color%}$(_murilasso_git_segment)
 %B$%b '
 RPS1='${_MURILASSO_NODE_SEG}%(?..%{$fg[red]%}%? ↵%{$reset_color%})'
 
