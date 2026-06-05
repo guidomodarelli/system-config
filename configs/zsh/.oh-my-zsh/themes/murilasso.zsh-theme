@@ -148,6 +148,9 @@ _murilasso_git_segment() {
     dirty_marker="%{$fg[green]%}✔%{$reset_color%}"
   fi
 
+  local display_branch="$branch"
+  (( ${#branch} > 40 )) && display_branch="${branch[1,39]}…"
+
   local branch_color="$terminfo[bold]$fg[blue]"
   local upstream_track
   upstream_track=$(git for-each-ref --format='%(upstream:track)' "refs/heads/${branch}" 2>/dev/null)
@@ -177,11 +180,11 @@ _murilasso_git_segment() {
     pr_seg=" — %{${osc8_open}%}%{${pr_color}%}${pr_icon} #${pr_number}%{$reset_color%}%{${osc8_close}%}${ci_marker}"
   fi
 
-  print -P " — %{${branch_color}%}${branch}%{$reset_color%} ${dirty_marker}${pr_seg}"
+  print -P " — %{${branch_color}%}${display_branch}%{$reset_color%} ${dirty_marker}${pr_seg}"
 }
 
 # === Prompt ===
-PROMPT='%{$terminfo[bold]$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%}$(_murilasso_git_segment)
+PROMPT='%{$terminfo[bold]$fg[green]%}%n%{$reset_color%}:%{$fg[blue]%}%2~%{$reset_color%}$(_murilasso_git_segment)
 %B$%b '
 RPS1='${_MURILASSO_NODE_SEG}%(?..%{$fg[red]%}%? ↵%{$reset_color%})'
 
