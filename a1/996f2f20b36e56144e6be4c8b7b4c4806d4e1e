@@ -1,0 +1,12 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "a1996f2f20b36e56144e6be4c8b7b4c4806d4e1e",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
