@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplify"
+  short_description: "Clean up changed code quality"
+  default_prompt: "Use $simplify to review my current changes for reuse, simplification, efficiency, and abstraction cleanups, then apply the fixes."
