@@ -95,8 +95,29 @@ Adjust sections when the diff is small — skip sections that have nothing to sa
 
 ### Output file
 
-Name: `<feature-slug>.htm` in the repo root, where `feature-slug` is derived from the branch
-name or the main feature described (e.g. `user-detail-sidebar.htm`). Ask the user if unclear.
+Always write the file to `user-guides/<feature-slug>.htm` under the project root, where
+`feature-slug` is derived from the branch name or the main feature described
+(e.g. `user-guides/user-detail-sidebar.htm`). Ask the user if the slug is unclear.
+
+Before writing the HTM, ensure the `user-guides/` folder is ignored by git:
+
+```bash
+# Check whether the gitignore guard already exists
+cat <project-root>/user-guides/.gitignore 2>/dev/null
+```
+
+- If the file does **not** exist, or its content is not exactly `*` (a single asterisk, no
+  trailing spaces or extra lines), create or overwrite it:
+
+  ```
+  user-guides/.gitignore
+  ───────────────────────
+  *
+  ```
+
+- If it already contains exactly `*`, leave it untouched.
+
+Create the `user-guides/` directory if it does not exist before writing either file.
 
 ### HTML skeleton (copy from DESIGN.md boilerplate exactly)
 
@@ -160,7 +181,8 @@ If a discrepancy is found, fix the HTM before reporting done.
 ## Output checklist
 
 - [ ] File is `.htm` (not `.html`).
-- [ ] Placed in the repo root (or the location the user specified).
+- [ ] Placed under `user-guides/` in the project root.
+- [ ] `user-guides/.gitignore` exists and contains exactly `*`.
 - [ ] All CSS is inline — no external deps beyond Google Fonts.
 - [ ] Heritage Spec colors, fonts, and radii match DESIGN.md exactly (no hard-coded values
       that differ from the spec).
