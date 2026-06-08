@@ -7,6 +7,7 @@ description: Diagnose failing or flaky tests without blindly modifying assertion
 
 - Preserve the test's intent before changing anything.
 - Inspect the failing test and the implementation together; do not treat the test as disposable.
+- Respect the requested edit scope: if the user asked to update tests only, or did not clearly authorize production edits, do not modify implementation files without confirmation.
 - Fix the smallest surface that restores the intended behavior.
 - Run the relevant tests after the change and verify they pass.
 
@@ -30,11 +31,18 @@ description: Diagnose failing or flaky tests without blindly modifying assertion
 - Fix the implementation when the test correctly represents the intended behavior and the code violates it.
 - Fix both sides only when each is partially wrong, and keep the changes minimal.
 
+### 4. Apply the scope gate before editing
+
+- If the user explicitly says "tests only", "solo tests", or equivalent, modify only test files.
+- If the user asks broadly to "fix tests" and the root cause is in implementation code, stop before editing production files. Report the evidence, explain that test-only changes cannot make the suite pass honestly, and ask for confirmation before touching implementation.
+- If there are valid test-side issues, apply those first, then rerun the relevant tests and report any remaining implementation parse/runtime failures as blockers.
+- Do not mock, skip, or bypass production imports just to satisfy a test-only scope when doing so would hide the real failure.
+
 ## Allowed Changes
 
 - Correct assertions that contradict the real contract.
 - Replace misleading mocks or fixtures with valid ones.
-- Update implementation logic to satisfy correct expectations.
+- Update implementation logic to satisfy correct expectations only when production edits are authorized by the user or clearly within the requested scope.
 - Add or adjust focused tests when coverage is missing around the corrected behavior.
 
 ## Forbidden Changes
@@ -56,6 +64,7 @@ description: Diagnose failing or flaky tests without blindly modifying assertion
 
 - State whether the root cause was in the test, the implementation, or both.
 - Briefly explain why that is the correct place to fix.
+- State when the requested scope prevented the root-cause fix, including the specific production files or modules still blocking the suite.
 - Apply minimal, targeted changes.
 - Keep tests and implementation aligned with the same intended behavior.
 
