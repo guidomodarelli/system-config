@@ -1,0 +1,130 @@
+---
+name: feature-branch-pr
+description: "Ship uncommitted work end-to-end: create a feature/* branch (only if currently on a default branch), commit, push, open a PR, and report a summary table. Use when the user asks to commit & push current changes and open a PR, 'subir los cambios y crear PR', 'branch + commit + push + PR', or to close out work-in-progress into a pull request."
+allowed-tools: Bash(git:*) Bash(gh:*)
+---
+
+# Feature Branch + Commit + Push + PR
+
+Take the current uncommitted changes and ship them as a pull request in one closeout flow, then return a summary table.
+
+Use when:
+- the user asks to commit & push the current changes and open a PR
+- "subir cambios y crear PR", "branch + commit + push + PR", closeout of WIP
+- the working tree has changes that should become a pull request
+
+## Contract
+
+- Run only when the user explicitly asks to commit/push/PR. This skill performs outward-facing, hard-to-reverse actions (push + PR).
+- **Branch rule (mandatory):** create a new `feature/<slug>` branch **only if** the current branch is a default branch (`develop`, `main`, or `master`). If the current branch is already anything else, **reuse it** — never branch off a branch.
+- Never commit on `develop`/`main`/`master`. If on a default branch, you must create the feature branch first.
+- Keep every technical name (branch, commit subject, PR title/body) in **English**. The summary table shown to the user is in **Spanish**.
+- Do not force-push, do not skip hooks (`--no-verify`), do not bypass signing.
+- End commit messages with the required co-author trailer.
+- If `gh` is unavailable or unauthenticated, stop before the PR step and report the push result plus the exact blocker.
+
+## Steps
+
+### 1. Inspect state
+
+```bash
+git rev-parse --abbrev-ref HEAD
+git status --porcelain
+```
+
+- If `git status --porcelain` is empty → nothing to ship. Report that and stop.
+- Capture the current branch name for the branch decision.
+
+### 2. Decide the branch
+
+Default branches: `develop`, `main`, `master`.
+
+- **Current branch IS a default branch** → create a new one. Derive a short, descriptive English slug from the change:
+
+  ```bash
+  git switch -c "feature/<slug>"
+  ```
+
+  `branchAction = "created"`.
+
+- **Current branch is NOT a default branch** → reuse it. Do **not** create or rename anything.
+
+  `branchAction = "reused"`.
+
+Slug rules: lowercase, hyphen-separated, English, no spaces, no ticket-noise. Example: `feature/link-preapproval-checkout`.
+
+### 3. Commit
+
+Stage everything and commit with a clear Conventional-Commit-style English subject plus a short body describing the change.
+
+```bash
+git add -A
+git commit -m "$(cat <<'EOF'
+<type>: <concise english subject>
+
+<short english body: what changed and why>
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+On Windows PowerShell, use a single-quoted here-string (`@' ... '@`) for the message instead of the bash heredoc.
+
+If a pre-commit hook fails, fix the underlying issue and retry — do not bypass it.
+
+### 4. Push
+
+Push and set upstream on first push of the branch:
+
+```bash
+git push -u origin HEAD
+```
+
+Capture the push result and the remote tracking ref.
+
+### 5. Open the PR
+
+Check tooling first:
+
+```bash
+gh auth status
+```
+
+If `gh` is missing or unauthenticated, skip this step and record the blocker. Otherwise:
+
+```bash
+gh pr create --fill --base <default-branch> --head <feature-branch>
+```
+
+- Base = the repo's default branch (`develop` if it exists, else `main`/`master`). Confirm with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`.
+- Prefer `--fill` to seed title/body from the commit; refine the body if the change needs context. Keep title/body in English.
+- End the PR body with:
+
+  ```
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+  ```
+
+- Capture the returned PR URL.
+
+### 6. Report the summary table (Spanish)
+
+Always close with a Markdown table summarizing the run:
+
+| Paso | Resultado |
+| --- | --- |
+| Rama | `feature/<slug>` (creada \| reutilizada) |
+| Base | `<default-branch>` |
+| Commit | `<short-hash>` — `<subject>` |
+| Push | OK → `origin/<feature-branch>` |
+| PR | `<pr-url>` (o motivo si no se creó) |
+
+If any step was skipped or failed, show its real status in the table (e.g. `PR | No creado — gh no autenticado`) instead of reporting success.
+
+## Edge cases
+
+- **Clean tree:** nothing to commit → report and stop; do not create an empty branch or PR.
+- **Detached HEAD:** treat as non-default → create `feature/<slug>` so the work is not orphaned, then proceed.
+- **PR already open for the branch:** reuse it. Run `gh pr view --json url --jq .url` and report that URL instead of creating a duplicate; push the new commit so the existing PR updates.
+- **Push rejected (non-fast-forward):** do not force-push. Report the rejection and ask the user how to proceed.
+- **No `origin` remote:** stop after the commit, report the missing remote.
