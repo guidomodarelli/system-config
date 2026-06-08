@@ -1,0 +1,24 @@
+configs/.agents/skills/my-skills/fix-tests-intelligently/SKILL.md
+  s_cbbc966bd5f451::t_13a73dd6711a56 10,34-40,45,67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "f1c83c65f97ea1812340aa0cd416d5ba00ac2d95",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_cbbc966bd5f451": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ea838-2955-72d1-8edf-aefe8ab138bc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
