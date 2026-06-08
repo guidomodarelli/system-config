@@ -2553,12 +2553,16 @@ if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
     try {
         oh-my-posh init pwsh --config $murilassoThemePath | Invoke-Expression
 
-        # Oh My Posh define un Set-PoshContext vacio en su init y lo invoca antes
-        # de cada render. Lo sobreescribimos DESPUES del init (sino el stub de OMP
-        # pisa el nuestro) para alimentar las env vars de PR/CI. El parametro
-        # [bool]$originalStatus lo pasa OMP; lo aceptamos aunque no lo usemos.
-        function Set-PoshContext([bool]$originalStatus) {
+        # El hook Set-PoshContext de Oh My Posh vive DENTRO de su modulo dinamico
+        # `oh-my-posh-core` y su `prompt` resuelve esa version del modulo, no un
+        # override global. Por eso envolvemos el `prompt` de OMP: guardamos su
+        # scriptblock (queda ligado al scope del modulo) y definimos un `prompt`
+        # global que corre nuestro updater de PR/CI ANTES de delegar en el de OMP,
+        # de modo que las env vars ya esten seteadas cuando OMP renderiza.
+        $global:MurilassoOmpPrompt = (Get-Command prompt).ScriptBlock
+        function global:prompt {
             Update-MurilassoPromptContext
+            & $global:MurilassoOmpPrompt
         }
     } catch {
         Write-Warning "Unable to initialize Oh My Posh (murilasso): $($_.Exception.Message)"
