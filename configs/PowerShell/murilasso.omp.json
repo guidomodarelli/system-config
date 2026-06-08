@@ -24,7 +24,7 @@
             "folder_separator_icon": "/",
             "home_icon": "~"
           },
-          "template": "<white>:</>{{ .Path }}"
+          "template": "<#ffffff>:</>{{ .Path }}"
         },
         {
           "type": "git",
@@ -37,13 +37,13 @@
             "fetch_status": true,
             "branch_icon": ""
           },
-          "template": " <white>—</> <b>{{ if gt (len .HEAD) 40 }}{{ trunc 39 .HEAD }}…{{ else }}{{ .HEAD }}{{ end }}</b> {{ if or .Working.Changed .Staging.Changed }}<red>✗</red>{{ else }}<green>✔</green>{{ end }}"
+          "template": " <#ffffff>—</> <b>{{ if gt (len .HEAD) 40 }}{{ trunc 39 .HEAD }}…{{ else }}{{ .HEAD }}{{ end }}</b> {{ if or .Working.Changed .Staging.Changed }}<red>✗</red>{{ else }}<green>✔</green>{{ end }}"
         },
         {
           "type": "text",
           "style": "plain",
           "foreground": "white",
-          "template": "{{ if .Env.MURILASSO_PR_URL }} <white>—</> {{ $icon := `⎇` }}{{ $color := `yellow` }}{{ if eq .Env.MURILASSO_PR_STATE `OPEN` }}{{ $icon = `○` }}{{ $color = `green` }}{{ else if eq .Env.MURILASSO_PR_STATE `MERGED` }}{{ $icon = `⊕` }}{{ $color = `magenta` }}{{ else if eq .Env.MURILASSO_PR_STATE `CLOSED` }}{{ $icon = `⊗` }}{{ $color = `red` }}{{ end }}{{ url (printf `<%s>%s #%s</>` $color $icon .Env.MURILASSO_PR_NUMBER) .Env.MURILASSO_PR_URL }} {{ if eq .Env.MURILASSO_PR_CI `SUCCESS` }}<green>✔</green>{{ else if eq .Env.MURILASSO_PR_CI `FAILURE` }}<red>✗</red>{{ else if eq .Env.MURILASSO_PR_CI `PENDING` }}<yellow>●</yellow>{{ else }}<white>◦</white>{{ end }}{{ end }}"
+          "template": "{{ if .Env.MURILASSO_PR_URL }}  <#ffffff>—</> {{ $icon := `⎇` }}{{ $color := `yellow` }}{{ if eq .Env.MURILASSO_PR_STATE `OPEN` }}{{ $icon = `○` }}{{ $color = `green` }}{{ else if eq .Env.MURILASSO_PR_STATE `MERGED` }}{{ $icon = `⊕` }}{{ $color = `magenta` }}{{ else if eq .Env.MURILASSO_PR_STATE `CLOSED` }}{{ $icon = `⊗` }}{{ $color = `red` }}{{ end }}{{ url (printf `<%s>%s #%s</>` $color $icon .Env.MURILASSO_PR_NUMBER) .Env.MURILASSO_PR_URL }} {{ if eq .Env.MURILASSO_PR_CI `SUCCESS` }}<green>✔</green>{{ else if eq .Env.MURILASSO_PR_CI `FAILURE` }}<red>✗</red>{{ else if eq .Env.MURILASSO_PR_CI `PENDING` }}<yellow>●</yellow>{{ else }}<#ffffff>◦</>{{ end }}{{ end }}"
         }
       ]
     },
@@ -82,7 +82,7 @@
           "type": "text",
           "style": "plain",
           "foreground": "white",
-          "template": "<b>$</b>"
+          "template": "<#ffffff><b>$</b></>"
         }
       ]
     }
