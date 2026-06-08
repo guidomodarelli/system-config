@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "version": 3,
+  "final_space": true,
+  "blocks": [
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "newline": false,
+      "segments": [
+        {
+          "type": "session",
+          "style": "plain",
+          "foreground": "green",
+          "template": "<b>{{ .UserName }}</b>"
+        },
+        {
+          "type": "path",
+          "style": "plain",
+          "foreground": "blue",
+          "properties": {
+            "style": "agnoster_short",
+            "max_depth": 2,
+            "folder_separator_icon": "/",
+            "home_icon": "~"
+          },
+          "template": "<white>:</>{{ .Path }}"
+        },
+        {
+          "type": "git",
+          "style": "plain",
+          "foreground": "blue",
+          "foreground_templates": [
+            "{{ if .UpstreamGone }}red{{ end }}"
+          ],
+          "properties": {
+            "fetch_status": true,
+            "branch_icon": ""
+          },
+          "template": " <white>—</> <b>{{ if gt (len .HEAD) 40 }}{{ trunc 39 .HEAD }}…{{ else }}{{ .HEAD }}{{ end }}</b> {{ if or .Working.Changed .Staging.Changed }}<red>✗</red>{{ else }}<green>✔</green>{{ end }}"
+        },
+        {
+          "type": "text",
+          "style": "plain",
+          "foreground": "white",
+          "template": "{{ if .Env.MURILASSO_PR_URL }} <white>—</> {{ $icon := `⎇` }}{{ $color := `yellow` }}{{ if eq .Env.MURILASSO_PR_STATE `OPEN` }}{{ $icon = `○` }}{{ $color = `green` }}{{ else if eq .Env.MURILASSO_PR_STATE `MERGED` }}{{ $icon = `⊕` }}{{ $color = `magenta` }}{{ else if eq .Env.MURILASSO_PR_STATE `CLOSED` }}{{ $icon = `⊗` }}{{ $color = `red` }}{{ end }}{{ url (printf `<%s>%s #%s</>` $color $icon .Env.MURILASSO_PR_NUMBER) .Env.MURILASSO_PR_URL }} {{ if eq .Env.MURILASSO_PR_CI `SUCCESS` }}<green>✔</green>{{ else if eq .Env.MURILASSO_PR_CI `FAILURE` }}<red>✗</red>{{ else if eq .Env.MURILASSO_PR_CI `PENDING` }}<yellow>●</yellow>{{ else }}<white>◦</white>{{ end }}{{ end }}"
+        }
+      ]
+    },
+    {
+      "type": "rprompt",
+      "overflow": "hide",
+      "segments": [
+        {
+          "type": "node",
+          "style": "plain",
+          "foreground": "green",
+          "properties": {
+            "fetch_version": true,
+            "home_enabled": true,
+            "display_mode": "always"
+          },
+          "template": "<green>⬡ v{{ .Full }}</>{{ if .Mismatch }} <yellow>≠ v{{ .Expected }} .nvmrc</>{{ end }}"
+        },
+        {
+          "type": "status",
+          "style": "plain",
+          "foreground": "red",
+          "properties": {
+            "always_enabled": false
+          },
+          "template": "{{ if .Error }} {{ .Code }} ↵{{ end }}"
+        }
+      ]
+    },
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "newline": true,
+      "segments": [
+        {
+          "type": "text",
+          "style": "plain",
+          "foreground": "white",
+          "template": "<b>$</b>"
+        }
+      ]
+    }
+  ]
+}

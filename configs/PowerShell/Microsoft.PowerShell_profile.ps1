@@ -2394,3 +2394,174 @@ $ChocolateyProfile = "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
 if (Test-Path($ChocolateyProfile)) {
   Import-Module "$ChocolateyProfile"
 }
+
+# ██████  ██████   ██████  ███    ███ ██████  ████████
+# ██   ██ ██   ██ ██    ██ ████  ████ ██   ██    ██
+# ██████  ██████  ██    ██ ██ ████ ██ ██████     ██
+# ██      ██   ██ ██    ██ ██  ██  ██ ██         ██
+# ██      ██   ██  ██████  ██      ██ ██         ██
+
+# --- Prompt murilasso para Oh My Posh ----------------------------------------
+# Port del theme configs/zsh/.oh-my-zsh/themes/murilasso.zsh-theme. El render
+# vive en murilasso.omp.json; aca solo se replica el cacheo async de PR/CI via
+# `gh`, que Oh My Posh consume por env vars dentro de Set-PoshContext.
+
+# Intervalos de refresco en background (mismos valores que el theme zsh).
+$MURILASSO_PR_REFRESH_SECONDS = 30
+$MURILASSO_CI_REFRESH_SECONDS = 120
+
+# Estado in-memory para evitar lanzar fetches en cada render del prompt.
+$global:MurilassoPromptState = @{
+    Branch      = ''
+    Repo        = ''
+    PrLastFetch = [datetime]::MinValue
+    CiKey       = ''
+    CiLastFetch = [datetime]::MinValue
+}
+
+function Get-MurilassoCachePath {
+    param([string]$Kind, [string]$Repo, [string]$Branch)
+
+    $safeKey = ("{0}_{1}" -f $Repo, $Branch) -replace '[\\/:*?"<>| ]', '_'
+    return Join-Path ([System.IO.Path]::GetTempPath()) (".murilasso_{0}_{1}" -f $Kind, $safeKey)
+}
+
+# Lanza `gh` en un background job (proceso hijo aislado; no bloquea el prompt)
+# y vuelca el resultado al archivo de cache. Se usa Start-Job en vez de
+# Start-ThreadJob porque `gh` no resuelve bien su contexto (auth/repo) desde un
+# hilo secundario del mismo proceso. Limpia jobs ya terminados para no acumular.
+function Start-MurilassoGhFetch {
+    param([string]$Repo, [string]$CachePath, [string[]]$GhArgs)
+
+    Get-Job -Name 'murilasso_fetch' -ErrorAction SilentlyContinue |
+        Where-Object { $_.State -in 'Completed', 'Failed', 'Stopped' } |
+        Remove-Job -Force -ErrorAction SilentlyContinue
+
+    $null = Start-Job -Name 'murilasso_fetch' -ScriptBlock {
+        param($repoPath, $cachePath, $ghArgs)
+
+        Set-Location -LiteralPath $repoPath
+        $output = & gh @ghArgs 2>$null
+        if ($LASTEXITCODE -eq 0 -and $null -ne $output) {
+            Set-Content -LiteralPath $cachePath -Value ($output -join "`n") -Encoding utf8 -NoNewline
+        }
+    } -ArgumentList $Repo, $CachePath, $GhArgs
+}
+
+# Lee el cache de PR (linea 1 = url, linea 2 = state) hacia env vars.
+function Read-MurilassoPrCache {
+    param([string]$CachePath)
+
+    $lines = Get-Content -LiteralPath $CachePath -ErrorAction SilentlyContinue
+    if (-not $lines) { return }
+
+    $url = if ($lines.Count -ge 1) { ([string]$lines[0]).Trim() } else { '' }
+    $prState = if ($lines.Count -ge 2) { ([string]$lines[1]).Trim() } else { '' }
+
+    $env:MURILASSO_PR_URL = $url
+    $env:MURILASSO_PR_STATE = $prState
+    $env:MURILASSO_PR_NUMBER = if ($url) { ($url -split '/')[-1] } else { '' }
+}
+
+function Clear-MurilassoPrContext {
+    $env:MURILASSO_PR_URL = ''
+    $env:MURILASSO_PR_STATE = ''
+    $env:MURILASSO_PR_NUMBER = ''
+    $env:MURILASSO_PR_CI = ''
+}
+
+# Refresca el estado de CI del PR actual (cada 2 min o al cambiar de branch).
+function Update-MurilassoCiContext {
+    param([string]$Repo, [string]$Branch)
+
+    if ([string]::IsNullOrEmpty($env:MURILASSO_PR_URL)) {
+        $env:MURILASSO_PR_CI = ''
+        return
+    }
+
+    $promptState = $global:MurilassoPromptState
+    $ciKey = "${Repo}:${Branch}"
+    $ciCache = Get-MurilassoCachePath -Kind 'ci' -Repo $Repo -Branch $Branch
+    $now = Get-Date
+
+    if ($ciKey -ne $promptState.CiKey -or
+        ($now - $promptState.CiLastFetch).TotalSeconds -gt $MURILASSO_CI_REFRESH_SECONDS) {
+        $promptState.CiKey = $ciKey
+        $promptState.CiLastFetch = $now
+        $ciQuery = 'if (.statusCheckRollup // [] | length) == 0 then "" elif .statusCheckRollup | any(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT" or .state == "FAILURE" or .state == "ERROR") then "FAILURE" elif .statusCheckRollup | any(.status == "IN_PROGRESS" or .status == "QUEUED" or .status == "PENDING" or .state == "PENDING") then "PENDING" else "SUCCESS" end'
+        Start-MurilassoGhFetch -Repo $Repo -CachePath $ciCache -GhArgs @('pr', 'view', '--json', 'statusCheckRollup', '-q', $ciQuery)
+    }
+
+    if (Test-Path -LiteralPath $ciCache) {
+        $ciStatus = Get-Content -LiteralPath $ciCache -Raw -ErrorAction SilentlyContinue
+        if ($null -ne $ciStatus) { $env:MURILASSO_PR_CI = $ciStatus.Trim() }
+    }
+}
+
+# Mantiene actualizadas las env vars de PR/CI que consume murilasso.omp.json.
+function Update-MurilassoPromptContext {
+    $branch = & git rev-parse --abbrev-ref HEAD 2>$null
+    $repo = & git rev-parse --show-toplevel 2>$null
+
+    if ([string]::IsNullOrWhiteSpace($branch) -or $branch -eq 'HEAD' -or [string]::IsNullOrWhiteSpace($repo)) {
+        Clear-MurilassoPrContext
+        $global:MurilassoPromptState.Branch = ''
+        $global:MurilassoPromptState.Repo = ''
+        return
+    }
+
+    $branch = $branch.Trim()
+    $repo = $repo.Trim()
+    $promptState = $global:MurilassoPromptState
+    $prCache = Get-MurilassoCachePath -Kind 'pr' -Repo $repo -Branch $branch
+    $now = Get-Date
+
+    if ($branch -ne $promptState.Branch -or $repo -ne $promptState.Repo) {
+        # Cambio de branch/repo: reset, muestra cache si existe y lanza fetch.
+        $promptState.Branch = $branch
+        $promptState.Repo = $repo
+        $promptState.PrLastFetch = $now
+        Clear-MurilassoPrContext
+        if (Test-Path -LiteralPath $prCache) { Read-MurilassoPrCache $prCache }
+        Start-MurilassoGhFetch -Repo $repo -CachePath $prCache -GhArgs @('pr', 'view', '--json', 'url,state', '-q', '.url + "\n" + .state')
+    }
+    elseif ([string]::IsNullOrEmpty($env:MURILASSO_PR_URL) -and (Test-Path -LiteralPath $prCache)) {
+        # El fetch en background termino: leer el resultado.
+        Read-MurilassoPrCache $prCache
+        $promptState.PrLastFetch = $now
+    }
+    elseif ($env:MURILASSO_PR_STATE -eq 'OPEN') {
+        # Re-lee cache cada render (rapido) y re-fetchea cada 30s.
+        if (Test-Path -LiteralPath $prCache) { Read-MurilassoPrCache $prCache }
+        if (($now - $promptState.PrLastFetch).TotalSeconds -gt $MURILASSO_PR_REFRESH_SECONDS) {
+            $promptState.PrLastFetch = $now
+            Start-MurilassoGhFetch -Repo $repo -CachePath $prCache -GhArgs @('pr', 'view', '--json', 'url,state', '-q', '.url + "\n" + .state')
+        }
+    }
+
+    Update-MurilassoCiContext -Repo $repo -Branch $branch
+}
+
+# $PSScriptRoot apunta a la carpeta del symlink, no a la del repo. Resolvemos
+# el link para ubicar el theme junto al archivo real del profile.
+$murilassoProfileItem = Get-Item -LiteralPath $PSCommandPath -ErrorAction SilentlyContinue
+$murilassoResolvedProfile = if ($murilassoProfileItem) { $murilassoProfileItem.ResolveLinkTarget($true) } else { $null }
+$murilassoScriptDir = if ($murilassoResolvedProfile) { $murilassoResolvedProfile.DirectoryName } else { $PSScriptRoot }
+$murilassoThemePath = Join-Path $murilassoScriptDir 'murilasso.omp.json'
+$ohMyPoshCommand = Get-Command oh-my-posh -ErrorAction SilentlyContinue
+if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
+    try {
+        oh-my-posh init pwsh --config $murilassoThemePath | Invoke-Expression
+
+        # Oh My Posh define un Set-PoshContext vacio en su init y lo invoca antes
+        # de cada render. Lo sobreescribimos DESPUES del init (sino el stub de OMP
+        # pisa el nuestro) para alimentar las env vars de PR/CI. El parametro
+        # [bool]$originalStatus lo pasa OMP; lo aceptamos aunque no lo usemos.
+        function Set-PoshContext([bool]$originalStatus) {
+            Update-MurilassoPromptContext
+        }
+    } catch {
+        Write-Warning "Unable to initialize Oh My Posh (murilasso): $($_.Exception.Message)"
+    }
+}
+# --- Fin prompt murilasso ----------------------------------------------------
