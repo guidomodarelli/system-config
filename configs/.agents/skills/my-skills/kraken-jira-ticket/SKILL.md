@@ -142,17 +142,8 @@ createJiraIssue(
 
 ### Update (if ticket already exists)
 
-```
-editJiraIssue(
-  cloudId:       "a55c251b-e222-488f-8975-3ccdf0a0db6f",
-  issueIdOrKey:  "SGP1-XXXX",
-  contentFormat: "markdown",
-  fields: {
-    "summary":     "…",
-    "description": "…"
-  }
-)
-```
+Go directly to **Step 7** — do not edit the ticket here. Step 7 handles fetching the current
+state, comparing against the diff, and updating parent + subtasks in the correct order.
 
 ---
 
@@ -236,7 +227,10 @@ Run all `editJiraIssue` calls in parallel.
 
 ### 7e — Create missing subtasks
 
-If the diff contains work areas not covered by any existing subtask, create the missing ones following the same rules as Step 6 (same labels, quarter, start date as parent).
+If the diff contains work areas not covered by any existing subtask, create the missing ones
+using the same fields as Step 6: `issueTypeName: "Sub-task"`, `parent`, `labels: ["kraken-user-role"]`,
+`customfield_18353` (quarter from system date), and `customfield_10015` (start date — same value
+as the parent ticket's start date, read from `getJiraIssue` in step 7a).
 
 ---
 
@@ -255,15 +249,17 @@ Skip this step when updating an existing ticket already in progress.
 
 ## Step 9 — Save to memory
 
-After a successful create or update, store an episodic note so future sessions can find it:
+After a successful create or update, call `search_episodic_memories` to check if an entry
+for this ticket already exists. Then:
 
-```
-store_episodic / update memory:
-  title:   "Ticket JIRA <KEY> para <feature>"
-  result:  "Ticket <KEY> <created|updated>. Summary: … Status: In Progress."
-  project: "kraken-auth-admin-fe"
-  tags:    ["feature", "change"]
-```
+- **If no entry exists** — call `store_note` or the episodic store with:
+  - `title`: `"Ticket JIRA <KEY> para <feature>"`
+  - `result`: `"Ticket <KEY> created|updated. Summary: … Subtasks: SGP1-XXXX, … Status: In Progress."`
+  - `project`: `"kraken-auth-admin-fe"`
+  - `tags`: `["feature", "change"]`
+
+- **If an entry already exists** — update it with the new summary, subtask keys, and status
+  so future sessions find accurate information.
 
 ---
 
@@ -272,7 +268,7 @@ store_episodic / update memory:
 - **NEVER** run `git push`, `git push --force`, or any git upload command.
 - Do not create a duplicate if a ticket already exists — update it instead.
 - Label `kraken-user-role` is mandatory for every kraken ticket.
-- Quarter (`customfield_18353`) must always be set; read current quarter from memory.
+- Quarter (`customfield_18353`) must always be set; derive it from `date +"%m %Y"` — never from memory.
 - Description must be in **English** (ticket body); skill instructions are in Spanish.
 - On update: fetch parent + all subtasks before editing — never update from memory alone.
 - On update: run all `editJiraIssue` calls in parallel to minimize round-trips.
