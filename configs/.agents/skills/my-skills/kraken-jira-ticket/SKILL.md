@@ -1,11 +1,12 @@
 ---
 name: kraken-jira-ticket
 description: >
-  Creates or updates a JIRA ticket in the Kraken / Shipping Groot project (SGP1) for work
-  done in fury_kraken-auth-admin-fe. Reads project configuration from MCP memory, builds
-  the ticket description from the git branch diff, and transitions it to In Progress.
-  Use when the user asks to create, open, or log a JIRA ticket for changes in the
-  kraken-auth-admin-fe repository.
+  Creates or updates a JIRA ticket (parent + subtasks) in the Kraken / Shipping Groot project
+  (SGP1) for work done in fury_kraken-auth-admin-fe. On create: builds ticket and subtasks from
+  the git diff. On update: fetches current parent and all subtasks, re-reads the diff, and
+  patches only what has drifted (title, description, subtask titles, subtask descriptions),
+  creating missing subtasks when needed. Use when the user asks to create, update, or sync
+  a JIRA ticket for changes in the kraken-auth-admin-fe repository.
 compatibility: Requires Atlassian MCP and meli-claude-memory MCP. Designed for Claude Code.
 metadata:
   author: gmodarelli_meli
@@ -189,6 +190,56 @@ parent (Overview optional, Changes bullets, no commit list).
 
 ---
 
+## Step 7 — Update existing ticket (update path only)
+
+When the user asks to **update** an existing ticket, replace Steps 5–6 with this flow.
+
+### 7a — Fetch current state in parallel
+
+```
+getJiraIssue(cloudId, parentKey)               ← parent title + description
+getJiraIssue(cloudId, subtask1Key)             ← subtask title + description
+getJiraIssue(cloudId, subtask2Key)             ← …
+…
+```
+
+Fetch all known subtasks in parallel. Use memory (Step 2) or ask the user if the subtask keys are unknown.
+
+### 7b — Re-read the diff
+
+Re-run Step 3 to get the current state of the branch. The code is the source of truth — not what was previously in JIRA.
+
+### 7c — Compare and identify drift
+
+For each element, compare what JIRA has vs what the code shows:
+
+| Element | What to check |
+|---|---|
+| Parent title | Still accurate? Reflects the full scope of the branch? |
+| Parent description | All change areas covered? No outdated bullets? No commit list? |
+| Subtask titles | Each title still maps to a real, self-contained work unit? |
+| Subtask descriptions | Bullets match actual implementation? No stale details? |
+| Coverage | Are there work areas in the diff NOT covered by any existing subtask? |
+
+### 7d — Apply updates in parallel
+
+Update only what has drifted — do not touch fields that are still accurate:
+
+```
+editJiraIssue(cloudId, parentKey,   fields: { summary: "…", description: "…" })
+editJiraIssue(cloudId, subtask1Key, fields: { summary: "…", description: "…" })
+editJiraIssue(cloudId, subtask2Key, fields: { summary: "…", description: "…" })
+…
+```
+
+Run all `editJiraIssue` calls in parallel.
+
+### 7e — Create missing subtasks
+
+If the diff contains work areas not covered by any existing subtask, create the missing ones following the same rules as Step 6 (same labels, quarter, start date as parent).
+
+---
+
 ## Step 8 — Transition to In Progress (new tickets only)
 
 After creating, move the ticket to **In Progress**:
@@ -223,3 +274,6 @@ store_episodic / update memory:
 - Label `kraken-user-role` is mandatory for every kraken ticket.
 - Quarter (`customfield_18353`) must always be set; read current quarter from memory.
 - Description must be in **English** (ticket body); skill instructions are in Spanish.
+- On update: fetch parent + all subtasks before editing — never update from memory alone.
+- On update: run all `editJiraIssue` calls in parallel to minimize round-trips.
+- On update: only patch fields that actually changed — do not rewrite accurate content.
