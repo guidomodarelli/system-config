@@ -184,8 +184,39 @@ _murilasso_git_segment() {
   print -P " — %{${branch_color}%}${display_branch}%{$reset_color%} ${dirty_marker}${pr_seg}"
 }
 
+# === Short path: always shows ~/last2 when under $HOME, or last2 otherwise ===
+typeset -g _MURILASSO_DIR=""
+
+_murilasso_refresh_dir() {
+  local full="${PWD/#$HOME/~}"
+  if [[ "$full" == "~" ]]; then
+    _MURILASSO_DIR="~"
+    return
+  fi
+  if [[ "$full" == "~/"* ]]; then
+    local rest="${full#\~/}"
+    local -a parts=("${(s:/:)rest}")
+    local n=${#parts}
+    if (( n <= 2 )); then
+      _MURILASSO_DIR="~/$rest"
+    else
+      _MURILASSO_DIR="~/../${parts[-2]}/${parts[-1]}"
+    fi
+  else
+    local -a parts=("${(s:/:)full}")
+    local n=${#parts}
+    if (( n <= 2 )); then
+      _MURILASSO_DIR="$full"
+    else
+      _MURILASSO_DIR="${parts[-2]}/${parts[-1]}"
+    fi
+  fi
+}
+
+(( ${precmd_functions[(Ie)_murilasso_refresh_dir]} )) || precmd_functions+=(_murilasso_refresh_dir)
+
 # === Prompt ===
-PROMPT='%{$terminfo[bold]$fg[green]%}%n%{$reset_color%}:%{$fg[blue]%}%2~%{$reset_color%}$(_murilasso_git_segment)
+PROMPT='%{$terminfo[bold]$fg[green]%}%n%{$reset_color%}:%{$fg[blue]%}${_MURILASSO_DIR}%{$reset_color%}$(_murilasso_git_segment)
 %B$%b '
 RPS1="%(?..%F{red}%? ↵%f)"
 
