@@ -50,6 +50,19 @@ date +"%m %Y"
 
 Example: month `06`, year `2026` → `Q2/26`. Use the last two digits of the year.
 
+Before creating or updating issues, resolve the JIRA option id for that quarter:
+
+1. Fetch issue metadata / edit metadata for the SGP1 issue type being created or updated.
+2. Read `customfield_18353` (`Quarters`) allowed values.
+3. Select the option whose `value` equals the derived quarter.
+4. Set `customfield_18353` with the option object:
+
+```json
+[{ "id": "<allowed-value-id>", "value": "<Q derived from system date>" }]
+```
+
+Do not use `[{ "name": "<quarter>" }]`; JIRA ignores that shape for this field.
+
 ---
 
 ## Step 2 — Check for an existing ticket
@@ -135,7 +148,8 @@ createJiraIssue(
   assignee_account_id: "712020:8300527c-0cb7-4412-8303-0306dac20649",
   additional_fields: {
     "labels":            ["kraken-user-role"],
-    "customfield_18353": [{"name": "<Q derived from system date>"}]  ← derive with `date +"%m %Y"`
+    "customfield_18353": [{"id": "<quarter option id>", "value": "<Q derived from system date>"}],
+    "customfield_12410": "YYYY-MM-DD"  ← start date, usually today's system date for new tickets
   }
 )
 ```
@@ -170,8 +184,8 @@ createJiraIssue(
   assignee_account_id: "712020:8300527c-0cb7-4412-8303-0306dac20649",
   additional_fields: {
     "labels":            ["kraken-user-role"],   ← same as parent
-    "customfield_18353": [{"name": "<Q derived from system date>"}],  ← same as parent
-    "customfield_10015": "YYYY-MM-DD"            ← same start date as parent
+    "customfield_18353": [{"id": "<quarter option id>", "value": "<Q derived from system date>"}],
+    "customfield_12410": "YYYY-MM-DD"            ← same start date as parent
   }
 )
 ```
@@ -229,12 +243,24 @@ Run all `editJiraIssue` calls in parallel.
 
 If the diff contains work areas not covered by any existing subtask, create the missing ones
 using the same fields as Step 6: `issueTypeName: "Sub-task"`, `parent`, `labels: ["kraken-user-role"]`,
-`customfield_18353` (quarter from system date), and `customfield_10015` (start date — same value
-as the parent ticket's start date, read from `getJiraIssue` in step 7a).
+`customfield_18353` (quarter option id/value from system date), and `customfield_12410` (start date —
+same value as the parent ticket's start date, read from `getJiraIssue` in step 7a).
 
 ---
 
-## Step 8 — Transition to In Progress (new tickets only)
+## Step 8 — Validate parent and subtasks
+
+After creating or updating the parent and all subtasks, fetch every issue and verify:
+
+- `labels` contains `kraken-user-role`
+- `customfield_18353` contains the derived quarter value
+- `customfield_12410` contains the expected start date
+
+If any field is missing, patch the affected issue before closing the task.
+
+---
+
+## Step 9 — Transition to In Progress (new tickets only)
 
 After creating, move the ticket to **In Progress**:
 
@@ -247,7 +273,7 @@ Skip this step when updating an existing ticket already in progress.
 
 ---
 
-## Step 9 — Save to memory
+## Step 10 — Save to memory
 
 After a successful create or update, call `search_episodic_memories` to check if an entry
 for this ticket already exists. Then:
