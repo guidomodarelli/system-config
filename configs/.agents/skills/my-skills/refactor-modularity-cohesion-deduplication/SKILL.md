@@ -19,12 +19,26 @@ Refactor toward clear responsibilities and smaller, more cohesive modules. Keep 
 
 ## Workflow
 
-1. Identify the current responsibilities in the touched area.
+1. Identify the current responsibilities in the touched area. Measure the file length first (e.g. `wc -l`) and record it; the size determines whether this is one extraction or a phased modularization (see "Phased Modularization For Large Files").
 2. Group code by change reason, dependency set, and business purpose.
 3. Decide the target boundaries before moving code.
 4. Extract duplicated behavior into the narrowest shared abstraction that fits.
 5. Reconnect modules through explicit inputs, outputs, and names.
-6. Run focused tests and inspect for behavioral regressions.
+6. After each extraction, run typecheck, lint, and focused tests, re-measure the file, and only then move to the next boundary; do not defer all verification to the end.
+
+## Phased Modularization For Large Files
+
+A large file (roughly 800+ lines, or one too big to safely restructure in a single pass) is modularized in phases, with verification between them.
+
+- Measure the line count before starting and treat it as a tracked metric: report it up front, after each phase, and at the end. "The file is shorter" must be backed by an actual number.
+- When the modularization is large, agree on scope before moving code. Present phases with rough line-reduction and risk estimates and let the user choose how far to go in one pass.
+- Sequence phases by dependency direction so each step compiles on its own and avoids circular imports:
+  1. **Shared types** to a neutral `*.types.ts` module first — this unblocks every later extraction.
+  2. **Constants and shared vocabulary**.
+  3. **Pure helpers** grouped by cohesive responsibility (e.g. currency, sorting, filtering, progress) rather than a single junk-drawer `helpers` file. Keep JSX-returning or style-dependent helpers in component files.
+  4. **Components, hooks, and services**, once the types and helpers they depend on already live in neutral modules.
+- Preserve public behavior and the external API: re-export moved symbols from the original file so importers, pages, and tests do not have to change.
+- Keep each phase to one cohesive group, verify it, then continue. Stopping after a few safe phases and listing the remaining ones as next steps is preferable to one risky mega-edit.
 
 ## Detect Bad Boundaries
 
@@ -83,7 +97,10 @@ Refactor toward clear responsibilities and smaller, more cohesive modules. Keep 
 
 ## Validation
 
+- Run typecheck, lint, and the relevant tests after each phase, not only at the end; a later edit can drop an import or symbol that an earlier green check would not catch.
+- Re-measure the file length after each phase and report the before/after numbers as evidence of the reduction.
 - Run the relevant tests for every touched layer and update tests when module boundaries or imports changed.
+- Confirm moved exports remain reachable by external importers (re-exported when needed) and nothing outside the file broke.
 - Read the main call flow after the refactor and confirm it is shorter or clearer than before.
 - If behavior changed unintentionally, collapse the abstraction or move the boundary closer to the callers.
-- End with a brief design note that states what was modularized, what duplication was removed, and why the new boundaries are more cohesive.
+- End with a brief design note that states what was modularized, what duplication was removed, why the new boundaries are more cohesive, the line count before/after, and any phases deliberately deferred.
