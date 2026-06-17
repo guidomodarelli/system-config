@@ -19,7 +19,7 @@ Use this skill when publishing or drafting a GitHub PR review comment. The comme
 ## Default Template
 
 ```markdown
-![P<prioridad>][P<prioridad>] **<título breve del hallazgo>**
+**<sub><sub>![P<prioridad> Badge](<badge-url>)</sub></sub> <título breve del hallazgo>**
 
 <descripción breve del problema y del escenario donde importa>
 
@@ -38,21 +38,22 @@ Pasos sugeridos:
 
 </details>
 
-[P1]: https://camo.githubusercontent.com/c595229c0ecb6ee85b9c7804144d495f131a495ec87091fea2b262d954c9a92d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f50312d6f72616e67653f7374796c653d666c6174
-[P2]: https://camo.githubusercontent.com/f2c1aacb361ddd3a0e9f9cacdb84fab050de434017f6747bb916e31e29bdf03d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f50322d79656c6c6f773f7374796c653d666c6174
-[P3]: https://img.shields.io/badge/P3-blue?style=flat
 ```
 
 ## Rules
 
 - Always write the comment in Spanish.
 - Use simple, direct language.
-- Start with a priority badge and a bold title: `![P2][P2] **Título breve**`.
+- Start with a priority badge and title wrapped together in bold: `**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub> Título breve**`.
 - Use one of these priorities:
   - `P1`: production/user-facing breakage, security risk, data loss, or blocked critical flow.
   - `P2`: correctness, maintainability, test reliability, or meaningful behavior issue the author should fix.
   - `P3`: minor cleanup, style consistency, validation noise, or low-risk improvement.
-- Define the badge references at the bottom of every comment that uses them.
+- Use these badge URLs:
+  - `P1`: `https://img.shields.io/badge/P1-orange?style=flat`
+  - `P2`: `https://img.shields.io/badge/P2-yellow?style=flat`
+  - `P3`: `https://img.shields.io/badge/P3-blue?style=flat`
+- Do not use Markdown reference links for badges; use the direct image URL inline.
 - After the badge/title line, write the 1-3 sentence description directly. Do not add an icon or a "Resumen" heading.
 - Keep `✅ **Solución**` actionable and specific.
 - Do not include `<details>` by default.
@@ -73,20 +74,19 @@ Pasos sugeridos:
 ## Short Comment Example
 
 ```markdown
-![P2][P2] **Cubrir fallos de lectura de MELITK config**
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub> Cubrir fallos de lectura de MELITK config**
 
 `config.read('application')` quedó fuera del `try`, así que si MELITK no puede leer el recurso `application`, el helper lanza antes de devolver `[]`.
 
 ✅ **Solución**
 Mové `new Config()` y `config.read('application')` dentro del `try`, o manejá ese error explícitamente antes de parsear el archivo.
 
-[P2]: https://camo.githubusercontent.com/f2c1aacb361ddd3a0e9f9cacdb84fab050de434017f6747bb916e31e29bdf03d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f50322d79656c6c6f773f7374796c653d666c6174
 ```
 
 ## Expanded Comment Example
 
 ```markdown
-![P2][P2] **Actualizar Be a Rep al nuevo formato de atributos**
+**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub> Actualizar Be a Rep al nuevo formato de atributos**
 
 `getUserAttributes` ahora guarda atributos con `attribute_key`, pero `getBeARepData` todavía busca `att.key === 'shipping_position'`. En usuarios que ya son `operator` o `logistics_operator`, eso puede dejar visible el botón de Be a Rep cuando no corresponde.
 
@@ -105,5 +105,4 @@ Pasos sugeridos:
 
 </details>
 
-[P2]: https://camo.githubusercontent.com/f2c1aacb361ddd3a0e9f9cacdb84fab050de434017f6747bb916e31e29bdf03d/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f50322d79656c6c6f773f7374796c653d666c6174
 ```
