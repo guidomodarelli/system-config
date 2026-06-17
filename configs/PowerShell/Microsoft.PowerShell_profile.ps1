@@ -4,6 +4,13 @@
 # ██   ██ ██      ██      ██   ██ ██    ██ ██         ██         ██
 # ██████  ███████ ██      ██   ██  ██████  ███████    ██    ███████
 
+# Console en UTF-8: sin esto [Console]::OutputEncoding queda en CP437 (OEM) y los
+# glifos del prompt (✔ ✗ ● ◦) salen como `?` cuando PSReadLine los repinta via
+# InvokePrompt (p.ej. tras un checkout con el widget fzf). El render normal de Oh
+# My Posh no lo necesita, pero el repintado de PSReadLine respeta este encoding.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+
 # Grep with color and exclusions
 function global:grep { & grep.exe --color=auto --exclude-dir=".bzr" --exclude-dir="CVS" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" --exclude-dir=".idea" --exclude-dir=".tox" --exclude-dir=".venv" --exclude-dir="venv" $args }
 function rg { & rg.exe --glob "!.git/*" $args }
@@ -1562,15 +1569,15 @@ function Invoke-PSReadLinePromptRefresh {
         return
     }
 
+    # PSReadLine solo expone InvokePrompt(int? key, object arg); ambos parametros
+    # son opcionales, asi que PowerShell completa los defaults al llamar sin args.
+    # No existe un metodo Repaint(): el probe previo con GetMethod fallaba (no hay
+    # overload de 0 params) y caia a un fallback inexistente, dejando el refresco
+    # como no-op y el prompt congelado tras un checkout via widget.
     try {
-        $invokePromptMethod = $psConsoleReadLineType.GetMethod('InvokePrompt', [Type[]]@())
-        if ($invokePromptMethod) {
-            $psConsoleReadLineType::InvokePrompt()
-        } else {
-            $psConsoleReadLineType::Repaint()
-        }
+        $psConsoleReadLineType::InvokePrompt()
     } catch {
-        try { $psConsoleReadLineType::Repaint() } catch { }
+        # Hosts sin consola interactiva (p.ej. ISE) no soportan InvokePrompt.
     }
 }
 
