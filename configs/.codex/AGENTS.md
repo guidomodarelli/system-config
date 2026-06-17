@@ -45,9 +45,14 @@ No interrumpir la tarea en curso para escribir el resumen; hacerlo al finalizar 
 
 ## Idioma y comunicación
 
+- Responder en español por defecto para toda comunicación visible al usuario.
 - Los planes del agente deben escribirse siempre en español.
 - Las preguntas al usuario deben escribirse siempre en español.
-- Los hallazgos de review deben presentarse siempre en español.
+- Los updates intermedios, respuestas finales, resúmenes, validaciones y próximos pasos deben escribirse siempre en español.
+- Los hallazgos de review deben presentarse siempre en español, aunque el prompt de review, el código o la conversación estén en inglés.
+- Los títulos y cuerpos de comentarios inline de review (`::code-comment{...}`) deben escribirse siempre en español.
+- Si se usa GitHub CLI/API para crear o actualizar comentarios de review, el comentario publicado debe estar en español.
+- Mantener en inglés solo código, identificadores, paths, comandos, logs, errores literales, nombres de APIs, nombres propios técnicos y texto que deba conservarse exactamente.
 
 ### Validación mínima de idioma
 
@@ -55,6 +60,8 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - El plan, si existe, está escrito en español.
 - Las preguntas visibles al usuario, si existen, están escritas en español.
 - Los hallazgos de review, si existen, están escritos en español.
+- Los comentarios inline de review, si existen, tienen título y cuerpo en español.
+- Los comentarios publicados en GitHub, si existen, están en español.
 
 ## Memoria persistente (MCP `memory`) — Mandatorio
 
