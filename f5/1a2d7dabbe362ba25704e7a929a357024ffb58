@@ -1,0 +1,19 @@
+configs/.codex/AGENTS.md
+  s_e060514a87a574::t_26aa00034bcadc 48,51-55,63-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "f51a2d7dabbe362ba25704e7a929a357024ffb58",
+  "prompts": {},
+  "sessions": {
+    "s_e060514a87a574": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ed72e-4e1d-7e33-a0e9-cf791590e06b",
+        "model": "gpt-5.5"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
