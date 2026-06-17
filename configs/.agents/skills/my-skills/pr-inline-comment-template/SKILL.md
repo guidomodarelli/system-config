@@ -21,13 +21,13 @@ Use this skill when publishing or drafting a GitHub PR review comment. The comme
 ```markdown
 ![P<prioridad>][P<prioridad>] **<título breve del hallazgo>**
 
-🔎 <descripción breve del problema y del escenario donde importa>
+<descripción breve del problema y del escenario donde importa>
 
 ✅ **Solución**
 <acción concreta que debería hacer el autor>
 
 <details>
-<summary>Ver explicación y pasos sugeridos</summary>
+<summary>🧭 Ver explicación y pasos sugeridos</summary>
 
 <explicación simple y más detallada del problema, solo si agrega claridad real>
 
@@ -53,7 +53,7 @@ Pasos sugeridos:
   - `P2`: correctness, maintainability, test reliability, or meaningful behavior issue the author should fix.
   - `P3`: minor cleanup, style consistency, validation noise, or low-risk improvement.
 - Define the badge references at the bottom of every comment that uses them.
-- Start with `🔎` followed directly by a 1-3 sentence description. Do not write a "Resumen" heading.
+- After the badge/title line, write the 1-3 sentence description directly. Do not add an icon or a "Resumen" heading.
 - Keep `✅ **Solución**` actionable and specific.
 - Do not include `<details>` by default.
 - Include `<details>` only when one of these applies:
@@ -65,6 +65,7 @@ Pasos sugeridos:
   - a simple explanation of the short description;
   - optional step-by-step solution;
   - optional example snippet when it helps.
+- When `<details>` is included, use this summary exactly: `<summary>🧭 Ver explicación y pasos sugeridos</summary>`.
 - Omit "Pasos sugeridos" when the fix is obvious in one sentence.
 - Do not add praise, filler, or broad refactor advice.
 - Preserve exact code identifiers, paths, commands, errors, API names, and literals in their original language.
@@ -74,7 +75,7 @@ Pasos sugeridos:
 ```markdown
 ![P2][P2] **Cubrir fallos de lectura de MELITK config**
 
-🔎 `config.read('application')` quedó fuera del `try`, así que si MELITK no puede leer el recurso `application`, el helper lanza antes de devolver `[]`.
+`config.read('application')` quedó fuera del `try`, así que si MELITK no puede leer el recurso `application`, el helper lanza antes de devolver `[]`.
 
 ✅ **Solución**
 Mové `new Config()` y `config.read('application')` dentro del `try`, o manejá ese error explícitamente antes de parsear el archivo.
@@ -87,13 +88,13 @@ Mové `new Config()` y `config.read('application')` dentro del `try`, o manejá 
 ```markdown
 ![P2][P2] **Actualizar Be a Rep al nuevo formato de atributos**
 
-🔎 `getUserAttributes` ahora guarda atributos con `attribute_key`, pero `getBeARepData` todavía busca `att.key === 'shipping_position'`. En usuarios que ya son `operator` o `logistics_operator`, eso puede dejar visible el botón de Be a Rep cuando no corresponde.
+`getUserAttributes` ahora guarda atributos con `attribute_key`, pero `getBeARepData` todavía busca `att.key === 'shipping_position'`. En usuarios que ya son `operator` o `logistics_operator`, eso puede dejar visible el botón de Be a Rep cuando no corresponde.
 
 ✅ **Solución**
 Actualizá la validación para usar `att.attribute_key` y ajustá los tests al nuevo formato de atributo.
 
 <details>
-<summary>Ver explicación y pasos sugeridos</summary>
+<summary>🧭 Ver explicación y pasos sugeridos</summary>
 
 El cambio de origen de datos también cambió la forma de los atributos. Si una parte del flujo sigue leyendo `key`, no encuentra `shipping_position`, aunque el atributo exista.
 
