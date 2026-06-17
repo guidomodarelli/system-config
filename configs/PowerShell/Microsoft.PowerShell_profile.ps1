@@ -569,7 +569,7 @@ function gav { git add --verbose $args }
 function gb { git branch $args }
 function gbD { git branch --delete --force $args }
 function gba { git branch --all $args }
-function gbd { git branch --delete $args }
+function gbDs { git branch --delete $args }
 function gbg {
     $previousLang = $env:LANG
     try {
@@ -603,7 +603,7 @@ function gbgd {
         $env:LANG = $previousLang
     }
 }
-function gbgs {
+function gbgDs {
     # Safe delete of gone branches (-d): skips branches not fully merged.
     $previousLang = $env:LANG
     try {
