@@ -1,15 +1,13 @@
 # :schema https://developers.openai.com/codex/config-schema.json
 
 model = "gpt-5.5"
-model_reasoning_effort = "medium"
+model_reasoning_effort = "low"
 personality = "pragmatic"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
 approvals_reviewer = "auto_review"
 
-service_tier = "priority"
-notify = [ "C:\\Users\\guido\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\a89897d3d9baa117\\bin\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use.exe", "turn-ended" ]
 [features]
 # Habilita modos de colaboración como plan mode.Beneficio: ayuda a que Codex
 # trabaje con modos más estructurados para planificar antes de ejecutar.
@@ -101,7 +99,6 @@ status_line = [
 ]
 status_line_use_colors = true
 theme = "two-dark"
-pet = "seedy"
 
 [tui.model_availability_nux]
 "gpt-5.5" = 4
@@ -190,84 +187,6 @@ enabled = true
 [plugins."browser@openai-bundled"]
 enabled = true
 
-[plugins."pdf@openai-primary-runtime"]
-enabled = true
-
-[projects."c:\\users\\guido\\system-config"]
-trust_level = "trusted"
-
-[projects."c:\\users\\guido\\ghq\\projects\\academiaonline"]
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-04-26\se-puede-hacer-que-los-desktop']
-trust_level = "trusted"
-
-[projects.'C:\Users\guido\ghq\projects\AcademiaOnline']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\ghq\projects\mes-en-regla']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-04-27\quiero-que-agregues-trazabilidad-a-cada']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-04-27\ps-c-users-guido-mise-list']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-04-27\si-el-usuario-empieza-un-nuevo']
-trust_level = "trusted"
-
-[projects.'c:\users\guido']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-05-03\xq-rg-no-puede-ejecutarse-en']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\ghq\projects']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\ghq\projects\latribu']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-05-06\rules-i-will-provide-the-main']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\ghq\projects\agenda-mensual']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-05-12\rules-i-will-provide-the-main']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-05-13\como-reubicarias-esto-genera-una-img']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\.agents\skills']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-05-18\rules-i-will-provide-the-main']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-05-18\rules-i-will-provide-the-main-2']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\.claude\skills']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-06-01\en-esta-pantalla-c-users-guido']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\documents\codex\2026-06-01\en-esta-pantalla-c-users-guido-2']
-trust_level = "trusted"
-
-[projects.'c:\users\guido\ghq\projects\eslint-plugin-no-magic']
-trust_level = "trusted"
-
-[mcp_servers.Neon]
-url = "https://mcp.neon.tech/mcp"
-
-[mcp_servers.Neon.http_headers]
-Authorization = "Bearer napi_0yzflhu7dqw10jp6dqpyz66zs5xsf3ajnuvf7gn07ynb7d2zxluoh6230kp1j9zl"
-
 [mcp_servers.memory]
 command = "cmd"
 args = ["/c", "npx", "-y", "@modelcontextprotocol/server-memory"]
@@ -275,42 +194,3 @@ startup_timeout_sec = 120
 
 [mcp_servers.memory.env]
 MEMORY_FILE_PATH = 'C:\Users\guido\.mcp-memory\memory.json'
-
-[mcp_servers.node_repl]
-args = []
-command = 'C:\Users\guido\AppData\Local\OpenAI\Codex\runtimes\cua_node\a89897d3d9baa117\bin\node_repl.exe'
-startup_timeout_sec = 120
-
-[mcp_servers.node_repl.env]
-NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
-NODE_REPL_NODE_MODULE_DIRS = 'C:\Users\guido\AppData\Local\OpenAI\Codex\runtimes\cua_node\a89897d3d9baa117\bin\node_modules'
-NODE_REPL_NODE_PATH = 'C:\Users\guido\AppData\Local\OpenAI\Codex\runtimes\cua_node\a89897d3d9baa117\bin\node.exe'
-NODE_REPL_TRUSTED_CODE_PATHS = 'C:\Users\guido\.codex'
-CODEX_HOME = 'C:\Users\guido\.codex'
-NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "bdc61752e0f9d9b1e73e3cba25ca71d3d9fe54d335ed8196378106081474d7c1,eb55d24cf065cd5311af6f99b16bade2b7a670790ff2db9accf60d012dd55dd1"
-BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
-NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
-NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
-BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.611.62324"
-SKY_CUA_NATIVE_PIPE = "1"
-SKY_CUA_NATIVE_PIPE_DIRECTORY = '\\.\pipe\codex-computer-use-ada738a4-57bc-466e-b11c-0650df884ebe'
-CODEX_CLI_PATH = 'C:\Users\guido\AppData\Local\OpenAI\Codex\bin\330bd0cba6496126\codex.exe'
-
-[marketplaces.openai-bundled]
-last_updated = "2026-06-17T23:35:28Z"
-source_type = "local"
-source = '\\?\C:\Users\guido\.codex\.tmp\bundled-marketplaces\openai-bundled'
-
-[marketplaces.openai-primary-runtime]
-last_updated = "2026-06-15T01:29:41Z"
-source_type = "local"
-source = '\\?\C:\Users\guido\.cache\codex-runtimes\codex-primary-runtime\plugins\openai-primary-runtime'
-
-[hooks.state]
-
-[hooks.state.'C:\Users\guido\ghq\projects\LaTribu\.codex\hooks.json:stop:0:0']
-trusted_hash = "sha256:e670e89a85ee604ecd4f89429d925eebb36a9e10ea1dc78dfb2713d7f7644630"
-
-[hooks.state.'c:\Users\guido\ghq\projects\LaTribu\.codex\hooks.json:stop:0:0']
-trusted_hash = "sha256:e670e89a85ee604ecd4f89429d925eebb36a9e10ea1dc78dfb2713d7f7644630"
