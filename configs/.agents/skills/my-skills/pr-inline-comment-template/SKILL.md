@@ -1,6 +1,6 @@
 ---
 name: pr-inline-comment-template
-description: Format and publish GitHub PR review comments with a default Spanish template. Use when the user asks to "subir el comentario", "subí ese comment", "publicar comentario en el PR", "postear comentario inline", or otherwise asks Codex to upload a review/code comment to a pull request.
+description: Use when the user asks to draft, find, update, format, or publish GitHub PR review comments, including "subir el comentario", "subí ese comment", "publicar comentario en el PR", "postear comentario inline", and requests to inspect existing comments with gh pr.
 ---
 
 # PR Inline Comment Template
@@ -9,12 +9,19 @@ Use this skill when publishing or drafting a GitHub PR review comment. The comme
 
 ## Workflow
 
-1. Identify the PR, changed file, line, and finding.
-2. Keep the comment focused on one actionable issue.
-3. Publish an inline comment when a precise changed line exists. Otherwise, publish a normal PR comment.
-4. Use the default template below.
-5. Include `<details>` only when extra context or step-by-step guidance is genuinely useful.
-6. Before publishing, verify the whole comment visible to the author is in Spanish.
+1. Identify the PR with `gh pr`. Prefer the current branch PR via `gh pr view --json number,url,headRefName,baseRefName`; if that fails, ask for the PR number or URL.
+2. Find the current GitHub user with `gh api user --jq .login`.
+3. Before drafting or publishing, search the PR for all comments authored by that user:
+   - PR conversation comments: `gh api repos/{owner}/{repo}/issues/{pr_number}/comments --paginate`
+   - Inline review comments: `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments --paginate`
+   - Review summaries: `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews --paginate`
+4. Use the existing user-authored comments to avoid duplicates, update the right comment when requested, and preserve unresolved context.
+5. Identify the changed file, line, and finding.
+6. Keep the comment focused on one actionable issue.
+7. Publish an inline comment when a precise changed line exists. Otherwise, publish a normal PR comment.
+8. Use the default template below.
+9. Include `<details>` only when extra context or step-by-step guidance is genuinely useful.
+10. Before publishing, verify the whole comment visible to the author is in Spanish.
 
 ## Default Template
 

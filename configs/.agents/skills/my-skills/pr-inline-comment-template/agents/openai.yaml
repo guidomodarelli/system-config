@@ -1,4 +1,4 @@
 interface:
   display_name: "PR Inline Comment Template"
-  short_description: "Template para comentarios de PR"
-  default_prompt: "Use $pr-inline-comment-template para publicar un comentario de PR con estructura clara en español."
+  short_description: "Comentarios de PR vía gh"
+  default_prompt: "Use $pr-inline-comment-template para buscar mis comentarios con gh pr y publicar o actualizar un comentario de PR en español."
