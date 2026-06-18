@@ -34,12 +34,21 @@ commit + resolver el hilo inline).
    .codex-autofix/processed-{{PR}}.json  ->  {"pr":{{PR}},"processedCommentIds":[]}
    ```
    (`.codex-autofix/` está gitignored: es estado de runtime, no se commitea.)
-3. Lanzá el loop pegando el prompt con un intervalo, p. ej. cada 5 min:
+3. Lanzá el loop pegando el prompt con el intervalo `{{INTERVAL}}`:
    ```
-   /loop 5m <pegá acá el prompt ya completado>
+   /loop {{INTERVAL}} <pegá acá el prompt ya completado>
    ```
    O, más simple, decile a Claude: «relanzá el loop de Codex para el PR {{PR}}
    usando el skill codex-autofix-loop» y completa la plantilla por vos.
+
+> **Variable global del loop** (única fuente de verdad — cambiá SOLO este número
+> y se propaga a todo el documento):
+> - `{{INTERVAL_MIN}}` = `8` — minutos entre corridas.
+>
+> Derivados (no los edites a mano; salen de `{{INTERVAL_MIN}}`):
+> - `{{INTERVAL}}` = `{{INTERVAL_MIN}}m` (= `8m`) — intervalo de `/loop`.
+> - `{{CRON}}` = `*/{{INTERVAL_MIN}} * * * *` (= `*/8 * * * *`) — cron equivalente
+>   para identificar el job en `CronList`.
 
 El intervalo es session-only: si cerrás Claude, hay que relanzarlo. El loop se
 **auto-cancela** solo cuando el PR deja de estar `OPEN` (mergeado/cerrado/borrado).
@@ -52,7 +61,7 @@ Loop de auto-fix de comentarios de Codex en el PR #{{PR}} de {{OWNER}}/{{REPO}} 
 GUARD DE AUTO-CANCELACIÓN (hacelo SIEMPRE primero). Obtené el estado del PR:
   estado=$(gh pr view {{PR}} --repo {{OWNER}}/{{REPO}} --json state -q .state 2>/dev/null)
 - "OPEN" -> seguí. - "MERGED"/"CLOSED" -> auto-cancelá. - vacío/falla (404 PR o repo borrado) -> confirmá una vez con `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}} --jq .state 2>&1`; si vuelve a fallar o "closed", auto-cancelá; si "open", seguí (error transitorio).
-Auto-cancelar = CronList, identificá el job de ESTE loop (cron `*/5 * * * *`, auto-fix de Codex en PR #{{PR}}), borralo con CronDelete por id, PushNotification de una línea avisando el motivo, y terminá sin procesar.
+Auto-cancelar = CronList, identificá el job de ESTE loop (cron `{{CRON}}`, auto-fix de Codex en PR #{{PR}}), borralo con CronDelete por id, PushNotification de una línea avisando el motivo, y terminá sin procesar.
 
 Si OPEN, procesá:
 (1) Leé processedCommentIds desde .codex-autofix/processed-{{PR}}.json. (2) Traé comentarios de chatgpt-codex-connector[bot]: inline `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments`, generales `gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments`. (3) Por cada comentario cuyo id NO esté en processedCommentIds, de a uno en orden (secuencial, nunca en paralelo): invocá la skill `/fix-issue-efimeral-clone` vía la herramienta `Skill` (NO reimplementes el clone/push a mano), pasándole como "issue" el contexto del comentario: el cuerpo del comentario, el `path` y la `line` (para inline) y la rama objetivo {{BRANCH}}. Esa skill se encarga del clone efímero depth-1, copiar `.env*`, instalar/linkear deps según plataforma, aplicar el fix, validar, rebasear sobre el último remoto y pushear a {{BRANCH}}, y limpiar el clone. GUARDÁ el sha COMPLETO del commit pusheado que reporta la skill. Llevá un contador de cuántos comentarios fixeaste con éxito esta vuelta.
@@ -71,7 +80,7 @@ Si OPEN, procesá:
 
 (6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 comentario nuevo (contador >= 1) y ya no quedan pendientes, posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam).
 
-(7) SIEMPRE que postees `@codex review`, asegurá que el loop siga vivo SIN que el usuario lo pida: si el cron del loop (`*/5 * * * *`, este PR) fue cancelado o pausado, relanzalo (mismo prompt parametrizado) y corré una iteración. `@codex review` dispara comentarios nuevos; el loop debe quedar escuchando para auto-procesarlos. Nunca dejes el loop cancelado justo después de disparar una review.
+(7) SIEMPRE que postees `@codex review`, asegurá que el loop siga vivo SIN que el usuario lo pida: si el cron del loop (`{{CRON}}`, este PR) fue cancelado o pausado, relanzalo (mismo prompt parametrizado) y corré una iteración. `@codex review` dispara comentarios nuevos; el loop debe quedar escuchando para auto-procesarlos. Nunca dejes el loop cancelado justo después de disparar una review.
 ```
 
 ## Plantilla de comentario de cierre
