@@ -1,0 +1,32 @@
+configs/.agents/skills/my-skills/create-issue/SKILL.md
+  s_c0ac53a60ad984::t_3c67473150f19b 98-109,111-115
+  s_c0ac53a60ad984::t_5e96b58ab6e4a4 181-186
+  s_c0ac53a60ad984::t_45bf6f0aab6d45 94-97
+  s_c0ac53a60ad984::t_d08fbdc6028b86 76
+  s_c0ac53a60ad984::t_f1af9b38b91b70 154-169
+  s_c0ac53a60ad984::t_c30af2a90630fc 189-190
+  s_c0ac53a60ad984::t_574dafafe42c93 2-15,19-20,66-75,77-81,92,110,124-129,132,175
+  s_c0ac53a60ad984::t_1b490d74beaeb6 24-27,30,40-41,55-56,58-63
+  s_c0ac53a60ad984::t_a93e8b08c1510d 37-39,42-44
+  s_c0ac53a60ad984::t_ed429153f6daf7 28-29,31-36,45-54,57
+  s_c0ac53a60ad984::t_8f7ed4b71efdaa 131
+  s_c0ac53a60ad984::t_b89e0284b07a66 89-91
+  s_c0ac53a60ad984::t_904210bf64a736 147-150
+  s_c0ac53a60ad984::t_038f5ffa4dd28a 17-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "ea5f50e63f8693d48193e292cbd88becf1c05575",
+  "prompts": {},
+  "sessions": {
+    "s_c0ac53a60ad984": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cab75dea-b880-4266-9cc2-2b00384d969c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
