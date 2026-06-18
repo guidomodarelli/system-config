@@ -93,12 +93,14 @@ gh auth status
 
 If `gh` is missing or unauthenticated, skip this step and record the blocker. Otherwise:
 
+**Build the title and body with the [pr-description-template](../pr-description-template/SKILL.md) skill** — announce that you are using it, fill every section from the diff, then write the body to a temp file and pass it with `--body-file`:
+
 ```bash
-gh pr create --fill --base <default-branch> --head <feature-branch>
+gh pr create --title "<english subject>" --body-file <tmp-body.md> --base <default-branch> --head <feature-branch>
 ```
 
 - Base = the repo's default branch (`develop` if it exists, else `main`/`master`). Confirm with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`.
-- Prefer `--fill` to seed title/body from the commit; refine the body if the change needs context. Keep title/body in English.
+- Title in English; body follows the `pr-description-template` (Spanish prose, English code/identifiers).
 - End the PR body with:
 
   ```
