@@ -8,7 +8,7 @@ description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea 
 Loop local que escucha comentarios de **Codex** (`chatgpt-codex-connector[bot]`)
 en un PR y, por cada comentario nuevo, aplica un fix automático con el skill
 `fix-issue-efimeral-clone` (clone efímero → fix → push a la rama del PR) y hace
-el closeout en el hilo (reacción 🚀 + reply con link al commit + resolver el hilo
+el closeout en el hilo (reacción 👍 + reply con link al commit + resolver el hilo
 inline).
 
 > Es un complemento del workflow de CI `.github/workflows/codex-autofix.yml`.
@@ -50,7 +50,7 @@ Si OPEN, procesá:
 (1) Leé processedCommentIds desde .codex-autofix/processed-{{PR}}.json. (2) Traé comentarios de chatgpt-codex-connector[bot]: inline `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments`, generales `gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments`. (3) Por cada comentario cuyo id NO esté en processedCommentIds, de a uno en orden (secuencial, nunca en paralelo): invocá el skill fix-issue-efimeral-clone con el cuerpo + path + line, resolvé en clone efímero y pusheá a {{BRANCH}}. GUARDÁ el sha COMPLETO del commit pusheado. Llevá un contador de cuántos comentarios fixeaste con éxito esta vuelta.
 
 (4) CLOSEOUT en ÉXITO (push hecho). Definí el link al commit: COMMIT_URL=https://github.com/{{OWNER}}/{{REPO}}/commit/<sha>
-   a. Reacción 🚀: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/comments/<id>/reactions -f content=rocket` (INLINE) o `.../issues/comments/<id>/reactions` (GENERAL).
+   a. Reacción 👍: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/comments/<id>/reactions -f content=+1` (INLINE) o `.../issues/comments/<id>/reactions` (GENERAL).
    b. Reply en el hilo con el **template de cierre** (ver «Plantilla de comentario de cierre» abajo). Definí `<resumen>` = UNA línea de qué cambió y su efecto, y usá el sha corto de 7 chars como texto del link:
       - INLINE: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments/<id>/replies -f body="$(printf '✅ **Resuelto** en [`%s`](%s).\n\n**Qué cambió:** %s\n\n<sub>🤖 Fix automático en respuesta a este comentario de Codex.</sub>' "<sha_corto>" "<COMMIT_URL>" "<resumen>")"`
       - GENERAL: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "$(printf '✅ **Resuelto** en [`%s`](%s) (en respuesta a tu comentario).\n\n**Qué cambió:** %s\n\n<sub>🤖 Fix automático de Codex.</sub>' "<sha_corto>" "<COMMIT_URL>" "<resumen>")"`
@@ -59,7 +59,7 @@ Si OPEN, procesá:
       si THREAD_ID no vacío: gh api graphql -f query='mutation($threadId:ID!){resolveReviewThread(input:{threadId:$threadId}){thread{isResolved}}}' -F threadId="$THREAD_ID"
    d. Agregá el id a processedCommentIds en .codex-autofix/processed-{{PR}}.json.
 
-(5) Si FALLA (no se pudo aplicar el fix por una falla del loop/agente, no porque la sugerencia sea inválida): NO marques el id, NO resuelvas, y NO cuentes ese comentario como fixeado. NO reacciones 👎 (content=-1): el 👎 es la señal de "sugerencia incorrecta/no útil" que Codex interpreta sobre su comentario, y acá el problema es el loop, no la sugerencia. Reaccioná 😕 (content=confused) para pedir atención humana y, opcionalmente, dejá un reply con el motivo/link al error. Reservá el 👎 solo para cuando evaluaste la sugerencia y concluiste que no requería cambios.
+(5) Si FALLA (no se pudo aplicar el fix por una falla del loop/agente, no porque la sugerencia sea inválida): NO marques el id, NO resuelvas, y NO cuentes ese comentario como fixeado. NO reacciones 👎 (content=-1): el 👎 es la señal de "sugerencia incorrecta/no útil" que Codex interpreta sobre su comentario, y acá el problema es el loop, no la sugerencia. No agregues reacción final; opcionalmente, dejá un reply con el motivo/link al error. Reservá el 👎 solo para cuando evaluaste la sugerencia y concluiste que no requería cambios.
 
 (6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 comentario nuevo (contador >= 1) y ya no quedan pendientes, posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam).
 
@@ -72,7 +72,7 @@ Tanto el loop local como el Action (`.github/workflows/codex-autofix.yml`)
 cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars),
 `{{commit_url}}`, `{{resumen}}` (una línea), `{{run_url}}` (solo el Action).
 
-- **Éxito (fix aplicado) → 🚀**
+- **Éxito (fix aplicado) → 👍**
   ```text
   ✅ **Resuelto** en [`{{sha_corto}}`]({{commit_url}}).
 
@@ -89,7 +89,7 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   <sub>🤖 Auto-fix de Codex · [run]({{run_url}})</sub>
   ```
 
-- **Falla del flujo (no se pudo aplicar; problema del Action/loop, no de la sugerencia) → 😕**
+- **Falla del flujo (no se pudo aplicar; problema del Action/loop, no de la sugerencia) → sin reacción final**
   ```text
   ⚠️ **No pude aplicar el fix** (falla del Action, no de la sugerencia).
 
