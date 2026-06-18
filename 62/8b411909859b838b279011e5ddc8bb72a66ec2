@@ -1,0 +1,26 @@
+configs/.agents/skills/my-skills/pr-description-template/SKILL.md
+  s_94942e67b2fe41::t_b48a5b4c0a4234 1-121
+configs/.agents/skills/my-skills/feature-branch-pr/SKILL.md
+  s_94942e67b2fe41::t_5961698524039d 96-97,99,103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "628b411909859b838b279011e5ddc8bb72a66ec2",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_94942e67b2fe41": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7e70cf4f-6a39-4fac-b876-ebe1bb224bd6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
