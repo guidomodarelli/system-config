@@ -6,10 +6,18 @@ description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea 
 # Codex auto-fix loop (local, vía Claude Code)
 
 Loop local que escucha comentarios de **Codex** (`chatgpt-codex-connector[bot]`)
-en un PR y, por cada comentario nuevo, aplica un fix automático con el skill
-`fix-issue-efimeral-clone` (clone efímero → fix → push a la rama del PR) y hace
-el closeout en el hilo (reacción 👍 + reply con link al commit + resolver el hilo
-inline).
+en un PR y, por cada comentario nuevo, delega el fix en la skill
+[`fix-issue-efimeral-clone`](../fix-issue-efimeral-clone/SKILL.md) —invocada vía
+la herramienta `Skill` (`/fix-issue-efimeral-clone`)— tratando cada comentario
+como la "issue" a resolver (clone efímero depth-1 → fix → validar → push a la rama
+del PR). Después hace el closeout en el hilo (reacción 👍 + reply con link al
+commit + resolver el hilo inline).
+
+> **Por qué delegar en `fix-issue-efimeral-clone`:** esa skill es la dueña del
+> contrato de aislamiento (clone efímero, copia de `.env*`, deps por plataforma,
+> rebase pre-push, cleanup). Este loop NO reimplementa ese flujo: solo arma el
+> input (comentario → issue), la invoca de a uno por comentario y hace el
+> closeout. Cualquier cambio al mecanismo de clone/fix/push vive en esa skill.
 
 > Es un complemento del workflow de CI `.github/workflows/codex-autofix.yml`.
 > El **Action** es la persistencia real 24/7 (webhook, sin sesión). Este **loop local**
@@ -47,7 +55,7 @@ GUARD DE AUTO-CANCELACIÓN (hacelo SIEMPRE primero). Obtené el estado del PR:
 Auto-cancelar = CronList, identificá el job de ESTE loop (cron `*/5 * * * *`, auto-fix de Codex en PR #{{PR}}), borralo con CronDelete por id, PushNotification de una línea avisando el motivo, y terminá sin procesar.
 
 Si OPEN, procesá:
-(1) Leé processedCommentIds desde .codex-autofix/processed-{{PR}}.json. (2) Traé comentarios de chatgpt-codex-connector[bot]: inline `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments`, generales `gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments`. (3) Por cada comentario cuyo id NO esté en processedCommentIds, de a uno en orden (secuencial, nunca en paralelo): invocá el skill fix-issue-efimeral-clone con el cuerpo + path + line, resolvé en clone efímero y pusheá a {{BRANCH}}. GUARDÁ el sha COMPLETO del commit pusheado. Llevá un contador de cuántos comentarios fixeaste con éxito esta vuelta.
+(1) Leé processedCommentIds desde .codex-autofix/processed-{{PR}}.json. (2) Traé comentarios de chatgpt-codex-connector[bot]: inline `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments`, generales `gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments`. (3) Por cada comentario cuyo id NO esté en processedCommentIds, de a uno en orden (secuencial, nunca en paralelo): invocá la skill `/fix-issue-efimeral-clone` vía la herramienta `Skill` (NO reimplementes el clone/push a mano), pasándole como "issue" el contexto del comentario: el cuerpo del comentario, el `path` y la `line` (para inline) y la rama objetivo {{BRANCH}}. Esa skill se encarga del clone efímero depth-1, copiar `.env*`, instalar/linkear deps según plataforma, aplicar el fix, validar, rebasear sobre el último remoto y pushear a {{BRANCH}}, y limpiar el clone. GUARDÁ el sha COMPLETO del commit pusheado que reporta la skill. Llevá un contador de cuántos comentarios fixeaste con éxito esta vuelta.
 
 (4) CLOSEOUT en ÉXITO (push hecho). Definí el link al commit: COMMIT_URL=https://github.com/{{OWNER}}/{{REPO}}/commit/<sha>
    a. Reacción 👍: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/comments/<id>/reactions -f content=+1` (INLINE) o `.../issues/comments/<id>/reactions` (GENERAL).
