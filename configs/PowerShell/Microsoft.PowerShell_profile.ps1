@@ -2568,7 +2568,12 @@ if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
         # de modo que las env vars ya esten seteadas cuando OMP renderiza.
         $global:MurilassoOmpPrompt = (Get-Command prompt).ScriptBlock
         function global:prompt {
-            Update-MurilassoPromptContext
+            # El updater corre `git`/`gh`/`Start-Job` en cada render. Si una de
+            # esas llamadas nativas lanza un error terminante (p.ej. queda un stop
+            # pendiente tras un Ctrl+C), la excepcion escaparia de `prompt` y
+            # PowerShell caeria a su prompt de fallback (`PS>`), perdiendo el theme.
+            # Aislar el updater garantiza que siempre se delegue al render de OMP.
+            try { Update-MurilassoPromptContext } catch { }
             & $global:MurilassoOmpPrompt
         }
     } catch {
