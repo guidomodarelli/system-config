@@ -1,4 +1,0 @@
-interface:
-  display_name: "Extract Hardcoded Values"
-  short_description: "Refactor literals into constants/config"
-  default_prompt: "Use $extract-hardcoded-values to replace hardcoded literals with clear constants or configuration."
