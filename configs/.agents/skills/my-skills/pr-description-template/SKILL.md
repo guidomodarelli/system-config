@@ -20,7 +20,10 @@ Triggers (explicit or implicit):
 - Pick exactly one box in **Tipo de Cambio**.
 - **Pruebas Automatizadas** and **Pruebas Manuales** are mandatory sections: list the tests and the manual steps a reviewer follows. Do **not** state which validations you personally ran.
 - Body text is in Spanish; keep code, paths, endpoints, branch and identifier names in English.
-- Pass the body to `gh pr create` via `--body-file` (write the filled template to a temp file) rather than a fragile inline `--body` string.
+- Always apply the PR body directly with `gh`, unless the user explicitly asks for a draft only.
+- For an existing PR, locate it with `gh pr view --json number,title,body,url,headRefName,baseRefName` (or use the PR number/URL provided by the user), write the filled template to a temp file, and run `gh pr edit <number-or-url> --title "<title>" --body-file <temp-file>`.
+- For a new PR, pass the body to `gh pr create` via `--body-file` (write the filled template to a temp file) rather than a fragile inline `--body` string.
+- After `gh pr edit` or `gh pr create`, verify the result with `gh pr view --json title,body,url`.
 
 ## Title
 
