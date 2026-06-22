@@ -13,6 +13,11 @@ como la "issue" a resolver (clone efímero depth-1 → fix → validar → push 
 del PR). Después hace el closeout en el hilo (reacción 👍 + reply con link al
 commit + resolver el hilo inline).
 
+Cubre **tres fuentes** de comentarios de Codex:
+1. **Inline** (`pulls/{pr}/comments`): atados a un `path` + `line`; closeout = 👍 + reply en el hilo + resolver el hilo.
+2. **Generales** (`issues/{pr}/comments`): comentarios sueltos del PR; closeout = 👍 + reply.
+3. **Review-body de primer nivel** (`pulls/{pr}/reviews`, anchor `#pullrequestreview-…`): el resumen que Codex postea al enviar una review. Se procesa **solo cuando el body trae una sugerencia accionable real** (no un mero resumen). Closeout = 👍 + **quote reply** (citando el body). Cuando el review-body **y todos sus comments inline** quedan resueltos, se **minimiza la review con estado `RESOLVED`** (queda oculta/colapsada). `PullRequestReview` implementa `Reactable` y `Minimizable`, así que reacción y minimize van por GraphQL sobre su `node_id`.
+
 > **Por qué delegar en `fix-issue-efimeral-clone`:** esa skill es la dueña del
 > contrato de aislamiento (clone efímero, copia de `.env*`, deps por plataforma,
 > rebase pre-push, cleanup). Este loop NO reimplementa ese flujo: solo arma el
@@ -51,7 +56,10 @@ commit + resolver el hilo inline).
 >   para identificar el job en `CronList`.
 
 El intervalo es session-only: si cerrás Claude, hay que relanzarlo. El loop se
-**auto-cancela** solo cuando el PR deja de estar `OPEN` (mergeado/cerrado/borrado).
+**auto-cancela** en dos casos: (a) cuando el PR deja de estar `OPEN`
+(mergeado/cerrado/borrado), o (b) cuando Codex responde con una **review limpia**
+("Codex Review: Didn't find any major issues") para el head actual y no quedan
+ítems pendientes — ahí el loop **mergea el PR** y se corta solo.
 
 ## Prompt (plantilla parametrizable)
 
@@ -64,21 +72,54 @@ GUARD DE AUTO-CANCELACIÓN (hacelo SIEMPRE primero). Obtené el estado del PR:
 Auto-cancelar = CronList, identificá el job de ESTE loop (cron `{{CRON}}`, auto-fix de Codex en PR #{{PR}}), borralo con CronDelete por id, PushNotification de una línea avisando el motivo, y terminá sin procesar.
 
 Si OPEN, procesá:
-(1) Leé processedCommentIds desde .codex-autofix/processed-{{PR}}.json. (2) Traé comentarios de chatgpt-codex-connector[bot]: inline `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments`, generales `gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments`. (3) Por cada comentario cuyo id NO esté en processedCommentIds, de a uno en orden (secuencial, nunca en paralelo): invocá la skill `/fix-issue-efimeral-clone` vía la herramienta `Skill` (NO reimplementes el clone/push a mano), pasándole como "issue" el contexto del comentario: el cuerpo del comentario, el `path` y la `line` (para inline) y la rama objetivo {{BRANCH}}. Esa skill se encarga del clone efímero depth-1, copiar `.env*`, instalar/linkear deps según plataforma, aplicar el fix, validar, rebasear sobre el último remoto y pushear a {{BRANCH}}, y limpiar el clone. GUARDÁ el sha COMPLETO del commit pusheado que reporta la skill. Llevá un contador de cuántos comentarios fixeaste con éxito esta vuelta.
+(1) Leé processedCommentIds desde .codex-autofix/processed-{{PR}}.json. Los ids de comentarios (inline/generales) se guardan como número crudo; los ids de review-body se guardan namespaceados como `"review:<id>"` (evita colisión entre espacios de id distintos).
+
+(2) Traé comentarios de chatgpt-codex-connector[bot] de las TRES fuentes:
+   - inline: `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments --paginate` (cada uno trae `id`, `path`, `line`, `body` y `pull_request_review_id` = review padre).
+   - generales: `gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate`.
+   - review-bodies: `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/reviews --paginate --jq '[.[] | select(.user.login=="chatgpt-codex-connector[bot]") | {id, node_id, body, state}]'`.
+
+(3) Por cada ítem cuyo id NO esté en processedCommentIds, de a uno en orden (secuencial, nunca en paralelo):
+   - **Inline y generales**: invocá la skill `/fix-issue-efimeral-clone` vía la herramienta `Skill` (NO reimplementes el clone/push a mano), pasándole como "issue" el contexto del comentario: el cuerpo del comentario, el `path` y la `line` (para inline) y la rama objetivo {{BRANCH}}.
+   - **Review-body**: PRIMERO evaluá si el body trae una **sugerencia accionable real** (un cambio concreto de código). Si es solo un resumen/observación no accionable ("revisé X, ver inline", aprobación, etc.), SALTEALO: no lo fixees, no reacciones, no respondas y NO lo marques como procesado (no ensucia el estado; igual entra en el paso de minimize si corresponde). Si SÍ es accionable, invocá `/fix-issue-efimeral-clone` pasándole el body como "issue" y la rama {{BRANCH}} (sin `path`/`line`).
+   En todos los casos accionables, esa skill se encarga del clone efímero depth-1, copiar `.env*`, instalar/linkear deps según plataforma, aplicar el fix, validar, rebasear sobre el último remoto y pushear a {{BRANCH}}, y limpiar el clone. GUARDÁ el sha COMPLETO del commit pusheado que reporta la skill. Llevá un contador de cuántos ítems fixeaste con éxito esta vuelta.
 
 (4) CLOSEOUT en ÉXITO (push hecho). Definí el link al commit: COMMIT_URL=https://github.com/{{OWNER}}/{{REPO}}/commit/<sha>
-   a. Reacción 👍: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/comments/<id>/reactions -f content=+1` (INLINE) o `.../issues/comments/<id>/reactions` (GENERAL).
-   b. Reply en el hilo con el **template de cierre** (ver «Plantilla de comentario de cierre» abajo). Definí `<resumen>` = UNA línea de qué cambió y su efecto, y usá el sha corto de 7 chars como texto del link:
+   a. Reacción 👍:
+      - INLINE: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/comments/<id>/reactions -f content=+1`.
+      - GENERAL: `gh api -X POST repos/{{OWNER}}/{{REPO}}/issues/comments/<id>/reactions -f content=+1`.
+      - REVIEW-BODY (no hay endpoint REST de reactions para reviews; va por GraphQL sobre el `node_id` de la review): `gh api graphql -f query='mutation($id:ID!){addReaction(input:{subjectId:$id,content:THUMBS_UP}){reaction{content}}}' -F id="<review_node_id>"`.
+   b. Reply con el **template de cierre** (ver «Plantilla de comentario de cierre» abajo). Definí `<resumen>` = UNA línea de qué cambió y su efecto, y usá el sha corto de 7 chars como texto del link:
       - INLINE: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments/<id>/replies -f body="$(printf '✅ **Resuelto** en [`%s`](%s).\n\n**Qué cambió:** %s\n\n<sub>🤖 Fix automático en respuesta a este comentario de Codex.</sub>' "<sha_corto>" "<COMMIT_URL>" "<resumen>")"`
       - GENERAL: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "$(printf '✅ **Resuelto** en [`%s`](%s) (en respuesta a tu comentario).\n\n**Qué cambió:** %s\n\n<sub>🤖 Fix automático de Codex.</sub>' "<sha_corto>" "<COMMIT_URL>" "<resumen>")"`
+      - REVIEW-BODY → **quote reply** (comentario general que CITA el body original). Construí la cita prefijando cada línea del body con `> ` (recortá a la parte saliente si el body es largo); guardala en QUOTED: `QUOTED=$(printf '%s\n' "<body_review>" | sed 's/^/> /')`. Después: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "$(printf '%s\n\n✅ **Resuelto** en [`%s`](%s) (en respuesta a esta review).\n\n**Qué cambió:** %s\n\n<sub>🤖 Fix automático en respuesta a esta review de Codex.</sub>' "$QUOTED" "<sha_corto>" "<COMMIT_URL>" "<resumen>")"`
    c. SOLO INLINE — resolver el hilo vía GraphQL:
       THREAD_ID=$(gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{id comments(first:100){nodes{databaseId}}}}}}}' -F owner={{OWNER}} -F repo={{REPO}} -F pr={{PR}} --jq "[.data.repository.pullRequest.reviewThreads.nodes[] | select(any(.comments.nodes[]; .databaseId == <id>)) | .id] | first // empty")
       si THREAD_ID no vacío: gh api graphql -f query='mutation($threadId:ID!){resolveReviewThread(input:{threadId:$threadId}){thread{isResolved}}}' -F threadId="$THREAD_ID"
-   d. Agregá el id a processedCommentIds en .codex-autofix/processed-{{PR}}.json.
+   d. Agregá el id a processedCommentIds en .codex-autofix/processed-{{PR}}.json: número crudo para inline/generales; `"review:<id>"` para review-bodies.
+
+(4-bis) MINIMIZE de la review cuando esté COMPLETAMENTE resuelta (estado RESOLVED → queda oculta/colapsada). Para CADA review de Codex que tenga al menos 1 comment inline asociado y que NO esté ya minimizada, chequeá si está fully-resolved:
+   - el review-body está cubierto: era no accionable (nada que fixear) O su id `"review:<id>"` ya está en processedCommentIds, **y**
+   - TODOS sus threads inline (los que cuelgan de esa review) están `isResolved`.
+   Detección en una query (devuelve `true` solo si hay ≥1 thread de esa review y todos resueltos):
+     `gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved comments(first:1){nodes{pullRequestReview{databaseId}}}}}}}}' -F owner={{OWNER}} -F repo={{REPO}} -F pr={{PR}} --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.comments.nodes[0].pullRequestReview.databaseId == <review_db_id>) | .isResolved] as $r | ($r|length>0) and ($r|all)'`
+   Si da `true` (o si la review no tiene inline pero su body accionable ya fue fixeado y resuelto): minimizá la review:
+     `gh api graphql -f query='mutation($id:ID!){minimizeComment(input:{subjectId:$id,classifier:RESOLVED}){minimizedComment{isMinimized minimizedReason}}}' -F id="<review_node_id>"`
+   NO minimices reviews donde el loop no resolvió nada (sin inline resueltos por el loop y body no accionable): dejalas como están.
 
 (5) Si FALLA (no se pudo aplicar el fix por una falla del loop/agente, no porque la sugerencia sea inválida): NO marques el id, NO resuelvas, y NO cuentes ese comentario como fixeado. NO reacciones 👎 (content=-1): el 👎 es la señal de "sugerencia incorrecta/no útil" que Codex interpreta sobre su comentario, y acá el problema es el loop, no la sugerencia. No agregues reacción final; opcionalmente, dejá un reply con el motivo/link al error. Reservá el 👎 solo para cuando evaluaste la sugerencia y concluiste que no requería cambios.
 
-(6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 comentario nuevo (contador >= 1) y ya no quedan pendientes, posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam).
+(5-bis) TERMINACIÓN POR REVIEW LIMPIA (mergear + cortar). Chequealo cuando NO quedó ningún ítem accionable de Codex sin resolver esta vuelta (ni nuevos sin procesar, ni fallas pendientes del paso 5). Buscá el ÚLTIMO comentario general de Codex que sea una review limpia y de qué commit es:
+   CLEAN=$(gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate --jq '[.[] | select(.user.login=="chatgpt-codex-connector[bot]") | select(.body | test("Codex Review:.*([Dd]idn.t find any|[Nn]o (major )?issues|[Ff]ound no issues)"))] | last // empty')
+   Si CLEAN está vacío -> no aplica, seguí al paso (6). Si no:
+   REVIEWED=$(printf '%s' "$CLEAN" | jq -r '.body' | grep -oiE 'Reviewed commit:\*\* `[0-9a-f]{7,}`' | grep -oiE '[0-9a-f]{7,}' | head -1)
+   HEAD=$(gh pr view {{PR}} --repo {{OWNER}}/{{REPO}} --json headRefOid -q .headRefOid)
+   Solo continuá si REVIEWED no está vacío y es prefijo de HEAD (la review limpia corresponde al head actual; si no coincide, hay commits posteriores sin re-revisar -> NO mergees, seguí al paso 6 para disparar/esperar la nueva review).
+   Si coincide: MERGEÁ el PR (estrategia squash, borrando la rama; ajustá si tu repo usa otra): `gh pr merge {{PR}} --repo {{OWNER}}/{{REPO}} --squash --delete-branch`.
+   - Si el merge tiene ÉXITO -> auto-cancelá el loop (mismo procedimiento del guard: CronList, identificá el job de ESTE loop por cron `{{CRON}}` y PR #{{PR}}, CronDelete por id, PushNotification de una línea avisando "PR #{{PR}} mergeado tras review limpia de Codex") y terminá. NO postees `@codex review`.
+   - Si el merge FALLA (checks pendientes, no-mergeable, conflicto, branch protection): NO cortes el loop. PushNotification de una línea con el motivo (una sola vez) y dejá el loop vivo para reintentar en la próxima vuelta. No es trabajo del loop resolver conflictos de merge.
+
+(6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 ítem nuevo (inline, general o review-body; contador >= 1) y ya no quedan pendientes, posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam).
 
 (7) SIEMPRE que postees `@codex review`, asegurá que el loop siga vivo SIN que el usuario lo pida: si el cron del loop (`{{CRON}}`, este PR) fue cancelado o pausado, relanzalo (mismo prompt parametrizado) y corré una iteración. `@codex review` dispara comentarios nuevos; el loop debe quedar escuchando para auto-procesarlos. Nunca dejes el loop cancelado justo después de disparar una review.
 ```
@@ -99,6 +140,17 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   ```
   (Si no hay resumen disponible, omitir la línea «Qué cambió».)
 
+- **Éxito sobre un review-body → 👍 + quote reply** (cita el body original; luego se minimiza la review como `RESOLVED` cuando ella y sus inline estén resueltos)
+  ```text
+  > {{body_review_citado}}
+
+  ✅ **Resuelto** en [`{{sha_corto}}`]({{commit_url}}) (en respuesta a esta review).
+
+  **Qué cambió:** {{resumen}}
+
+  <sub>🤖 Fix automático en respuesta a esta review de Codex · [run]({{run_url}})</sub>
+  ```
+
 - **Sin cambios (el agente evaluó y no hacía falta tocar código) → 👎**
   ```text
   ℹ️ **Sin cambios.** Revisé la sugerencia pero no requería cambios de código.
@@ -114,14 +166,36 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   ```
 
 > Regla de paridad: cualquier cambio a esta plantilla debe reflejarse en ambos
-> lados (este skill y el step «Cerrar comentario» del workflow).
+> lados (este skill y el step «Cerrar comentario» del workflow). El soporte de
+> **review-bodies** (👍 vía GraphQL + quote reply + minimize `RESOLVED`) por ahora
+> vive solo en este loop local; portarlo al Action `.github/workflows/codex-autofix.yml`
+> queda como follow-up pendiente.
 
 ## Notas
 
 - **Secuencial obligatorio**: nunca procesar comentarios en paralelo; todos
   pushean a la misma rama y se pisarían (cada fix rebasea antes de pushear).
 - **Estado por PR**: un archivo `processed-<PR>.json` por cada PR en seguimiento;
-  así un mismo loop o varios loops no reprocesan lo ya hecho.
+  así un mismo loop o varios loops no reprocesan lo ya hecho. Los review-bodies
+  se guardan namespaceados (`"review:<id>"`) para no colisionar con ids de
+  comentarios inline/generales (espacios de id distintos).
+- **Tres fuentes**: inline (`pulls/{pr}/comments`), generales
+  (`issues/{pr}/comments`) y review-bodies (`pulls/{pr}/reviews`). El review-body
+  se procesa solo si trae una sugerencia accionable real; igual entra al paso de
+  minimize cuando él y sus inline asociados están resueltos.
+- **Reacción/minimize en reviews por GraphQL**: no hay endpoint REST de reactions
+  ni de minimize para un `PullRequestReview`. Implementa `Reactable` y
+  `Minimizable`, así que `addReaction` y `minimizeComment` operan sobre su
+  `node_id`. El vínculo review↔inline lo da `pull_request_review_id` en cada
+  comment inline (REST) o `comment.pullRequestReview.databaseId` (GraphQL).
+- **Terminación por review limpia**: cuando Codex postea "Codex Review: Didn't
+  find any major issues" para el **head actual** (se valida con el sha de
+  `**Reviewed commit:**` contra `headRefOid`) y no quedan pendientes, el loop
+  mergea el PR y se auto-cancela. El check de sha evita mergear con commits
+  posteriores aún sin re-revisar. Estrategia de merge por defecto: `--squash
+  --delete-branch` (alineado con el historial del repo, `feat: … (#NN)`); cambiá
+  el flag si tu repo usa merge-commit o rebase. Si el merge falla (checks
+  pendientes, conflicto, branch protection), el loop NO se corta y reintenta.
 - **Cancelar a mano**: `CronList` para ver el job y `CronDelete <id>`.
 - **Persistencia real**: para correr sin sesión abierta, mergeá el workflow de CI
   a la rama default y usá el Action.
