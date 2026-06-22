@@ -571,6 +571,10 @@ install_fd_find() {
   _brew install fd
 }
 
+install_bash() {
+  _brew install bash # https://formulae.brew.sh/formula/bash
+}
+
 install_xclip() {
   is_windows && return
 

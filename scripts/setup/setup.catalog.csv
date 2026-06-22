@@ -9,6 +9,7 @@ unzip|unzip|install_unzip_pkg||1|1|linux,wsl|0
 python3_venv|python3-venv|install_python3_venv||1|1|linux,wsl|0
 golang|Golang|install_golang||1|1|linux,wsl|0
 homebrew|Homebrew|install_homebrew||1|0|linux,wsl,darwin|0
+bash|Bash|install_bash||1|0|linux,wsl,darwin|0
 nvm|NVM (Node Version Manager)|install_nvm||1|0|linux,wsl,darwin|0
 sdkman|SDKMAN|install_sdkman||1|0|linux,wsl,darwin|0
 zsh|Zsh|install_zsh||1|1|linux,wsl,darwin|0

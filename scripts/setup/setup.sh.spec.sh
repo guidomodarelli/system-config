@@ -128,6 +128,17 @@ assert_menu_defaults_are_first() {
   done
 }
 
+assert_less_than() {
+  local actual=$1
+  local expected_upper_bound=$2
+  local message=$3
+
+  if [[ "$actual" -ge "$expected_upper_bound" ]]; then
+    printf "ERROR: %s Expected '%s' to be less than '%s'.\n" "$message" "$actual" "$expected_upper_bound" >&2
+    exit 1
+  fi
+}
+
 set_test_platform "linux"
 _initialize_menu_catalog
 _validate_menu_catalog
@@ -187,6 +198,8 @@ assert_failure "Linux setup catalog should hide Windows-only bat." get_menu_defa
 assert_equals "1" "$(get_menu_default_selection_by_id espanso)" "Linux setup recommendations should include Espanso."
 assert_equals "1" "$(get_menu_default_selection_by_id hunk)" "Las recomendaciones de setup para Linux deben incluir hunk."
 assert_equals "1" "$(get_menu_default_selection_by_id mcp_remote_proxy)" "Linux setup recommendations should include mcp-remote-proxy."
+assert_equals "1" "$(get_menu_default_selection_by_id bash)" "Las recomendaciones de setup para Linux deben incluir Bash."
+assert_less_than "$(_find_menu_item_index bash)" "$(_find_menu_item_index sdkman)" "El setup debe instalar Bash antes que SDKMAN."
 assert_failure "Bash catalog should not include wget as a recommended setup item." get_menu_default_selection_by_id wget
 assert_failure "Bash catalog should not include Java JDK 21 as a recommended setup item." get_menu_default_selection_by_id java_jdk
 
@@ -224,6 +237,8 @@ assert_failure "Bash catalog should not include Java JDK 21 as a recommended set
   assert_contains "$ghostty_install_output" "install --cask ghostty" "macOS setup should install Ghostty through Homebrew Cask."
   hunk_install_output="$(install_hunk)"
   assert_contains "$hunk_install_output" "install modem-dev/tap/hunk" "El setup de macOS debe instalar hunk desde el tap de Homebrew."
+  bash_install_output="$(install_bash)"
+  assert_contains "$bash_install_output" "install bash" "El setup debe instalar Bash vía Homebrew."
   python3() { printf "%s\n" "$*"; }
   mcp_remote_proxy_install_output="$(install_mcp_remote_proxy)"
   assert_contains "$mcp_remote_proxy_install_output" "-m pip install --user --upgrade --index-url https://pypi.artifacts.furycloud.io/simple/ mcp-remote-proxy" "El setup debe instalar mcp-remote-proxy como herramienta Python de usuario."
@@ -250,6 +265,8 @@ assert_equals "1" "$(get_menu_default_selection_by_id gh)" "macOS setup recommen
 assert_equals "1" "$(get_menu_default_selection_by_id ghostty)" "macOS setup recommendations should include Ghostty."
 assert_equals "1" "$(get_menu_default_selection_by_id hunk)" "Las recomendaciones de setup para macOS deben incluir hunk."
 assert_equals "1" "$(get_menu_default_selection_by_id mcp_remote_proxy)" "Las recomendaciones de setup para macOS deben incluir mcp-remote-proxy."
+assert_equals "1" "$(get_menu_default_selection_by_id bash)" "Las recomendaciones de setup para macOS deben incluir Bash."
+assert_less_than "$(_find_menu_item_index bash)" "$(_find_menu_item_index sdkman)" "El setup de macOS debe instalar Bash antes que SDKMAN."
 
 set_test_platform "linux"
 _initialize_menu_catalog
