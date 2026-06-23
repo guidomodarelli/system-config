@@ -1,0 +1,26 @@
+configs/.agents/skills/my-skills/(meli)/(nordic)/input-validation/SKILL.md
+  s_e2b3aa3c29f7ff::t_fda254877d3f49 1-42
+configs/.agents/skills/my-skills/(meli)/(nordic)/input-validation/references/input-validation-guide.md
+  s_e2b3aa3c29f7ff::t_be9719f4d1bdf6 1-139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "177c7715bc2138ae5d5df7251aeb253ba14498e1",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_e2b3aa3c29f7ff": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "88cf4677-93e1-40f4-870e-1fa53a59dbbb",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
