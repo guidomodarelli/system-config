@@ -17,7 +17,7 @@ description: Fix a GitHub or repository issue from a brand-new ephemeral depth-1
 - Before pushing, fetch the latest remote state of the original branch and rebase or fast-forward safely.
 - If updating before push creates conflicts, resolve them through the active rebase inside the same temporary clone, then revalidate before pushing.
 - Push the original branch only after tests pass on the latest remote state.
-- If the push is rejected as non-fast-forward because a concurrent push landed first, run a full re-integration cycle before retrying: refetch, rebase onto the new remote tip, resolve any rebase conflicts, re-run the relevant validation to confirm the fix still holds on the new base, then push again. If it is rejected again, repeat the whole cycle until the push succeeds; stop only on an unresolvable conflict. Never force-push or re-push without revalidating.
+- If the push is rejected as non-fast-forward because a concurrent push landed first, run a full re-integration cycle before retrying: refetch, rebase onto the new remote tip, resolve any rebase conflicts, re-run the relevant validation for both your fix and the changes integrated from the remote (other fixes that landed concurrently and must keep passing too), then push again. If it is rejected again, repeat the whole cycle until the push succeeds; stop only on an unresolvable conflict. Never force-push or re-push without revalidating both surfaces.
 - Remove the temporary clone after a successful push.
 - Never force-push, delete user branches, or discard user changes unless explicitly requested.
 - If the issue, repo, current branch, remote tracking branch, or acceptance criteria are unclear and cannot be inferred from local or GitHub context, ask before editing.
@@ -167,7 +167,10 @@ fi
      1. Re-fetch the remote branch.
      2. Rebase the fix commit(s) onto the new remote tip.
      3. Resolve any rebase conflicts in this same clone (see Conflict Rebase Rule).
-     4. Re-run the relevant validation to confirm the fix still holds on the new base. The concurrent changes you just integrated may have altered behavior or silently broken what was just implemented; do not push until this validation passes.
+     4. Re-run validation on the new base, covering BOTH surfaces before pushing:
+        - your own fix's tests and quality gates, and
+        - the tests relevant to the changes you just integrated from the remote. Those incoming commits are other fixes (e.g. other reported GitHub comments resolved by other agents) that each passed in isolation but may break once combined with yours. Inspect what they touched with `git diff --name-only <remote_before>..<remote_after>` and run the relevant tests for that surface too.
+        Do not push until the tests for the union of both surfaces pass.
      5. Push again.
    - If this push is rejected again as non-fast-forward, repeat the entire cycle (fetch → rebase → resolve conflicts → revalidate → push) until the push succeeds.
    - Stop only if a rebase conflict cannot be resolved safely: then follow the Conflict Rebase Rule (abort, keep the clone, report). Never force-push.
@@ -176,13 +179,19 @@ fi
 ```bash
 while ! git push origin HEAD:"$remote_branch"; do
   # Non-fast-forward: a concurrent push landed. Re-integrate fully before retrying.
+  remote_before_retry=$(git rev-parse "origin/$remote_branch")
   git fetch origin "$remote_branch"
+  remote_after_retry=$(git rev-parse "origin/$remote_branch")
+  # Files the other concurrent fixes touched — their tests must keep passing too:
+  integrated_files=$(git diff --name-only "$remote_before_retry" "$remote_after_retry")
   if ! git rebase "origin/$remote_branch"; then
     # Resolve conflicts (Conflict Rebase Rule): edit files, `git add <files>`, `git rebase --continue`.
     # If they cannot be resolved safely: `git rebase --abort`, keep the clone, and report instead of pushing.
     <resolve conflicts, then continue the rebase>
   fi
-  <re-run the relevant validation; only loop back to push once it passes>
+  # Re-run validation for the UNION of your fix's files AND $integrated_files.
+  # Only loop back to push once BOTH surfaces pass.
+  <re-run the relevant validation for both surfaces>
 done
 ```
 

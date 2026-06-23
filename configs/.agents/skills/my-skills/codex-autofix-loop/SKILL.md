@@ -13,8 +13,9 @@ la herramienta `Skill` (`/fix-issue-efimeral-clone`)— tratando cada comentario
 como la "issue" a resolver (clone efímero depth-1 → fix → validar → push a la rama
 del PR). Cada subagente trabaja en su propio clone efímero aislado; como todos
 pushean a la misma rama, ante non-fast-forward cada subagente reintegra (rebase
-+ resolución de conflictos + revalidación del fix) y recién ahí pushea, repitiendo
-el ciclo hasta subir.
++ resolución de conflictos + revalidación del fix propio y de los cambios
+integrados de los otros subagentes) y recién ahí pushea, repitiendo el ciclo
+hasta subir.
 Después el loop principal hace el closeout en el hilo (reacción 👍 + reply con link
 al commit + resolver el hilo inline).
 
@@ -96,7 +97,7 @@ Si OPEN, procesá:
 (3) FAN-OUT EN PARALELO. Determiná la lista de ítems accionables a fixear (los que NO están en processedCommentIds) y spawneá **un subagente dedicado por ítem**, lanzándolos TODOS en la misma tanda (herramienta `Agent`/`Task`, múltiples tool-uses en un solo mensaje) para que corran concurrentes. Cada subagente atiende UN solo comentario, aislado en su propio clone efímero, y nunca toca el estado de los demás:
    - **Inline y generales**: el subagente invoca la skill `/fix-issue-efimeral-clone` vía la herramienta `Skill` (NO reimplementa el clone/push a mano), pasándole como "issue" el contexto del comentario: el cuerpo del comentario, el `path` y la `line` (para inline) y la rama objetivo {{BRANCH}}.
    - **Review-body**: la evaluación de accionabilidad la hace el LOOP PRINCIPAL ANTES de spawnear. Evaluá si el body trae una **sugerencia accionable real** (un cambio concreto de código). Si es solo un resumen/observación no accionable ("revisé X, ver inline", aprobación, etc.), SALTEALO: no spawnees subagente, no reacciones, no respondas y NO lo marques como procesado (no ensucia el estado; igual entra en el paso de minimize si corresponde). Si SÍ es accionable, spawneá un subagente que invoque `/fix-issue-efimeral-clone` pasándole el body como "issue" y la rama {{BRANCH}} (sin `path`/`line`).
-   Cada subagente, vía esa skill, hace el clone efímero depth-1, copia `.env*`, instala/linkea deps según plataforma, aplica el fix, valida, rebasea sobre el último remoto y pushea a {{BRANCH}}, y limpia el clone. **Push concurrente**: como varios subagentes pushean a la MISMA rama, ante un rechazo por non-fast-forward el subagente NO repushea a ciegas: corre un ciclo completo de re-integración —re-fetch → rebase sobre el nuevo remoto → resolver conflictos → revalidar que el fix recién hecho sigue pasando sobre la nueva base → recién ahí pushea; si vuelve a rebotar, repite el ciclo entero hasta subir— (esa lógica vive en `fix-issue-efimeral-clone`, paso 9). Cada subagente DEVUELVE el sha COMPLETO del commit pusheado en éxito, o un fallo explícito. Recogé los resultados de todos los subagentes; por cada éxito guardá su sha (para el closeout) y sumá 1 al contador de ítems fixeados esta vuelta.
+   Cada subagente, vía esa skill, hace el clone efímero depth-1, copia `.env*`, instala/linkea deps según plataforma, aplica el fix, valida, rebasea sobre el último remoto y pushea a {{BRANCH}}, y limpia el clone. **Push concurrente**: como varios subagentes pushean a la MISMA rama, ante un rechazo por non-fast-forward el subagente NO repushea a ciegas: corre un ciclo completo de re-integración —re-fetch → rebase sobre el nuevo remoto → resolver conflictos → revalidar que TANTO el fix recién hecho COMO los cambios que integró de los otros subagentes (fixes de otros comentarios que ya cayeron a la rama) siguen pasando sobre la nueva base → recién ahí pushea; si vuelve a rebotar, repite el ciclo entero hasta subir— (esa lógica vive en `fix-issue-efimeral-clone`, paso 9). Cada subagente DEVUELVE el sha COMPLETO del commit pusheado en éxito, o un fallo explícito. Recogé los resultados de todos los subagentes; por cada éxito guardá su sha (para el closeout) y sumá 1 al contador de ítems fixeados esta vuelta.
 
 (4) CLOSEOUT en ÉXITO (push hecho). Hacelo por cada comentario cuyo subagente volvió con éxito, usando el sha que ese subagente reportó (no esperes a que terminen todos: a medida que vuelven, cerrás). Las acciones de closeout en GitHub (reacciones, replies, resolver hilos) son independientes por comentario; el ÚNICO recurso compartido es `.codex-autofix/processed-{{PR}}.json`, así que el loop principal es el único escritor y serializa esas escrituras (paso d) para no corromper el JSON cuando varios subagentes terminan casi a la vez. Definí el link al commit: COMMIT_URL=https://github.com/{{OWNER}}/{{REPO}}/commit/<sha>
    a. Reacción 👍:
@@ -192,10 +193,11 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   subagentes se lanzan en paralelo. El cómputo del fix está aislado por clone;
   el único punto compartido es el push a la rama del PR. Ante non-fast-forward,
   cada subagente NO repushea a ciegas: corre un ciclo completo de re-integración
-  —fetch → rebase → resolver conflictos → revalidar que el fix sigue intacto →
-  push— y lo repite hasta subir. Eso evita el clobber y garantiza que el fix no
-  quedó roto tras integrar lo de los demás, sin perder el paralelismo del trabajo
-  pesado. El closeout (reacciones, replies,
+  —fetch → rebase → resolver conflictos → revalidar que tanto el fix propio como
+  los cambios integrados de los otros subagentes siguen pasando → push— y lo
+  repite hasta subir. Eso evita el clobber y garantiza que ni el fix propio ni los
+  fixes de los demás quedaron rotos al combinarse, sin perder el paralelismo del
+  trabajo pesado. El closeout (reacciones, replies,
   resolver hilos) corre por comentario a medida que vuelve cada subagente; la
   escritura de `processed-<PR>.json` la serializa el loop principal (único
   escritor).
