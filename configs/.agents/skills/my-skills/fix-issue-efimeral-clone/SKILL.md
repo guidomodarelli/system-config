@@ -17,6 +17,7 @@ description: Fix a GitHub or repository issue from a brand-new ephemeral depth-1
 - Before pushing, fetch the latest remote state of the original branch and rebase or fast-forward safely.
 - If updating before push creates conflicts, resolve them through the active rebase inside the same temporary clone, then revalidate before pushing.
 - Push the original branch only after tests pass on the latest remote state.
+- If the push is rejected as non-fast-forward because a concurrent push landed first, run a full re-integration cycle before retrying: refetch, rebase onto the new remote tip, resolve any rebase conflicts, re-run the relevant validation to confirm the fix still holds on the new base, then push again. If it is rejected again, repeat the whole cycle until the push succeeds; stop only on an unresolvable conflict. Never force-push or re-push without revalidating.
 - Remove the temporary clone after a successful push.
 - Never force-push, delete user branches, or discard user changes unless explicitly requested.
 - If the issue, repo, current branch, remote tracking branch, or acceptance criteria are unclear and cannot be inferred from local or GitHub context, ask before editing.
@@ -162,11 +163,27 @@ fi
 
 9. Push the original branch.
    - Push the clone's current branch to the original branch on the remote.
-   - Do not force-push.
+   - If the push is rejected as non-fast-forward (a concurrent push landed on the branch after the pre-push rebase, e.g. when several ephemeral clones fix different issues in parallel against the same branch), do NOT blindly re-push. Run a full re-integration cycle before pushing again:
+     1. Re-fetch the remote branch.
+     2. Rebase the fix commit(s) onto the new remote tip.
+     3. Resolve any rebase conflicts in this same clone (see Conflict Rebase Rule).
+     4. Re-run the relevant validation to confirm the fix still holds on the new base. The concurrent changes you just integrated may have altered behavior or silently broken what was just implemented; do not push until this validation passes.
+     5. Push again.
+   - If this push is rejected again as non-fast-forward, repeat the entire cycle (fetch → rebase → resolve conflicts → revalidate → push) until the push succeeds.
+   - Stop only if a rebase conflict cannot be resolved safely: then follow the Conflict Rebase Rule (abort, keep the clone, report). Never force-push.
    - Do not push any temporary branch.
 
 ```bash
-git push origin HEAD:"$remote_branch"
+while ! git push origin HEAD:"$remote_branch"; do
+  # Non-fast-forward: a concurrent push landed. Re-integrate fully before retrying.
+  git fetch origin "$remote_branch"
+  if ! git rebase "origin/$remote_branch"; then
+    # Resolve conflicts (Conflict Rebase Rule): edit files, `git add <files>`, `git rebase --continue`.
+    # If they cannot be resolved safely: `git rebase --abort`, keep the clone, and report instead of pushing.
+    <resolve conflicts, then continue the rebase>
+  fi
+  <re-run the relevant validation; only loop back to push once it passes>
+done
 ```
 
 10. Close out.
