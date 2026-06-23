@@ -1,0 +1,14 @@
+configs/.codex/config.toml
+  h_75c375681f3642 68-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "016610832b303bca8b565b731273c17ff89acb43",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

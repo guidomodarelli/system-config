@@ -1,0 +1,29 @@
+configs/.agents/skills/my-skills/kraken-jira-ticket/SKILL.md
+  s_df9ad762cc9865::t_61176a879882ce 25,27,37,50
+  s_df9ad762cc9865::t_0e097f8a8b4c1b 29,38-49
+  s_df9ad762cc9865::t_d08886f5319f54 73
+  s_df9ad762cc9865::t_834178423ab80f 118
+  s_df9ad762cc9865::t_2080ab6e85755a 158-180,182-191
+  s_df9ad762cc9865::t_8eadd90cc83ef7 75,77-78
+  s_df9ad762cc9865::t_6540e2601b4517 192
+  s_df9ad762cc9865::t_f4466412053bfe 137
+  s_df9ad762cc9865::t_8b278eb23caa2d 205
+  s_df9ad762cc9865::t_cacf52941c02b7 1-24,26,28,30-36,51-72,74,76,79-117,119-136,138-157,193-204,206-225
+  s_df9ad762cc9865::t_1ab23a2492f76b 181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "5de87bd266a153d28322e140f45882fc1dd24cf9",
+  "prompts": {},
+  "sessions": {
+    "s_df9ad762cc9865": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "845b4adc-b426-4763-ad8f-03b164f66c44",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

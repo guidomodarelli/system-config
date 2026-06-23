@@ -1,0 +1,21 @@
+configs/PowerShell/Microsoft.PowerShell_profile.ps1
+  s_4f9a9586ad2c56::t_12b039c077add2 1434,1439-1440,1443
+configs/zsh/.zsh/functions/fzf.zsh
+  s_4f9a9586ad2c56::t_a5b8ddf1df848b 1-10,13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "6c70bb243a4446393aa94806acfbd6787d685c77",
+  "prompts": {},
+  "sessions": {
+    "s_4f9a9586ad2c56": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e2eac-3712-7a03-a41a-45e5a886bc2b",
+        "model": "gpt-5.5"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

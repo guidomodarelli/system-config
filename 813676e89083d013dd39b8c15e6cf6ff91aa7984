@@ -1,0 +1,22 @@
+configs/.agents/skills/my-skills/kraken-jira-ticket/SKILL.md
+  s_df9ad762cc9865::t_2e0f17278027d9 230-233
+  s_df9ad762cc9865::t_92f96aa275de2b 145-146
+  s_df9ad762cc9865::t_b2c83537346213 252-253,255-262
+  s_df9ad762cc9865::t_7012b04fffec77 271
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "813676e89083d013dd39b8c15e6cf6ff91aa7984",
+  "prompts": {},
+  "sessions": {
+    "s_df9ad762cc9865": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "845b4adc-b426-4763-ad8f-03b164f66c44",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

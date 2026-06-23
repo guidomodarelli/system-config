@@ -1,0 +1,24 @@
+configs/.agents/skills/my-skills/pr-description-template/SKILL.md
+  s_a1a00dd64c4f13::t_5cee10185e2941 23-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "ca22d51416cd89c812b9e3859b78fc82b35e46ec",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_a1a00dd64c4f13": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ee013-e34c-7ca0-804a-bcf95f6afa6e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+configs/.agents/skills/my-skills/user-manual/SKILL.md
+  s_df9ad762cc9865::t_8a5b87b11118e7 184-185
+  s_df9ad762cc9865::t_48c50637ae118f 98-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "ca3f91acf6350bd27e7aae44b2c7c23e350f2d5c",
+  "prompts": {},
+  "sessions": {
+    "s_df9ad762cc9865": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "845b4adc-b426-4763-ad8f-03b164f66c44",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+configs/zsh/.zsh/functions/npm.zsh
+  h_75c375681f3642 13-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "06771d5e876f54db3d6f6b955093d82f33f37c19",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

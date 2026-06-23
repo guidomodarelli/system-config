@@ -1,0 +1,27 @@
+configs/.agents/skills/my-skills/pr-inline-comment-template/agents/openai.yaml
+  s_4ef5672975b5dc::t_b9e8b3e2b91785 3-4
+configs/.agents/skills/my-skills/pr-inline-comment-template/SKILL.md
+  s_4ef5672975b5dc::t_a6c0e3c4a91bc8 3
+  s_4ef5672975b5dc::t_b9e8b3e2b91785 12-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "ed240f1791b77699d307803dbb5a56584961e280",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4ef5672975b5dc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019edbfa-9d6a-7841-8493-e3c86bc08213",
+        "model": "gpt-5.5"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

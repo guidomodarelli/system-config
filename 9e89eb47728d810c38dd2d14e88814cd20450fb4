@@ -1,0 +1,20 @@
+configs/zsh/.oh-my-zsh/themes/murilasso.zsh-theme
+  s_033e6f708eb6c6::t_b61b18c54d80a9 187-202,204-217,219
+  s_033e6f708eb6c6::t_612f4682301be5 203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "9e89eb47728d810c38dd2d14e88814cd20450fb4",
+  "prompts": {},
+  "sessions": {
+    "s_033e6f708eb6c6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e698a1c-58a7-4a7b-ad35-953b3413533c",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

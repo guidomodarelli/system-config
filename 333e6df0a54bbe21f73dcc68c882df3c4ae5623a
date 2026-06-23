@@ -1,0 +1,14 @@
+configs/espanso/match/Status__Workflow.yml
+  h_75c375681f3642 2,7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.3",
+  "base_commit_sha": "333e6df0a54bbe21f73dcc68c882df3c4ae5623a",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

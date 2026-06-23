@@ -1,0 +1,19 @@
+configs/.agents/skills/my-skills/kraken-jira-ticket/SKILL.md
+  s_139ac53f1d96d5::t_0cd6864d40afa4 53-65,151-152,187-188,246-259,263,276
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "ba8fef72174f915c296817d4bb0ffdd82f7f78e4",
+  "prompts": {},
+  "sessions": {
+    "s_139ac53f1d96d5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019eadb8-c452-7a42-a451-3c43b27971e2",
+        "model": "gpt-5.5"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}

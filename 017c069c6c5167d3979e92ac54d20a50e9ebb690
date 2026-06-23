@@ -1,0 +1,26 @@
+configs/.codex/AGENTS.md
+  s_e3076af30bd7cf::t_4e7fade055d6a9 84
+  s_e3076af30bd7cf::t_ffb0edbb07f79b 94-103,109-116,123
+  s_e3076af30bd7cf::t_2fada5da5f4422 104-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "017c069c6c5167d3979e92ac54d20a50e9ebb690",
+  "prompts": {},
+  "humans": {
+    "h_75c375681f3642": {
+      "author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_e3076af30bd7cf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5f80dbe1-598e-430a-813b-777b638843a8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "guidomodarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
