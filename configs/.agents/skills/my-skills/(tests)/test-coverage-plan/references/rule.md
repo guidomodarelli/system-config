@@ -14,6 +14,10 @@ which routes, components, and props are not covered.
   - P1: alternative states and prop variants.
   - P2: visual or lower-risk cases.
 - **Actionable output**: for each gap, propose the test type and the assert goal.
+- **Non-goals**: do not classify lack of exact source-text assertions as a coverage gap. This includes
+  tests that read files to verify style contents, SQL strings, or SQL fragments such as `SELECT`,
+  `JOIN`, `WHERE`, aliases, or ordering clauses, and tests that only assert ORM/query-builder
+  function parameters or internal query-construction calls.
 
 ### Output format
 

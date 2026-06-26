@@ -17,6 +17,10 @@
 - Include at least one happy path and significant edge cases for each key behavior.
 - Cover error cases and atypical scenarios defensively.
 - Assert both outputs and side effects that matter to the behavior.
+- Do not use `fs`, filesystem helpers, snapshots, or raw source reads to assert exact file contents.
+- Do not test implementation text in source, style files, SQL strings, ORM/query-builder call parameters, or SQL fragments such as `SELECT`, `JOIN`, `WHERE`, aliases, ordering clauses, or whitespace.
+- For SQL or query behavior, validate user-facing filters, returned data, repository/service contracts, persisted effects, or integration behavior through the real query boundary when feasible.
+- For styles, validate user-visible state, accessibility, class application only when it is the public styling contract, visual regression tooling, or the real build/lint command.
 
 ## Placement and Framework
 

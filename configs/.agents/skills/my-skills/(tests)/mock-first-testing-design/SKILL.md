@@ -40,6 +40,8 @@ Ask this question before changing production code:
 - Do not split or unwrap framework-dependent code only to bypass HOCs, wrappers, or runtime glue in tests.
 - Do not rewrite valid production code merely to avoid mocks.
 - Do not modify business logic solely to make a failing test pass.
+- Do not add tests that read source, style, or SQL files with `fs` or equivalent packages to assert exact text, substrings, snapshots, or SQL fragments.
+- Do not replace those checks with tests that only spy on ORM/query-builder function parameters or internal query-construction calls.
 
 ## Acceptable Refactors
 

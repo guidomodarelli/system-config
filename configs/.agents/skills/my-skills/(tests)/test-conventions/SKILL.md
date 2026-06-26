@@ -8,6 +8,7 @@ description: Enforces test naming, structure, coverage expectations, mock placem
 - Confirm the project's test framework and local patterns; default to Jest if unspecified.
 - Place tests adjacent to implementation with `.spec` filenames, "should do X when Y" titles, and AAA/GWT structure.
 - Cover happy paths, error cases, and significant edge conditions; mock external dependencies via `__mocks__`.
+- Do not test source files by reading exact text, styles, SQL strings, SQL fragments, or ORM/query-builder call parameters; assert observable behavior or public contracts instead.
 - Provide runnable test code, then include the required Commentary and Validation blocks (and Error when needed).
 
 ## Mandatory execution rules

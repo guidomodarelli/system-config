@@ -21,6 +21,11 @@ cases, and data mocks ready to use.
   - edge dataset (empty, missing fields, or error)
 - **Suggested variants**: for each edge case, provide at least one variant and the expected
   assertion (empty state, fallback, error UI, disabled, default props, etc.).
+- **Invalid test goals**: do not propose cases that read source files, style files, or SQL files with
+  `fs` to assert exact text, substrings, regex matches, snapshots, or fragments such as `SELECT`,
+  `JOIN`, `WHERE`, aliases, or ordering clauses. Do not replace that with tests that only assert
+  ORM/query-builder function parameters or internal query-construction calls. Replace them with
+  observable behavior, public contracts, real query execution, or build/lint validation.
 
 ### Output format
 
