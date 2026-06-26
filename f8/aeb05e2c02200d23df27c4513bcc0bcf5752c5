@@ -1,0 +1,26 @@
+configs/.agents/DESIGN.md
+  s_dfd9675c38dcc2::t_57ed56a305b6ad 707
+  s_dfd9675c38dcc2::t_d10ffdfe1e5dd4 361-379
+  s_dfd9675c38dcc2::t_89ae5a05e416cb 671-696
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "f8aeb05e2c02200d23df27c4513bcc0bcf5752c5",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_dfd9675c38dcc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "84d9831d-e014-4b87-bf01-da5889db1fed",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
