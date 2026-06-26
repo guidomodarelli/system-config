@@ -358,6 +358,25 @@ components:
     backgroundColor: "{colors.border}"
     height:          "1px"
     # margin: 28px 0
+
+  # —— Accordion (bloque colapsable de detalle)
+  accordion:
+    backgroundColor: "{colors.surface-card}"
+    rounded:         "{rounded.lg}"
+    # border: 1px solid {colors.border}, margin-bottom: 10px, overflow: hidden
+  accordion-summary:
+    textColor:       "{colors.primary}"
+    typography:      "{typography.section-title}"  # mismo peso/size que un título de sección, sin border
+    padding:         "13px 16px"
+    # cursor: pointer; marcador nativo oculto; glifo +/– (DM Mono, color label) a la derecha
+    # [open] agrega border-bottom: 1px solid {colors.border}
+  accordion-num:
+    textColor:       "{colors.label}"
+    typography:      "{typography.section-num}"
+    # label mono uppercase opcional dentro del summary (ej. "Reglas", "Checklist")
+  accordion-body:
+    textColor:       "{colors.body}"
+    padding:         "14px 16px 4px"
 ---
 
 ## Overview
@@ -649,6 +668,32 @@ concreto sin teñirlo de aviso/éxito/error.
 
 Se intercalan con flechas mono (`→`) en color `{colors.label}`.
 
+### Accordion (bloques colapsables)
+
+Bloque de detalle que arranca **cerrado** y se expande al click. Pensado para
+**documentos densos**: una sección con muchas reglas, tablas de comportamiento,
+casos de error y checklists se vuelve un muro vertical. El accordion deja a la
+vista solo los títulos y el lector abre lo que necesita.
+
+Implementación nativa con `<details class="acc">` + `<summary>` (sin JS).
+Estructura:
+
+```
+[summary]   [accordion-num] (label mono opcional) + título  ···  glifo +/–
+[acc-body]  contenido: prosa, listas, tablas, callouts
+```
+
+- Borde `1px solid {colors.border}`, radius `8px`, fondo `surface-card`.
+- El `summary` usa el peso/tamaño de un `section-title` pero **sin** su borde inferior; el marcador nativo se oculta y se reemplaza por un glifo `+` (cerrado) / `–` (abierto) en mono, color `label`, alineado a la derecha.
+- Al abrir (`[open]`), el `summary` cierra con `border-bottom: 1px solid {colors.border}` para separar del cuerpo.
+- Opcional: un `accordion-num` (mono uppercase, color `label`) al inicio del summary como mini-etiqueta del bloque (`Reglas`, `Comportamiento`, `Checklist`), en el mismo espíritu que `section-num`.
+
+**Regla de uso:** colapsar los bloques de **referencia** (reglas de negocio,
+comportamiento esperado, casos de error, checklist) y dejar **siempre abiertos**
+los de **acción** (intro/objetivo, flujo en `steps`, mockups). No anidar
+accordions ni meter un mockup pesado adentro de uno cerrado. Si una sección no
+es densa, no la colapses — el accordion es para domar volumen, no decoración.
+
 ## Do's and Don'ts
 
 ### Do
@@ -659,6 +704,7 @@ Se intercalan con flechas mono (`→`) en color `{colors.label}`.
 - **Mantené párrafos cortos** (3–5 líneas máximo). El line-height generoso es para escanear, no para muros de texto.
 - **Usá `<strong>` para énfasis dentro de prosa**, no `<b>` ni colores arbitrarios.
 - **Tipografiá las tablas con `body-md`** — los headers ya van en mono, las celdas no.
+- **Colapsá los bloques de referencia en docs densos** con `accordion` (reglas, comportamiento, errores, checklist) y dejá abiertos intro, flujo y mockups. Convertí listas largas de "comportamiento" en tablas `situación → comportamiento`.
 
 ### Don't
 
