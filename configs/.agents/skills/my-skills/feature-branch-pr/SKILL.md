@@ -35,7 +35,18 @@ git status --porcelain
 - If `git status --porcelain` is empty → nothing to ship. Report that and stop.
 - Capture the current branch name for the branch decision.
 
-### 2. Decide the branch
+### 2. Check if a PR already exists for this branch
+
+If the current branch is NOT a default branch, check whether a PR is already open:
+
+```bash
+gh pr view --json url --jq .url 2>/dev/null
+```
+
+- **PR exists** → this is a successive commit scenario. **Do NOT commit or push automatically.** Report the current dirty state (files changed, insertions/deletions) and the existing PR URL, then **stop**. The user owns the commit/push lifecycle after the initial PR creation.
+- **No PR exists** → continue with the full flow below.
+
+### 3. Decide the branch
 
 Default branches: `develop`, `main`, `master`.
 
@@ -53,7 +64,7 @@ Default branches: `develop`, `main`, `master`.
 
 Slug rules: lowercase, hyphen-separated, English, no spaces, no ticket-noise. Example: `feature/link-preapproval-checkout`.
 
-### 3. Commit
+### 4. Commit
 
 Stage everything and commit with a clear Conventional-Commit-style English subject plus a short body describing the change.
 
@@ -73,7 +84,7 @@ On Windows PowerShell, use a single-quoted here-string (`@' ... '@`) for the mes
 
 If a pre-commit hook fails, fix the underlying issue and retry — do not bypass it.
 
-### 4. Push
+### 5. Push
 
 Push and set upstream on first push of the branch:
 
@@ -83,7 +94,7 @@ git push -u origin HEAD
 
 Capture the push result and the remote tracking ref.
 
-### 5. Open the PR
+### 6. Open the PR
 
 Check tooling first:
 
@@ -109,7 +120,7 @@ gh pr create --title "<english subject>" --body-file <tmp-body.md> --base <defau
 
 - Capture the returned PR URL.
 
-### 6. Report the summary table (Spanish)
+### 7. Report the summary table (Spanish)
 
 Always close with a Markdown table summarizing the run:
 
@@ -127,6 +138,6 @@ If any step was skipped or failed, show its real status in the table (e.g. `PR |
 
 - **Clean tree:** nothing to commit → report and stop; do not create an empty branch or PR.
 - **Detached HEAD:** treat as non-default → create `feature/<slug>` so the work is not orphaned, then proceed.
-- **PR already open for the branch:** reuse it. Run `gh pr view --json url --jq .url` and report that URL instead of creating a duplicate; push the new commit so the existing PR updates.
+- **PR already open for the branch (successive commits):** do NOT commit or push. Report the dirty-tree summary and the existing PR URL, then stop. The user decides when and how to commit/push subsequent changes.
 - **Push rejected (non-fast-forward):** do not force-push. Report the rejection and ask the user how to proceed.
 - **No `origin` remote:** stop after the commit, report the missing remote.
