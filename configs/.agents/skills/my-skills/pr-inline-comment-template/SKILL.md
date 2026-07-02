@@ -1,27 +1,31 @@
 ---
 name: pr-inline-comment-template
-description: Use when the user asks to draft, find, update, format, or publish GitHub PR review comments, including "subir el comentario", "subí ese comment", "publicar comentario en el PR", "postear comentario inline", and requests to inspect existing comments with gh pr.
+description: Use when the user asks to create, draft, find, update, format, or publish GitHub PR review comments. By default, publish the comment inline to the PR when a changed line exists; only draft without publishing when the user explicitly asks for a draft, preview, or text only.
 ---
 
 # PR Inline Comment Template
 
-Use this skill when publishing or drafting a GitHub PR review comment. The comment must be in Spanish and use a clear template by default.
+Use this skill when publishing or drafting a GitHub PR review comment. By default, using this skill means publishing the comment to the PR. The comment must be in Spanish and use a clear template by default.
 
 ## Workflow
 
-1. Identify the PR with `gh pr`. Prefer the current branch PR via `gh pr view --json number,url,headRefName,baseRefName`; if that fails, ask for the PR number or URL.
-2. Find the current GitHub user with `gh api user --jq .login`.
-3. Before drafting or publishing, search the PR for all comments authored by that user:
+1. Identify whether the user explicitly asked for draft/preview/text-only output. If not, publish the comment to the PR in this same turn.
+2. Identify the PR with `gh pr`. Prefer the current branch PR via `gh pr view --json number,url,headRefName,baseRefName`; if that fails, ask for the PR number or URL.
+3. Find the current GitHub user with `gh api user --jq .login`.
+4. Before drafting or publishing, search the PR for all comments authored by that user:
    - PR conversation comments: `gh api repos/{owner}/{repo}/issues/{pr_number}/comments --paginate`
    - Inline review comments: `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments --paginate`
    - Review summaries: `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews --paginate`
-4. Use the existing user-authored comments to avoid duplicates, update the right comment when requested, and preserve unresolved context.
-5. Identify the changed file, line, and finding.
-6. Keep the comment focused on one actionable issue.
-7. Publish an inline comment when a precise changed line exists. Otherwise, publish a normal PR comment.
+5. Use the existing user-authored comments to avoid duplicates, update the right comment when requested, and preserve unresolved context.
+6. Identify the changed file, line, and finding.
+7. Keep the comment focused on one actionable issue.
 8. Use the default template below.
-9. Include `<details>` only when extra context or step-by-step guidance is genuinely useful.
-10. Before publishing, verify the whole comment visible to the author is in Spanish.
+9. Before publishing, get the PR head commit with `gh pr view <pr_number> --json headRefOid --jq .headRefOid`.
+10. Publish an inline comment with `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` when a precise changed line exists. Pass `body`, `commit_id`, `path`, `line`, and `side=RIGHT`. Use `start_line` only for a multi-line comment.
+11. If no precise changed line exists, publish a normal PR comment with `gh api repos/{owner}/{repo}/issues/{pr_number}/comments`.
+12. Include `<details>` only when extra context or step-by-step guidance is genuinely useful.
+13. Before publishing, verify the whole comment visible to the author is in Spanish.
+14. After publishing, return the GitHub comment URL. Do not also paste the full comment unless the user asked for it.
 
 ## Default Template
 
@@ -50,6 +54,9 @@ Pasos sugeridos:
 ## Rules
 
 - Always write the comment in Spanish.
+- Publish directly to the PR by default. Do not stop at a drafted Markdown block unless the user explicitly asks for a draft, preview, or text-only output.
+- Prefer inline review comments over normal PR comments whenever a precise changed line exists.
+- If `gh pr view` cannot identify the PR or the target line is not part of the PR diff, ask for the missing PR/line context instead of inventing a location.
 - Use simple, direct language.
 - Start with a priority badge and title wrapped together in bold: `**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub> Título breve**`.
 - Use one of these priorities:
