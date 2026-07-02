@@ -1,0 +1,24 @@
+configs/.agents/skills/my-skills/pr-inline-comment-template/SKILL.md
+  s_eaa7671cb76b57::t_f9462cb1c6ae46 3,8,12-15,19-21,23-28,57-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "5ca8ad0efb82de32defe0986a2d354945e18a6ac",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_eaa7671cb76b57": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f231b-a8f1-7543-9603-6a51c6486405",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
