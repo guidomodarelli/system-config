@@ -30,8 +30,6 @@ fi
 # - Los plugins de terceros van en plugins.zsh (sourced después de omz).
 plugins=(
   git
-  docker
-  docker-compose
   node
   npm
   aliases
