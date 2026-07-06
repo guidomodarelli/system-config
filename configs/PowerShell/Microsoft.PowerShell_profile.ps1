@@ -11,6 +11,75 @@
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
+# --- Cache de scripts de init/completion --------------------------------------
+# Spawnear un CLI (Node, Go, Rust) para generar su script de init o completion
+# cuesta 30-200 ms por arranque. Estos helpers cachean el script generado a
+# disco y lo regeneran solo cuando cambia el fingerprint (primera línea del
+# archivo). Definidos antes de cualquier init (zoxide, codex, oh-my-posh).
+
+# Path estable del ejecutable de un comando: si su directorio es un link (p.ej.
+# los multishell dirs por sesión de fnm), se resuelve al directorio real para
+# que el fingerprint no cambie entre sesiones.
+function Get-StableExecutablePath {
+    param([Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo)
+
+    $executableItem = Get-Item -LiteralPath $CommandInfo.Source -ErrorAction SilentlyContinue
+    if (-not $executableItem) {
+        return $CommandInfo.Source
+    }
+
+    $executableDirectoryItem = $executableItem.Directory
+    if ($executableDirectoryItem -and $executableDirectoryItem.LinkType) {
+        $resolvedDirectory = $executableDirectoryItem.ResolveLinkTarget($true)
+        if ($resolvedDirectory) {
+            return (Join-Path $resolvedDirectory.FullName $executableItem.Name)
+        }
+    }
+
+    return $executableItem.FullName
+}
+
+# Fingerprint "path estable|mtime ticks" del ejecutable de un comando.
+function Get-ExecutableFingerprint {
+    param([Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo)
+
+    $executableItem = Get-Item -LiteralPath $CommandInfo.Source -ErrorAction SilentlyContinue
+    $executableTicks = if ($executableItem) { $executableItem.LastWriteTimeUtc.Ticks } else { 0 }
+    return '{0}|{1}' -f (Get-StableExecutablePath -CommandInfo $CommandInfo), $executableTicks
+}
+
+# Devuelve el path del script cacheado, regenerándolo con $GenerateScriptText
+# cuando el fingerprint de la primera línea no coincide. El caller debe
+# dot-sourcear el path devuelto: el script se ejecuta fuera de esta función a
+# propósito, para no encerrar sus definiciones en el scope de la función.
+function Get-CachedInitScriptPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$CachePath,
+        [Parameter(Mandatory = $true)][string]$Fingerprint,
+        [Parameter(Mandatory = $true)][scriptblock]$GenerateScriptText
+    )
+
+    $fingerprintLine = "# init-script-fingerprint $Fingerprint"
+    $cacheIsFresh = (Test-Path -LiteralPath $CachePath) -and
+        ((Get-Content -LiteralPath $CachePath -TotalCount 1) -eq $fingerprintLine)
+
+    if (-not $cacheIsFresh) {
+        $scriptText = (& $GenerateScriptText)
+        if ([string]::IsNullOrWhiteSpace($scriptText)) {
+            throw "Init script generator for '$CachePath' returned no output"
+        }
+
+        $cacheDirectory = Split-Path -Parent $CachePath
+        if (-not (Test-Path -LiteralPath $cacheDirectory)) {
+            New-Item -ItemType Directory -Path $cacheDirectory -Force | Out-Null
+        }
+        Set-Content -LiteralPath $CachePath -Value ($fingerprintLine + [Environment]::NewLine + $scriptText) -Encoding utf8
+    }
+
+    return $CachePath
+}
+# --- Fin cache de scripts de init/completion -----------------------------------
+
 # Grep with color and exclusions
 function global:grep { & grep.exe --color=auto --exclude-dir=".bzr" --exclude-dir="CVS" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" --exclude-dir=".idea" --exclude-dir=".tox" --exclude-dir=".venv" --exclude-dir="venv" $args }
 function rg { & rg.exe --glob "!.git/*" $args }
@@ -18,7 +87,11 @@ function rg { & rg.exe --glob "!.git/*" $args }
 $zoxideCommand = Get-Command zoxide -ErrorAction SilentlyContinue
 if ($zoxideCommand) {
     try {
-        Invoke-Expression (& $zoxideCommand.Source init powershell | Out-String)
+        # Cache del init de zoxide: evita spawnear el binario (~30 ms) por arranque.
+        . (Get-CachedInitScriptPath `
+            -CachePath (Join-Path $env:LOCALAPPDATA 'PowerShell\zoxide-init-cache.ps1') `
+            -Fingerprint (Get-ExecutableFingerprint -CommandInfo $zoxideCommand) `
+            -GenerateScriptText { (& $zoxideCommand.Source init powershell) -join [Environment]::NewLine })
     } catch {
         Write-Warning "Unable to initialize zoxide: $($_.Exception.Message)"
     }
@@ -96,74 +169,6 @@ $script:ProfileScriptDirectory = if ($script:ProfileScriptRealItem) {
     $PSScriptRoot
 }
 $script:REPO_ROOT = (Resolve-Path (Join-Path $script:ProfileScriptDirectory '..\..')).Path
-
-# --- Cache de scripts de init/completion --------------------------------------
-# Spawnear un CLI (Node, Go) para generar su script de init o completion cuesta
-# 100-200 ms por arranque. Estos helpers cachean el script generado a disco y lo
-# regeneran solo cuando cambia el fingerprint (primera línea del archivo).
-
-# Path estable del ejecutable de un comando: si su directorio es un link (p.ej.
-# los multishell dirs por sesión de fnm), se resuelve al directorio real para
-# que el fingerprint no cambie entre sesiones.
-function Get-StableExecutablePath {
-    param([Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo)
-
-    $executableItem = Get-Item -LiteralPath $CommandInfo.Source -ErrorAction SilentlyContinue
-    if (-not $executableItem) {
-        return $CommandInfo.Source
-    }
-
-    $executableDirectoryItem = $executableItem.Directory
-    if ($executableDirectoryItem -and $executableDirectoryItem.LinkType) {
-        $resolvedDirectory = $executableDirectoryItem.ResolveLinkTarget($true)
-        if ($resolvedDirectory) {
-            return (Join-Path $resolvedDirectory.FullName $executableItem.Name)
-        }
-    }
-
-    return $executableItem.FullName
-}
-
-# Fingerprint "path estable|mtime ticks" del ejecutable de un comando.
-function Get-ExecutableFingerprint {
-    param([Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo)
-
-    $executableItem = Get-Item -LiteralPath $CommandInfo.Source -ErrorAction SilentlyContinue
-    $executableTicks = if ($executableItem) { $executableItem.LastWriteTimeUtc.Ticks } else { 0 }
-    return '{0}|{1}' -f (Get-StableExecutablePath -CommandInfo $CommandInfo), $executableTicks
-}
-
-# Devuelve el path del script cacheado, regenerándolo con $GenerateScriptText
-# cuando el fingerprint de la primera línea no coincide. El caller debe
-# dot-sourcear el path devuelto: el script se ejecuta fuera de esta función a
-# propósito, para no encerrar sus definiciones en el scope de la función.
-function Get-CachedInitScriptPath {
-    param(
-        [Parameter(Mandatory = $true)][string]$CachePath,
-        [Parameter(Mandatory = $true)][string]$Fingerprint,
-        [Parameter(Mandatory = $true)][scriptblock]$GenerateScriptText
-    )
-
-    $fingerprintLine = "# init-script-fingerprint $Fingerprint"
-    $cacheIsFresh = (Test-Path -LiteralPath $CachePath) -and
-        ((Get-Content -LiteralPath $CachePath -TotalCount 1) -eq $fingerprintLine)
-
-    if (-not $cacheIsFresh) {
-        $scriptText = (& $GenerateScriptText)
-        if ([string]::IsNullOrWhiteSpace($scriptText)) {
-            throw "Init script generator for '$CachePath' returned no output"
-        }
-
-        $cacheDirectory = Split-Path -Parent $CachePath
-        if (-not (Test-Path -LiteralPath $cacheDirectory)) {
-            New-Item -ItemType Directory -Path $cacheDirectory -Force | Out-Null
-        }
-        Set-Content -LiteralPath $CachePath -Value ($fingerprintLine + [Environment]::NewLine + $scriptText) -Encoding utf8
-    }
-
-    return $CachePath
-}
-# --- Fin cache de scripts de init/completion -----------------------------------
 
 # --- Codex unified (replica de lógica Zsh) ------------------------------------
 
@@ -2582,8 +2587,11 @@ function Update-MurilassoCiContext {
 
 # Mantiene actualizadas las env vars de PR/CI que consume murilasso.omp.json.
 function Update-MurilassoPromptContext {
-    $branch = & git rev-parse --abbrev-ref HEAD 2>$null
-    $repo = & git rev-parse --show-toplevel 2>$null
+    # Un solo spawn de git por render: rev-parse acepta ambos flags y devuelve
+    # una línea por flag (branch primero, toplevel después).
+    $gitPromptInfo = @(& git rev-parse --abbrev-ref HEAD --show-toplevel 2>$null)
+    $branch = if ($gitPromptInfo.Count -ge 1) { $gitPromptInfo[0] } else { $null }
+    $repo = if ($gitPromptInfo.Count -ge 2) { $gitPromptInfo[1] } else { $null }
 
     if ([string]::IsNullOrWhiteSpace($branch) -or $branch -eq 'HEAD' -or [string]::IsNullOrWhiteSpace($repo)) {
         Clear-MurilassoPrContext
@@ -2631,19 +2639,41 @@ $murilassoThemePath = Join-Path $script:ProfileScriptDirectory 'murilasso.omp.js
 $ohMyPoshCommand = Get-Command oh-my-posh -ErrorAction SilentlyContinue
 if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
     # Cache del init de Oh My Posh: `oh-my-posh init pwsh | Invoke-Expression`
-    # devuelve un one-liner que re-invoca el binario con --print en cada
-    # arranque (~170 ms). Se cachea el script real (salida de --print). El
-    # theme se lee en cada render del prompt, así que editar murilasso.omp.json
-    # no requiere regenerar; solo su path (embebido en el script) y el binario
-    # de omp forman el fingerprint.
+    # devuelve un one-liner que re-invoca el binario en cada arranque (~170 ms).
+    # Se cachea el script real (salida de --print). El theme se lee en cada
+    # render del prompt, así que editar murilasso.omp.json no requiere
+    # regenerar; el binario de omp, el path del theme y la versión del
+    # generador forman el fingerprint.
     $murilassoOmpInitCachePath = Join-Path $env:LOCALAPPDATA 'PowerShell\oh-my-posh-init-cache.ps1'
     $murilassoOmpInitialized = $false
     try {
-        $murilassoOmpFingerprint = '{0}|{1}' -f (Get-ExecutableFingerprint -CommandInfo $ohMyPoshCommand), $murilassoThemePath
+        # 'inline-config-v1' versiona el generador de abajo: cambiar su lógica
+        # debe bumpear el sufijo para invalidar caches ya generados.
+        $murilassoOmpFingerprint = '{0}|{1}|inline-config-v1' -f (Get-ExecutableFingerprint -CommandInfo $ohMyPoshCommand), $murilassoThemePath
         . (Get-CachedInitScriptPath `
             -CachePath $murilassoOmpInitCachePath `
             -Fingerprint $murilassoOmpFingerprint `
-            -GenerateScriptText { (& $ohMyPoshCommand.Source init pwsh --config $murilassoThemePath --print) -join [Environment]::NewLine })
+            -GenerateScriptText {
+                $ompInitScript = (& $ohMyPoshCommand.Source init pwsh --config $murilassoThemePath --print) -join [Environment]::NewLine
+
+                # El script de --print NO embebe el config: `oh-my-posh init`
+                # lo persiste en un mapping session-id -> config
+                # (pwsh.<id>.omp.cache) que el render consulta via
+                # POSH_SESSION_ID. Como este cache evita correr `init`, una
+                # sesión con id nuevo no tendría mapping y el render caería al
+                # theme default. Inyectar --config en cada invocación de render
+                # hace el script autosuficiente.
+                $shellFlagToken = '"--shell=$script:ShellName"'
+                if (-not $ompInitScript.Contains($shellFlagToken)) {
+                    throw "oh-my-posh --print output no longer contains the expected token $shellFlagToken; review the --config injection"
+                }
+                $ompInitScript.Replace($shellFlagToken, "'--config=$murilassoThemePath', $shellFlagToken")
+            })
+
+        # El script cacheado embebe el POSH_SESSION_ID de cuando se generó.
+        # Regenerarlo da a cada sesión su propio scope de cache de omp; el
+        # theme no depende del id porque el config va inline en cada render.
+        $env:POSH_SESSION_ID = [guid]::NewGuid().ToString()
         $murilassoOmpInitialized = $true
     } catch {
         # Cache corrupto o invalidación fallida: descartarlo y caer al init en
