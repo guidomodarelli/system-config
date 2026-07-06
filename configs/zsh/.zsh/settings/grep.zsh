@@ -8,6 +8,6 @@
 # Desventaja: la ruta /usr/local/opt/grep corresponde a Homebrew en Intel Mac.
 # En Apple Silicon la ruta correcta es /opt/homebrew/opt/grep/libexec/gnubin.
 # Si grep -P no funciona en Apple Silicon, agregar esa ruta aquí.
-if [[ $(uname) = "Darwin" ]]; then
+if [[ $CURRENT_OS = "Darwin" ]]; then
   export PATH="/usr/local/opt/grep/libexec/gnubin:$PATH"
 fi

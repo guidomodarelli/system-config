@@ -1,4 +1,4 @@
-CURRENT_OS=$(uname)
+CURRENT_OS=$(/usr/bin/uname)
 # Ensure PATH entries are unique (automatically removes duplicates)
 typeset -U PATH
 
@@ -15,7 +15,7 @@ export GOBIN="$GOPATH/bin"
 export GOROOT="/usr/local/go"
 
 ### GPG
-export GPG_TTY=$(tty)
+export GPG_TTY=$(/usr/bin/tty)
 
 ### pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"
