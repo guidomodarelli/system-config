@@ -44,15 +44,17 @@ source $ZSH/oh-my-zsh.sh
 
 # ---- Load the rest of user config ----
 # Source all .zsh files from ~/.zsh except the early-loaded completions.zsh y python.zsh
-if [ -d "$ZSH_HOME" ]; then
-  while read file; do
-    case "$(basename "$file")" in
-      completions.zsh|python.zsh)
-        continue
-        ;;
-    esac
-    fullpath=$(cd "$ZSH_HOME" && realpath "$file")
-
-    source "$fullpath"
-  done < <(cd "$ZSH_HOME" && find . -type f -name "*.zsh" -print | sort)
+if [[ -d "$ZSH_HOME" ]]; then
+  # Glob nativo de zsh (ordenado, sin fork de find/sort) + basename via ${cfg:t}
+  # y source directo (sin subshell cd+realpath por archivo). source sigue symlinks
+  # igual, así que realpath no aportaba nada. Anon function para no leakear $cfg.
+  () {
+    local cfg
+    for cfg in "$ZSH_HOME"/**/*.zsh(N); do
+      case "${cfg:t}" in
+        completions.zsh|python.zsh) continue ;;
+      esac
+      source "$cfg"
+    done
+  }
 fi
