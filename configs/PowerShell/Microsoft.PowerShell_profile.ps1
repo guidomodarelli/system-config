@@ -79,11 +79,23 @@ if ($opensslExecutablePath) {
     }
 }
 
-# Absolute repository root resolved via git anchored to this wrapper location.
-$script:REPO_ROOT = (& git -C $PSScriptRoot rev-parse --show-toplevel 2>$null)
-if ([string]::IsNullOrWhiteSpace($script:REPO_ROOT)) {
-    $script:REPO_ROOT = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
+# Absolute repository root derived from this profile's real location. $PROFILE
+# es un symlink (OneDrive\Documents\PowerShell) fuera del repo: `git -C` sobre
+# $PSScriptRoot fallaba siempre y el fallback `../..` apuntaba a OneDrive.
+# Resolver el symlink evita spawnear git y ancla al layout real del repo
+# (<repo>/configs/PowerShell).
+$script:ProfileScriptItem = Get-Item -LiteralPath $PSCommandPath -ErrorAction SilentlyContinue
+$script:ProfileScriptRealItem = if ($script:ProfileScriptItem -and $script:ProfileScriptItem.LinkType) {
+    $script:ProfileScriptItem.ResolveLinkTarget($true)
+} else {
+    $script:ProfileScriptItem
 }
+$script:ProfileScriptDirectory = if ($script:ProfileScriptRealItem) {
+    $script:ProfileScriptRealItem.DirectoryName
+} else {
+    $PSScriptRoot
+}
+$script:REPO_ROOT = (Resolve-Path (Join-Path $script:ProfileScriptDirectory '..\..')).Path
 
 # --- Codex unified (replica de lógica Zsh) ------------------------------------
 
@@ -2549,12 +2561,10 @@ function Update-MurilassoPromptContext {
     Update-MurilassoCiContext -Repo $repo -Branch $branch
 }
 
-# $PSScriptRoot apunta a la carpeta del symlink, no a la del repo. Resolvemos
-# el link para ubicar el theme junto al archivo real del profile.
-$murilassoProfileItem = Get-Item -LiteralPath $PSCommandPath -ErrorAction SilentlyContinue
-$murilassoResolvedProfile = if ($murilassoProfileItem) { $murilassoProfileItem.ResolveLinkTarget($true) } else { $null }
-$murilassoScriptDir = if ($murilassoResolvedProfile) { $murilassoResolvedProfile.DirectoryName } else { $PSScriptRoot }
-$murilassoThemePath = Join-Path $murilassoScriptDir 'murilasso.omp.json'
+# $PSScriptRoot apunta a la carpeta del symlink, no a la del repo. El profile ya
+# resolvió el link al inicio ($script:ProfileScriptDirectory); el theme vive
+# junto al archivo real del profile.
+$murilassoThemePath = Join-Path $script:ProfileScriptDirectory 'murilasso.omp.json'
 $ohMyPoshCommand = Get-Command oh-my-posh -ErrorAction SilentlyContinue
 if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
     try {

@@ -1,11 +1,9 @@
-# Absolute repository root resolved via git anchored to this wrapper location.
+# Absolute repository root derivado de la ubicación real de este wrapper
+# (<repo>/configs/zsh/.zsh/functions). `:A` ya resolvió el symlink, así que no
+# hace falta spawnear git en cada arranque de shell.
 _cx_wrapper_dir="${(%):-%x}"
 _cx_wrapper_dir="${_cx_wrapper_dir:A:h}"
-REPO_ROOT="$(command git -C "${_cx_wrapper_dir}" rev-parse --show-toplevel 2>/dev/null)"
-if [[ -z "${REPO_ROOT}" ]]; then
-  REPO_ROOT="${_cx_wrapper_dir:h:h:h:h}"
-fi
-REPO_ROOT="${REPO_ROOT:A}"
+REPO_ROOT="${_cx_wrapper_dir:h:h:h:h}"
 
 # Returns the built-in prompt used by `cx --commit`.
 _cx_commit_prompt() {
