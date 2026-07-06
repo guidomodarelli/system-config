@@ -376,10 +376,50 @@ function cxd {
     cx --yolo @args
 }
 
-if (Get-Command codex -ErrorAction SilentlyContinue) {
+$codexCommandInfo = Get-Command codex -ErrorAction SilentlyContinue
+if ($codexCommandInfo) {
     try {
-        $codexCompletionScript = (& codex completion powershell) -join [Environment]::NewLine
-        Invoke-Expression $codexCompletionScript
+        # Cache del completion de Codex: `codex completion powershell` spawnea
+        # el CLI de Node (~150 ms por arranque). El script generado se cachea a
+        # disco y se regenera solo cuando cambia el ejecutable detectado (path o
+        # mtime), usando un fingerprint en la primera línea del archivo.
+        $codexCompletionCachePath = Join-Path $env:LOCALAPPDATA 'PowerShell\codex-completion-cache.ps1'
+        $codexExecutableItem = Get-Item -LiteralPath $codexCommandInfo.Source -ErrorAction SilentlyContinue
+        $codexExecutableTicks = if ($codexExecutableItem) { $codexExecutableItem.LastWriteTimeUtc.Ticks } else { 0 }
+
+        # fnm expone codex bajo un multishell dir nuevo por sesión (junction al
+        # node real): el path crudo cambiaría el fingerprint en cada arranque.
+        # Resolver el junction del directorio ancla el fingerprint al path
+        # estable de la instalación.
+        $codexExecutableStablePath = $codexCommandInfo.Source
+        if ($codexExecutableItem) {
+            $codexExecutableDirectoryItem = $codexExecutableItem.Directory
+            if ($codexExecutableDirectoryItem -and $codexExecutableDirectoryItem.LinkType) {
+                $codexResolvedDirectory = $codexExecutableDirectoryItem.ResolveLinkTarget($true)
+                if ($codexResolvedDirectory) {
+                    $codexExecutableStablePath = Join-Path $codexResolvedDirectory.FullName $codexExecutableItem.Name
+                }
+            }
+        }
+        $codexCompletionFingerprint = '# codex-completion-fingerprint {0}|{1}' -f $codexExecutableStablePath, $codexExecutableTicks
+
+        $codexCompletionCacheIsFresh = (Test-Path -LiteralPath $codexCompletionCachePath) -and
+            ((Get-Content -LiteralPath $codexCompletionCachePath -TotalCount 1) -eq $codexCompletionFingerprint)
+
+        if (-not $codexCompletionCacheIsFresh) {
+            $codexCompletionScript = (& codex completion powershell) -join [Environment]::NewLine
+            if ([string]::IsNullOrWhiteSpace($codexCompletionScript)) {
+                throw 'codex completion powershell returned no output'
+            }
+
+            $codexCompletionCacheDirectory = Split-Path -Parent $codexCompletionCachePath
+            if (-not (Test-Path -LiteralPath $codexCompletionCacheDirectory)) {
+                New-Item -ItemType Directory -Path $codexCompletionCacheDirectory -Force | Out-Null
+            }
+            Set-Content -LiteralPath $codexCompletionCachePath -Value ($codexCompletionFingerprint + [Environment]::NewLine + $codexCompletionScript) -Encoding utf8
+        }
+
+        . $codexCompletionCachePath
     } catch {
         Write-Warning "Unable to load Codex PowerShell completion: $($_.Exception.Message)"
     }
