@@ -97,6 +97,74 @@ $script:ProfileScriptDirectory = if ($script:ProfileScriptRealItem) {
 }
 $script:REPO_ROOT = (Resolve-Path (Join-Path $script:ProfileScriptDirectory '..\..')).Path
 
+# --- Cache de scripts de init/completion --------------------------------------
+# Spawnear un CLI (Node, Go) para generar su script de init o completion cuesta
+# 100-200 ms por arranque. Estos helpers cachean el script generado a disco y lo
+# regeneran solo cuando cambia el fingerprint (primera línea del archivo).
+
+# Path estable del ejecutable de un comando: si su directorio es un link (p.ej.
+# los multishell dirs por sesión de fnm), se resuelve al directorio real para
+# que el fingerprint no cambie entre sesiones.
+function Get-StableExecutablePath {
+    param([Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo)
+
+    $executableItem = Get-Item -LiteralPath $CommandInfo.Source -ErrorAction SilentlyContinue
+    if (-not $executableItem) {
+        return $CommandInfo.Source
+    }
+
+    $executableDirectoryItem = $executableItem.Directory
+    if ($executableDirectoryItem -and $executableDirectoryItem.LinkType) {
+        $resolvedDirectory = $executableDirectoryItem.ResolveLinkTarget($true)
+        if ($resolvedDirectory) {
+            return (Join-Path $resolvedDirectory.FullName $executableItem.Name)
+        }
+    }
+
+    return $executableItem.FullName
+}
+
+# Fingerprint "path estable|mtime ticks" del ejecutable de un comando.
+function Get-ExecutableFingerprint {
+    param([Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo)
+
+    $executableItem = Get-Item -LiteralPath $CommandInfo.Source -ErrorAction SilentlyContinue
+    $executableTicks = if ($executableItem) { $executableItem.LastWriteTimeUtc.Ticks } else { 0 }
+    return '{0}|{1}' -f (Get-StableExecutablePath -CommandInfo $CommandInfo), $executableTicks
+}
+
+# Devuelve el path del script cacheado, regenerándolo con $GenerateScriptText
+# cuando el fingerprint de la primera línea no coincide. El caller debe
+# dot-sourcear el path devuelto: el script se ejecuta fuera de esta función a
+# propósito, para no encerrar sus definiciones en el scope de la función.
+function Get-CachedInitScriptPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$CachePath,
+        [Parameter(Mandatory = $true)][string]$Fingerprint,
+        [Parameter(Mandatory = $true)][scriptblock]$GenerateScriptText
+    )
+
+    $fingerprintLine = "# init-script-fingerprint $Fingerprint"
+    $cacheIsFresh = (Test-Path -LiteralPath $CachePath) -and
+        ((Get-Content -LiteralPath $CachePath -TotalCount 1) -eq $fingerprintLine)
+
+    if (-not $cacheIsFresh) {
+        $scriptText = (& $GenerateScriptText)
+        if ([string]::IsNullOrWhiteSpace($scriptText)) {
+            throw "Init script generator for '$CachePath' returned no output"
+        }
+
+        $cacheDirectory = Split-Path -Parent $CachePath
+        if (-not (Test-Path -LiteralPath $cacheDirectory)) {
+            New-Item -ItemType Directory -Path $cacheDirectory -Force | Out-Null
+        }
+        Set-Content -LiteralPath $CachePath -Value ($fingerprintLine + [Environment]::NewLine + $scriptText) -Encoding utf8
+    }
+
+    return $CachePath
+}
+# --- Fin cache de scripts de init/completion -----------------------------------
+
 # --- Codex unified (replica de lógica Zsh) ------------------------------------
 
 # Returns the built-in prompt used by `cx --commit`.
@@ -380,46 +448,11 @@ $codexCommandInfo = Get-Command codex -ErrorAction SilentlyContinue
 if ($codexCommandInfo) {
     try {
         # Cache del completion de Codex: `codex completion powershell` spawnea
-        # el CLI de Node (~150 ms por arranque). El script generado se cachea a
-        # disco y se regenera solo cuando cambia el ejecutable detectado (path o
-        # mtime), usando un fingerprint en la primera línea del archivo.
-        $codexCompletionCachePath = Join-Path $env:LOCALAPPDATA 'PowerShell\codex-completion-cache.ps1'
-        $codexExecutableItem = Get-Item -LiteralPath $codexCommandInfo.Source -ErrorAction SilentlyContinue
-        $codexExecutableTicks = if ($codexExecutableItem) { $codexExecutableItem.LastWriteTimeUtc.Ticks } else { 0 }
-
-        # fnm expone codex bajo un multishell dir nuevo por sesión (junction al
-        # node real): el path crudo cambiaría el fingerprint en cada arranque.
-        # Resolver el junction del directorio ancla el fingerprint al path
-        # estable de la instalación.
-        $codexExecutableStablePath = $codexCommandInfo.Source
-        if ($codexExecutableItem) {
-            $codexExecutableDirectoryItem = $codexExecutableItem.Directory
-            if ($codexExecutableDirectoryItem -and $codexExecutableDirectoryItem.LinkType) {
-                $codexResolvedDirectory = $codexExecutableDirectoryItem.ResolveLinkTarget($true)
-                if ($codexResolvedDirectory) {
-                    $codexExecutableStablePath = Join-Path $codexResolvedDirectory.FullName $codexExecutableItem.Name
-                }
-            }
-        }
-        $codexCompletionFingerprint = '# codex-completion-fingerprint {0}|{1}' -f $codexExecutableStablePath, $codexExecutableTicks
-
-        $codexCompletionCacheIsFresh = (Test-Path -LiteralPath $codexCompletionCachePath) -and
-            ((Get-Content -LiteralPath $codexCompletionCachePath -TotalCount 1) -eq $codexCompletionFingerprint)
-
-        if (-not $codexCompletionCacheIsFresh) {
-            $codexCompletionScript = (& codex completion powershell) -join [Environment]::NewLine
-            if ([string]::IsNullOrWhiteSpace($codexCompletionScript)) {
-                throw 'codex completion powershell returned no output'
-            }
-
-            $codexCompletionCacheDirectory = Split-Path -Parent $codexCompletionCachePath
-            if (-not (Test-Path -LiteralPath $codexCompletionCacheDirectory)) {
-                New-Item -ItemType Directory -Path $codexCompletionCacheDirectory -Force | Out-Null
-            }
-            Set-Content -LiteralPath $codexCompletionCachePath -Value ($codexCompletionFingerprint + [Environment]::NewLine + $codexCompletionScript) -Encoding utf8
-        }
-
-        . $codexCompletionCachePath
+        # el CLI de Node (~150 ms por arranque).
+        . (Get-CachedInitScriptPath `
+            -CachePath (Join-Path $env:LOCALAPPDATA 'PowerShell\codex-completion-cache.ps1') `
+            -Fingerprint (Get-ExecutableFingerprint -CommandInfo $codexCommandInfo) `
+            -GenerateScriptText { (& codex completion powershell) -join [Environment]::NewLine })
     } catch {
         Write-Warning "Unable to load Codex PowerShell completion: $($_.Exception.Message)"
     }
@@ -2597,9 +2630,34 @@ function Update-MurilassoPromptContext {
 $murilassoThemePath = Join-Path $script:ProfileScriptDirectory 'murilasso.omp.json'
 $ohMyPoshCommand = Get-Command oh-my-posh -ErrorAction SilentlyContinue
 if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
+    # Cache del init de Oh My Posh: `oh-my-posh init pwsh | Invoke-Expression`
+    # devuelve un one-liner que re-invoca el binario con --print en cada
+    # arranque (~170 ms). Se cachea el script real (salida de --print). El
+    # theme se lee en cada render del prompt, así que editar murilasso.omp.json
+    # no requiere regenerar; solo su path (embebido en el script) y el binario
+    # de omp forman el fingerprint.
+    $murilassoOmpInitCachePath = Join-Path $env:LOCALAPPDATA 'PowerShell\oh-my-posh-init-cache.ps1'
+    $murilassoOmpInitialized = $false
     try {
-        oh-my-posh init pwsh --config $murilassoThemePath | Invoke-Expression
+        $murilassoOmpFingerprint = '{0}|{1}' -f (Get-ExecutableFingerprint -CommandInfo $ohMyPoshCommand), $murilassoThemePath
+        . (Get-CachedInitScriptPath `
+            -CachePath $murilassoOmpInitCachePath `
+            -Fingerprint $murilassoOmpFingerprint `
+            -GenerateScriptText { (& $ohMyPoshCommand.Source init pwsh --config $murilassoThemePath --print) -join [Environment]::NewLine })
+        $murilassoOmpInitialized = $true
+    } catch {
+        # Cache corrupto o invalidación fallida: descartarlo y caer al init en
+        # vivo para no perder el prompt.
+        Remove-Item -LiteralPath $murilassoOmpInitCachePath -Force -ErrorAction SilentlyContinue
+        try {
+            oh-my-posh init pwsh --config $murilassoThemePath | Invoke-Expression
+            $murilassoOmpInitialized = $true
+        } catch {
+            Write-Warning "Unable to initialize Oh My Posh (murilasso): $($_.Exception.Message)"
+        }
+    }
 
+    if ($murilassoOmpInitialized) {
         # El hook Set-PoshContext de Oh My Posh vive DENTRO de su modulo dinamico
         # `oh-my-posh-core` y su `prompt` resuelve esa version del modulo, no un
         # override global. Por eso envolvemos el `prompt` de OMP: guardamos su
@@ -2616,8 +2674,6 @@ if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
             try { Update-MurilassoPromptContext } catch { }
             & $global:MurilassoOmpPrompt
         }
-    } catch {
-        Write-Warning "Unable to initialize Oh My Posh (murilasso): $($_.Exception.Message)"
     }
 }
 # --- Fin prompt murilasso ----------------------------------------------------
