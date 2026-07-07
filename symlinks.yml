@@ -9,6 +9,9 @@ paths:
   - path: zsh/.zshrc
     excludeFor:
       - platform: win32
+  - path: zsh/.zshenv
+    excludeFor:
+      - platform: win32
   - path: zsh/.oh-my-zsh/themes/murilasso.zsh-theme
     target: .oh-my-zsh/themes
     excludeFor:
