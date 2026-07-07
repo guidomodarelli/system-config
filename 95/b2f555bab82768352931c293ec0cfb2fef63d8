@@ -1,0 +1,27 @@
+configs/zsh/.zshenv
+  s_5435863943d473::t_455a46bef1ca85 1
+  s_5435863943d473::t_b3d1e98d29a708 2-7
+symlinks.yml
+  s_5435863943d473::t_82763277c5462c 12-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "95b2f555bab82768352931c293ec0cfb2fef63d8",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_5435863943d473": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b859d382-ba22-4e3c-b484-9665f9b3eb5f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
