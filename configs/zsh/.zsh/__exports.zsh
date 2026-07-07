@@ -1,6 +1,9 @@
 CURRENT_OS=$(/usr/bin/uname)
-# Ensure PATH entries are unique (automatically removes duplicates)
-typeset -U PATH
+# Ensure PATH entries are unique (automatically removes duplicates).
+# -g is required because this file is sourced inside an anonymous function
+# in .zshrc — without it, the unique constraint stays local to that scope
+# and all path+=() additions are lost when the function exits.
+typeset -gU PATH
 
 # =============================================================================
 # Shared (all platforms)
