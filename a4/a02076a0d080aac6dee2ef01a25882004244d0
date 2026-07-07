@@ -1,0 +1,14 @@
+configs/zsh/.zshrc
+  h_443c5ed0df6f00 59-109,111-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "a4a02076a0d080aac6dee2ef01a25882004244d0",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
