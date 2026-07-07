@@ -10,7 +10,7 @@ description: >
 compatibility: Requires Atlassian MCP and meli-claude-memory MCP. Designed for Claude Code.
 metadata:
   author: gmodarelli_meli
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Kraken JIRA Ticket
@@ -20,6 +20,31 @@ Create or update a ticket in the **SGP1 — Shipping Groot** project for work do
 
 > **NEVER run `git push` or any git upload command during this skill.**
 > Ticket management is independent of repository state.
+
+---
+
+## ⛔ MANDATORY FIELDS — every issue (parent AND every subtask)
+
+Every `createJiraIssue` and every `editJiraIssue` (when creating/completing an issue)
+**MUST** carry ALL of these. None is optional. There is no valid ticket without the three:
+
+| Field | Key | Value | Source |
+|---|---|---|---|
+| **Labels** | `labels` | `["kraken-user-role"]` | fixed |
+| **Quarter** | `customfield_18353` | `[{"id": "<option id>", "value": "<Qx/yy>"}]` | derived from `date +"%m %Y"` (Step 1) |
+| **Start date** | `customfield_12410` | `"YYYY-MM-DD"` | today (new) / parent's value (subtasks & updates) |
+
+Rules that are NOT negotiable:
+
+- **Never** create or finalize an issue with any of these three missing.
+- **Every subtask inherits all three** — same labels, same quarter, same start date as the parent.
+- Quarter is **always** resolved fresh from the system date — never from memory, never guessed.
+- Quarter uses the option-object shape `[{"id","value"}]` — never `[{"name":...}]`.
+- If you cannot resolve the quarter option id, **stop and resolve it** (Step 1) before creating anything.
+- The task is **not done** until Step 8 confirms all three fields on the parent and every subtask.
+
+Do not skip these because the diff is small, the user asked only for "a quick ticket",
+or the fields "seem obvious". They are enforced on 100% of issues.
 
 ---
 
@@ -248,15 +273,27 @@ same value as the parent ticket's start date, read from `getJiraIssue` in step 7
 
 ---
 
-## Step 8 — Validate parent and subtasks
+## Step 8 — Validate parent and subtasks (BLOCKING GATE)
 
-After creating or updating the parent and all subtasks, fetch every issue and verify:
+This step is mandatory and blocking. The task is **not complete** until it passes.
 
-- `labels` contains `kraken-user-role`
-- `customfield_18353` contains the derived quarter value
-- `customfield_12410` contains the expected start date
+After creating or updating the parent and all subtasks, fetch **every** issue
+(`getJiraIssue` on the parent and each subtask, in parallel) and verify on each one:
 
-If any field is missing, patch the affected issue before closing the task.
+- [ ] `labels` contains `kraken-user-role`
+- [ ] `customfield_18353` contains the derived quarter (correct `id` + `value`)
+- [ ] `customfield_12410` contains the expected start date
+
+If **any** field is missing or wrong on **any** issue, patch that issue with `editJiraIssue`
+and re-fetch to confirm. Do not close the task until all three checks pass on every issue.
+
+Report the result explicitly, e.g.:
+
+```
+Validation: SGP1-1234 (parent) ✓ label ✓ quarter Q3/26 ✓ start 2026-07-07
+            SGP1-1235 (subtask) ✓ label ✓ quarter Q3/26 ✓ start 2026-07-07
+            …
+```
 
 ---
 
@@ -293,9 +330,13 @@ for this ticket already exists. Then:
 
 - **NEVER** run `git push`, `git push --force`, or any git upload command.
 - Do not create a duplicate if a ticket already exists — update it instead.
+- **The three mandatory fields (labels, quarter, start date) go on EVERY issue — parent and every subtask. No exceptions.** See the "MANDATORY FIELDS" block at the top.
 - Label `kraken-user-role` is mandatory for every kraken ticket.
-- Quarter (`customfield_18353`) must always be set; derive it from `date +"%m %Y"` — never from memory.
+- Quarter (`customfield_18353`) must always be set; derive it from `date +"%m %Y"` — never from memory. Use the `[{"id","value"}]` shape.
+- Start date (`customfield_12410`) must always be set: today for new tickets, the parent's value for subtasks and updates.
+- Every subtask inherits the parent's labels, quarter, and start date — verify this, don't assume the API copies them.
+- Step 8 is a **blocking gate**: never close the task until all three fields are confirmed present on the parent and every subtask.
 - Description must be in **English** (ticket body); skill instructions are in Spanish.
 - On update: fetch parent + all subtasks before editing — never update from memory alone.
 - On update: run all `editJiraIssue` calls in parallel to minimize round-trips.
-- On update: only patch fields that actually changed — do not rewrite accurate content.
+- On update: only patch fields that actually changed — do not rewrite accurate content, but always re-verify the three mandatory fields survived.
