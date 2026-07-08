@@ -1,0 +1,26 @@
+configs/.agents/skills/my-skills/functionality-check/agents/openai.yaml
+  s_a2fe1afec9cd75::t_1d83b270241d5a 3-4
+configs/.agents/skills/my-skills/functionality-check/SKILL.md
+  s_a2fe1afec9cd75::t_1d83b270241d5a 3,8,10,12-17,21-154,156-166,168,170,172,174,176,178,180,182,184,186,188,190,192,194,196,198,200
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "166d9a33258cd88ffd89b4700baff9356f616141",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_a2fe1afec9cd75": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f42d0-1f0a-79b1-a2b3-555f26d18566",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
