@@ -1,4 +1,4 @@
 interface:
   display_name: "Functionality Check"
-  short_description: "Check if functionality exists in codebase"
-  default_prompt: "Use $functionality-check to determine if a specific feature from a spec/draft is already implemented in the current codebase."
+  short_description: "Verify feature coverage with evidence"
+  default_prompt: "Use $functionality-check to map this specification to reachable code, classify coverage, and cite exact evidence and gaps."
