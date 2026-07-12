@@ -29,6 +29,12 @@ alwaysApply: false
 - Nunca mockear componentes importados desde `@andes` en tests (`andes-no-mock-components`, severidad error). Solo se permite por pedido explícito del usuario o imposibilidad técnica justificada; en esos casos, explicar por qué el mock es necesario y mantenerlo lo más acotado posible.
 - No usar `jest.mock`, `jest.doMock`, `jest.unmock` ni `jest.dontMock` sobre estas dependencias: los tests deben ejercer la integración real o aislarse en un borde propio del proyecto.
 
+## Validación Centralizada Con Schema Middleware
+
+- Validar request params/query/body una sola vez por ruta en un schema validation middleware (p. ej. `schemaValidationMiddleware`); no duplicar esa validación dentro de los handlers.
+- En los handlers, usar los valores ya validados directamente y dejar solo los chequeos de reglas de negocio que el schema no puede expresar.
+- Aplicar el mismo enfoque de validación de forma consistente en todas las rutas del módulo.
+
 ## Validación Mínima Para Repositorios En `~/ghq/work/`
 
 Antes de cerrar una respuesta o cambio, confirmar que:

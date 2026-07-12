@@ -123,6 +123,11 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Al wrappear/rethrow, adjuntar el error original como `cause`. Sin silent failures: no swallow sin fallback deliberado y log con contexto.
 - Si el mismo error se usa en varios lugares, centralizar la construcción del mensaje en un helper.
 
+### Manejo de errores en SSR (`getServerSideProps`)
+- Envolver cada llamada a API dentro de `getServerSideProps` en try/catch; nunca dejar un throw sin manejo que corte el render SSR.
+- Ante un fallo, loggear el error en server logs sin exponer detalles al usuario y devolver props controladas (valores por defecto o flag de error).
+- La UI debe renderizar un fallback simple y orientado a la acción cuando hay error o datos vacíos.
+
 ## Ubicación de habilidades (AgentSkills)
 - Mis **AgentSkills** están en: `~/.agents/skills`.
 
