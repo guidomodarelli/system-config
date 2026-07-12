@@ -123,6 +123,10 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Al wrappear/rethrow, adjuntar el error original como `cause`. Sin silent failures: no swallow sin fallback deliberado y log con contexto.
 - Si el mismo error se usa en varios lugares, centralizar la construcción del mensaje en un helper.
 
+### Errores en UI
+- Validar inputs y props antes de renderizar o usarlos; ante datos inválidos, renderizar un fallback en vez de romper el render.
+- Agregar tests automatizados que cubran escenarios de error y el fallback UI.
+
 ### Manejo de errores en SSR (`getServerSideProps`)
 - Envolver cada llamada a API dentro de `getServerSideProps` en try/catch; nunca dejar un throw sin manejo que corte el render SSR.
 - Ante un fallo, loggear el error en server logs sin exponer detalles al usuario y devolver props controladas (valores por defecto o flag de error).
