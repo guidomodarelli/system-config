@@ -2,21 +2,16 @@
 name: kraken-jira-ticket
 description: >
   Creates or updates a JIRA ticket (parent + subtasks) in the Kraken / Shipping Groot project
-  (SGP1) for work done in fury_kraken-auth-admin-fe. On create: builds ticket and subtasks from
-  the git diff. On update: fetches current parent and all subtasks, re-reads the diff, and
-  patches only what has drifted (title, description, subtask titles, subtask descriptions),
-  creating missing subtasks when needed. Use when the user asks to create, update, or sync
-  a JIRA ticket for changes in the kraken-auth-admin-fe repository.
-compatibility: Requires Atlassian MCP and meli-claude-memory MCP. Designed for Claude Code.
-metadata:
-  author: gmodarelli_meli
-  version: "1.1"
+  (SGP1) for work from any Git repository. Discovers repository identity and default branch,
+  builds ticket scope from the branch diff, creates or synchronizes parent and subtasks, and
+  validates mandatory SGP1 fields. Use when the user asks to create, update, or sync a Kraken
+  JIRA ticket from current repository changes.
 ---
 
 # Kraken JIRA Ticket
 
-Create or update a ticket in the **SGP1 — Shipping Groot** project for work done in
-`fury_kraken-auth-admin-fe`.
+Create or update a ticket in **SGP1 — Shipping Groot** from current Git repository changes.
+Requires Atlassian MCP and memory MCP.
 
 > **NEVER run `git push` or any git upload command during this skill.**
 > Ticket management is independent of repository state.
@@ -48,9 +43,29 @@ or the fields "seem obvious". They are enforced on 100% of issues.
 
 ---
 
-## Step 1 — Project config (fixed) + derive quarter from system date
+## Step 1 — Resolve repository context, fixed JIRA config, and quarter
 
-The project config for kraken-auth-admin-fe is fixed — no need to search memory for it:
+Resolve repository root and identifiers before reading diffs or creating tickets:
+
+```bash
+REPO_ROOT=$(git rev-parse --show-toplevel)
+BASE_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
+```
+
+If remote HEAD is unavailable, choose first existing branch in this order: `develop`, `main`,
+`master`. Stop and ask only when none exists.
+
+Resolve `repository_id` in this order:
+
+1. Non-empty `application_name` from `<repo-root>/.fury`.
+2. `name` from `<repo-root>/package.json`, removing npm scope when present.
+3. Git root directory basename, removing a leading `fury_` or `fury-`.
+
+Use `repository_id` for JIRA summary prefix (`[<repository_id>]`) and memory project. Never
+hardcode a repository name and never ask for confirmation only because repository differs from
+previous skill executions.
+
+SGP1 config is fixed:
 
 | Field | Value |
 |---|---|
@@ -95,7 +110,10 @@ Do not use `[{ "name": "<quarter>" }]`; JIRA ignores that shape for this field.
 Search memory for a recent ticket on the same branch or feature:
 
 ```
-search_episodic_memories(query="jira ticket <branch-or-feature-name> SGP1 kraken")
+search_episodic_memories(
+  query="jira ticket <repository_id> <branch-or-feature-name> SGP1 kraken",
+  project="<repository_id>"
+)
 ```
 
 - If a ticket already exists and its description is **incomplete or outdated**, update it with
@@ -106,21 +124,27 @@ search_episodic_memories(query="jira ticket <branch-or-feature-name> SGP1 kraken
 
 ## Step 3 — Gather the git diff
 
-Run in parallel:
+Run in parallel with resolved `BASE_BRANCH`:
 
 ```bash
-git log develop..HEAD --oneline   # to understand scope — do NOT copy into the ticket
-git diff develop..HEAD --stat
-grep -E '"[a-z-]+":\s*"[0-9]' package.json | head -20  # read real dependency versions
+git log "$BASE_BRANCH"..HEAD --oneline
+git diff "$BASE_BRANCH"..HEAD --stat
+git diff "$BASE_BRANCH"..HEAD --name-only
+test -f package.json && grep -E '"[a-z-]+":\s*"[0-9]' package.json | head -20
 ```
 
-Always read version numbers from `package.json` directly — never copy them from commit messages.
+Use commits only to understand scope; never copy commit lists into ticket. Read version numbers
+from manifest files directly, never from commit messages.
 
-Then read the key changed files to understand what was built. Focus on:
-- `view.js` / `controller.js` — new UI surfaces, permission flags, conditional renders
-- `styles.scss` — new CSS classes and layout changes
-- `i18n/*/messages.po` — new user-facing labels
-- `*.spec.js` — test coverage added
+Read representative changed files by responsibility:
+
+- Production code: components, routes, controllers, services, hooks, utilities, configuration.
+- Presentation: styles, templates, stories, assets, user-facing copy.
+- Contracts: public types, schemas, API definitions, manifests, migrations.
+- Validation: unit, integration, E2E tests, fixtures, snapshots.
+- Documentation and release metadata when changed.
+
+Do not assume framework, language, folder layout, or package manager from repository name.
 
 ---
 
@@ -128,11 +152,9 @@ Then read the key changed files to understand what was built. Focus on:
 
 ### Summary format
 
-```
-[auth-admin-fe] <concise imperative description of the main change>
-```
+`[<repository_id>] <concise imperative description of the main change>`
 
-Example: `[auth-admin-fe] Add corporate information accordion to userSharedDetail sidebar`
+Example: `[groot-ui] Unify search debounce defaults at 500 ms`
 
 ### Description structure (markdown)
 
@@ -144,7 +166,7 @@ Example: `[auth-admin-fe] Add corporate information accordion to userSharedDetai
 
 ## Changes
 
-### <Area 1> (e.g. Desktop sidebar, Mobile panel, Corporate accordion…)
+### <Area 1>
 - <bullet per meaningful change>
 
 ### <Area 2>
@@ -167,7 +189,7 @@ createJiraIssue(
   cloudId:          "a55c251b-e222-488f-8975-3ccdf0a0db6f",
   projectKey:       "SGP1",
   issueTypeName:    "Task",
-  summary:          "[auth-admin-fe] …",
+  summary:          "[<repository_id>] …",
   description:      "…",
   contentFormat:    "markdown",
   assignee_account_id: "712020:8300527c-0cb7-4412-8303-0306dac20649",
@@ -188,12 +210,14 @@ state, comparing against the diff, and updating parent + subtasks in the correct
 
 ## Step 6 — Create subtasks (new tickets only)
 
-After creating the parent ticket, identify the natural work units from the diff and create
-one subtask per area. Typical split for kraken-auth-admin-fe:
+After creating parent, identify natural work units from actual diff and create one subtask per
+cohesive area. Common splits:
 
-- One subtask per major UI surface or feature area (sidebar, accordion, mobile panel, badges…).
-- One subtask for dependency bumps if any.
-- One subtask for tests covering all the above.
+- One subtask per independent production-code area or public behavior.
+- One subtask for contract, configuration, migration, or dependency work when substantial.
+- One subtask for tests and documentation when they form meaningful work units.
+
+Avoid empty bookkeeping subtasks and avoid assuming UI work.
 
 Each subtask must inherit **the same labels, quarter, and start date** as the parent:
 
@@ -318,7 +342,7 @@ for this ticket already exists. Then:
 - **If no entry exists** — call `store_note` or the episodic store with:
   - `title`: `"Ticket JIRA <KEY> para <feature>"`
   - `result`: `"Ticket <KEY> created|updated. Summary: … Subtasks: SGP1-XXXX, … Status: In Progress."`
-  - `project`: `"kraken-auth-admin-fe"`
+  - `project`: `"<repository_id>"`
   - `tags`: `["feature", "change"]`
 
 - **If an entry already exists** — update it with the new summary, subtask keys, and status
@@ -337,6 +361,8 @@ for this ticket already exists. Then:
 - Every subtask inherits the parent's labels, quarter, and start date — verify this, don't assume the API copies them.
 - Step 8 is a **blocking gate**: never close the task until all three fields are confirmed present on the parent and every subtask.
 - Description must be in **English** (ticket body); skill instructions are in Spanish.
+- Repository identity, base branch, file layout, language, and framework must be discovered from
+  current checkout; none may be hardcoded.
 - On update: fetch parent + all subtasks before editing — never update from memory alone.
 - On update: run all `editJiraIssue` calls in parallel to minimize round-trips.
 - On update: only patch fields that actually changed — do not rewrite accurate content, but always re-verify the three mandatory fields survived.
