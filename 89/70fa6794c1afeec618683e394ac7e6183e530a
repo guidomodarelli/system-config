@@ -1,0 +1,24 @@
+configs/zsh/.zsh/settings/python.zsh
+  s_7a598c29e26b8a::t_25faccd2155d8a 33-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "8970fa6794c1afeec618683e394ac7e6183e530a",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_7a598c29e26b8a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f604f-14a9-7581-9a77-33a554320ab9",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
