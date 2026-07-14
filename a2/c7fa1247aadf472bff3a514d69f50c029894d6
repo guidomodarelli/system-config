@@ -1,0 +1,34 @@
+configs/.codex/config.toml
+  s_085911d4590ab3::t_7e90480d6b2a76 69-74,77-78,88-92,100,102-110,132-146,149-150
+  h_443c5ed0df6f00 66-68,75-76,79-87
+  s_b218e8f3ddb29b::t_95ea9d4f6c29e9 101,111-112,147-148,151-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "a2c7fa1247aadf472bff3a514d69f50c029894d6",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_085911d4590ab3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ef465-802b-7ec2-8cb2-2fd32c8ad876",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    },
+    "s_b218e8f3ddb29b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f608f-3c04-72d1-aac0-e894401a9458",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
