@@ -8,111 +8,14 @@ sandbox_mode = "danger-full-access"
 
 approvals_reviewer = "auto_review"
 
-[features]
-# Habilita modos de colaboración como plan mode.Beneficio: ayuda a que Codex
-# trabaje con modos más estructurados para planificar antes de ejecutar.
-collaboration_modes = true
-prevent_idle_sleep = true
-# =============================================================================
-# Beta features below (use with caution)
-# =============================================================================
-# Sirve para capturar el entorno del shell y acelerar comandos repetidos. La
-# docs la describen como una forma de “snapshot your shell environment to speed
-# up repeated commands”.
-#
-# Beneficia más cuando trabajás en repos con muchos
-# comandos iterativos, shells con bastante inicialización, o sesiones largas.
-#
-# Mi recomendación: sí la usaría en local, salvo que notes comportamientos raros
-# con variables de entorno que cambian mucho durante la sesión.
-shell_snapshot = true
-# Usa la herramienta de ejecución unificada basada en PTY (beta).
-#
-# Activa el exec unificado basado en PTY. Está marcado como Beta. Beneficio
-# esperado: una ejecución de comandos más consistente y cercana a un terminal
-# real, útil en flujos donde el comportamiento interactivo del shell importa. Mi
-# recomendación: vale la pena probarlo, sobre todo si usás mucho terminal dentro
-# de Codex; si todo te funciona bien sin esto, tampoco es imprescindible.
-unified_exec = true
-# ==============================================================================
-# Experimental features below (use with caution)
-# ==============================================================================
-# https://developers.openai.com/codex/multi-agent
-#
-# Activa herramientas de multi-agente como spawn_agent, send_input,
-# resume_agent, wait, close_agent y spawn_agents_on_csv. Las docs aclaran que
-# los flujos multi-agente son experimentales y que hoy la visibilidad está
-# centrada en CLI.
-#
-# Beneficio: paralelizar revisiones complejas, dividir un PR en varios análisis
-# o procesar lotes.
-#
-# Mi recomendación: sí, pero solo si realmente vas a paralelizar trabajo; para
-# uso diario simple, no hace falta. Codex handles orchestration across agents,
-# including spawning new sub-agents, routing follow-up instructions, waiting for
-# results, and closing agent threads.
-multi_agent = true
-default_mode_request_user_input = false
-responses_websockets = true
-terminal_resize_reflow = true
-goals = true
-hooks = true
-memories = true
-mentions_v2 = false
-js_repl = false
-
-[memories]
-disable_on_external_context = false
-generate_memories = false
-use_memories = false
-
-[model_providers.meli]
-base_url = "https://genai-agentic.melioffice.com/proxy/openai/v1"
-env_key = "MELI_API_KEY"
-name = "Meli"
-wire_api = "responses"
-
-[model_providers.meli.http_headers]
-X-GenAI-Agentic = "codex-cli"
-
-[plugins."meli-frontend-web@tech-plugins-marketplace"]
-enabled = true
-
-[plugins."meli-claude-memory@tech-plugins-marketplace"]
-enabled = true
-
-[tui]
-notification_method = "osc9"
-notifications = [
-  "agent-turn-complete",
-  "user-input-requested",
-    "approval-requested",
-]
-status_line = [
-    "model-with-reasoning",
-    "git-branch",
-    "pull-request-number",
-    "task-progress",
-    "project-name",
-    "context-remaining",
-    "run-state",
-]
-status_line_use_colors = true
-theme = "two-dark"
-
-[tui.model_availability_nux]
-"gpt-5.5" = 4
-
-[windows]
-sandbox = "elevated"
-
 [desktop]
+ambient-suggestions-enabled = true
 appearanceDarkCodeThemeId = "github"
 appearanceLightCodeThemeId = "one"
 appearanceTheme = "system"
 composerEnterBehavior = "enter"
 conversationDetailMode = "STEPS_COMMANDS"
-followUpQueueMode = "queue"
+followUpQueueMode = "steer"
 git-branch-prefix = "feature/"
 git-create-pull-request-as-draft = true
 git-pull-request-merge-method = "merge"
@@ -123,8 +26,9 @@ notifications-turn-mode = "always"
 preventSleepWhileRunning = true
 reviewDelivery = "detached"
 selected-avatar-id = "codex"
-usePointerCursors = true
 show-context-window-usage = true
+usePointerCursors = true
+dock-icon-preference = "codex-system"
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#1f6feb"
@@ -159,8 +63,33 @@ skill = "#526fff"
 [desktop.open-in-target-preferences]
 global = "vscode"
 
-
-[plugins."documents@openai-primary-runtime"]
+[features]
+# Habilita modos de colaboración como plan mode.
+#
+# Beneficio: ayuda a que Codex trabaje con modos más estructurados para
+# planificar antes de ejecutar.
+collaboration_modes = true
+default_mode_request_user_input = false
+goals = false
+hooks = true
+js_repl = false
+memories = true
+mentions_v2 = true
+multi_agent = false
+prevent_idle_sleep = true
+responses_websockets = true
+# Sirve para capturar el entorno del shell y acelerar comandos repetidos. La
+# docs la describen como una forma de “snapshot your shell environment to speed
+# up repeated commands”.
+#
+# Beneficia más cuando trabajás en repos con muchos comandos iterativos, shells
+# con bastante inicialización, o sesiones largas.
+#
+# Mi recomendación: sí la usaría en local, salvo que notes comportamientos raros
+# con variables de entorno que cambian mucho durante la sesión.
+shell_snapshot = true
+terminal_resize_reflow = true
+plugin_hooks = true
 enabled = true
 
 [plugins."spreadsheets@openai-primary-runtime"]
@@ -168,6 +97,19 @@ enabled = true
 
 [plugins."presentations@openai-primary-runtime"]
 enabled = true
+[memories]
+disable_on_external_context = false
+generate_memories = false
+use_memories = false
+
+[model_providers.meli]
+base_url = "https://genai-agentic.melioffice.com/proxy/openai/v1"
+env_key = "MELI_API_KEY"
+name = "Meli"
+wire_api = "responses"
+
+[model_providers.meli.http_headers]
+X-GenAI-Agentic = "codex-cli"
 
 [plugins."browser-use@openai-bundled"]
 enabled = true
@@ -187,10 +129,31 @@ enabled = true
 [plugins."browser@openai-bundled"]
 enabled = true
 
-[mcp_servers.memory]
-command = "cmd"
-args = ["/c", "npx", "-y", "@modelcontextprotocol/server-memory"]
-startup_timeout_sec = 120
+[tui]
+notification_method = "osc9"
+notifications = [
+    "agent-turn-complete",
+    "user-input-requested",
+    "approval-requested",
+]
+status_line = [
+    "model-with-reasoning",
+    "git-branch",
+    "pull-request-number",
+    "task-progress",
+    "project-name",
+    "context-remaining",
+    "run-state",
+]
+status_line_use_colors = true
+theme = "two-dark"
 
-[mcp_servers.memory.env]
-MEMORY_FILE_PATH = 'C:\Users\guido\.mcp-memory\memory.json'
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+"gpt-5.6-sol" = 1
+
+[windows]
+sandbox = "unelevated"
+
+[notice.model_migrations]
+"gpt-5.5" = "gpt-5.6-sol"
