@@ -30,6 +30,6 @@ _pyenv_auto_rehash() {
   return $exit_code
 }
 
-pip()  { _pyenv_auto_rehash pip  "$@"; }
-pip3() { _pyenv_auto_rehash pip3 "$@"; }
-pipx() { _pyenv_auto_rehash pipx "$@"; }
+function pip  { _pyenv_auto_rehash pip  "$@"; }
+function pip3 { _pyenv_auto_rehash pip3 "$@"; }
+function pipx { _pyenv_auto_rehash pipx "$@"; }
