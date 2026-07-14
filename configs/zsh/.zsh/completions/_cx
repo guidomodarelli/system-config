@@ -12,9 +12,12 @@
 : "${CX_FZF_HEIGHT:=20%}"   # Altura de fzf (override: export CX_FZF_HEIGHT=40%)
 
 _cx_models() {
-  echo "gpt-5.5
+  echo "gpt-5.6-sol
+gpt-5.6-terra
+gpt-5.6-luna
+gpt-5.5
 gpt-5.4
-gpt-5.3-codex"
+gpt-5.4-mini"
 }
 
 _cx_reasoning() {
