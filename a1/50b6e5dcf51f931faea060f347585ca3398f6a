@@ -1,0 +1,28 @@
+configs/PowerShell/Microsoft.PowerShell_profile.ps1
+  s_ef8ab2f83b8197::t_effef8686e27dd 478-480
+  s_ef8ab2f83b8197::t_087ed86db66eee 483
+configs/zsh/.zsh/completions/_cx
+  s_ef8ab2f83b8197::t_474d0d6e43dd09 15,18
+  s_ef8ab2f83b8197::t_effef8686e27dd 16-17,20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "a150b6e5dcf51f931faea060f347585ca3398f6a",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_ef8ab2f83b8197": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f619d-7f51-7c53-abd3-4457345e0ba2",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
