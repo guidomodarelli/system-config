@@ -1,0 +1,12 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "5928932dcd8e68197fda57925d2c8b0f04875ddf",
+  "prompts": {},
+  "humans": {
+    "h_443c5ed0df6f00": {
+      "author": "Guido Modarelli <guidomodarelli25@gmail.com>"
+    }
+  }
+}
