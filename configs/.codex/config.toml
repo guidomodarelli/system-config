@@ -102,15 +102,6 @@ disable_on_external_context = false
 generate_memories = false
 use_memories = false
 
-[model_providers.meli]
-base_url = "https://genai-agentic.melioffice.com/proxy/openai/v1"
-env_key = "MELI_API_KEY"
-name = "Meli"
-wire_api = "responses"
-
-[model_providers.meli.http_headers]
-X-GenAI-Agentic = "codex-cli"
-
 [plugins."browser-use@openai-bundled"]
 enabled = true
 
