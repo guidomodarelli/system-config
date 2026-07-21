@@ -1,7 +1,7 @@
 ---
 name: user-manual
 description: >
-  Generates a self-contained .htm user manual (never .html) from a git branch diff, written
+  Generates a self-contained .html user manual (never .htm) from a git branch diff, written
   as a user story for non-technical readers. Uses the Heritage Spec design system defined in
   /Users/gmodarelli/system-config/configs/.agents/DESIGN.md. Documents UI visibility rules
   driven by permissions, roles, and user context (Shipping, external LDAP, etc.). Use when
@@ -15,7 +15,7 @@ metadata:
 
 # User Manual Generator
 
-Produce a `.htm` file (never `.html`) from the diff of the current branch vs a base (default
+Produce a `.html` file (never `.htm`) from the diff of the current branch vs a base (default
 `develop`), written as a user story manual for non-technical readers. The visual system is
 Heritage Spec — read it in full from:
 
@@ -91,15 +91,15 @@ Adjust sections when the diff is small — skip sections that have nothing to sa
 
 ---
 
-## Step 4 — Write the HTM
+## Step 4 — Write the HTML
 
 ### Output file
 
-Always write the file to `user-guides/<feature-slug>.htm` under the project root, where
+Always write the file to `user-guides/<feature-slug>.html` under the project root, where
 `feature-slug` is derived from the branch name or the main feature described
-(e.g. `user-guides/user-detail-sidebar.htm`). Ask the user if the slug is unclear.
+(e.g. `user-guides/user-detail-sidebar.html`). Ask the user if the slug is unclear.
 
-Before writing the HTM, ensure the `user-guides/` folder is ignored by git:
+Before writing the HTML, ensure the `user-guides/` folder is ignored by git:
 
 ```bash
 # Check whether the gitignore guard already exists
@@ -174,13 +174,13 @@ After writing, cross-check against the diff:
 - No fabricated behavior — only what the code actually does.
 - The `<code>` for permission flags in the table matches the exact identifier in the source.
 
-If a discrepancy is found, fix the HTM before reporting done.
+If a discrepancy is found, fix the HTML before reporting done.
 
 ---
 
 ## Output checklist
 
-- [ ] File is `.htm` (not `.html`).
+- [ ] File is `.html` (not `.htm`).
 - [ ] Placed under `user-guides/` in the project root.
 - [ ] `user-guides/.gitignore` exists and contains exactly `*`.
 - [ ] All CSS is inline — no external deps beyond Google Fonts.
