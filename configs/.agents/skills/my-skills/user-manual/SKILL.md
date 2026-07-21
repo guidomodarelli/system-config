@@ -3,7 +3,7 @@ name: user-manual
 description: >
   Generates a self-contained .html user manual (never .htm) from a git branch diff, written
   as a user story for non-technical readers. Uses the Heritage Spec design system defined in
-  /Users/gmodarelli/system-config/configs/.agents/DESIGN.md. Documents UI visibility rules
+  ~/system-config/configs/.agents/DESIGN.md. Documents UI visibility rules
   driven by permissions, roles, and user context (Shipping, external LDAP, etc.). Use when
   the user asks to document the changes on a branch, create a user manual for a feature,
   or explain what changed for a non-technical audience.
@@ -20,7 +20,7 @@ Produce a `.html` file (never `.htm`) from the diff of the current branch vs a b
 Heritage Spec — read it in full from:
 
 ```
-/Users/gmodarelli/system-config/configs/.agents/DESIGN.md
+~/system-config/configs/.agents/DESIGN.md
 ```
 
 Read that file **before** writing a single line of HTML. Every color, font, spacing, and
