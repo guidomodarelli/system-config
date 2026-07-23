@@ -278,6 +278,17 @@ createJiraIssue(
 Create all subtasks in parallel. Subtask descriptions follow the same structure as the
 parent (Overview optional, Changes bullets, no commit list).
 
+After creating parent and subtasks, display the created tickets as a summary table:
+
+```
+| # | Key | Type | Summary |
+|---|---|---|---|
+| 1 | [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | 📋 Parent | [groot-ui] Unify search debounce defaults at 500 ms |
+| 2 | [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | 📎 Subtask | Add debounce utility with configurable delay |
+| 3 | [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | 📎 Subtask | Update search components to use shared debounce |
+| 4 | [SGP1-1237](https://mercadolibre.atlassian.net/browse/SGP1-1237) | 📎 Subtask | Add unit tests for debounce behavior |
+```
+
 ---
 
 ## Step 7 — Update existing ticket (update path only)
@@ -331,6 +342,19 @@ using the same fields as Step 6: `issueTypeName: "Sub-task"`, `parent`, `labels:
 `customfield_18353` (quarter option id/value from system date), and `customfield_12410` (start date —
 same value as the parent ticket's start date, read from `getJiraIssue` in step 7a).
 
+After updating/creating, display all tickets (updated and new) as a summary table:
+
+```
+| # | Key | Type | Action | Summary |
+|---|---|---|---|---|
+| 1 | [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | 📋 Parent | ✏️ Updated | [groot-ui] Unify search debounce defaults at 500 ms |
+| 2 | [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | 📎 Subtask | ✏️ Updated | Add debounce utility with configurable delay |
+| 3 | [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | 📎 Subtask | — No change | Update search components to use shared debounce |
+| 4 | [SGP1-1237](https://mercadolibre.atlassian.net/browse/SGP1-1237) | 📎 Subtask | 🆕 Created | Add integration tests for debounce edge cases |
+```
+
+Use `✏️ Updated` for modified issues, `🆕 Created` for new ones, `— No change` for untouched.
+
 ---
 
 ## Step 8 — Validate parent and subtasks (BLOCKING GATE)
@@ -353,9 +377,9 @@ Report the result as a markdown table:
 ```
 | Issue | Type | Label | PR Label | Quarter | Start Date |
 |---|---|---|---|---|---|
-| SGP1-1234 | parent | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
-| SGP1-1235 | subtask | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
-| SGP1-1236 | subtask | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
+| [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | parent | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
+| [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | subtask | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
+| [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | subtask | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
 ```
 
 Use ✅ for present/correct, ❌ for missing/wrong. When no PR number was provided, show `➖` in the PR Label column.
