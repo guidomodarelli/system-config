@@ -409,18 +409,33 @@ Skip this step when updating an existing ticket already in progress.
 
 ---
 
-## Step 9b — Update PR description with Jira link (when PR number/link was provided)
+## Step 9b — Update PR description with Jira link (MANDATORY when PR number/link was provided)
 
-After creating or updating the ticket, prepend the Jira link to the PR description body
-(right after the title line), without modifying any existing content:
+After creating or updating the ticket, insert the Jira link into the PR description body
+immediately after the first heading (title line), without modifying any other content.
 
-```bash
-gh pr edit <PR_NUMBER> --body "$(printf '🎫 Jira: [<KEY>](https://mercadolibre.atlassian.net/browse/<KEY>)\n\n%s' "$(gh pr view <PR_NUMBER> --json body -q .body)")"
+This step is **mandatory** — do not skip it when a PR number or link was provided.
+
+1. Read current PR body: `gh pr view <PR_NUMBER> --json body -q .body`
+2. If the body already contains the Jira link → skip.
+3. Find the first line that starts with `#` (the main title/heading).
+4. Insert `🎫 Jira: [<KEY>](https://mercadolibre.atlassian.net/browse/<KEY>)` on the **very next line** after that heading (with a blank line before and after for separation).
+5. The Jira link MUST go immediately after the first heading — never at the top, never at the bottom, never in any other position.
+6. Update: `gh pr edit <PR_NUMBER> --body "<modified body>"`
+
+Example result in PR body:
+
+```markdown
+## Summary
+🎫 Jira: [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234)
+
+<rest of existing description unchanged>
 ```
 
 Rules:
-- Only run this when a PR number or PR link was explicitly provided by the user.
-- Do not touch the existing PR body content — only prepend the Jira line + blank line separator.
+- **Mandatory** when a PR number or PR link was explicitly provided by the user.
+- Position is non-negotiable: always immediately after the first `#` heading.
+- Do not touch the existing PR body content — only insert the Jira line.
 - If the PR body already contains the Jira link, skip (do not duplicate).
 - Format: `🎫 Jira: [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234)`
 
