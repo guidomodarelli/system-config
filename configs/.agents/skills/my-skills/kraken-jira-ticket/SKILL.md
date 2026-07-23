@@ -409,6 +409,23 @@ Skip this step when updating an existing ticket already in progress.
 
 ---
 
+## Step 9b — Update PR description with Jira link (when PR number/link was provided)
+
+After creating or updating the ticket, prepend the Jira link to the PR description body
+(right after the title line), without modifying any existing content:
+
+```bash
+gh pr edit <PR_NUMBER> --body "$(printf '🎫 Jira: [<KEY>](https://mercadolibre.atlassian.net/browse/<KEY>)\n\n%s' "$(gh pr view <PR_NUMBER> --json body -q .body)")"
+```
+
+Rules:
+- Only run this when a PR number or PR link was explicitly provided by the user.
+- Do not touch the existing PR body content — only prepend the Jira line + blank line separator.
+- If the PR body already contains the Jira link, skip (do not duplicate).
+- Format: `🎫 Jira: [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234)`
+
+---
+
 ## Step 10 — Save to memory
 
 After a successful create or update, call `search_episodic_memories` to check if an entry
