@@ -348,13 +348,17 @@ After creating or updating the parent and all subtasks, fetch **every** issue
 If **any** field is missing or wrong on **any** issue, patch that issue with `editJiraIssue`
 and re-fetch to confirm. Do not close the task until all checks pass on every issue.
 
-Report the result explicitly, e.g.:
+Report the result as a markdown table:
 
 ```
-Validation: SGP1-1234 (parent) ✓ label ✓ PR-label ✓ quarter Q3/26 ✓ start 2026-07-07
-            SGP1-1235 (subtask) ✓ label ✓ PR-label ✓ quarter Q3/26 ✓ start 2026-07-07
-            …
+| Issue | Type | Label | PR Label | Quarter | Start Date |
+|---|---|---|---|---|---|
+| SGP1-1234 | parent | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
+| SGP1-1235 | subtask | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
+| SGP1-1236 | subtask | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
 ```
+
+Use ✅ for present/correct, ❌ for missing/wrong. When no PR number was provided, show `➖` in the PR Label column.
 
 ---
 
