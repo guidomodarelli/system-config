@@ -25,14 +25,27 @@ Every `createJiraIssue` and every `editJiraIssue` (when creating/completing an i
 
 | Field | Key | Value | Source |
 |---|---|---|---|
-| **Labels** | `labels` | `["kraken-user-role"]` | fixed |
+| **Labels** | `labels` | `["kraken-user-role"]` + PR label when applicable | fixed + PR association |
 | **Quarter** | `customfield_18353` | `[{"id": "<option id>", "value": "<Qx/yy>"}]` | derived from `date +"%m %Y"` (Step 1) |
 | **Start date** | `customfield_12410` | `"YYYY-MM-DD"` | today (new) / parent's value (subtasks & updates) |
+
+### PR association label
+
+When the user provides a PR number (explicitly or via context), add the label
+`<repository_id>/PR-<number>` to all issues (parent and every subtask).
+
+Format: `<repository_id>/PR-<number>` — e.g. `groot-ui/PR-42`.
+
+The labels array becomes: `["kraken-user-role", "<repository_id>/PR-<number>"]`.
+
+This label enables fast JQL lookup in Step 2 to detect if a ticket already exists for that PR,
+avoiding duplicates without relying solely on memory.
 
 Rules that are NOT negotiable:
 
 - **Never** create or finalize an issue with any of these three missing.
 - **Every subtask inherits all three** — same labels, same quarter, same start date as the parent.
+- When a PR label is present, **every subtask also carries it** — same as the parent.
 - Quarter is **always** resolved fresh from the system date — never from memory, never guessed.
 - Quarter uses the option-object shape `[{"id","value"}]` — never `[{"name":...}]`.
 - If you cannot resolve the quarter option id, **stop and resolve it** (Step 1) before creating anything.
@@ -106,6 +119,23 @@ Do not use `[{ "name": "<quarter>" }]`; JIRA ignores that shape for this field.
 ---
 
 ## Step 2 — Check for an existing ticket
+
+### 2a — JQL lookup by PR label (preferred, when PR number is known)
+
+When a PR number is provided, query JIRA directly — this is faster and deterministic:
+
+```
+searchJiraIssuesUsingJql(
+  cloudId: "a55c251b-e222-488f-8975-3ccdf0a0db6f",
+  jql: "project = SGP1 AND labels = \"<repository_id>/PR-<number>\" AND issuetype = Task",
+  fields: ["summary", "status", "labels", "subtasks"]
+)
+```
+
+- If results found → ticket already exists. Go to **Step 7** (update path).
+- If no results → proceed to 2b or create a new ticket.
+
+### 2b — Memory fallback (when no PR number or JQL returns nothing)
 
 Search memory for a recent ticket on the same branch or feature:
 
@@ -194,12 +224,14 @@ createJiraIssue(
   contentFormat:    "markdown",
   assignee_account_id: "712020:8300527c-0cb7-4412-8303-0306dac20649",
   additional_fields: {
-    "labels":            ["kraken-user-role"],
+    "labels":            ["kraken-user-role", "<repository_id>/PR-<number>"],  ← add PR label when PR number is known
     "customfield_18353": [{"id": "<quarter option id>", "value": "<Q derived from system date>"}],
     "customfield_12410": "YYYY-MM-DD"  ← start date, usually today's system date for new tickets
   }
 )
 ```
+
+> When no PR number is provided, omit the PR label — `labels` stays as `["kraken-user-role"]` only.
 
 ### Update (if ticket already exists)
 
@@ -232,7 +264,7 @@ createJiraIssue(
   contentFormat:    "markdown",
   assignee_account_id: "712020:8300527c-0cb7-4412-8303-0306dac20649",
   additional_fields: {
-    "labels":            ["kraken-user-role"],   ← same as parent
+    "labels":            ["kraken-user-role", "<repository_id>/PR-<number>"],   ← same as parent (include PR label when applicable)
     "customfield_18353": [{"id": "<quarter option id>", "value": "<Q derived from system date>"}],
     "customfield_12410": "YYYY-MM-DD"            ← same start date as parent
   }
@@ -291,7 +323,7 @@ Run all `editJiraIssue` calls in parallel.
 ### 7e — Create missing subtasks
 
 If the diff contains work areas not covered by any existing subtask, create the missing ones
-using the same fields as Step 6: `issueTypeName: "Sub-task"`, `parent`, `labels: ["kraken-user-role"]`,
+using the same fields as Step 6: `issueTypeName: "Sub-task"`, `parent`, `labels: ["kraken-user-role", "<repository_id>/PR-<number>"]` (include PR label when applicable),
 `customfield_18353` (quarter option id/value from system date), and `customfield_12410` (start date —
 same value as the parent ticket's start date, read from `getJiraIssue` in step 7a).
 
@@ -305,17 +337,18 @@ After creating or updating the parent and all subtasks, fetch **every** issue
 (`getJiraIssue` on the parent and each subtask, in parallel) and verify on each one:
 
 - [ ] `labels` contains `kraken-user-role`
+- [ ] `labels` contains `<repository_id>/PR-<number>` (when PR number was provided)
 - [ ] `customfield_18353` contains the derived quarter (correct `id` + `value`)
 - [ ] `customfield_12410` contains the expected start date
 
 If **any** field is missing or wrong on **any** issue, patch that issue with `editJiraIssue`
-and re-fetch to confirm. Do not close the task until all three checks pass on every issue.
+and re-fetch to confirm. Do not close the task until all checks pass on every issue.
 
 Report the result explicitly, e.g.:
 
 ```
-Validation: SGP1-1234 (parent) ✓ label ✓ quarter Q3/26 ✓ start 2026-07-07
-            SGP1-1235 (subtask) ✓ label ✓ quarter Q3/26 ✓ start 2026-07-07
+Validation: SGP1-1234 (parent) ✓ label ✓ PR-label ✓ quarter Q3/26 ✓ start 2026-07-07
+            SGP1-1235 (subtask) ✓ label ✓ PR-label ✓ quarter Q3/26 ✓ start 2026-07-07
             …
 ```
 
@@ -356,13 +389,15 @@ for this ticket already exists. Then:
 - Do not create a duplicate if a ticket already exists — update it instead.
 - **The three mandatory fields (labels, quarter, start date) go on EVERY issue — parent and every subtask. No exceptions.** See the "MANDATORY FIELDS" block at the top.
 - Label `kraken-user-role` is mandatory for every kraken ticket.
+- **PR association label** (`<repository_id>/PR-<number>`) is mandatory when a PR number is provided. It goes on parent AND every subtask. Format: lowercase repo id, `/PR-`, number (e.g. `groot-ui/PR-42`).
+- When a PR number is known, Step 2a (JQL lookup by PR label) takes precedence over memory search.
 - Quarter (`customfield_18353`) must always be set; derive it from `date +"%m %Y"` — never from memory. Use the `[{"id","value"}]` shape.
 - Start date (`customfield_12410`) must always be set: today for new tickets, the parent's value for subtasks and updates.
-- Every subtask inherits the parent's labels, quarter, and start date — verify this, don't assume the API copies them.
-- Step 8 is a **blocking gate**: never close the task until all three fields are confirmed present on the parent and every subtask.
+- Every subtask inherits the parent's labels (including PR label when present), quarter, and start date — verify this, don't assume the API copies them.
+- Step 8 is a **blocking gate**: never close the task until all fields are confirmed present on the parent and every subtask.
 - Description must be in **English** (ticket body); skill instructions are in Spanish.
 - Repository identity, base branch, file layout, language, and framework must be discovered from
   current checkout; none may be hardcoded.
 - On update: fetch parent + all subtasks before editing — never update from memory alone.
 - On update: run all `editJiraIssue` calls in parallel to minimize round-trips.
-- On update: only patch fields that actually changed — do not rewrite accurate content, but always re-verify the three mandatory fields survived.
+- On update: only patch fields that actually changed — do not rewrite accurate content, but always re-verify the mandatory fields survived.
