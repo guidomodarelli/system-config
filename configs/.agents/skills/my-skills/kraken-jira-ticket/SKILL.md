@@ -27,7 +27,7 @@ Every `createJiraIssue` and every `editJiraIssue` (when creating/completing an i
 |---|---|---|---|
 | **Labels** | `labels` | `["kraken-user-role"]` + PR label when applicable | fixed + PR association |
 | **Quarter** | `customfield_18353` | `[{"id": "<option id>", "value": "<Qx/yy>"}]` | derived from `date +"%m %Y"` (Step 1) |
-| **Start date** | `customfield_12410` | `"YYYY-MM-DD"` | today (new) / parent's value (subtasks & updates) |
+| **Start date** | `customfield_12410` | `"YYYY-MM-DD"` | first commit date on the branch (new) / parent's value (subtasks & updates) |
 
 ### PR association label
 
@@ -160,8 +160,12 @@ Run in parallel with resolved `BASE_BRANCH`:
 git log "$BASE_BRANCH"..HEAD --oneline
 git diff "$BASE_BRANCH"..HEAD --stat
 git diff "$BASE_BRANCH"..HEAD --name-only
+git log "$BASE_BRANCH"..HEAD --reverse --format="%aI" | head -1   ← first commit date (ISO)
 test -f package.json && grep -E '"[a-z-]+":\s*"[0-9]' package.json | head -20
 ```
+
+Extract the **first commit date** (the earliest commit on the branch since it diverged from
+`BASE_BRANCH`). Use the `YYYY-MM-DD` portion as the start date for new tickets.
 
 Use commits only to understand scope; never copy commit lists into ticket. Read version numbers
 from manifest files directly, never from commit messages.
@@ -226,7 +230,7 @@ createJiraIssue(
   additional_fields: {
     "labels":            ["kraken-user-role", "<repository_id>/PR-<number>"],  ← add PR label when PR number is known
     "customfield_18353": [{"id": "<quarter option id>", "value": "<Q derived from system date>"}],
-    "customfield_12410": "YYYY-MM-DD"  ← start date, usually today's system date for new tickets
+    "customfield_12410": "YYYY-MM-DD"  ← start date = first commit date on the branch (from Step 3)
   }
 )
 ```
@@ -392,7 +396,7 @@ for this ticket already exists. Then:
 - **PR association label** (`<repository_id>/PR-<number>`) is mandatory when a PR number is provided. It goes on parent AND every subtask. Format: lowercase repo id, `/PR-`, number (e.g. `groot-ui/PR-42`).
 - When a PR number is known, Step 2a (JQL lookup by PR label) takes precedence over memory search.
 - Quarter (`customfield_18353`) must always be set; derive it from `date +"%m %Y"` — never from memory. Use the `[{"id","value"}]` shape.
-- Start date (`customfield_12410`) must always be set: today for new tickets, the parent's value for subtasks and updates.
+- Start date (`customfield_12410`) must always be set: first commit date on the branch for new tickets (derived from `git log BASE_BRANCH..HEAD --reverse --format="%aI" | head -1`), the parent's value for subtasks and updates.
 - Every subtask inherits the parent's labels (including PR label when present), quarter, and start date — verify this, don't assume the API copies them.
 - Step 8 is a **blocking gate**: never close the task until all fields are confirmed present on the parent and every subtask.
 - Description must be in **English** (ticket body); skill instructions are in Spanish.
