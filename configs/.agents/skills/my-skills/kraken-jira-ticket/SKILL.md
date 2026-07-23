@@ -388,12 +388,22 @@ Use ✅ for present/correct, ❌ for missing/wrong. When no PR number was provid
 
 ## Step 9 — Transition to In Progress (new tickets only)
 
-After creating, move the ticket to **In Progress**:
+After creating, move the parent ticket to **In Progress**. SGP1 requires two transitions
+(Backlog → To Do → In Progress):
 
 ```
-getTransitionsForJiraIssue(cloudId, issueIdOrKey)  →  find "In Progress" transition id
-transitionJiraIssue(cloudId, issueIdOrKey, transitionId)
+transitionJiraIssue(cloudId, issueIdOrKey, { id: "331" })   ← "To Do" (status id 10000)
+transitionJiraIssue(cloudId, issueIdOrKey, { id: "71" })    ← "Start progress" → In Progress
 ```
+
+| Step | Transition name | Transition id | Target status |
+|---|---|---|---|
+| 1 | To Do | 331 | To Do (10000) |
+| 2 | Start progress | 71 | In Progress (12834) |
+
+- Transition 71 is only available from "To Do" — step 1 is required first.
+- If transition 331 is unavailable, use 51 ("Selected to Development") — same target status 10000.
+- Always confirm the ticket reached In Progress after both transitions.
 
 Skip this step when updating an existing ticket already in progress.
 
