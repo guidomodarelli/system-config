@@ -3,9 +3,9 @@ name: kraken-jira-ticket
 description: >
   Creates or updates a JIRA ticket (parent + subtasks) in the Kraken / Shipping Groot project
   (SGP1) for work from any Git repository. Discovers repository identity and default branch,
-  builds ticket scope from the branch diff, creates or synchronizes parent and subtasks, and
-  validates mandatory SGP1 fields. Use when the user asks to create, update, or sync a Kraken
-  JIRA ticket from current repository changes.
+  builds ticket scope from the branch diff, creates or synchronizes parent and subtasks,
+  validates mandatory SGP1 fields, and transitions merged PR work to Done. Use when the user asks
+  to create, update, or sync a Kraken JIRA ticket from current repository changes.
 ---
 
 # Kraken JIRA Ticket
@@ -115,6 +115,27 @@ Before creating or updating issues, resolve the JIRA option id for that quarter:
 ```
 
 Do not use `[{ "name": "<quarter>" }]`; JIRA ignores that shape for this field.
+
+### Resolve PR state when a PR number or link is known
+
+Before looking up, creating, updating, or transitioning the ticket, read the current PR state:
+
+```bash
+gh pr view <PR_NUMBER> --json state -q .state
+```
+
+Store the exact result as `PR_STATE`. GitHub returns `OPEN`, `CLOSED`, or `MERGED`.
+
+- `MERGED` means the parent JIRA ticket must finish in **Done** through the complete ordered path
+  defined in Step 9.
+- Any other state follows the existing **In Progress** behavior for new tickets.
+- Never infer merge state from branch existence, commit history, local refs, or memory.
+- If `gh pr view` fails, retry once with
+  `gh api repos/{owner}/{repo}/pulls/<PR_NUMBER> --jq '.merged_at != null'`. Treat `true` as
+  `MERGED`. If both checks fail, stop before changing JIRA status and report that PR state could
+  not be verified.
+- When no PR number or link is known, set `PR_STATE` to unknown and keep the existing new-ticket
+  behavior; do not transition an existing ticket to Done without verified `MERGED` state.
 
 ---
 
@@ -386,10 +407,14 @@ Use ✅ for present/correct, ❌ for missing/wrong. When no PR number was provid
 
 ---
 
-## Step 9 — Transition to In Progress (new tickets only)
+## Step 9 — Transition parent according to PR state
 
-After creating, move the parent ticket to **In Progress**. SGP1 requires two transitions
-(Backlog → To Do → In Progress):
+Transitions apply to the **parent ticket only**. Fetch its current status before every transition
+and never move it backwards.
+
+### PR is not verified as merged
+
+For a newly created ticket, keep the existing **Backlog → To Do → In Progress** flow:
 
 ```
 transitionJiraIssue(cloudId, issueIdOrKey, { id: "331" })   ← "To Do" (status id 10000)
@@ -403,9 +428,39 @@ transitionJiraIssue(cloudId, issueIdOrKey, { id: "71" })    ← "Start progress"
 
 - Transition 71 is only available from "To Do" — step 1 is required first.
 - If transition 331 is unavailable, use 51 ("Selected to Development") — same target status 10000.
-- Always confirm the ticket reached In Progress after both transitions.
+- Skip statuses the parent has already reached.
+- Do not change the status of an existing ticket unless `PR_STATE` is verified as `MERGED`.
+- Confirm a new ticket reached **In Progress**.
 
-Skip this step when updating an existing ticket already in progress.
+### PR_STATE is MERGED — transition to Done
+
+A verified merged PR must leave the parent in **Done**, whether the ticket was created now or
+already existed. Follow this ordered status path:
+
+```
+To Do → In Progress → Create New Release → Done
+```
+
+1. Fetch the parent with `getJiraIssue` and read its exact current status.
+2. If it is before **To Do**, apply transition 331; if unavailable, apply 51.
+3. Re-fetch. If it is **To Do**, apply transition 71 to reach **In Progress**.
+4. Re-fetch and call `getTransitionsForJiraIssue`. Select the available transition whose name or
+   target status is exactly `Create New Release`, then pass its returned id to
+   `transitionJiraIssue`.
+5. Re-fetch and call `getTransitionsForJiraIssue` again. Select the available transition whose
+   target status is exactly `Done`, then pass its returned id to `transitionJiraIssue`.
+6. Re-fetch the parent and block completion until its status is exactly **Done**.
+
+Rules:
+
+- Resolve the `Create New Release` and `Done` transition ids from JIRA at execution time; do not
+  guess or hardcode ids that were not returned for the current issue.
+- If the parent already occupies a status in the ordered path, resume from that status and skip
+  completed steps. If it is already **Done**, perform no transition and only verify it.
+- Never jump directly from **In Progress** to **Done**. **Create New Release** is mandatory.
+- After each transition, re-fetch the parent before resolving the next transition.
+- If an expected transition is unavailable or a transition does not reach its expected status,
+  stop, report the current status and available transition names, and do not claim completion.
 
 ---
 
@@ -448,7 +503,7 @@ for this ticket already exists. Then:
 
 - **If no entry exists** — call `store_note` or the episodic store with:
   - `title`: `"Ticket JIRA <KEY> para <feature>"`
-  - `result`: `"Ticket <KEY> created|updated. Summary: … Subtasks: SGP1-XXXX, … Status: In Progress."`
+  - `result`: `"Ticket <KEY> created|updated. Summary: … Subtasks: SGP1-XXXX, … Status: <verified final status>. PR state: <PR_STATE>."`
   - `project`: `"<repository_id>"`
   - `tags`: `["feature", "change"]`
 
@@ -464,6 +519,8 @@ for this ticket already exists. Then:
 - **The three mandatory fields (labels, quarter, start date) go on EVERY issue — parent and every subtask. No exceptions.** See the "MANDATORY FIELDS" block at the top.
 - Label `kraken-user-role` is mandatory for every kraken ticket.
 - **PR association label** (`<repository_id>/PR-<number>`) is mandatory when a PR number is provided. It goes on parent AND every subtask. Format: lowercase repo id, `/PR-`, number (e.g. `groot-ui/PR-42`).
+- When a PR number is known, resolve `PR_STATE` from GitHub before changing JIRA status; never infer `MERGED` from local Git state or memory.
+- When `PR_STATE` is `MERGED`, the parent must finish in **Done** through **To Do → In Progress → Create New Release → Done**; never skip **Create New Release**.
 - When a PR number is known, Step 2a (JQL lookup by PR label) takes precedence over memory search.
 - Quarter (`customfield_18353`) must always be set; derive it from `date +"%m %Y"` — never from memory. Use the `[{"id","value"}]` shape.
 - Start date (`customfield_12410`) must always be set: first commit date on the branch for new tickets (derived from `git log BASE_BRANCH..HEAD --reverse --format="%aI" | head -1`), the parent's value for subtasks and updates.
