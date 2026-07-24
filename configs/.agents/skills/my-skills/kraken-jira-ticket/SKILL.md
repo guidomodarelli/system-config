@@ -1,11 +1,11 @@
 ---
 name: kraken-jira-ticket
 description: >
-  Creates or updates a JIRA ticket (parent + subtasks) in the Kraken / Shipping Groot project
-  (SGP1) for work from any Git repository. Discovers repository identity and default branch,
-  builds ticket scope from the branch diff, creates or synchronizes parent and subtasks,
-  validates mandatory SGP1 fields, and transitions merged PR work to Done. Use when the user asks
-  to create, update, or sync a Kraken JIRA ticket from current repository changes.
+  Crea o actualiza un ticket de JIRA (padre + subtareas) en el proyecto Kraken / Shipping Groot
+  (SGP1) a partir de cambios de cualquier repositorio Git. Descubre la identidad del repositorio y
+  la rama base, construye el alcance desde el diff, sincroniza el ticket padre y sus subtareas,
+  valida los campos obligatorios de SGP1 y mueve a Done el trabajo cuyo PR está fusionado. Usar
+  cuando se solicite crear, actualizar o sincronizar un ticket de Kraken desde los cambios actuales.
 ---
 
 # Kraken JIRA Ticket
@@ -15,6 +15,34 @@ Requires Atlassian MCP and memory MCP.
 
 > **NEVER run `git push` or any git upload command during this skill.**
 > Ticket management is independent of repository state.
+
+---
+
+## 🇪🇸 IDIOMA OBLIGATORIO — español en todo contenido visible
+
+Toda salida orientada a personas debe escribirse en español, sin depender del idioma del prompt,
+del diff, de los commits ni del contenido existente en JIRA.
+
+Esto incluye, sin excepciones:
+
+- Resumen y descripción del ticket padre.
+- Resumen y descripción de cada subtarea.
+- Encabezados, secciones, listas y texto descriptivo dentro de JIRA.
+- Tablas de resultados, validaciones, mensajes de estado, advertencias, preguntas y respuesta final.
+- Notas guardadas en memoria sobre el ticket.
+- Contenido textual nuevo o modificado durante una actualización.
+
+Conservar en inglés solo elementos técnicos que deban coincidir exactamente con sistemas externos:
+identificadores, claves, labels, nombres de campos y APIs, comandos, código, estados y transiciones
+de JIRA (`To Do`, `In Progress`, `Create New Release`, `Done`), valores devueltos por GitHub
+(`OPEN`, `CLOSED`, `MERGED`) y nombres propios técnicos.
+
+Si un ticket existente contiene resumen o descripción en inglés, considerarlo contenido desactualizado
+y traducirlo al español durante la actualización. No traducir literalmente nombres de símbolos,
+archivos, rutas, paquetes, endpoints ni otros términos cuya precisión técnica dependa del original.
+
+Antes de crear o editar cualquier issue, validar que `summary` y `description` estén en español.
+Antes de finalizar, validar también que toda salida visible generada por la habilidad esté en español.
 
 ---
 
@@ -207,31 +235,32 @@ Do not assume framework, language, folder layout, or package manager from reposi
 
 ### Summary format
 
-`[<repository_id>] <concise imperative description of the main change>`
+`[<repository_id>] <descripción imperativa y concisa del cambio principal en español>`
 
-Example: `[groot-ui] Unify search debounce defaults at 500 ms`
+Ejemplo: `[groot-ui] Unifica el debounce de búsqueda en 500 ms`
 
 ### Description structure (markdown)
 
 ```markdown
-## Overview
-<1–2 sentence summary of what changed and why>
+## Descripción general
+<resumen de 1–2 oraciones en español sobre qué cambió y por qué>
 
 ---
 
-## Changes
+## Cambios
 
-### <Area 1>
-- <bullet per meaningful change>
+### <Área 1>
+- <punto en español por cada cambio relevante>
 
-### <Area 2>
+### <Área 2>
 - …
 
-### Tests
-- <what test coverage was added or updated>
+### Pruebas
+- <cobertura de pruebas agregada o actualizada, en español>
 ```
 
-Keep bullets precise and technical. No filler. Do **not** include a list of commits — the description must describe *what* was built, not the git history.
+Escribir todos los encabezados y puntos en español, con precisión técnica y sin relleno. No incluir
+listas de commits: la descripción debe explicar qué se construyó, no reproducir el historial Git.
 
 ---
 
@@ -244,8 +273,8 @@ createJiraIssue(
   cloudId:          "a55c251b-e222-488f-8975-3ccdf0a0db6f",
   projectKey:       "SGP1",
   issueTypeName:    "Task",
-  summary:          "[<repository_id>] …",
-  description:      "…",
+  summary:          "[<repository_id>] <resumen en español>",
+  description:      "<descripción en español>",
   contentFormat:    "markdown",
   assignee_account_id: "712020:8300527c-0cb7-4412-8303-0306dac20649",
   additional_fields: {
@@ -284,8 +313,8 @@ createJiraIssue(
   projectKey:       "SGP1",
   issueTypeName:    "Sub-task",
   parent:           "SGP1-XXXX",          ← key of the parent ticket
-  summary:          "<concise imperative title>",
-  description:      "…",
+  summary:          "<título imperativo y conciso en español>",
+  description:      "<descripción en español>",
   contentFormat:    "markdown",
   assignee_account_id: "712020:8300527c-0cb7-4412-8303-0306dac20649",
   additional_fields: {
@@ -296,18 +325,18 @@ createJiraIssue(
 )
 ```
 
-Create all subtasks in parallel. Subtask descriptions follow the same structure as the
-parent (Overview optional, Changes bullets, no commit list).
+Create all subtasks in parallel. Subtask descriptions follow the same Spanish structure as the
+parent (`Descripción general` optional, `Cambios` bullets, no commit list).
 
-After creating parent and subtasks, display the created tickets as a summary table:
+After creating parent and subtasks, display the created tickets as a summary table in Spanish:
 
 ```
-| # | Key | Type | Summary |
+| # | Clave | Tipo | Resumen |
 |---|---|---|---|
-| 1 | [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | 📋 Parent | [groot-ui] Unify search debounce defaults at 500 ms |
-| 2 | [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | 📎 Subtask | Add debounce utility with configurable delay |
-| 3 | [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | 📎 Subtask | Update search components to use shared debounce |
-| 4 | [SGP1-1237](https://mercadolibre.atlassian.net/browse/SGP1-1237) | 📎 Subtask | Add unit tests for debounce behavior |
+| 1 | [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | 📋 Padre | [groot-ui] Unifica el debounce de búsqueda en 500 ms |
+| 2 | [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | 📎 Subtarea | Agrega utilidad de debounce con demora configurable |
+| 3 | [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | 📎 Subtarea | Actualiza componentes de búsqueda para usar debounce compartido |
+| 4 | [SGP1-1237](https://mercadolibre.atlassian.net/browse/SGP1-1237) | 📎 Subtarea | Agrega pruebas unitarias para el comportamiento de debounce |
 ```
 
 ---
@@ -335,13 +364,16 @@ Re-run Step 3 to get the current state of the branch. The code is the source of 
 
 For each element, compare what JIRA has vs what the code shows:
 
-| Element | What to check |
+| Elemento | Qué verificar |
 |---|---|
-| Parent title | Still accurate? Reflects the full scope of the branch? |
-| Parent description | All change areas covered? No outdated bullets? No commit list? |
-| Subtask titles | Each title still maps to a real, self-contained work unit? |
-| Subtask descriptions | Bullets match actual implementation? No stale details? |
-| Coverage | Are there work areas in the diff NOT covered by any existing subtask? |
+| Título del padre | ¿Sigue siendo preciso, cubre todo el alcance y está en español? |
+| Descripción del padre | ¿Cubre todas las áreas, no contiene puntos obsoletos ni commits y está en español? |
+| Títulos de subtareas | ¿Cada título representa una unidad real y autocontenida, y está en español? |
+| Descripciones de subtareas | ¿Los puntos coinciden con la implementación, no están obsoletos y están en español? |
+| Cobertura | ¿Existen áreas del diff sin cubrir por ninguna subtarea? |
+
+Any human-facing text in English counts as drift and must be translated to Spanish, even when its
+technical content remains accurate.
 
 ### 7d — Apply updates in parallel
 
@@ -363,18 +395,19 @@ using the same fields as Step 6: `issueTypeName: "Sub-task"`, `parent`, `labels:
 `customfield_18353` (quarter option id/value from system date), and `customfield_12410` (start date —
 same value as the parent ticket's start date, read from `getJiraIssue` in step 7a).
 
-After updating/creating, display all tickets (updated and new) as a summary table:
+After updating/creating, display all tickets (updated and new) as a summary table in Spanish:
 
 ```
-| # | Key | Type | Action | Summary |
+| # | Clave | Tipo | Acción | Resumen |
 |---|---|---|---|---|
-| 1 | [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | 📋 Parent | ✏️ Updated | [groot-ui] Unify search debounce defaults at 500 ms |
-| 2 | [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | 📎 Subtask | ✏️ Updated | Add debounce utility with configurable delay |
-| 3 | [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | 📎 Subtask | — No change | Update search components to use shared debounce |
-| 4 | [SGP1-1237](https://mercadolibre.atlassian.net/browse/SGP1-1237) | 📎 Subtask | 🆕 Created | Add integration tests for debounce edge cases |
+| 1 | [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | 📋 Padre | ✏️ Actualizado | [groot-ui] Unifica el debounce de búsqueda en 500 ms |
+| 2 | [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | 📎 Subtarea | ✏️ Actualizada | Agrega utilidad de debounce con demora configurable |
+| 3 | [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | 📎 Subtarea | — Sin cambios | Actualiza componentes de búsqueda para usar debounce compartido |
+| 4 | [SGP1-1237](https://mercadolibre.atlassian.net/browse/SGP1-1237) | 📎 Subtarea | 🆕 Creada | Agrega pruebas de integración para casos límite de debounce |
 ```
 
-Use `✏️ Updated` for modified issues, `🆕 Created` for new ones, `— No change` for untouched.
+Use `✏️ Actualizado` / `✏️ Actualizada` for modified issues, `🆕 Creado` / `🆕 Creada` for new
+ones, and `— Sin cambios` for untouched issues.
 
 ---
 
@@ -393,17 +426,17 @@ After creating or updating the parent and all subtasks, fetch **every** issue
 If **any** field is missing or wrong on **any** issue, patch that issue with `editJiraIssue`
 and re-fetch to confirm. Do not close the task until all checks pass on every issue.
 
-Report the result as a markdown table:
+Report the result as a markdown table in Spanish:
 
 ```
-| Issue | Type | Label | PR Label | Quarter | Start Date |
+| Ticket | Tipo | Label | Label de PR | Trimestre | Fecha de inicio |
 |---|---|---|---|---|---|
-| [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | parent | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
-| [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | subtask | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
-| [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | subtask | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
+| [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | padre | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
+| [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | subtarea | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
+| [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | subtarea | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
 ```
 
-Use ✅ for present/correct, ❌ for missing/wrong. When no PR number was provided, show `➖` in the PR Label column.
+Use ✅ for present/correct, ❌ for missing/wrong. When no PR number was provided, show `➖` in the `Label de PR` column.
 
 ---
 
@@ -503,7 +536,7 @@ for this ticket already exists. Then:
 
 - **If no entry exists** — call `store_note` or the episodic store with:
   - `title`: `"Ticket JIRA <KEY> para <feature>"`
-  - `result`: `"Ticket <KEY> created|updated. Summary: … Subtasks: SGP1-XXXX, … Status: <verified final status>. PR state: <PR_STATE>."`
+  - `result`: `"Ticket <KEY> creado|actualizado. Resumen: … Subtareas: SGP1-XXXX, … Estado: <estado final verificado>. Estado del PR: <PR_STATE>."`
   - `project`: `"<repository_id>"`
   - `tags`: `["feature", "change"]`
 
@@ -526,7 +559,7 @@ for this ticket already exists. Then:
 - Start date (`customfield_12410`) must always be set: first commit date on the branch for new tickets (derived from `git log BASE_BRANCH..HEAD --reverse --format="%aI" | head -1`), the parent's value for subtasks and updates.
 - Every subtask inherits the parent's labels (including PR label when present), quarter, and start date — verify this, don't assume the API copies them.
 - Step 8 is a **blocking gate**: never close the task until all fields are confirmed present on the parent and every subtask.
-- Description must be in **English** (ticket body); skill instructions are in Spanish.
+- Summary and description must be in **Spanish** for the parent and every subtask. All human-facing skill output must also be in Spanish.
 - Repository identity, base branch, file layout, language, and framework must be discovered from
   current checkout; none may be hardcoded.
 - On update: fetch parent + all subtasks before editing — never update from memory alone.
