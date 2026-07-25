@@ -8,35 +8,62 @@ description: Validates req.query, req.body, and req.params in Nordic/Node.js rou
 ## Rules
 
 - **NEVER use AJV directly.** Never use `schemaValidationMiddleware` (it wraps AJV internally). Use `@meli/input-validation` directly.
-- **Two-call pattern required** to both validate and suppress UNVALIDATED INPUT ACCESS warnings:
-  1. `schema.validate(req.query)` — local check, returns `true` or falsy
-  2. `schema.validate(req.query, { global: true })` — marks all properties as globally validated (call only if step 1 passed)
+- **Prefer `createValidationMiddleware({ schema })` for routes.** Register it before every middleware or handler that reads `req.query`, `req.body`, or `req.params`. It validates declared request parts and returns `422` by default when validation fails.
+- **Use one `.validate()` call for manual validation.** Check its boolean result and reject invalid input before access. Do not require a second `.validate(input, { global: true })` call: official Nordic guidance does not document a two-call pattern.
+- **Fix `UNVALIDATED INPUT ACCESS` at route ordering/schema coverage.** Confirm validation middleware runs before access and schema declares exact request part and property. Do not silence warning by adding redundant validation passes.
 - **`coerce.boolean()` is too permissive** — accepts `'1'`, `'yes'`, any truthy string. For strict `'true'`/`'false'` query params use `inputValidation.string().regex(/^(true|false)?$/).optional()`.
 - **`coerce.number()`** coerces query string numbers (always strings on `req.query`) to numbers before validation.
 - **`string().secure()`** adds MELI security checks on string fields (injection, etc.). Prefer over bare `.string()` for user-supplied strings.
 - **`.optional()`** makes a field optional (absent = valid). Without it, the field is required.
 
-## Pattern
+## Preferred route pattern
 
 ```js
 const inputValidation = require('@meli/input-validation');
 
 const pageQuerySchema = inputValidation.object({
-  page:   inputValidation.coerce.number().int().min(0).max(500).optional(),
-  size:   inputValidation.coerce.number().int().min(1).max(500).optional(),
+  page: inputValidation.coerce.number().int().min(0).max(500).optional(),
+  size: inputValidation.coerce.number().int().min(1).max(500).optional(),
   active: inputValidation.string().regex(/^(true|false)?$/).optional(),
   search: inputValidation.string().secure().max(255).optional(),
 });
 
-// In middleware:
-const isLocallyValid = pageQuerySchema.validate(req.query);
-if (isLocallyValid !== true) {
-  return res.status(400).json({ code: 400, message: 'Bad request' });
-}
-pageQuerySchema.validate(req.query, { global: true });
-return next();
+router.get(
+  '/',
+  inputValidation.createValidationMiddleware({
+    schema: { query: pageQuerySchema },
+  }),
+  (req, res) => {
+    const { page, size, active, search } = req.query;
+
+    return res.json({ page, size, active, search });
+  },
+);
 ```
+
+## Manual validation pattern
+
+Use only when route middleware is not appropriate:
+
+```js
+const isValid = pageQuerySchema.validate(req.query);
+
+if (!isValid) {
+  return res.status(422).json({ error: 'Validation failed' });
+}
+
+const { page, size, active, search } = req.query;
+```
+
+## Troubleshooting warnings
+
+1. Identify exact accessed path (`query.id`, `body.name`, `params.userId`).
+2. Confirm route schema declares that property under correct request part.
+3. Confirm `createValidationMiddleware` appears before first access in middleware chain.
+4. Avoid reading input while choosing which schema to apply; bind source/schema when route is declared.
+5. Tests for warnings must use real `@meli/input-validation`; mocking SDK hides integration failures.
 
 ## See also
 
-- [input-validation-guide.md](references/input-validation-guide.md) — full SDK reference and coercion details.
+- [Official Nordic Input Validation documentation](https://nordic.adminml.com/docs/input-validation) — source of truth.
+- [input-validation-guide.md](references/input-validation-guide.md) — SDK reference and coercion details.

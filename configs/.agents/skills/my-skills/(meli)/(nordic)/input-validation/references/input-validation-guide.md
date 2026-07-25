@@ -1,5 +1,7 @@
 # @meli/input-validation — SDK Reference
 
+> **Source of truth:** [Nordic Security — Input Validation](https://nordic.adminml.com/docs/input-validation) (last updated 2026-07-16).
+>
 > **Rule:** NUNCA usar AJV. NUNCA usar `schemaValidationMiddleware`. Usar este SDK directamente.
 
 ## Installation
@@ -56,80 +58,81 @@ inputValidation.string().regex(/^(true|false)?$/).optional()
 // The `?` makes an empty string valid (absent param). Remove if the field is required.
 ```
 
-## Two-call pattern (MANDATORY for UNVALIDATED INPUT ACCESS)
+## Route validation (preferred)
 
-The `input-validation-enforcer` proxy wraps `req.query`, `req.body`, and `req.params`. Reading a property
-that hasn't been globally validated triggers an UNVALIDATED INPUT ACCESS warning.
-
-**Fix: call `.validate()` twice:**
-
-```js
-// 1. Local validation — check schema correctness
-const isLocallyValid = schema.validate(req.query);
-if (isLocallyValid !== true) {
-  // reject the request
-}
-
-// 2. Global validation — mark all properties as validated (suppresses enforcer warnings)
-schema.validate(req.query, { global: true });
-```
-
-Never call the global step without the local step passing first.
-
-## Complete route example (usersGroup/index.js)
+The `input-validation-enforcer` proxy monitors access to `req.query`, `req.body`, and `req.params`.
+Register `createValidationMiddleware` before any middleware or handler that reads those properties.
 
 ```js
 const router = require('nordic/ragnar').router();
 const inputValidation = require('@meli/input-validation');
-const { renderErrorView } = require('@kraken/static');
-const { authorizeByPermissionKey } = require('@root/middlewares/authorizationMiddlewares');
-const { renderUsersGroups, fetchUserGroups } = require('./controller');
 
 const pageQuerySchema = inputValidation.object({
-  page:   inputValidation.coerce.number().int().min(0).max(500).optional(),
-  size:   inputValidation.coerce.number().int().min(1).max(500).optional(),
+  page: inputValidation.coerce.number().int().min(0).max(500).optional(),
+  size: inputValidation.coerce.number().int().min(1).max(500).optional(),
   active: inputValidation.string().regex(/^(true|false)?$/).optional(),
   search: inputValidation.string().secure().max(255).optional(),
 });
 
 router.get(
   '/',
-  authorizeByPermissionKey('VIEW_USERS_GROUPS_PERMISSION_KEY'),
-  (req, res, next) => {
-    const isLocallyValid = pageQuerySchema.validate(req.query);
+  inputValidation.createValidationMiddleware({
+    schema: { query: pageQuerySchema },
+  }),
+  (req, res) => {
+    const { page, size, active, search } = req.query;
 
-    if (isLocallyValid !== true) {
-      return req.xhr || req.headers?.accept?.includes('json')
-        ? res.status(400).json({ code: 400, message: 'Bad request' })
-        : renderErrorView(req, res, next);
-    }
-
-    pageQuerySchema.validate(req.query, { global: true });
-    return next();
+    return res.json({ page, size, active, search });
   },
-  fetchUserGroups,
-  renderUsersGroups,
 );
-
-module.exports = router;
 ```
 
-## Testing this pattern
+`createValidationMiddleware` returns `422` by default when validation fails. Configure its documented
+custom error handler only when product behavior requires another response shape.
+
+## Direct `.validate()` usage
+
+Use manual validation only when route middleware is not appropriate. One call validates input and returns
+a boolean; branch on that result before reading properties.
 
 ```js
-// @meli/input-validation and @kraken/static must NOT be mocked — the test exercises
-// the real SDK path (mocking them would hide validation bugs).
-jest.mock('nordic/ragnar', () => ({ router: jest.fn(() => mockRouter) }));
-jest.mock('@root/middlewares/authorizationMiddlewares', () => ({
-  authorizeByPermissionKey: jest.fn(() => jest.fn()),
-}));
-jest.mock('@kraken/static', () => ({ renderErrorView: jest.fn() }));
+const isValid = pageQuerySchema.validate(req.query);
 
-// Extract the validation middleware (the one just before fetchUserGroups in the chain)
-jest.isolateModules(() => { require('@root/app/pages/usersGroup'); });
-const routeMiddlewares = mockRouter.get.mock.calls[0];
-const fetchIndex = routeMiddlewares.indexOf(mockFetchUserGroups);
-const schemaValidationWrapper = routeMiddlewares[fetchIndex - 1];
+if (!isValid) {
+  return res.status(422).json({ error: 'Validation failed' });
+}
+
+const { page, size, active, search } = req.query;
+```
+
+Do not require a second `validate(input, { global: true })` call. Official Nordic guidance documents
+`createValidationMiddleware` for routes and one `.validate()` call for manual validation.
+
+## Resolving UNVALIDATED INPUT ACCESS warnings
+
+1. Use warning path to identify exact request part and property.
+2. Ensure schema declares property under matching key: `query`, `body`, or `params`.
+3. Ensure `createValidationMiddleware` runs before first property access.
+4. Bind request source and schema at route declaration; do not inspect unvalidated input to select a schema.
+5. Keep every access after validation middleware in chain.
+
+Warnings are emitted only in local development; protection applies in all environments.
+
+## Testing route validation
+
+Do not mock `@meli/input-validation` when test goal is validating SDK integration or warning removal. Mocking
+SDK hides route-order and schema-coverage defects. Mock unrelated authorization/service boundaries instead.
+
+```js
+jest.mock('nordic/ragnar', () => ({ router: jest.fn(() => mockRouter) }));
+
+jest.isolateModules(() => {
+  require('@root/api/routes/products');
+});
+
+const routeMiddlewares = mockRouter.post.mock.calls[0];
+const validationMiddleware = routeMiddlewares[1];
+const handler = routeMiddlewares[2];
 ```
 
 ## schemaValidationMiddleware (DO NOT USE FOR NEW ROUTES)
