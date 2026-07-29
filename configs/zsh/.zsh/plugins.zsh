@@ -19,6 +19,7 @@
 _THIRD_PARTY="$HOME/system-config/third-party"
 
 source "$_THIRD_PARTY/fzf-tab/fzf-tab.plugin.zsh"
+zic_custom_binding='^X^I'
 source "$_THIRD_PARTY/zsh-interactive-cd/zsh-interactive-cd.plugin.zsh"
 source "$_THIRD_PARTY/anyframe/anyframe.plugin.zsh"
 source "$_THIRD_PARTY/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh"
