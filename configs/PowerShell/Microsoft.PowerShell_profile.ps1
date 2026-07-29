@@ -558,6 +558,12 @@ if ($codexCommandInfo) {
 
 # --- Fin Codex unified -------------------------------------------------------
 
+# Dangerous Claude Code wrapper: bypasses all permission checks.
+function ccd {
+    Clear-Host
+    & claude --dangerously-skip-permissions @args
+}
+
 #  ██████  ██ ████████
 # ██       ██    ██
 # ██   ███ ██    ██
