@@ -32,6 +32,63 @@ Use when:
 - If a review-triggered fix changes code, rerun focused tests and review the updated target.
 - Do not push just to review. Push only when the user requested push/ship/PR update.
 
+## Arquitectura y bucle de feedback
+
+```mermaid
+flowchart TD
+    subgraph ORCHESTRATOR["Orquestador: agente invocador"]
+        START["Resolver target una vez"]
+        CALL["Ejecutar helper con target y provider"]
+        VERIFY{"¿Hay findings aceptados<br/>tras verificarlos?"}
+        FIX["Corregir findings aceptados"]
+        TEST["Ejecutar tests relevantes"]
+        CLEAN["Cerrar con 0 findings accionables"]
+        BLOCKED["Reportar bloqueo exacto"]
+    end
+
+    subgraph HELPER["Helper: scripts/codex-review"]
+        REVIEW["Iniciar proceso de review"]
+        PROVIDER["Intentar provider actual"]
+        RESULT{"¿Cómo terminó?"}
+        FALLBACK["Avanzar al siguiente provider"]
+        OUTPUT["Entregar output y exit status"]
+        PARALLEL["Ejecutar tests en paralelo<br/>cuando se usa --parallel-tests"]
+    end
+
+    subgraph SUBAGENTS["Sub-agents aislados cuando runtime los soporta"]
+        REVIEWER["Reviewer read-only<br/>inspecciona target exacto"]
+        FILTER["Filtro verifica findings<br/>y reduce output ruidoso"]
+    end
+
+    START --> CALL
+    CALL --> REVIEW
+    CALL -. "opcional" .-> PARALLEL
+    REVIEW --> PROVIDER
+    PROVIDER -. "preferido" .-> REVIEWER
+    REVIEWER --> RESULT
+    PROVIDER --> RESULT
+    RESULT -->|"Falla elegible + provider auto"| FALLBACK
+    FALLBACK --> PROVIDER
+    RESULT -->|"Review completada, incluso con findings"| OUTPUT
+    RESULT -->|"Falla terminal"| OUTPUT
+    PARALLEL --> OUTPUT
+    OUTPUT -. "filtro opcional" .-> FILTER
+    FILTER --> VERIFY
+    OUTPUT --> VERIFY
+    VERIFY -->|"Sí"| FIX
+    FIX --> TEST
+    TEST -->|"Repetir con mismo provider"| CALL
+    VERIFY -->|"No"| CLEAN
+    OUTPUT -->|"Review o tests bloqueados"| BLOCKED
+```
+
+Límites de responsabilidad:
+
+- Agente orquestador controla verificación de findings, correcciones, tests relevantes y terminación del loop.
+- Helper controla ejecución de target/provider, fallback elegible secuencial, tests paralelos opcionales y exit status de procesos.
+- Sub-agents de reviewer y filtro son capacidades opcionales del runtime; procesos CLI de providers son adapters, no sub-agents nativos.
+- Exit `0` del provider significa que review terminó. Solo output verificado con `0` findings aceptados o accionables significa loop limpio.
+
 ## Provider Selection
 
 The bundled helper supports:
