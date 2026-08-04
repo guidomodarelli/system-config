@@ -567,12 +567,20 @@ Rules:
 ## Step 9b — Update every PR description with Jira link
 
 When `PULL_REQUESTS` is non-empty, make reverse traceability mandatory for every canonical PR URL.
+Use this exact template:
+
+```markdown
+🎫 Jira: [<KEY>](https://mercadolibre.atlassian.net/browse/<KEY>)
+```
+
+Example: `🎫 Jira: [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234)`.
+
 For each PR:
 
 1. Read `body` and `url` with `gh pr view <canonical-url> --json body,url`.
 2. Normalize body to exactly one exact Jira link: if duplicates exist, remove all copies before
    reinserting one; if exactly one already occupies canonical position, leave body unchanged.
-3. Insert canonical link immediately after first `#` heading. If body has no heading, prepend link
+3. Insert exact template immediately after first `#` heading. If body has no heading, prepend link
    plus blank line. Preserve every other byte of existing content.
 4. Write multiline body through temporary file:
    `gh pr edit <canonical-url> --body-file <temporary-file>`.
