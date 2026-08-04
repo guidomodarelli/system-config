@@ -4,8 +4,9 @@ description: >
   Crea o actualiza un ticket de JIRA (padre + subtareas) en el proyecto Kraken / Shipping Groot
   (SGP1) a partir de cambios de cualquier repositorio Git. Descubre la identidad del repositorio y
   la rama base, construye el alcance desde el diff, sincroniza el ticket padre y sus subtareas,
-  valida los campos obligatorios de SGP1 y mueve a Done el trabajo cuyo PR está fusionado. Usar
-  cuando se solicite crear, actualizar o sincronizar un ticket de Kraken desde los cambios actuales.
+  valida los campos obligatorios de SGP1, enlaza uno o varios pull requests en ambos sentidos y mueve
+  a Done el trabajo cuando todos sus PRs están fusionados. Usar cuando se solicite crear, actualizar
+  o sincronizar un ticket de Kraken desde los cambios actuales o asociarlo con pull requests.
 ---
 
 # Kraken JIRA Ticket
@@ -57,23 +58,24 @@ Every `createJiraIssue` and every `editJiraIssue` (when creating/completing an i
 | **Quarter** | `customfield_18353` | `[{"id": "<option id>", "value": "<Qx/yy>"}]` | derived from `date +"%m %Y"` (Step 1) |
 | **Start date** | `customfield_12410` | `"YYYY-MM-DD"` | first commit date on the branch (new) / parent's value (subtasks & updates) |
 
-### PR association label
+### PR association labels
 
-When the user provides a PR number (explicitly or via context), add the label
-`<repository_id>/PR-<number>` to all issues (parent and every subtask).
+When one or more PR numbers or links are provided explicitly or by unambiguous context, normalize
+them in Step 1 and add one label per PR to every issue (parent and every subtask):
 
-Format: `<repository_id>/PR-<number>` — e.g. `groot-ui/PR-42`.
+`<repository_id>/PR-<number>` — e.g. `groot-ui/PR-42`.
 
-The labels array becomes: `["kraken-user-role", "<repository_id>/PR-<number>"]`.
+The labels array is the deduplicated union of existing labels, `kraken-user-role`, and every PR
+association label. Never replace unrelated labels or remove an earlier PR association.
 
-This label enables fast JQL lookup in Step 2 to detect if a ticket already exists for that PR,
-avoiding duplicates without relying solely on memory.
+These labels enable deterministic JQL lookup in Step 2 and avoid duplicate tickets without relying
+solely on memory. PR URLs themselves belong only in the parent description.
 
 Rules that are NOT negotiable:
 
 - **Never** create or finalize an issue with any of these three missing.
 - **Every subtask inherits all three** — same labels, same quarter, same start date as the parent.
-- When a PR label is present, **every subtask also carries it** — same as the parent.
+- When PR labels are present, **every subtask carries all of them** — same as the parent.
 - Quarter is **always** resolved fresh from the system date — never from memory, never guessed.
 - Quarter uses the option-object shape `[{"id","value"}]` — never `[{"name":...}]`.
 - If you cannot resolve the quarter option id, **stop and resolve it** (Step 1) before creating anything.
@@ -144,47 +146,62 @@ Before creating or updating issues, resolve the JIRA option id for that quarter:
 
 Do not use `[{ "name": "<quarter>" }]`; JIRA ignores that shape for this field.
 
-### Resolve PR state when a PR number or link is known
+### Resolve and normalize pull requests
 
-Before looking up, creating, updating, or transitioning the ticket, read the current PR state:
+Before any JQL lookup or JIRA modification, collect every PR number or link explicitly provided and
+any PR identified unambiguously from current branch. Accept only decimal numbers or URLs matching
+`https://github.com/<owner>/<repo>/pull/<number>`. Reject all other shapes. Pass validated input as
+one quoted argument:
 
 ```bash
-gh pr view <PR_NUMBER> --json state -q .state
+gh pr view "<validated-number-or-url>" --json number,url,headRefName,baseRefName,state
 ```
 
-Store the exact result as `PR_STATE`. GitHub returns `OPEN`, `CLOSED`, or `MERGED`.
+Store results in `PULL_REQUESTS`, with `number`, canonical `url`, `owner/repo`, `repository_id`,
+`headRefName`, `baseRefName`, and exact `state` (`OPEN`, `CLOSED`, or `MERGED`).
 
-- `MERGED` means the parent JIRA ticket must finish in **Done** through the complete ordered path
-  defined in Step 9.
-- Any other state follows the existing **In Progress** behavior for new tickets.
-- Never infer merge state from branch existence, commit history, local refs, or memory.
-- If `gh pr view` fails, retry once with
-  `gh api repos/{owner}/{repo}/pulls/<PR_NUMBER> --jq '.merged_at != null'`. Treat `true` as
-  `MERGED`. If both checks fail, stop before changing JIRA status and report that PR state could
-  not be verified.
-- When no PR number or link is known, set `PR_STATE` to unknown and keep the existing new-ticket
-  behavior; do not transition an existing ticket to Done without verified `MERGED` state.
+- A bare number belongs to the current repository. Use a canonical URL for cross-repository PRs.
+- Derive `owner/repo` from URL returned by GitHub. Derive each PR's `repository_id` using Step 1
+  rules for that repository: `.fury` application name when available, package name when available,
+  otherwise GitHub repository basename with standard prefix normalization.
+- Deduplicate by canonical URL, then sort by `owner/repo` and number for stable output. A PR number
+  alone is not globally unique.
+- Never trust or persist unverified URL. If `gh pr view` fails, build API path only from validated
+  owner, repository, and decimal number; quote every argument and verify returned `html_url`, number,
+  repository, and state match parsed identity. Otherwise stop before modifying JIRA.
+- Never infer state from branch existence, commit history, local refs, labels, description, or memory.
+- During an update, Step 7 adds every canonical URL already stored in the parent description to
+  `PULL_REQUESTS` and resolves it again. New input augments existing associations; it never replaces
+  them.
+
+Define `PR_LABELS` from `PULL_REQUESTS` using `<repository_id>/PR-<number>`. Define
+`ALL_PRS_MERGED` as true only when collection is non-empty and every state is `MERGED`.
 
 ---
 
 ## Step 2 — Check for an existing ticket
 
-### 2a — JQL lookup by PR label (preferred, when PR number is known)
+If user provides a JIRA key, fetch it first and require project `SGP1` plus issue type `Task`. This
+explicit parent takes precedence over memory, but not over conflict validation: every PR-label JQL
+match must resolve to same key or flow stops. When request is specifically to associate PRs and no
+explicit key or label match identifies a parent, ask for parent key instead of creating a ticket.
 
-When a PR number is provided, query JIRA directly — this is faster and deterministic:
+### 2a — JQL lookup by PR labels (preferred when `PULL_REQUESTS` is non-empty)
 
-```
-searchJiraIssuesUsingJql(
-  cloudId: "a55c251b-e222-488f-8975-3ccdf0a0db6f",
-  jql: "project = SGP1 AND labels = \"<repository_id>/PR-<number>\" AND issuetype = Task",
-  fields: ["summary", "status", "labels", "subtasks"]
-)
-```
+Search each value in `PR_LABELS`. Request `summary`, `description`, `status`, `labels`, and
+`subtasks`, then group results by parent Task. Confirm canonical PR URL in parent description or
+explicit parent key before accepting ambiguous label matches.
 
-- If results found → ticket already exists. Go to **Step 7** (update path).
-- If no results → proceed to 2b or create a new ticket.
+- No match → continue to 2b or create a ticket.
+- Every match resolves to the same parent → use that ticket and go to Step 7. Add any unmatched PRs
+  to this same parent during synchronization.
+- Different labels resolve to different parents → stop and report each conflicting PR and ticket.
+  Never select one arbitrarily or create a third ticket.
+- One label resolves to multiple Tasks → stop and report duplicate JIRA associations.
 
-### 2b — Memory fallback (when no PR number or JQL returns nothing)
+Memory is a fallback only when no PR label produces a valid match.
+
+### 2b — Memory fallback (when PR labels return nothing)
 
 Search memory for a recent ticket on the same branch or feature:
 
@@ -257,9 +274,17 @@ Ejemplo: `[groot-ui] Unifica el debounce de búsqueda en 500 ms`
 
 ### Pruebas
 - <cobertura de pruebas agregada o actualizada, en español>
+
+## Pull requests
+
+- [owner/repository#123](https://github.com/owner/repository/pull/123)
 ```
 
-Escribir todos los encabezados y puntos en español, con precisión técnica y sin relleno. No incluir
+`## Pull requests` is a canonical technical marker and the only exception to Spanish headings. Add
+it only to the parent when `PULL_REQUESTS` is non-empty. Use one item per canonical URL, display
+`owner/repo#number`, and do not persist state because it can become stale.
+
+Escribir los demás encabezados y puntos en español, con precisión técnica y sin relleno. No incluir
 listas de commits: la descripción debe explicar qué se construyó, no reproducir el historial Git.
 
 ---
@@ -278,14 +303,15 @@ createJiraIssue(
   contentFormat:    "markdown",
   assignee_account_id: "712020:8300527c-0cb7-4412-8303-0306dac20649",
   additional_fields: {
-    "labels":            ["kraken-user-role", "<repository_id>/PR-<number>"],  ← add PR label when PR number is known
+    "labels":            ["kraken-user-role", ...PR_LABELS],
     "customfield_18353": [{"id": "<quarter option id>", "value": "<Q derived from system date>"}],
     "customfield_12410": "YYYY-MM-DD"  ← start date = first commit date on the branch (from Step 3)
   }
 )
 ```
 
-> When no PR number is provided, omit the PR label — `labels` stays as `["kraken-user-role"]` only.
+Create the parent description with the canonical `Pull requests` section when associations exist.
+When `PULL_REQUESTS` is empty, omit the section and `PR_LABELS`.
 
 ### Update (if ticket already exists)
 
@@ -318,7 +344,7 @@ createJiraIssue(
   contentFormat:    "markdown",
   assignee_account_id: "712020:8300527c-0cb7-4412-8303-0306dac20649",
   additional_fields: {
-    "labels":            ["kraken-user-role", "<repository_id>/PR-<number>"],   ← same as parent (include PR label when applicable)
+    "labels":            ["kraken-user-role", ...PR_LABELS],   ← same complete set as parent
     "customfield_18353": [{"id": "<quarter option id>", "value": "<Q derived from system date>"}],
     "customfield_12410": "YYYY-MM-DD"            ← same start date as parent
   }
@@ -356,6 +382,21 @@ getJiraIssue(cloudId, subtask2Key)             ← …
 
 Fetch all known subtasks in parallel. Use memory (Step 2) or ask the user if the subtask keys are unknown.
 
+Before comparing drift, parse the parent's existing `## Pull requests` section. Resolve every URL
+again with Step 1 and union it with new input in `PULL_REQUESTS`; never remove an existing
+association because it was omitted from the current request. If a legacy PR label has no URL,
+reconstruct it only when it unambiguously identifies a PR in the current repository. Otherwise stop
+and request the canonical URL rather than inventing an owner or repository.
+
+Parent description is persistent source of PR associations. After adding stored URLs, deduplicate
+and sort `PULL_REQUESTS` again, regenerate `PR_LABELS`, recalculate `ALL_PRS_MERGED`, and repeat
+Step 2a conflict checks for complete collection before any edit. Use only recomputed values in all
+remaining steps. Stop if late-discovered or new association maps to another parent.
+
+Description must contain at most one canonical section. Merge canonical URLs into it, preserve all
+other content without functional drift, and combine read-modify-write with any other parent update.
+If no section exists, append it. Subtask descriptions never receive this section.
+
 ### 7b — Re-read the diff
 
 Re-run Step 3 to get the current state of the branch. The code is the source of truth — not what was previously in JIRA.
@@ -377,22 +418,36 @@ technical content remains accurate.
 
 ### 7d — Apply updates in parallel
 
-Update only what has drifted — do not touch fields that are still accurate:
+Update only what has drifted. For every issue, preserve unrelated labels and union them with
+`kraken-user-role` and all `PR_LABELS`. For the parent, include the merged canonical PR section in
+the same write as any summary, description, label, or mandatory-field correction:
 
 ```
-editJiraIssue(cloudId, parentKey,   fields: { summary: "…", description: "…" })
-editJiraIssue(cloudId, subtask1Key, fields: { summary: "…", description: "…" })
-editJiraIssue(cloudId, subtask2Key, fields: { summary: "…", description: "…" })
-…
+editJiraIssue(cloudId, parentKey, fields: {
+  version: <read-version>, summary: "…", description: "<merged description>",
+  labels: ["<existing>", "kraken-user-role", ...PR_LABELS],
+  customfield_18353: [{ id: "<quarter-id>", value: "<quarter>" }],
+  customfield_12410: "<parent-start-date>"
+})
+editJiraIssue(cloudId, subtaskKey, fields: {
+  summary: "…", labels: ["<existing>", "kraken-user-role", ...PR_LABELS],
+  customfield_18353: [{ id: "<quarter-id>", value: "<quarter>" }],
+  customfield_12410: "<parent-start-date>"
+})
 ```
 
-Run all `editJiraIssue` calls in parallel.
+Run independent issue edits in parallel, but never concurrent writes to same parent. Read issue
+`version`, `updated`, and full description immediately before merge; include that `version` as
+optimistic precondition in parent update. On conflict, re-fetch, merge over newest body, and retry
+once. If MCP/API cannot enforce version precondition, do not perform description read-modify-write:
+report that concurrent-edit safety cannot be guaranteed and ask user to rerun after conflict clears.
 
 ### 7e — Create missing subtasks
 
 If the diff contains work areas not covered by any existing subtask, create the missing ones
-using the same fields as Step 6: `issueTypeName: "Sub-task"`, `parent`, `labels: ["kraken-user-role", "<repository_id>/PR-<number>"]` (include PR label when applicable),
-`customfield_18353` (quarter option id/value from system date), and `customfield_12410` (start date —
+using the same fields as Step 6: `issueTypeName: "Sub-task"`, `parent`,
+`labels: ["kraken-user-role", ...PR_LABELS]`, `customfield_18353` (quarter option id/value from
+system date), and `customfield_12410` (start date —
 same value as the parent ticket's start date, read from `getJiraIssue` in step 7a).
 
 After updating/creating, display all tickets (updated and new) as a summary table in Spanish:
@@ -413,41 +468,48 @@ ones, and `— Sin cambios` for untouched issues.
 
 ## Step 8 — Validate parent and subtasks (BLOCKING GATE)
 
-This step is mandatory and blocking. The task is **not complete** until it passes.
+This gate is mandatory. Validate JIRA fields and Jira→PR links here, then repeat association and
+status checks after Step 9b so PR→Jira links are included. Task is **not complete** until final pass.
 
-After creating or updating the parent and all subtasks, fetch **every** issue
-(`getJiraIssue` on the parent and each subtask, in parallel) and verify on each one:
+After creating or updating, fetch parent and every subtask in parallel. Verify on every issue:
 
-- [ ] `labels` contains `kraken-user-role`
-- [ ] `labels` contains `<repository_id>/PR-<number>` (when PR number was provided)
-- [ ] `customfield_18353` contains the derived quarter (correct `id` + `value`)
-- [ ] `customfield_12410` contains the expected start date
+- [ ] `labels` contains `kraken-user-role` and every value in `PR_LABELS`
+- [ ] unrelated existing labels remain present
+- [ ] `customfield_18353` contains expected quarter id and value
+- [ ] `customfield_12410` contains expected start date
 
-If **any** field is missing or wrong on **any** issue, patch that issue with `editJiraIssue`
-and re-fetch to confirm. Do not close the task until all checks pass on every issue.
+Verify additionally on parent only:
+
+- [ ] exactly one `## Pull requests` section when `PULL_REQUESTS` is non-empty
+- [ ] every canonical URL appears exactly once and every previously stored URL remains present
+- [ ] no subtask description contains the canonical section
+
+Patch any mismatch and re-fetch. If parent description changed concurrently, apply the one-retry
+merge rule from Step 7. Do not close task until every issue and association passes.
 
 Report the result as a markdown table in Spanish:
 
 ```
-| Ticket | Tipo | Label | Label de PR | Trimestre | Fecha de inicio |
-|---|---|---|---|---|---|
-| [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | padre | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
-| [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | subtarea | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
-| [SGP1-1236](https://mercadolibre.atlassian.net/browse/SGP1-1236) | subtarea | ✅ | ✅ groot-ui/PR-42 | ✅ Q3/26 | ✅ 2026-07-07 |
+| Ticket | Tipo | Label | Labels de PR | Links de PR | Trimestre | Fecha de inicio |
+|---|---|---|---|---|---|---|
+| [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234) | padre | ✅ | ✅ 2/2 | ✅ 2/2 | ✅ Q3/26 | ✅ 2026-07-07 |
+| [SGP1-1235](https://mercadolibre.atlassian.net/browse/SGP1-1235) | subtarea | ✅ | ✅ 2/2 | ➖ solo padre | ✅ Q3/26 | ✅ 2026-07-07 |
 ```
 
-Use ✅ for present/correct, ❌ for missing/wrong. When no PR number was provided, show `➖` in the `Label de PR` column.
+Use ✅ for correct, ❌ for wrong, `➖ sin asociaciones` when collection is empty, and
+`➖ no aplica: solo padre` for subtask link column. Report expected/verified counts.
 
 ---
 
-## Step 9 — Transition parent according to PR state
+## Step 9 — Transition parent according to aggregate PR state
 
-Transitions apply to the **parent ticket only**. Fetch its current status before every transition
-and never move it backwards.
+Transitions apply only to parent. When `PULL_REQUESTS` is non-empty, execute and verify Step 9b
+before any status transition; return here only after every PR→Jira link passes. Fetch exact current
+status before every transition and never move it backwards.
 
-### PR is not verified as merged
+### Not every associated PR is verified as merged
 
-For a newly created ticket, keep the existing **Backlog → To Do → In Progress** flow:
+For a new ticket, keep **Backlog → To Do → In Progress** flow:
 
 ```
 transitionJiraIssue(cloudId, issueIdOrKey, { id: "331" })   ← "To Do" (status id 10000)
@@ -461,14 +523,18 @@ transitionJiraIssue(cloudId, issueIdOrKey, { id: "71" })    ← "Start progress"
 
 - Transition 71 is only available from "To Do" — step 1 is required first.
 - If transition 331 is unavailable, use 51 ("Selected to Development") — same target status 10000.
-- Skip statuses the parent has already reached.
-- Do not change the status of an existing ticket unless `PR_STATE` is verified as `MERGED`.
-- Confirm a new ticket reached **In Progress**.
+- Skip statuses parent already reached.
+- When `PULL_REQUESTS` is empty, preserve existing behavior and never complete an existing ticket.
+- If any PR is `OPEN` or `CLOSED` without merge, do not complete parent; existing ticket keeps its
+  status and new ticket ends in **In Progress**.
+- If any PR state cannot be verified, do not change JIRA status.
+- If parent is already **Done** and any associated PR is not merged, never move it backwards; report
+  inconsistency for human review.
 
-### PR_STATE is MERGED — transition to Done
+### ALL_PRS_MERGED is true — transition to Done
 
-A verified merged PR must leave the parent in **Done**, whether the ticket was created now or
-already existed. Follow this ordered status path:
+Only a non-empty collection where every PR is verified `MERGED` may leave parent in **Done**,
+whether ticket was created now or already existed. Follow ordered status path:
 
 ```
 To Do → In Progress → Create New Release → Done
@@ -493,55 +559,48 @@ Rules:
 - Never jump directly from **In Progress** to **Done**. **Create New Release** is mandatory.
 - After each transition, re-fetch the parent before resolving the next transition.
 - If an expected transition is unavailable or a transition does not reach its expected status,
-  stop, report the current status and available transition names, and do not claim completion.
+  stop, report current status and available transition names, and do not claim completion.
+- After status decision or transition, execute final Step 8 pass described in Step 9b.
 
 ---
 
-## Step 9b — Update PR description with Jira link (MANDATORY when PR number/link was provided)
+## Step 9b — Update every PR description with Jira link
 
-After creating or updating the ticket, insert the Jira link into the PR description body
-immediately after the first heading (title line), without modifying any other content.
+When `PULL_REQUESTS` is non-empty, make reverse traceability mandatory for every canonical PR URL.
+For each PR:
 
-This step is **mandatory** — do not skip it when a PR number or link was provided.
+1. Read `body` and `url` with `gh pr view <canonical-url> --json body,url`.
+2. Normalize body to exactly one exact Jira link: if duplicates exist, remove all copies before
+   reinserting one; if exactly one already occupies canonical position, leave body unchanged.
+3. Insert canonical link immediately after first `#` heading. If body has no heading, prepend link
+   plus blank line. Preserve every other byte of existing content.
+4. Write multiline body through temporary file:
+   `gh pr edit <canonical-url> --body-file <temporary-file>`.
+5. Re-read body and verify exact Jira link appears once. Delete temporary file.
 
-1. Read current PR body: `gh pr view <PR_NUMBER> --json body -q .body`
-2. If the body already contains the Jira link → skip.
-3. Find the first line that starts with `#` (the main title/heading).
-4. Insert `🎫 Jira: [<KEY>](https://mercadolibre.atlassian.net/browse/<KEY>)` on the **very next line** after that heading (with a blank line before and after for separation).
-5. The Jira link MUST go immediately after the first heading — never at the top, never at the bottom, never in any other position.
-6. Update: `gh pr edit <PR_NUMBER> --body "<modified body>"`
+Use canonical URL as command argument so PRs from other repositories work independently of current
+checkout. If any PR cannot be updated or verified, report URL and stop without claiming complete
+cross-traceability; do not roll back PRs already updated and do not duplicate links on retry.
 
-Example result in PR body:
-
-```markdown
-## Summary
-🎫 Jira: [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234)
-
-<rest of existing description unchanged>
-```
-
-Rules:
-- **Mandatory** when a PR number or PR link was explicitly provided by the user.
-- Position is non-negotiable: always immediately after the first `#` heading.
-- Do not touch the existing PR body content — only insert the Jira line.
-- If the PR body already contains the Jira link, skip (do not duplicate).
-- Format: `🎫 Jira: [SGP1-1234](https://mercadolibre.atlassian.net/browse/SGP1-1234)`
+Re-fetch every PR and confirm reverse link before returning to Step 9. After status decision and any
+transition, complete Step 8 final pass: re-fetch parent, subtasks, and PRs; confirm URLs, labels,
+individual states, final JIRA status, and both directions. Report one row per PR with canonical URL,
+GitHub state, JIRA label, Jira→PR result, and PR→Jira result.
 
 ---
 
 ## Step 10 — Save to memory
 
-After a successful create or update, call `search_episodic_memories` to check if an entry
-for this ticket already exists. Then:
+After successful final gate, use note memory consistently with stable title
+`Ticket JIRA <KEY> para <feature>` and `repository_id` project:
 
-- **If no entry exists** — call `store_note` or the episodic store with:
-  - `title`: `"Ticket JIRA <KEY> para <feature>"`
-  - `result`: `"Ticket <KEY> creado|actualizado. Resumen: … Subtareas: SGP1-XXXX, … Estado: <estado final verificado>. Estado del PR: <PR_STATE>."`
-  - `project`: `"<repository_id>"`
-  - `tags`: `["feature", "change"]`
+1. Call `search_note` with ticket key.
+2. If absent, call `store_note` once.
+3. If present, call `update_note` with returned note id.
 
-- **If an entry already exists** — update it with the new summary, subtask keys, and status
-  so future sessions find accurate information.
+Body contains ticket key, summary, subtask keys, verified JIRA status, arrays of canonical PR URLs,
+association labels and individual GitHub states, plus `ALL_PRS_MERGED`. Memory is discovery context,
+never source of truth for PR identity, state, or current JIRA content.
 
 ---
 
@@ -551,14 +610,15 @@ for this ticket already exists. Then:
 - Do not create a duplicate if a ticket already exists — update it instead.
 - **The three mandatory fields (labels, quarter, start date) go on EVERY issue — parent and every subtask. No exceptions.** See the "MANDATORY FIELDS" block at the top.
 - Label `kraken-user-role` is mandatory for every kraken ticket.
-- **PR association label** (`<repository_id>/PR-<number>`) is mandatory when a PR number is provided. It goes on parent AND every subtask. Format: lowercase repo id, `/PR-`, number (e.g. `groot-ui/PR-42`).
-- When a PR number is known, resolve `PR_STATE` from GitHub before changing JIRA status; never infer `MERGED` from local Git state or memory.
-- When `PR_STATE` is `MERGED`, the parent must finish in **Done** through **To Do → In Progress → Create New Release → Done**; never skip **Create New Release**.
-- When a PR number is known, Step 2a (JQL lookup by PR label) takes precedence over memory search.
+- Every normalized PR requires one `<repository_id>/PR-<number>` label on parent and subtasks.
+- Canonical PR URLs live only in one `## Pull requests` section in parent description; preserve earlier associations.
+- Resolve every PR identity and state from GitHub before JIRA writes or transitions; never infer them.
+- Parent reaches **Done** only when `ALL_PRS_MERGED` is true, through **To Do → In Progress → Create New Release → Done**.
+- JQL lookup across every PR label precedes memory; conflicting parent matches block modification.
 - Quarter (`customfield_18353`) must always be set; derive it from `date +"%m %Y"` — never from memory. Use the `[{"id","value"}]` shape.
 - Start date (`customfield_12410`) must always be set: first commit date on the branch for new tickets (derived from `git log BASE_BRANCH..HEAD --reverse --format="%aI" | head -1`), the parent's value for subtasks and updates.
-- Every subtask inherits the parent's labels (including PR label when present), quarter, and start date — verify this, don't assume the API copies them.
-- Step 8 is a **blocking gate**: never close the task until all fields are confirmed present on the parent and every subtask.
+- Every subtask inherits all parent labels, quarter, and start date, but never parent PR-link section.
+- Step 8 is a **blocking gate**: confirm fields, labels, canonical links, preservation, and reverse links.
 - Summary and description must be in **Spanish** for the parent and every subtask. All human-facing skill output must also be in Spanish.
 - Repository identity, base branch, file layout, language, and framework must be discovered from
   current checkout; none may be hardcoded.
