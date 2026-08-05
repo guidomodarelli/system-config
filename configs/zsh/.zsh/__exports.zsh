@@ -15,7 +15,6 @@ export LOCAL_BINARIES="$HOME/.local/bin"
 ### Go
 export GOPATH="$HOME/go"
 export GOBIN="$GOPATH/bin"
-export GOROOT="/usr/local/go"
 
 ### GPG
 export GPG_TTY=$(/usr/bin/tty)
@@ -90,7 +89,6 @@ path+=(
   $PROGRAMS/gf
   $HOME/.local/bin/flutter/bin/
   $GOOGLE_CLOUD_HOME/bin
-  $GOROOT/bin
   $GOBIN
   $HOME/.yarn/bin
   $HOME/.config/yarn/global/node_modules/.bin
