@@ -1,6 +1,6 @@
 ---
 name: pr-description-template
-description: "Provides the standard PR title and concise description template (change type, manual validation, optional API changes, reviewer notes). Use whenever creating or filling a pull request body — explicitly or implicitly — including when running /feature-branch-pr, 'crear PR', 'abrir pull request', 'subir cambios y crear PR', 'gh pr create', or any flow that needs a PR title and description."
+description: "Provides the standard PR title and concise description template (change type, manual validation, optional API changes, reviewer notes) plus a traceability-only mode that preserves existing PR content. Use whenever creating, filling, or intentionally restructuring a pull request body — explicitly or implicitly — including /feature-branch-pr, 'crear PR', 'abrir pull request', 'subir cambios y crear PR', or gh pr create."
 allowed-tools: Bash(gh:*) Bash(git:*)
 ---
 
@@ -13,19 +13,38 @@ Triggers (explicit or implicit):
 - the user asks to "crear PR", "abrir pull request", "subir cambios y crear PR", "branch + commit + push + PR"
 - any flow that ends in `gh pr create` / editing a PR body and needs a title + description
 
-## Rules
+## Modes
+
+### Full composition
+
+Use for new PRs or when the user explicitly asks to fill or restructure the complete title/body. Apply the template below from the actual diff.
+
+### Traceability-only patch
+
+Use when another skill updates an existing PR only to add or normalize traceability metadata.
+
+- Do not regenerate the template or edit the PR title.
+- Do not modify **Tipo de Cambio**, **Pruebas Manuales**, **Cambios en la API**, optional sections, reviewer notes, or unrelated ticket links.
+- A canonical Jira backlink may be inserted as the first content under `## 📝 Descripción`; this is not the removed top-level **Referencia** metadata block.
+- Delegate position, legacy cleanup, deduplication, concurrency, and byte-preservation rules to [pr-traceability.md](../kraken-jira-ticket/references/pr-traceability.md).
+- Read `title`, `body`, and `url`; edit only through `gh pr edit <url> --body-file <temp-file>` without `--title`.
+- Re-read the PR and verify title identity plus protected body content after the patch.
+
+## Full-composition rules
 
 - Fill every section from the actual diff — never leave the `*italic placeholders*`. Delete sections that genuinely do not apply (e.g. **Decisiones técnicas relevantes**, **Cambios en la API**, or **Notas para el Revisor**).
 - Start the body directly with **Descripción**. The PR title already carries the change summary, so do not repeat it as a body heading.
 - Do not add a compact **Tipo** metadata block above **Descripción**. In **Tipo de Cambio**, mark exactly one primary category with `[x]` and leave every other category unmarked with `[ ]`.
-- Include ticket or issue links naturally in **Descripción** or **Notas para el Revisor** when relevant; do not create a fixed metadata block for them.
+- Include ordinary ticket or issue links naturally in **Descripción** or **Notas para el Revisor**; do not create a fixed metadata block.
+- When fully composing an existing PR, preserve every canonical `🎫 Jira: [...]` backlink already present. Extract backlinks before replacing body and reinsert each once as first content under `## 📝 Descripción`; never drop established traceability.
+- New or legacy backlink normalization follows traceability-only mode; full composition preserves known canonical backlinks but does not invent Jira associations.
 - In **Cambios en la API**, keep only operation groups that apply (**Agregados**, **Modificados**, **Eliminados / Deprecados**) and delete unused lines.
 - **Pruebas Manuales** is mandatory: list reproducible steps a reviewer can follow. Mention automated coverage inside **Descripción** only when it adds relevant context. Do **not** state which validations you personally ran.
 - Body text is in Spanish; keep code, paths, endpoints, branch and identifier names in English.
-- Always apply the PR body directly with `gh`, unless the user explicitly asks for a draft only.
-- For an existing PR, locate it with `gh pr view --json number,title,body,url,headRefName,baseRefName` (or use the PR number/URL provided by the user), write the filled template to a temp file, and run `gh pr edit <number-or-url> --title "<title>" --body-file <temp-file>`.
-- For a new PR, pass the body to `gh pr create` via `--body-file` (write the filled template to a temp file) rather than a fragile inline `--body` string.
-- After `gh pr edit` or `gh pr create`, verify the result with `gh pr view --json title,body,url`.
+- Apply complete PR body directly with `gh`, unless user explicitly asks for draft only.
+- For an existing PR under full composition, locate it with `gh pr view --json number,title,body,url,headRefName,baseRefName`, write filled template to temp file, and run `gh pr edit <number-or-url> --title "<title>" --body-file <temp-file>`.
+- For a new PR, pass body to `gh pr create` via `--body-file` rather than fragile inline `--body` string.
+- After `gh pr edit` or `gh pr create`, verify result with `gh pr view --json title,body,url`.
 
 ## Title
 

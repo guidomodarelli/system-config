@@ -104,7 +104,7 @@ gh auth status
 
 If `gh` is missing or unauthenticated, skip this step and record the blocker. Otherwise:
 
-**Build the title and body with the [pr-description-template](../pr-description-template/SKILL.md) skill** — fill every applicable section from the diff, remove optional sections that add no context, then write the body to a temp file and pass it with `--body-file`:
+**Build the title and body in full-composition mode with the [pr-description-template](../pr-description-template/SKILL.md) skill** — fill every applicable section from the diff, remove optional sections that add no context, then write the body to a temp file and pass it with `--body-file`:
 
 ```bash
 gh pr create --title "<english subject>" --body-file <tmp-body.md> --base <default-branch> --head <feature-branch>
@@ -112,6 +112,10 @@ gh pr create --title "<english subject>" --body-file <tmp-body.md> --base <defau
 
 - Base = the repo's default branch (`develop` if it exists, else `main`/`master`). Confirm with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`.
 - Title in English; body follows the `pr-description-template` (Spanish prose, English code/identifiers).
+- Mark exactly one primary change type, include reproducible manual steps, and keep only applicable HTTP contract changes.
+- Mention automated coverage inside **Descripción** only when it adds reviewer context.
+- Do not add a **Referencia** metadata block, Jira workflow rules, or invoke `kraken-jira-ticket` automatically.
+- A later Jira association uses traceability-only mode and must not regenerate title or body.
 - End the PR body with:
 
   ```
