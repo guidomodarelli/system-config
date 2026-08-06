@@ -1,0 +1,57 @@
+{
+  "skill_name": "react-ssr-hydration-consistency",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "En una página Nordic de usuarios, el controller filtra con req.query.search durante SSR, pero el constructor de View usa window.location.search. Con ?search=foo el servidor renderiza input vacío y cliente muestra foo más botón de limpiar, causando hydration failed. Corregí flujo y agregá tests sin ocultar warning.",
+      "expected_output": "Diagnóstico identifica doble fuente de verdad. Solución valida query, copia allowlist, serializa initialParams y usa mismo snapshot en SSR y primer render cliente. Test usa renderToString, hydrateRoot y onRecoverableError, incluyendo estado vacío autoritativo.",
+      "files": [],
+      "expectations": [
+        "Identifies req.query versus window.location.search as hydration root cause",
+        "Uses validated allowlisted server snapshot as first-render source of truth",
+        "Treats serialized empty state as authoritative",
+        "Does not serialize sensitive request data",
+        "Adds behavior-level SSR and hydrateRoot regression with zero recoverable errors"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Una tarjeta SSR muestra 'actualizado hace N minutos' con new Date(), genera id con Math.random() y formatea fecha sin locale/timezone explícitos. Error aparece solo para usuarios fuera de timezone del servidor. Proponé fix Nordic y cobertura automatizada.",
+      "expected_output": "Solución elimina cálculo independiente: timestamp e ID estable se generan una vez o se difieren tras hydration; locale/timezone vienen de contexto compartido. Cobertura controla timezone/locale y confirma cero recoverable hydration errors.",
+      "files": [],
+      "expectations": [
+        "Explains why time, randomness, locale, and timezone diverge during hydration",
+        "Uses serialized or otherwise stable initial values",
+        "Avoids Math.random for first-render IDs",
+        "Keeps post-hydration live updates possible",
+        "Tests deterministic rendering under controlled locale and timezone"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Menú Nordic decide versión desktop/mobile leyendo matchMedia y localStorage en useState initializer. Además importa librería de gráficos que toca window al cargar. SSR usa menú desktop; celular hidrata menú mobile y página explota. Arreglalo sin convertir toda página a CSR.",
+      "expected_output": "Diseño mantiene fallback o device snapshot idéntico para SSR/primer cliente, mueve storage/matchMedia e import client-only después de hydration, aísla widget mínimo y preserva dimensiones. Distingue actualización post-hydration válida de mismatch inicial.",
+      "files": [],
+      "expectations": [
+        "Avoids browser-only reads that change first client markup",
+        "Uses server device context or stable shared fallback",
+        "Defers storage and matchMedia reads until after hydration when needed",
+        "Isolates client-only library to smallest stable boundary",
+        "Does not disable SSR for the whole page or suppress the warning"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "React reporta hydration mismatch cerca de un p que contiene un div y un button anidado dentro de otro button. Alguien propone poner suppressHydrationWarning en Page completo. Revisá propuesta, corregí markup y definí verificación runtime.",
+      "expected_output": "Análisis reconoce reparación del parser por nesting inválido, corrige semántica y rechaza suppressHydrationWarning global. Validación incluye SSR+hydrateRoot, onRecoverableError, build Nordic y hard reload con consola/browser.",
+      "files": [],
+      "expectations": [
+        "Identifies invalid HTML nesting as parser-driven mismatch",
+        "Fixes semantic markup instead of hiding the warning",
+        "Rejects broad suppressHydrationWarning usage",
+        "Allows suppression only as a documented localized exception",
+        "Requires real build and browser console validation"
+      ]
+    }
+  ]
+}
