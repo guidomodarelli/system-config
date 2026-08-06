@@ -51,6 +51,11 @@ if [[ "$CURRENT_OS" = "Darwin" ]]; then
   if [[ -n "${HOMEBREW_PREFIX:-}" ]]; then
     export PATH="$HOMEBREW_PREFIX/bin:$HOMEBREW_PREFIX/sbin:$PATH"
   fi
+
+  ### Visual Studio Code
+  if [[ -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]]; then
+    path+=("/Applications/Visual Studio Code.app/Contents/Resources/app/bin")
+  fi
 fi
 
 # =============================================================================
