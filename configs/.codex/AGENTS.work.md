@@ -35,20 +35,7 @@ alwaysApply: false
 - En los handlers, usar los valores ya validados directamente y dejar solo los chequeos de reglas de negocio que el schema no puede expresar.
 - Aplicar el mismo enfoque de validación de forma consistente en todas las rutas del módulo.
 
-## Verificación Runtime Para Repositorios Frontend
-
-Al verificar flujos runtime de cualquier repositorio frontend bajo `~/ghq/work/`:
-
-1. Confirmar servidor en `https://dev.adminml.com:8443` y autenticar sesión corporativa en browser.
-2. Abrir ruta afectada con Chrome DevTools MCP y capturar snapshot + requests XHR/fetch.
-3. Ejecutar flujo desde UI, evitando leer request headers completos porque contienen sesión/CSRF.
-4. Para cambios de estado, usar fixture conocido, registrar estado inicial y restaurarlo al finalizar.
-5. Confirmar status de requests mediante `list_network_requests`; no usar `get_network_request` salvo que body sea imprescindible y pueda guardarse o sanitizarse.
-6. Agregar probe read-only adyacente mediante `evaluate_script` cuando aplique.
-7. Reportar PASS/FAIL/BLOCKED con requests sanitizadas, estado final y cualquier ruido preexistente observado.
-
 ## Validación Mínima Para Repositorios En `~/ghq/work/`
 
 Antes de cerrar una respuesta o cambio, confirmar que:
-- Se usó `frontender-web-mcp` cuando el repositorio pertenece a `~/ghq/work/`.
 - Los comentarios, nombres y strings de implementación agregados o modificados están en inglés.
