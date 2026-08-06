@@ -104,7 +104,7 @@ gh auth status
 
 If `gh` is missing or unauthenticated, skip this step and record the blocker. Otherwise:
 
-**Build the title and body with the [pr-description-template](../pr-description-template/SKILL.md) skill** — announce that you are using it, fill every section from the diff, then write the body to a temp file and pass it with `--body-file`:
+**Build the title and body with the [pr-description-template](../pr-description-template/SKILL.md) skill** — fill every applicable section from the diff, remove optional sections that add no context, then write the body to a temp file and pass it with `--body-file`:
 
 ```bash
 gh pr create --title "<english subject>" --body-file <tmp-body.md> --base <default-branch> --head <feature-branch>

@@ -1,6 +1,6 @@
 ---
 name: pr-description-template
-description: "Provides the standard PR title and description template (icons, headings, automated/manual tests, checklists). Use whenever creating or filling a pull request body — explicitly or implicitly — including when running /feature-branch-pr, 'crear PR', 'abrir pull request', 'subir cambios y crear PR', 'gh pr create', or any flow that needs a PR title and description."
+description: "Provides the standard PR title and concise description template (change type, manual validation, optional API changes, reviewer notes). Use whenever creating or filling a pull request body — explicitly or implicitly — including when running /feature-branch-pr, 'crear PR', 'abrir pull request', 'subir cambios y crear PR', 'gh pr create', or any flow that needs a PR title and description."
 allowed-tools: Bash(gh:*) Bash(git:*)
 ---
 
@@ -15,10 +15,12 @@ Triggers (explicit or implicit):
 
 ## Rules
 
-- **Always announce the skill**: before writing the PR body, state that you are using the `pr-description-template` skill.
-- Fill every section from the actual diff — never leave the `*italic placeholders*`. Delete sections that genuinely do not apply (e.g. **Cambios en la API** when there are no API changes).
-- Pick exactly one box in **Tipo de Cambio**.
-- **Pruebas Automatizadas** and **Pruebas Manuales** are mandatory sections: list the tests and the manual steps a reviewer follows. Do **not** state which validations you personally ran.
+- Fill every section from the actual diff — never leave the `*italic placeholders*`. Delete sections that genuinely do not apply (e.g. **Decisiones técnicas relevantes**, **Cambios en la API**, or **Notas para el Revisor**).
+- Start the body directly with **Descripción**. The PR title already carries the change summary, so do not repeat it as a body heading.
+- Do not add a compact **Tipo** metadata block above **Descripción**. In **Tipo de Cambio**, mark exactly one primary category with `[x]` and leave every other category unmarked with `[ ]`.
+- Include ticket or issue links naturally in **Descripción** or **Notas para el Revisor** when relevant; do not create a fixed metadata block for them.
+- In **Cambios en la API**, keep only operation groups that apply (**Agregados**, **Modificados**, **Eliminados / Deprecados**) and delete unused lines.
+- **Pruebas Manuales** is mandatory: list reproducible steps a reviewer can follow. Mention automated coverage inside **Descripción** only when it adds relevant context. Do **not** state which validations you personally ran.
 - Body text is in Spanish; keep code, paths, endpoints, branch and identifier names in English.
 - Always apply the PR body directly with `gh`, unless the user explicitly asks for a draft only.
 - For an existing PR, locate it with `gh pr view --json number,title,body,url,headRefName,baseRefName` (or use the PR number/URL provided by the user), write the filled template to a temp file, and run `gh pr edit <number-or-url> --title "<title>" --body-file <temp-file>`.
@@ -27,18 +29,11 @@ Triggers (explicit or implicit):
 
 ## Title
 
-Single line, descriptive, English-friendly subject. Example: `Add user status sidebar element to detail views`.
+Single line, descriptive, English-friendly subject. Example: `Add user status sidebar element to detail views`. Use it only as the PR title; do not repeat it inside the body.
 
 ## Body template
 
 ```markdown
-# 🏷️ Título descriptivo del cambio
-
-> **Tipo:** ✨ Feature · 🐛 Bugfix · 🧹 Refactor · ⚙️ Chore
-> **Referencia:** *(link a ticket / issue, si aplica)*
-
----
-
 ## 📝 Descripción
 
 ### ❓ ¿Qué problema resuelve?
@@ -47,55 +42,38 @@ Single line, descriptive, English-friendly subject. Example: `Add user status si
 ### 💡 ¿Cuál fue la solución?
 *Resumen técnico de la implementación. Componentes, servicios y archivos clave modificados.*
 
-### ❓ ¿Por qué este enfoque y no otro?
-*Decisiones de diseño relevantes y alternativas descartadas.*
+### 🤔 Decisiones técnicas relevantes *(si aplica)*
+*Trade-offs, alternativas descartadas o restricciones que ayuden a comprender la solución. Eliminar esta sección cuando no aporte contexto.*
 
 ---
 
 ## 🚀 Tipo de Cambio
 
-- [ ] 🐛 **Bug Fix** — corrige un problema sin romper funcionalidad existente
+> _Marcar una sola categoría principal con `[x]` y dejar las demás sin marcar._
+
+- [ ] 🐛 **Bug Fix** — corrige comportamiento defectuoso
 - [ ] ✨ **New Feature** — agrega funcionalidad nueva
-- [ ] 💥 **Breaking Change** — altera comportamiento existente
-- [ ] 🧹 **Refactor** — reestructura sin cambiar comportamiento
-- [ ] 📄 **Documentation** — solo documentación
-- [ ] ⚙️ **Chore** — dependencias, config, CI/CD
-
----
-
-## 🎨 Evidencia Visual
-
-| 🔴 Antes | 🟢 Después |
-| :---: | :---: |
-| *(imagen / gif)* | *(imagen / gif)* |
-
----
-
-## 🧪 Pruebas Automatizadas
-
-> _Tests unitarios y de integración incluidos en este PR._
-
-- [ ] 🧩 Unit tests para `<Componente>`
-- [ ] 🔗 Integration tests para `<Servicio / flujo>`
-- [ ] 🧷 Casos borde cubiertos (errores, estados vacíos, *loading*)
+- [ ] 💥 **Breaking Change** — modifica un contrato o comportamiento incompatible
+- [ ] ⚡ **Performance** — mejora tiempos, uso de recursos o escalabilidad
+- [ ] 🧹 **Refactor** — reestructura código sin cambiar comportamiento
+- [ ] 🧪 **Tests** — agrega o mejora cobertura sin cambiar producción
+- [ ] 📄 **Documentation** — actualiza documentación sin cambiar código funcional
+- [ ] 🏗️ **Build** — modifica compilación, empaquetado o herramientas de build
+- [ ] 👷 **CI/CD** — modifica pipelines, checks o automatización de entrega
+- [ ] ⬆️ **Dependencies** — actualiza, agrega o elimina dependencias
+- [ ] ⚙️ **Chore** — mantenimiento sin impacto funcional directo
+- [ ] ↩️ **Revert** — revierte un cambio anterior
 
 ---
 
 ## 🖐️ Pruebas Manuales
 
-> _Pasos para que el revisor reproduzca el comportamiento._
+> _Pasos reproducibles para validar el cambio._
 
-**🌐 Entorno de prueba:** `<URL / ambiente>`
+**🌐 Entorno:** `<URL / ambiente, si aplica>`
 
-**Pasos:**
-1. Navegar a `<ruta>`.
-2. Realizar `<acción>`.
-3. Verificar que `<resultado esperado>`.
-
-**Escenarios a cubrir:**
-- ✅ *Happy path* — flujo principal funciona
-- ⚠️ *Edge case* — entradas inválidas / límites
-- 🔒 *Permisos* — roles y visibilidad según contexto de usuario
+1. `<Acción a realizar>` → `<Resultado esperado>`
+2. `<Acción a realizar>` → `<Resultado esperado>`
 
 ---
 
@@ -107,18 +85,7 @@ Single line, descriptive, English-friendly subject. Example: `Add user status si
 
 ---
 
-## ✅ Checklist del Autor
+## 👀 Notas para el Revisor *(si aplica)*
 
-- [ ] 🎨 El código sigue las guías de estilo del proyecto
-- [ ] 🔍 Hice *self-review* del diff
-- [ ] 💬 Comenté las zonas más complejas
-- [ ] 📚 Actualicé la documentación relevante *(si aplica)*
-- [ ] 🚫 No introduzco nuevos *warnings*
-- [ ] 🧪 Agregué / actualicé tests para los cambios
-
----
-
-## 👀 Notas para el Revisor
-
-> _Dónde enfocar la atención, dudas abiertas o puntos a discutir._
+> _Dónde enfocar la atención, dudas abiertas o puntos a discutir. Eliminar esta sección cuando no haya notas relevantes._
 ```
