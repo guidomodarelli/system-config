@@ -8,6 +8,20 @@ allowed-tools: Bash(gh:*) Bash(git:*)
 
 Use this skill any time a pull request body has to be written or filled. It defines the canonical title + description so every PR looks consistent.
 
+## Alcance estricto
+
+Ejecutar únicamente acciones necesarias para componer, aplicar o verificar título y body del PR solicitado.
+
+- Leer diff solo como evidencia para redactar descripción; no tratarlo como pedido implícito de review.
+- No iniciar code review, security audit, dependency audit, performance review ni análisis adicional salvo pedido explícito.
+- No ejecutar tests, builds, linters, scanners ni validaciones del repositorio salvo pedido explícito.
+- No invocar skills, agentes o workflows ajenos a composición del PR salvo pedido explícito o delegación directa del flujo llamador. Si una regla de mayor prioridad obliga una invocación, limitarla a determinar aplicabilidad; no expandir alcance.
+- No modificar código, dependencias o configuración.
+- No crear ni actualizar Jira, labels, review comments, approvals, merge ni estado del PR.
+- Writes permitidos: crear PR cuando flujo llamador lo pida, o editar únicamente title/body del PR explícitamente solicitado.
+- En modo `traceability-only`, único write permitido es backlink body-only delegado; no retemplar PR.
+- Si una acción no es requisito directo para descripción pedida, omitirla.
+
 Triggers (explicit or implicit):
 - the user runs `/feature-branch-pr` (the [feature-branch-pr](../feature-branch-pr/SKILL.md) skill must use this template for the PR body)
 - the user asks to "crear PR", "abrir pull request", "subir cambios y crear PR", "branch + commit + push + PR"

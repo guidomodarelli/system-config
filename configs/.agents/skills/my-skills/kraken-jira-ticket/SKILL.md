@@ -17,6 +17,18 @@ Requiere Atlassian MCP, GitHub CLI y memory MCP.
 > **NUNCA ejecutar `git push`, `git push --force` ni otro comando de upload Git durante esta skill.**
 > Gestión de tickets es independiente de publicación del repositorio.
 
+## Alcance estricto
+
+Ejecutar únicamente acciones necesarias para crear, actualizar, asociar, transicionar y validar ticket JIRA solicitado.
+
+- Leer diff solo como evidencia para redactar alcance, subtareas y cobertura del ticket; no tratarlo como pedido implícito de review.
+- No iniciar code review, security audit, dependency audit, performance review ni análisis adicional salvo pedido explícito del usuario.
+- No ejecutar tests, builds, linters, scanners ni comandos de validación del repositorio salvo pedido explícito.
+- No invocar skills, agentes o workflows ajenos al flujo Jira salvo pedido explícito. Si una regla de mayor prioridad obliga una invocación, limitarla a determinar aplicabilidad y volver al flujo; no expandirla a auditoría o implementación.
+- No modificar código, dependencias, configuración, comentarios de review, approvals ni estado del PR.
+- Únicos writes externos permitidos: issues JIRA, transiciones JIRA y backlink Jira body-only sobre PR explícitamente asociado.
+- Si una acción no es requisito directo para completar sincronización Jira pedida, omitirla.
+
 ## Idioma obligatorio
 
 Todo contenido visible para personas debe estar en español:

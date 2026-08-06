@@ -8,6 +8,19 @@ allowed-tools: Bash(git:*) Bash(gh:*)
 
 Take the current uncommitted changes and ship them as a pull request in one closeout flow, then return a summary table.
 
+## Alcance estricto
+
+Ejecutar únicamente cierre solicitado: inspeccionar estado, crear/reutilizar branch, stage, commit, push, crear PR y verificar resultado.
+
+- No iniciar code review, security audit, dependency audit, performance review ni análisis adicional salvo pedido explícito.
+- No ejecutar tests, builds, linters o scanners adicionales. Hooks Git obligatorios pueden ejecutarse como parte de commit; no lanzar validaciones aparte.
+- No invocar skills, agentes o workflows ajenos al flujo, excepto `pr-description-template`. Si una regla de mayor prioridad obliga una invocación, limitarla a determinar aplicabilidad; no expandir alcance.
+- No modificar código, dependencias o configuración para corregir problemas descubiertos durante cierre.
+- Si hook, commit, push o creación PR falla por contenido del repositorio, detener y reportar blocker; no aplicar fixes automáticos.
+- No crear ni actualizar Jira, review comments, approvals, merge, labels ni estado del PR.
+- Writes permitidos: branch local, index Git, commit, push y creación/title/body del PR solicitado.
+- Si una acción no es requisito directo para cierre pedido, omitirla.
+
 Use when:
 - the user asks to commit & push the current changes and open a PR
 - "subir cambios y crear PR", "branch + commit + push + PR", closeout of WIP
