@@ -39,9 +39,9 @@ alwaysApply: false
 
 Al verificar flujos runtime de cualquier repositorio frontend bajo `~/ghq/work/`:
 
-1. Confirmar servidor local según documentación del proyecto y autenticar sesión requerida en browser.
+1. Confirmar servidor en `https://dev.adminml.com:8443` y autenticar sesión corporativa en browser.
 2. Abrir ruta afectada con Chrome DevTools MCP y capturar snapshot + requests XHR/fetch.
-3. Ejecutar flujo afectado desde UI, evitando leer request headers completos porque pueden contener sesión, tokens o CSRF.
+3. Ejecutar flujo desde UI, evitando leer request headers completos porque contienen sesión/CSRF.
 4. Para cambios de estado, usar fixture conocido, registrar estado inicial y restaurarlo al finalizar.
 5. Confirmar status de requests mediante `list_network_requests`; no usar `get_network_request` salvo que body sea imprescindible y pueda guardarse o sanitizarse.
 6. Agregar probe read-only adyacente mediante `evaluate_script` cuando aplique.
