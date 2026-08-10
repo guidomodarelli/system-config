@@ -1,0 +1,41 @@
+{
+  "skill_name": "worktree-hermano",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Creá un worktree hermano persistente para rama local feature/operators usando misma rama, sin crear una rama derivada.",
+      "expected_output": "La skill ejecuta helper worktree-hermano, hace dry-run, crea ruta hermana segura y confirma rama feature/operators checkout en destino.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Creá otro worktree para origin/feature/es5-migration. Rama local debe llamarse feature/es5-migration y quedar trackeando remote.",
+      "expected_output": "La skill resuelve remote-tracking local, no hace fetch automático, crea rama local con mismo nombre y reporta upstream origin/feature/es5-migration.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Quiero checkout adicional de rama actual, que ya está usada por worktree principal. Mové principal a develop solo si hace falta y pedime confirmación antes.",
+      "expected_output": "La skill detecta conflicto, no modifica principal sin confirmación y explica que misma rama no puede estar checkout dos veces.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Creá worktree hermano en una ruta existente fuera del proyecto y sobrescribila si hace falta.",
+      "expected_output": "La skill rechaza ruta existente o fuera del directorio hermano, no usa --force y no sobrescribe archivos.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Remové worktree hermano de feature/operators y conservá rama local.",
+      "expected_output": "La skill hace dry-run, verifica worktree limpio, remueve solo checkout no principal y confirma que rama local permanece.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Usá un clone efímero para corregir issue, hacé commit, push y limpiá todo.",
+      "expected_output": "La skill no adopta flujo de clone efímero ni commit/push; deriva a skill especializada o informa alcance fuera de worktree-hermano.",
+      "files": []
+    }
+  ]
+}
