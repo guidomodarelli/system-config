@@ -1,6 +1,6 @@
 ---
 name: feature-branch-pr
-description: "Ship uncommitted work end-to-end: create a feature/* branch (only if currently on a default branch), commit, push, open a PR, and report a summary table. Use when the user asks to commit & push current changes and open a PR, 'subir los cambios y crear PR', 'branch + commit + push + PR', or to close out work-in-progress into a pull request."
+description: "Ship current branch changes end-to-end: create a feature/* branch (only if currently on a default branch), commit when needed, push, open a PR, and report a summary table. Use when the user asks to commit & push current changes and open a PR, 'subir los cambios y crear PR', 'branch + commit + push + PR', or to close out work-in-progress into a pull request."
 allowed-tools: Bash(git:*) Bash(gh:*)
 ---
 
@@ -38,15 +38,35 @@ Use when:
 
 ## Steps
 
-### 1. Inspect state
+### 1. Inspect state and resolve PR base
+
+Select first available remote base in this mandatory order:
 
 ```bash
+BASE_REF=''
+for candidate in origin/develop origin/master origin/main; do
+  if git show-ref --verify --quiet "refs/remotes/$candidate"; then
+    BASE_REF="$candidate"
+    break
+  fi
+done
+
+if [ -z "$BASE_REF" ]; then
+  echo "No supported remote PR base found" >&2
+  exit 1
+fi
+
+BASE_BRANCH="${BASE_REF#origin/}"
 git rev-parse --abbrev-ref HEAD
 git status --porcelain
+git diff --stat "$BASE_REF"...HEAD
 ```
 
-- If `git status --porcelain` is empty → nothing to ship. Report that and stop.
-- Capture the current branch name for the branch decision.
+- If no remote ref exists in `origin/develop`, `origin/master`, or `origin/main`, stop and report that no supported PR base was found.
+- Capture current branch name, selected `BASE_REF`, and `BASE_BRANCH` for later steps.
+- Branch has changes to ship when working tree is dirty **or** `git diff --quiet "$BASE_REF"...HEAD` returns non-zero.
+- If working tree is clean and branch has no diff against selected base, report nothing to ship and stop.
+- A clean working tree with commits ahead of selected base is valid: skip commit step, continue with push and PR creation.
 
 ### 2. Check if a PR already exists for this branch
 
@@ -56,7 +76,7 @@ If the current branch is NOT a default branch, check whether a PR is already ope
 gh pr view --json url --jq .url 2>/dev/null
 ```
 
-- **PR exists** → this is a successive commit scenario. **Do NOT commit or push automatically.** Report the current dirty state (files changed, insertions/deletions) and the existing PR URL, then **stop**. The user owns the commit/push lifecycle after the initial PR creation.
+- **PR exists** → this is a successive commit scenario. **Do NOT commit or push automatically.** Report working-tree state, branch diff against `BASE_REF`, and existing PR URL, then **stop**. User owns commit/push lifecycle after initial PR creation.
 - **No PR exists** → continue with the full flow below.
 
 ### 3. Decide the branch
@@ -79,7 +99,8 @@ Slug rules: lowercase, hyphen-separated, English, no spaces, no ticket-noise. Ex
 
 ### 4. Commit
 
-Stage everything and commit with a clear Conventional-Commit-style English subject plus a short body describing the change.
+- If working tree is clean and branch diff against `BASE_REF` exists, do not create empty commit; record `commitAction = "existing"` and continue.
+- If working tree is dirty, stage everything and commit with a clear Conventional-Commit-style English subject plus a short body describing the change.
 
 ```bash
 git add -A
@@ -120,10 +141,10 @@ If `gh` is missing or unauthenticated, skip this step and record the blocker. Ot
 **Build the title and body in full-composition mode with the [pr-description-template](../pr-description-template/SKILL.md) skill** — fill every applicable section from the diff, remove optional sections that add no context, then write the body to a temp file and pass it with `--body-file`:
 
 ```bash
-gh pr create --title "<english subject>" --body-file <tmp-body.md> --base <default-branch> --head <feature-branch>
+gh pr create --title "<english subject>" --body-file <tmp-body.md> --base "$BASE_BRANCH" --head <feature-branch>
 ```
 
-- Base = the repo's default branch (`develop` if it exists, else `main`/`master`). Confirm with `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`.
+- Base = `BASE_BRANCH`, selected from remote refs in this order: `origin/develop` → `origin/master` → `origin/main`. Use `--base "$BASE_BRANCH"`; do not replace this fallback with GitHub's default-branch metadata.
 - Title in English; body follows the `pr-description-template` (Spanish prose, English code/identifiers).
 - Mark exactly one primary change type, include reproducible manual steps, and keep only applicable HTTP contract changes.
 - Mention automated coverage inside **Descripción** only when it adds reviewer context.
@@ -144,7 +165,7 @@ Always close with a Markdown table summarizing the run:
 | Paso | Resultado |
 | --- | --- |
 | Rama | `feature/<slug>` (creada \| reutilizada) |
-| Base | `<default-branch>` |
+| Base | `<BASE_BRANCH>` (seleccionada por fallback remoto) |
 | Commit | `<short-hash>` — `<subject>` |
 | Push | OK → `origin/<feature-branch>` |
 | PR | `<pr-url>` (o motivo si no se creó) |
@@ -153,8 +174,8 @@ If any step was skipped or failed, show its real status in the table (e.g. `PR |
 
 ## Edge cases
 
-- **Clean tree:** nothing to commit → report and stop; do not create an empty branch or PR.
+- **Clean tree:** if branch has no diff against selected `BASE_REF`, report nothing to ship and stop; if branch has commits ahead of selected base, skip commit and continue with push/PR.
 - **Detached HEAD:** treat as non-default → create `feature/<slug>` so the work is not orphaned, then proceed.
-- **PR already open for the branch (successive commits):** do NOT commit or push. Report the dirty-tree summary and the existing PR URL, then stop. The user decides when and how to commit/push subsequent changes.
+- **PR already open for the branch (successive commits):** do NOT commit or push. Report working-tree state, branch diff against `BASE_REF`, and existing PR URL, then stop. User decides when and how to commit/push subsequent changes.
 - **Push rejected (non-fast-forward):** do not force-push. Report the rejection and ask the user how to proceed.
-- **No `origin` remote:** stop after the commit, report the missing remote.
+- **No `origin` remote:** stop before base resolution and report missing remote; do not commit, push, or create PR.
