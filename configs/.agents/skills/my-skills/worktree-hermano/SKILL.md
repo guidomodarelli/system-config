@@ -5,7 +5,7 @@ description: "Gestiona worktrees hermanos persistentes reutilizando ramas existe
 
 # Worktree hermano
 
-Gestiona worktrees Git persistentes en rutas hermanas. Helper bundled contiene lógica determinista y validaciones; no reimplementar comandos Git manualmente.
+Gestiona worktrees Git persistentes en rutas hermanas. Cada `create` debe partir de snapshot remoto actualizado de rama origen mediante helper bundled; no reimplementar comandos Git manualmente.
 
 ## Helper
 
@@ -57,10 +57,19 @@ Opciones:
 - `--branch BRANCH`: obligatorio. Acepta rama local, `origin/branch` o ref completa.
 - `--name NAME`: nombre seguro para ruta hermana; mutuamente excluyente con `--path`.
 - `--path PATH`: ruta hermana explícita.
-- `--dry-run`: valida sin modificar Git ni filesystem.
+- `--dry-run`: valida sin modificar Git ni filesystem; muestra fetch y fast-forward previstos sin confirmar snapshot remoto mediante refs locales.
 - `--confirm-primary-switch-to-develop`: autoriza mover worktree principal limpio a rama local `develop` cuando rama solicitada está ocupada allí.
 
-Rama remota se materializa como rama local con mismo nombre y upstream. No ejecutar `fetch` automáticamente; informar si remote-tracking puede estar desactualizada.
+Rama remota se materializa como rama local con mismo nombre y upstream. Cada `create` ejecuta fetch dirigido únicamente a remoto y branch origen antes de crear worktree. Rama local con upstream se actualiza solo mediante fast-forward; rama adelantada se conserva. Rama sin upstream, divergente, remoto inaccesible o cambio concurrente de ref bloquea operación. Nunca usar `pull`, `fetch --all`, `fetch --prune`, `reset` o `--force`.
+
+### Sincronización obligatoria de fuente
+
+- Resolver fuente remota desde ref explícita (`origin/branch`, `refs/remotes/...`) o upstream remoto de rama local.
+- Actualizar solo ref remota necesaria antes de `git worktree add`; no usar snapshot stale.
+- Si rama local está detrás, aplicar fast-forward; si está igual, continuar; si está delante, conservar commits locales; si diverge, bloquear.
+- Si rama local no tiene upstream y no se indicó ref remota explícita, bloquear; no inventar remoto ni asumir `main`, `master` o `develop`.
+- Verificar HEAD creado contra OID sincronizado y reportar remoto, estado, OID fuente y OID local anterior.
+- `--dry-run` no modifica refs, `FETCH_HEAD`, worktrees ni filesystem; solo muestra operaciones previstas y no afirma actualidad garantizada.
 
 ### Listar
 
@@ -82,8 +91,8 @@ Usar exactamente uno de `--branch BRANCH` o `--path PATH`. Solo remover worktree
 ## Invariantes
 
 - Reutilizar rama solicitada; nunca crear rama derivada para resolver conflicto.
-- No usar `--force`.
-- No ejecutar `fetch`, `pull`, `push`, `commit`, `reset`, `clean`, `stash` ni `prune`.
+- En `create`, ejecutar solo fetch dirigido a fuente remota y permitir únicamente fast-forward seguro de rama local; en `list` y `remove`, no ejecutar fetch.
+- No usar `pull`, `push`, `commit`, `reset`, `clean`, `stash`, `prune` ni `--force`.
 - No sobrescribir rutas existentes, symlinks, rutas registradas, rutas anidadas o rutas fuera del directorio hermano.
 - No borrar worktree principal ni worktree con archivos trackeados, no trackeados o ignorados.
 - No modificar archivos del proyecto fuera de operaciones propias de Git worktree.
@@ -103,6 +112,8 @@ Reportar siempre:
 - operación ejecutada;
 - ruta absoluta del worktree;
 - rama checkout y upstream cuando exista;
+- fuente remota, estado de sincronización y OID fuente;
+- OID local anterior cuando aplique;
 - HEAD inicial/final;
 - si principal fue movido a `develop`;
 - validaciones omitidas o errores literales de Git.

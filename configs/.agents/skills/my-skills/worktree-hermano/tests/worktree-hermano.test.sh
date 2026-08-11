@@ -53,7 +53,9 @@ setup_fixture() {
   git init --bare -q "$REMOTE"
   git -C "$REPO" remote add origin "$REMOTE"
   git -C "$REPO" push -q -u origin main
-  git -C "$REPO" push -q origin develop
+  git -C "$REMOTE" symbolic-ref HEAD refs/heads/main
+  git -C "$REPO" push -q -u origin develop
+  git -C "$REPO" push -q -u origin feature/local
 
   git -C "$REPO" checkout -qb temp/remote-source
   printf 'remote\n' >> "$REPO/file.txt"
@@ -82,6 +84,34 @@ run_helper() {
   ) > "$STDOUT_FILE" 2> "$STDERR_FILE"
   TEST_STATUS=$?
   set -e
+}
+
+run_helper_from() {
+  local working_directory=$1
+  shift
+  set +e
+  (
+    cd "$working_directory"
+    "$HELPER" "$@"
+  ) > "$STDOUT_FILE" 2> "$STDERR_FILE"
+  TEST_STATUS=$?
+  set -e
+}
+
+advance_remote_branch() {
+  local branch=$1
+  local marker=$2
+  local remote_client="$TEST_ROOT/remote-client"
+
+  git clone -q "$REMOTE" "$remote_client"
+  git -C "$remote_client" config user.name 'Remote Test'
+  git -C "$remote_client" config user.email 'remote-test@example.com'
+  git -C "$remote_client" checkout -qb update "origin/$branch"
+  printf '%s\n' "$marker" >> "$remote_client/file.txt"
+  git -C "$remote_client" add file.txt
+  git -C "$remote_client" commit -qm "$marker"
+  git -C "$remote_client" push -q origin "HEAD:refs/heads/$branch"
+  ADVANCED_REMOTE_OID=$(git -C "$remote_client" rev-parse HEAD)
 }
 
 test_help_and_invalid_operation() {
@@ -123,6 +153,147 @@ test_create_remote_tracking_branch() {
   [[ "$(git -C "$target" branch --show-current)" == 'feature/remote' ]] || fail 'expected remote branch to become local branch'
   [[ "$(git -C "$target" rev-parse --abbrev-ref --symbolic-full-name '@{u}')" == 'origin/feature/remote' ]] || fail 'expected remote tracking branch'
   assert_contains "$STDOUT_FILE" 'tracking local se creará'
+  teardown_fixture
+}
+
+test_remote_tracking_stale_fetches_latest() {
+  local target
+  local old_oid
+  local expected_oid
+  setup_fixture
+  target="$WORK_PARENT/repository-remote-stale"
+  old_oid=$(git -C "$REPO" rev-parse refs/remotes/origin/feature/remote)
+  advance_remote_branch feature/remote 'remote update'
+  expected_oid=$ADVANCED_REMOTE_OID
+
+  [[ "$old_oid" != "$expected_oid" ]] || fail 'expected remote branch to advance after initial fetch'
+  run_helper create --branch origin/feature/remote --name remote-stale
+  assert_status 0
+  [[ "$(git -C "$target" rev-parse HEAD)" == "$expected_oid" ]] || fail 'worktree did not use latest remote commit'
+  [[ "$(git -C "$REPO" rev-parse refs/remotes/origin/feature/remote)" == "$expected_oid" ]] || fail 'remote-tracking ref was not refreshed'
+  assert_contains "$STDOUT_FILE" 'Actualizando fuente remota: origin/feature/remote'
+  teardown_fixture
+}
+
+test_local_branch_fast_forwards_from_upstream() {
+  local target
+  local expected_oid
+  setup_fixture
+  target="$WORK_PARENT/repository-local-fast-forward"
+  advance_remote_branch feature/local 'local upstream update'
+  expected_oid=$ADVANCED_REMOTE_OID
+
+  run_helper create --branch feature/local --name local-fast-forward
+  assert_status 0
+  [[ "$(git -C "$REPO" rev-parse refs/heads/feature/local)" == "$expected_oid" ]] || fail 'local branch did not fast-forward'
+  [[ "$(git -C "$target" rev-parse HEAD)" == "$expected_oid" ]] || fail 'worktree did not use fast-forwarded commit'
+  assert_contains "$STDOUT_FILE" 'fast-forward aplicado'
+  teardown_fixture
+}
+
+test_local_branch_without_upstream_blocks() {
+  local target
+  setup_fixture
+  target="$WORK_PARENT/repository-no-upstream"
+  git -C "$REPO" branch feature/no-upstream
+
+  run_helper create --branch feature/no-upstream
+  assert_status 3
+  assert_not_exists "$target"
+  assert_contains "$STDERR_FILE" 'no tiene upstream remoto'
+  teardown_fixture
+}
+
+test_local_branch_divergence_blocks_without_reset() {
+  local target
+  local local_oid
+  setup_fixture
+  target="$WORK_PARENT/repository-divergent"
+
+  git -C "$REPO" checkout -q feature/local
+  printf 'local divergent\n' >> "$REPO/file.txt"
+  git -C "$REPO" add file.txt
+  git -C "$REPO" commit -qm 'local divergent'
+  local_oid=$(git -C "$REPO" rev-parse HEAD)
+  git -C "$REPO" checkout -q main
+  advance_remote_branch feature/local 'remote divergent'
+
+  run_helper create --branch feature/local --name divergent
+  assert_status 3
+  assert_not_exists "$target"
+  [[ "$(git -C "$REPO" rev-parse refs/heads/feature/local)" == "$local_oid" ]] || fail 'divergent local branch was overwritten'
+  assert_contains "$STDERR_FILE" 'diverge'
+  teardown_fixture
+}
+
+test_local_branch_ahead_is_preserved() {
+  local target
+  local expected_oid
+  setup_fixture
+  target="$WORK_PARENT/repository-local-ahead"
+
+  git -C "$REPO" checkout -q feature/local
+  printf 'local ahead\n' >> "$REPO/file.txt"
+  git -C "$REPO" add file.txt
+  git -C "$REPO" commit -qm 'local ahead'
+  expected_oid=$(git -C "$REPO" rev-parse HEAD)
+  git -C "$REPO" checkout -q main
+
+  run_helper create --branch feature/local --name local-ahead
+  assert_status 0
+  [[ "$(git -C "$target" rev-parse HEAD)" == "$expected_oid" ]] || fail 'local ahead commit was not preserved'
+  assert_contains "$STDOUT_FILE" 'adelantada; no se sobrescribirá'
+  teardown_fixture
+}
+
+test_fetch_failure_blocks_without_creating_worktree() {
+  local target
+  local local_oid
+  setup_fixture
+  target="$WORK_PARENT/repository-fetch-failure"
+  local_oid=$(git -C "$REPO" rev-parse refs/heads/feature/local)
+  git -C "$REPO" remote set-url origin "$TEST_ROOT/missing-origin.git"
+
+  run_helper create --branch feature/local --name fetch-failure
+  assert_status 1
+  assert_not_exists "$target"
+  [[ "$(git -C "$REPO" rev-parse refs/heads/feature/local)" == "$local_oid" ]] || fail 'fetch failure changed local branch'
+  assert_contains "$STDERR_FILE" 'no se pudo actualizar fuente remota'
+  teardown_fixture
+}
+
+test_dry_run_does_not_refresh_remote_tracking_ref() {
+  local target
+  local old_oid
+  local expected_oid
+  setup_fixture
+  target="$WORK_PARENT/repository-remote-dry-run"
+  old_oid=$(git -C "$REPO" rev-parse refs/remotes/origin/feature/remote)
+  advance_remote_branch feature/remote 'remote dry-run update'
+  expected_oid=$ADVANCED_REMOTE_OID
+
+  run_helper create --branch origin/feature/remote --name remote-dry-run --dry-run
+  assert_status 0
+  assert_not_exists "$target"
+  [[ "$(git -C "$REPO" rev-parse refs/remotes/origin/feature/remote)" == "$old_oid" ]] || fail 'dry-run changed remote-tracking ref'
+  [[ "$old_oid" != "$expected_oid" ]] || fail 'expected remote branch to advance'
+  assert_contains "$STDOUT_FILE" 'Dry-run: fetch previsto sin modificar referencias.'
+  teardown_fixture
+}
+
+test_explicit_remote_source_updates_local_homonym() {
+  local target
+  local expected_oid
+  setup_fixture
+  target="$WORK_PARENT/repository-remote-homonym"
+  git -C "$REPO" branch feature/remote refs/remotes/origin/feature/remote
+  advance_remote_branch feature/remote 'remote homonym update'
+  expected_oid=$ADVANCED_REMOTE_OID
+
+  run_helper create --branch refs/remotes/origin/feature/remote --name remote-homonym
+  assert_status 0
+  [[ "$(git -C "$REPO" rev-parse refs/heads/feature/remote)" == "$expected_oid" ]] || fail 'explicit remote source did not update local homonym'
+  [[ "$(git -C "$target" rev-parse HEAD)" == "$expected_oid" ]] || fail 'worktree did not use explicit remote source'
   teardown_fixture
 }
 
@@ -245,6 +416,38 @@ test_remove_dirty_or_ignored_worktree_blocks() {
   teardown_fixture
 }
 
+test_create_from_sibling_uses_primary_path() {
+  local first_target
+  local second_target
+  local nested_target
+  setup_fixture
+  first_target="$WORK_PARENT/repository-local"
+  second_target="$WORK_PARENT/repository-from-sibling"
+  nested_target="$first_target/repository-from-sibling"
+
+  run_helper create --branch feature/local
+  assert_status 0
+  run_helper_from "$first_target" create --branch develop --name from-sibling
+  assert_status 0
+  [[ -d "$second_target" ]] || fail 'sibling invocation used wrong destination root'
+  assert_not_exists "$nested_target"
+  assert_contains "$STDOUT_FILE" "Destino hermano: $second_target"
+  teardown_fixture
+}
+
+test_nested_path_blocks_before_fetch() {
+  local nested_target
+  setup_fixture
+  nested_target="$REPO/.claude/worktrees/nested"
+  mkdir -p "$(dirname "$nested_target")"
+
+  run_helper create --branch feature/local --path "$nested_target"
+  assert_status 3
+  assert_not_exists "$nested_target"
+  assert_contains "$STDERR_FILE" 'ruta debe ser hermana inmediata'
+  teardown_fixture
+}
+
 test_invalid_path_and_symlink_block() {
   local existing_target
   local symlink_target
@@ -282,6 +485,14 @@ trap teardown_fixture EXIT
 run_test 'help and invalid operation' test_help_and_invalid_operation
 run_test 'create local branch' test_create_local_branch
 run_test 'create remote tracking branch' test_create_remote_tracking_branch
+run_test 'stale remote tracking fetches latest' test_remote_tracking_stale_fetches_latest
+run_test 'local branch fast-forwards from upstream' test_local_branch_fast_forwards_from_upstream
+run_test 'local branch without upstream gate' test_local_branch_without_upstream_blocks
+run_test 'local branch divergence gate' test_local_branch_divergence_blocks_without_reset
+run_test 'local branch ahead is preserved' test_local_branch_ahead_is_preserved
+run_test 'fetch failure gate' test_fetch_failure_blocks_without_creating_worktree
+run_test 'dry-run preserves remote tracking ref' test_dry_run_does_not_refresh_remote_tracking_ref
+run_test 'explicit remote source with local homonym' test_explicit_remote_source_updates_local_homonym
 run_test 'explicit and existing path handling' test_explicit_path_and_existing_path_block
 run_test 'primary branch confirmation gate' test_primary_branch_requires_confirmation
 run_test 'confirmed primary switch to develop' test_confirmed_primary_switch_to_develop
@@ -290,6 +501,8 @@ run_test 'dry-run does not mutate' test_dry_run_does_not_mutate
 run_test 'list reports worktrees' test_list_reports_worktrees
 run_test 'remove clean worktree preserves branch' test_remove_clean_worktree_preserves_branch
 run_test 'remove dirty worktree gate' test_remove_dirty_or_ignored_worktree_blocks
+run_test 'create from sibling uses primary path' test_create_from_sibling_uses_primary_path
+run_test 'nested path gate' test_nested_path_blocks_before_fetch
 run_test 'invalid path and symlink gate' test_invalid_path_and_symlink_block
 
 if [[ "$failures" -ne 0 ]]; then

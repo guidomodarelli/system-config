@@ -92,13 +92,14 @@ normalize_registered_path() {
 
 normalize_path_input() {
   local input=$1
+  local path_base=${2:-$repository_root}
   local candidate
   local parent
   local name
 
   case "$input" in
     /*) candidate=$input ;;
-    *) candidate=$repository_root/$input ;;
+    *) candidate=$path_base/$input ;;
   esac
 
   parent=$(dirname "$candidate")
@@ -218,10 +219,27 @@ find_path_index() {
   return 0
 }
 
+remote_exists() {
+  local remote_name=$1
+  git remote get-url "$remote_name" >/dev/null 2>&1
+}
+
+set_remote_source() {
+  local remote_name=$1
+  local remote_branch=$2
+
+  [[ -n "$remote_name" && -n "$remote_branch" ]] || return 1
+  git check-ref-format --branch "$remote_branch" >/dev/null 2>&1 || return 1
+  remote_exists "$remote_name" || return 1
+  resolved_remote_name=$remote_name
+  resolved_remote_branch=$remote_branch
+  resolved_remote_ref="refs/remotes/$remote_name/$remote_branch"
+  requested_remote_source=true
+}
+
 resolve_branch() {
   local input=$1
   local branch_name
-  local remote_ref
   local remote_and_branch
   local remote_name
   local remote_branch
@@ -231,6 +249,9 @@ resolve_branch() {
 
   resolved_branch=
   resolved_remote_ref=
+  resolved_remote_name=
+  resolved_remote_branch=
+  requested_remote_source=false
   local_branch_exists=false
 
   [[ -n "$input" ]] || return 1
@@ -249,15 +270,11 @@ resolve_branch() {
       remote_name=${remote_and_branch%%/*}
       remote_branch=${remote_and_branch#*/}
       [[ -n "$remote_name" && "$remote_branch" != "$remote_and_branch" ]] || return 1
-      git check-ref-format --branch "$remote_branch" >/dev/null 2>&1 || return 1
-      remote_ref="refs/remotes/$remote_name/$remote_branch"
-      show_ref_exists "$remote_ref" || return 1
+      set_remote_source "$remote_name" "$remote_branch" || return 1
       resolved_branch=$remote_branch
-      resolved_remote_ref=$remote_ref
       if show_ref_exists "refs/heads/$resolved_branch"; then
         local_branch_exists=true
-        resolved_remote_ref=
-            fi
+      fi
       return 0
       ;;
   esac
@@ -269,14 +286,16 @@ resolve_branch() {
     return 0
   fi
 
-  if [[ "$input" == */* ]] && show_ref_exists "refs/remotes/$input"; then
-    remote_and_branch=$input
-    remote_name=${remote_and_branch%%/*}
-    remote_branch=${remote_and_branch#*/}
-    [[ -n "$remote_name" && "$remote_branch" != "$remote_and_branch" ]] || return 1
-    resolved_branch=$remote_branch
-    resolved_remote_ref="refs/remotes/$input"
-    return 0
+  if [[ "$input" == */* ]]; then
+    remote_name=${input%%/*}
+    remote_branch=${input#*/}
+    if set_remote_source "$remote_name" "$remote_branch"; then
+      resolved_branch=$remote_branch
+      if show_ref_exists "refs/heads/$resolved_branch"; then
+        local_branch_exists=true
+      fi
+      return 0
+    fi
   fi
 
   matches=$(git for-each-ref --format='%(refname)' "refs/remotes/*/$input")
@@ -297,9 +316,119 @@ EOF
   remote_and_branch=${match#refs/remotes/}
   remote_name=${remote_and_branch%%/*}
   remote_branch=${remote_and_branch#*/}
+  set_remote_source "$remote_name" "$remote_branch" || return 1
   resolved_branch=$remote_branch
-  resolved_remote_ref=$match
+  if show_ref_exists "refs/heads/$resolved_branch"; then
+    local_branch_exists=true
+  fi
   return 0
+}
+
+resolve_local_source() {
+  local upstream
+  local upstream_remote
+  local upstream_branch
+
+  if [[ "$requested_remote_source" == true ]]; then
+    return 0
+  fi
+
+  upstream=$(git for-each-ref --format='%(upstream:short)' "refs/heads/$resolved_branch")
+  [[ -n "$upstream" ]] || blocked_error "la rama local $resolved_branch no tiene upstream remoto; no se puede garantizar versión actualizada."
+
+  upstream_remote=${upstream%%/*}
+  upstream_branch=${upstream#*/}
+  [[ -n "$upstream_remote" && "$upstream_branch" != "$upstream" ]] || blocked_error "la rama local $resolved_branch no tiene upstream remoto válido: $upstream"
+  set_remote_source "$upstream_remote" "$upstream_branch" || blocked_error "upstream remoto inaccesible para $resolved_branch: $upstream"
+}
+
+fetch_source() {
+  local dry_run=$1
+  local source_refspec
+
+  source_refspec="refs/heads/$resolved_remote_branch:refs/remotes/$resolved_remote_name/$resolved_remote_branch"
+  source_refspec_value=$source_refspec
+  printf 'Fuente remota: %s/%s\n' "$resolved_remote_name" "$resolved_remote_branch"
+
+  if [[ "$dry_run" == true ]]; then
+    if ! git fetch --dry-run "$resolved_remote_name" "$source_refspec"; then
+      runtime_error "no se pudo comprobar actualización de fuente remota: $resolved_remote_name/$resolved_remote_branch"
+    fi
+    printf 'Dry-run: fetch previsto sin modificar referencias.\n'
+    return 0
+  fi
+
+  printf 'Actualizando fuente remota: %s/%s\n' "$resolved_remote_name" "$resolved_remote_branch"
+  if ! git fetch "$resolved_remote_name" "$source_refspec"; then
+    runtime_error "no se pudo actualizar fuente remota: $resolved_remote_name/$resolved_remote_branch"
+  fi
+}
+
+compare_and_sync_source() {
+  local dry_run=$1
+  local local_oid
+  local source_oid
+
+  resolve_local_source
+  fetch_source "$dry_run"
+  source_sync_status=
+  source_previous_oid=
+  source_target_oid=
+  expected_worktree_oid=
+
+  if [[ "$dry_run" == true ]]; then
+    source_sync_status='no verificada'
+    if show_ref_exists "$resolved_remote_ref"; then
+      source_oid=$(git rev-parse "$resolved_remote_ref") || runtime_error "no se pudo leer fuente remota: $resolved_remote_ref"
+      source_target_oid=$source_oid
+      if [[ "$local_branch_exists" == true ]]; then
+        local_oid=$(git rev-parse "refs/heads/$resolved_branch") || runtime_error "no se pudo leer rama local: $resolved_branch"
+        source_previous_oid=$local_oid
+        expected_worktree_oid=$local_oid
+        if [[ "$local_oid" == "$source_oid" ]]; then
+          source_sync_status='actualizada en snapshot local'
+        elif git merge-base --is-ancestor "$local_oid" "$source_oid"; then
+          source_sync_status='fast-forward previsto'
+        elif git merge-base --is-ancestor "$source_oid" "$local_oid"; then
+          source_sync_status='adelantada; no se sobrescribirá'
+        else
+          source_sync_status='divergencia detectada en snapshot local'
+        fi
+      fi
+    fi
+    printf 'Dry-run: actualidad remota no verificada en refs locales.\n'
+    return 0
+  fi
+
+  source_oid=$(git rev-parse "$resolved_remote_ref") || runtime_error "no se pudo leer fuente remota actualizada: $resolved_remote_ref"
+  source_target_oid=$source_oid
+
+  if [[ "$local_branch_exists" == false ]]; then
+    source_sync_status='actualizada; rama local se creará desde fuente remota'
+    expected_worktree_oid=$source_oid
+    return 0
+  fi
+
+  local_oid=$(git rev-parse "refs/heads/$resolved_branch") || runtime_error "no se pudo leer rama local: $resolved_branch"
+  source_previous_oid=$local_oid
+  if [[ "$local_oid" == "$source_oid" ]]; then
+    source_sync_status='actualizada'
+  elif git merge-base --is-ancestor "$local_oid" "$source_oid"; then
+    source_sync_status='fast-forward aplicado'
+    if [[ "$switch_primary" == true ]]; then
+      if ! git -C "$primary_path" merge --ff-only "$resolved_remote_ref"; then
+        runtime_error "no se pudo aplicar fast-forward en worktree principal: $resolved_branch"
+      fi
+    elif ! git update-ref "refs/heads/$resolved_branch" "$source_oid" "$local_oid"; then
+      blocked_error "rama local cambió durante sincronización; no se aplicará actualización: $resolved_branch"
+    fi
+  elif git merge-base --is-ancestor "$source_oid" "$local_oid"; then
+    source_sync_status='adelantada; no se sobrescribirá'
+  else
+    blocked_error "la rama local $resolved_branch diverge de $resolved_remote_name/$resolved_remote_branch; no se hará reset ni force."
+  fi
+
+  expected_worktree_oid=$(git rev-parse "refs/heads/$resolved_branch") || runtime_error "no se pudo verificar rama sincronizada: $resolved_branch"
 }
 
 path_is_registered() {
@@ -352,9 +481,9 @@ resolve_create_target() {
   local branch_slug
   local repository_name
 
-  source_parent=$(dirname "$repository_root")
-  source_parent=$(canonical_existing_path "$source_parent") || runtime_error 'no se pudo resolver directorio padre.'
-  repository_name=$(basename "$repository_root")
+  source_parent=$(dirname "$primary_path")
+  source_parent=$(canonical_existing_path "$source_parent") || runtime_error 'no se pudo resolver directorio padre del worktree principal.'
+  repository_name=$(basename "$primary_path")
 
   if [[ -n "$requested_name" ]]; then
     validate_path_component "$requested_name" || usage_error "--name inválido: $requested_name"
@@ -371,7 +500,7 @@ resolve_create_target() {
   target_name=$(basename "$target_path")
   validate_path_component "$target_name" || blocked_error "nombre final de ruta inseguro: $target_name"
 
-  [[ "$target_parent" == "$source_parent" ]] || blocked_error "ruta debe ser hermana inmediata de $repository_root: $target_path"
+  [[ "$target_parent" == "$source_parent" ]] || blocked_error "ruta debe ser hermana inmediata de $primary_path: $target_path"
   [[ "$target_path" != "$repository_root" ]] || blocked_error 'ruta destino coincide con worktree actual.'
   [[ ! -e "$target_path" && ! -L "$target_path" ]] || blocked_error "ruta destino ya existe: $target_path"
   if path_is_registered "$target_path"; then
@@ -400,6 +529,14 @@ print_create_summary() {
   fi
   printf 'Worktree actual: %s\n' "$current_worktree"
   printf 'Destino hermano: %s\n' "$target_path"
+  printf 'Fuente sincronizada: %s/%s\n' "$resolved_remote_name" "$resolved_remote_branch"
+  printf 'Estado fuente: %s\n' "$source_sync_status"
+  if [[ -n "$source_previous_oid" ]]; then
+    printf 'OID local anterior: %s\n' "$source_previous_oid"
+  fi
+  if [[ -n "$source_target_oid" ]]; then
+    printf 'OID fuente: %s\n' "$source_target_oid"
+  fi
   if [[ "$switch_primary" == true ]]; then
     printf 'Cambio adicional: principal %s -> develop\n' "$primary_path"
   fi
@@ -412,6 +549,7 @@ create_worktree() {
   local dry_run=$4
   local confirm_primary_switch=$5
   local worktree_command
+  local actual_worktree_oid
 
   [[ -n "$branch_input" ]] || usage_error 'create requiere --branch BRANCH'
   [[ -z "$requested_name" || -z "$requested_path" ]] || usage_error '--name y --path son mutuamente excluyentes.'
@@ -438,6 +576,7 @@ create_worktree() {
     printf 'Aviso: --confirm-primary-switch-to-develop no es necesario porque rama está libre.\n'
   fi
 
+  compare_and_sync_source "$dry_run"
   print_create_summary
   if [[ -n "$resolved_remote_ref" && "$local_branch_exists" == false ]]; then
     worktree_command=(git worktree add --track -b "$resolved_branch" "$target_path" "$resolved_remote_ref")
@@ -469,11 +608,16 @@ create_worktree() {
     runtime_error 'git worktree add falló.'
   fi
 
+  actual_worktree_oid=$(git -C "$target_path" rev-parse HEAD) || runtime_error "no se pudo verificar HEAD del worktree creado: $target_path"
+  if [[ -n "$expected_worktree_oid" && "$actual_worktree_oid" != "$expected_worktree_oid" ]]; then
+    runtime_error "HEAD creado no coincide con fuente sincronizada: esperado $expected_worktree_oid, obtenido $actual_worktree_oid"
+  fi
+
   printf 'Worktree creado correctamente.\n'
   printf 'Ruta: %s\n' "$target_path"
   printf 'Rama: %s\n' "$resolved_branch"
   printf 'Upstream: %s\n' "$(print_tracking "$target_path")"
-  printf 'HEAD: %s\n' "$(git -C "$target_path" rev-parse HEAD)"
+  printf 'HEAD: %s\n' "$actual_worktree_oid"
 }
 
 list_worktrees() {
