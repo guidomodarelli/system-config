@@ -21,6 +21,17 @@ Si runtime expone skill mediante `~/.claude/skills`, usar ruta equivalente:
 ~/.claude/skills/worktree-hermano/scripts/worktree-hermano
 ```
 
+## Ubicación obligatoria
+
+Todo worktree nuevo debe quedar como hermano inmediato del repo principal, nunca dentro del repo principal ni dentro de cualquier directorio de worktrees.
+
+- Resolver `primary_path` desde primer registro de `git worktree list --porcelain`; resolver `source_parent` como `dirname` de ruta canónica de `primary_path`.
+- Destino válido: `${source_parent}/${repository_name}-${suffix}`. `dirname` de destino debe ser exactamente `source_parent`.
+- Destinos inválidos: `${repository_root}/.worktrees/...`, `${repository_root}/.git/worktrees/...`, `${repository_root}/.claude/worktrees/...`, `${repository_root}/worktrees/...`, cualquier subdirectorio anidado, cualquier ruta bajo otro repo y cualquier ruta fuera de `source_parent`.
+- `--name` y destino automático siempre deben generar ruta hermana inmediata. `--path` solo puede aceptar ruta absoluta o relativa que resuelva a esa misma ubicación hermana.
+- Si `--path` no cumple esta regla, bloquear operación antes de ejecutar `git worktree add`; no corregir, reinterpretar ni mover ruta silenciosamente.
+- Ejemplo válido: repo principal `/workspace/app` y worktree `/workspace/app-feature`. Ejemplo inválido: `/workspace/app/.claude/worktrees/feature`.
+
 ## Flujo
 
 1. Identificar intención: `create`, `list` o `remove`.
