@@ -22,6 +22,14 @@ Ejecutar únicamente acciones necesarias para componer, aplicar o verificar tít
 - En modo `traceability-only`, único write permitido es backlink body-only delegado; no retemplar PR.
 - Si una acción no es requisito directo para descripción pedida, omitirla.
 
+## Aplicación directa obligatoria
+
+- Cuando el usuario invoque `/pr-description-template` o mencione explícitamente esta skill, interpretar la solicitud como una orden de aplicar el cambio directamente sobre el PR; no responder con un borrador para copiar manualmente.
+- Localizar el PR asociado mediante `gh pr view --json number,title,body,url,headRefName,baseRefName`. Para un PR existente, aplicar la modificación con `gh pr edit <number-or-url> --body-file <temp-file>` y agregar `--title` únicamente cuando corresponda a una composición completa. Para un PR nuevo, usar `gh pr create --body-file <temp-file>` cuando el flujo llamador haya pedido crearlo.
+- Verificar cada escritura con `gh pr view --json title,body,url` antes de informar resultado.
+- No imprimir en chat el title, body, template ni contenido completo generado. Informar únicamente operación realizada, PR afectado, URL y verificación; si la operación falla o no existe un PR aplicable, informar bloqueo concreto sin pegar un body alternativo.
+- Solo devolver contenido de title/body si el usuario solicita explícitamente un borrador, preview o contenido sin aplicación directa.
+
 Triggers (explicit or implicit):
 - the user runs `/feature-branch-pr` (the [feature-branch-pr](../feature-branch-pr/SKILL.md) skill must use this template for the PR body)
 - the user asks to "crear PR", "abrir pull request", "subir cambios y crear PR", "branch + commit + push + PR"
