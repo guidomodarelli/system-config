@@ -20,9 +20,13 @@ Improve the current change set by making the modified code smaller, clearer, mor
    - inefficient repeated work in hot paths, render paths, loops, or request flows
    - abstractions at the wrong altitude: too low-level at call sites, too generic for one use, or spread across modules without a clear responsibility
    - names that obscure the real concept or force readers to inspect implementation details
-4. Apply fixes directly when they are local and behavior-preserving. Keep the patch tightly scoped to changed code and nearby support code needed for the cleanup.
-5. Avoid expanding the task into bug hunting, security review, feature changes, rewrites, dependency churn, formatting-only sweeps, or unrelated refactors.
-6. Run relevant tests, type checks, linters, or builds for the touched area. If no meaningful validation is available, state what was not validated and why.
+4. Check whether changed methods and constants live at the right repository location:
+   - **`utils/` placement:** identify stateless, side-effect-free helpers that operate on generic data or cross-cutting concerns and are reused, or clearly useful for reuse, across modules. Prefer an existing domain-specific utility directory over a new global `utils/`; do not move methods there when they encode one feature's business rules, depend heavily on one module's state, or have only one caller without a real responsibility boundary.
+   - **`constants/` placement:** identify shared business literals and stable values such as statuses, roles, route fragments, event names, limits, or repeated configuration keys. Reuse existing constants modules before creating one. Keep one-off trivial values local, and prefer `config/` or environment configuration for deployment-specific values, endpoints, credentials, or values expected to vary by environment.
+   - Search the repository for existing utilities and constants before adding or relocating code. Apply placement cleanups only when they reduce duplication or clarify ownership without creating a vague catch-all module.
+5. Apply fixes directly when they are local and behavior-preserving. Keep the patch tightly scoped to changed code and nearby support code needed for the cleanup.
+6. Avoid expanding the task into bug hunting, security review, feature changes, rewrites, dependency churn, formatting-only sweeps, or unrelated refactors.
+7. Run relevant tests, type checks, linters, or builds for the touched area. If no meaningful validation is available, state what was not validated and why.
 
 ## Review Heuristics
 
