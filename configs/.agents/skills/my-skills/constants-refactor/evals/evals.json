@@ -1,0 +1,23 @@
+{
+  "skill_name": "constants-refactor",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Revisá este PR de un repositorio de software y analizá qué constantes podrían moverse a constants/. Hay límites repetidos entre schema, API y cliente, códigos de error compartidos, regex de validación y algunos timeouts de UI. No hagas cambios todavía.",
+      "expected_output": "Informe con alcance del PR, tabla de candidatos, clasificación mover/mantener local, riesgos de cambiar validación y comandos de verificación. Debe evitar mover mensajes de localización, mocks, UI-only, HTTP statuses y timeouts con distinta semántica.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Aplicá refactor de constantes en schemas de un proyecto TypeScript: centralizá facility kinds y status presence, pero mantené exactamente el mecanismo secure().regex() y los mismos errores observables. Actualizá consumers y tests; no toques autorización.",
+      "expected_output": "Patrón regex canónico en constants/, schemas usando el mismo validador y regex, imports actualizados, tests focales ejecutados y ninguna modificación en autorización.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "En un repo TypeScript, mové códigos de error, estados de polling, límites de entrada y runtime constants que hoy viven en interfaces/ a fuentes canónicas. Conservá unions TypeScript, evitá ciclos, no edites catálogos generados y explicá qué valores deben quedarse locales.",
+      "expected_output": "Objetos as const con tipos derivados, interfaces sin duplicar runtime constants, límites separados por semántica, imports y tests actualizados, validación de typecheck/lint/build y lista de exclusiones.",
+      "files": []
+    }
+  ]
+}
