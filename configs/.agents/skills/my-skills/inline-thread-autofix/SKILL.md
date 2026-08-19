@@ -147,13 +147,13 @@ Confirmar:
 Formato de salida:
 
 ```markdown
-## Fix aplicado
+## ✅ Fix aplicado
 - <cambio y archivos principales>
 
-## Validación
+## 🧪 Validación
 - <comandos y resultados>
 
-## Publicación
+## 🚀 Publicación
 - Commit: `<sha corto>`
 - Reply: <URL>
 - Thread: resuelto
