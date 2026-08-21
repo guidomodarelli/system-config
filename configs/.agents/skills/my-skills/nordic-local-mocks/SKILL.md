@@ -46,7 +46,8 @@ Ejemplos concretos, no requisitos: `mocks/development`, `process-contingency`, `
 5. No desactivar autenticación, autorización, CSRF ni schema validation para que fixture responda.
 6. Usar allowlists de hosts y paths derivadas de configuración del proyecto; no aceptar destinos controlados por usuario.
 7. No guardar tokens, cookies, authorization headers, secrets, PII real ni respuestas upstream sensibles.
-8. Tratar `ignoreParams` como normalización de filename, nunca como control de autorización o validación.
+8. No guardar ninguna `property` cuyo nombre empiece en `x-`; omitirla antes de persistir o versionar fixture, sin renombrarla ni trasladarla.
+9. Tratar `ignoreParams` como normalización de filename, nunca como control de autorización o validación.
 
 ## Descubrimiento inicial
 
@@ -153,6 +154,10 @@ Este mapa es solo ejemplo. Reemplazar nombres por clientes y config keys descubi
 ## Fixtures JSON
 
 `frontend-mocks` suele escribir bajo `mocks/${NODE_ENV}`. Respetar nombres y carpetas generados por framework; modificar contenido únicamente cuando usuario lo pida. Confirmar `.gitignore`: si fixtures deben viajar en PR, versionarlos explícitamente y evitar que queden solo en filesystem local.
+
+### Properties excluidas
+
+Antes de guardar, generar o versionar una fixture, recorrer todas sus propiedades, incluidas las anidadas, y omitir cualquier clave cuyo nombre empiece exactamente en `x-` (`propertyName.startsWith('x-')`). No confundir esta regla con valores que contengan `x-`: solo se filtran nombres de propiedades. No renombrar ni reemplazar claves excluidas; si fixture depende de ellas, detener persistencia e informar el conflicto.
 
 Response simple:
 
@@ -291,6 +296,7 @@ También comprobar:
 - producción no registra interceptores;
 - auth, autorización, CSRF y validación siguen activas;
 - fixtures no contienen secretos, cookies, authorization headers ni PII real;
+- ninguna clave de propiedad, incluida una anidada, empieza en `x-`;
 - smoke de desarrollo inicia sin errores y proceso se detiene al terminar.
 
 ## Salida esperada
