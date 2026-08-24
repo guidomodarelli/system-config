@@ -43,6 +43,7 @@ Aplicar estas reglas:
 - Usar `index.ts` como entrypoint del dominio cuando haya varios módulos. Reexportar desde allí sin redeclarar valores, objetos `as const`, enums o tipos; una sola definición evita divergencias.
 - Evitar colisiones entre un archivo y una carpeta con el mismo basename (`constants/<domain>.ts` y `constants/<domain>/`). Si se conserva el specifier público, mover la implementación al directorio y usar `index.ts` como fachada.
 - Conservar shims legacy como archivos que solo reexportan la ubicación canónica cuando el path profundo no colisiona con una carpeta nueva. Mantener imports públicos existentes cuando la resolución siga siendo válida y migrarlos por boundary cuando no lo sea.
+- Representar rutas relacionadas como un objeto `...ROUTES` con propiedades semánticas y `as const`; evitar constantes escalares sueltas para fragments del mismo boundary. Derivar rutas compuestas desde ese objeto y preservar separación entre mount paths y BFF paths.
 - Preservar el alias soportado por runtime y evitar cambiar imports masivamente solo por uniformidad. Verificar TypeScript, Jest, bundler y server por separado cuando sus resolvers difieran.
 - No colocar en `constants/` valores dependientes de entorno, secretos, credenciales, configuración operativa o endpoints que deban tunearse por deployment; usar `config/` o runtime config.
 - Revisar el boundary de cada constante: no exportar al cliente valores server-only, detalles internos de upstream o metadata sensible. Las constantes compartidas deben ser seguras para el bundle donde se consumen.
