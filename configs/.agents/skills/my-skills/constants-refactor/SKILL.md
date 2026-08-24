@@ -22,6 +22,33 @@ Aplicar workflow completo cuando usuario pida implementar. Entregar solo anális
 6. Implementar fuentes canónicas, migrar consumers y tests.
 7. Ejecutar validaciones y reportar bloqueos reales sin ocultarlos.
 
+## Organización física por dominio
+
+Cuando `constants/` contenga varios módulos relacionados, agruparlos por dominio funcional y boundary, no solo por tipo primitivo o por orden de creación:
+
+```text
+constants/
+├── <domain-a>/
+│   ├── index.ts
+│   ├── <domain-a>.ts
+│   └── <domain-a>-errors.ts
+├── <domain-b>/
+│   └── index.ts
+└── <shared-concern>.ts
+```
+
+Aplicar estas reglas:
+
+- Mover juntas las constantes que representan el mismo dominio o contrato —por ejemplo códigos, rutas, límites, estados y tipos de un flujo— y mantener separadas las preocupaciones transversales realmente reutilizadas.
+- Usar `index.ts` como entrypoint del dominio cuando haya varios módulos. Reexportar desde allí sin redeclarar valores, objetos `as const`, enums o tipos; una sola definición evita divergencias.
+- Evitar colisiones entre un archivo y una carpeta con el mismo basename (`constants/<domain>.ts` y `constants/<domain>/`). Si se conserva el specifier público, mover la implementación al directorio y usar `index.ts` como fachada.
+- Conservar shims legacy como archivos que solo reexportan la ubicación canónica cuando el path profundo no colisiona con una carpeta nueva. Mantener imports públicos existentes cuando la resolución siga siendo válida y migrarlos por boundary cuando no lo sea.
+- Preservar el alias soportado por runtime y evitar cambiar imports masivamente solo por uniformidad. Verificar TypeScript, Jest, bundler y server por separado cuando sus resolvers difieran.
+- No colocar en `constants/` valores dependientes de entorno, secretos, credenciales, configuración operativa o endpoints que deban tunearse por deployment; usar `config/` o runtime config.
+- Revisar el boundary de cada constante: no exportar al cliente valores server-only, detalles internos de upstream o metadata sensible. Las constantes compartidas deben ser seguras para el bundle donde se consumen.
+- Mantener constantes puras y sin side effects. Evitar que los barrels importen servicios u otros módulos que introduzcan ciclos; los módulos de dominio pueden depender de constantes compartidas, no al revés.
+- Tras mover constantes, validar valores, referencias, tipos, identidad de objetos cuando importe y resolución de barrels/shims mediante tests de comportamiento o typecheck; no testear strings del archivo fuente.
+
 ## Alcance y exclusiones
 
 - Interpretar `@constants/` como carpeta `constants/` salvo que repositorio ya defina otro alias explícito.
