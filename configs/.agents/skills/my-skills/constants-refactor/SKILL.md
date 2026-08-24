@@ -16,7 +16,7 @@ Aplicar workflow completo cuando usuario pida implementar. Entregar solo anális
 
 1. Resolver repositorio, lenguaje/framework, rama base y alcance exacto.
 2. Separar `git diff BASE...HEAD` de cambios no commiteados.
-3. Inventariar declaraciones `const`, objetos `as const`, enums/union literals, regex, límites, códigos, paths, timeouts y strings repetidos.
+3. Inventariar declaraciones `const`, atoms escalares `as const`, objetos/arrays `as const`, enums/union literals, regex, límites, códigos, paths, timeouts y strings repetidos.
 4. Comparar inventario con `constants/`, `config/`, `permissions/`, `utils/`, tipos/interfaces, schemas y módulos de dominio existentes.
 5. Clasificar cada candidato: `mover`, `centralizar`, `extraer local`, `mantener local`, `no tocar`.
 6. Implementar fuentes canónicas, migrar consumers y tests.
@@ -48,6 +48,17 @@ Aplicar estas reglas:
 - Revisar el boundary de cada constante: no exportar al cliente valores server-only, detalles internos de upstream o metadata sensible. Las constantes compartidas deben ser seguras para el bundle donde se consumen.
 - Mantener constantes puras y sin side effects. Evitar que los barrels importen servicios u otros módulos que introduzcan ciclos; los módulos de dominio pueden depender de constantes compartidas, no al revés.
 - Tras mover constantes, validar valores, referencias, tipos, identidad de objetos cuando importe y resolución de barrels/shims mediante tests de comportamiento o typecheck; no testear strings del archivo fuente.
+
+### Atoms escalares y agregados
+
+- Cuando un literal tenga significado unitario, estable y reutilizado dentro de un mismo contrato, definirlo una sola vez como atom escalar: `const SEMANTIC_ATOM = 'value' as const`.
+- Construir arrays y agregados contractuales desde atoms: `const CONTRACT_VALUES = [SEMANTIC_ATOM, OTHER_ATOM] as const`.
+- Nombrar atoms por rol semántico y dominio (`LABOUR_SHARE_SOURCE_SCANNER`), no por valor genérico (`VALUE`, `ITEM`, `TYPE`).
+- Derivar unions desde el array contractual correspondiente, no desde un array de otro dominio. Mantener arrays distintos cuando tengan semánticas distintas aunque compartan atoms (`mixed` no pertenece a una lista de valores individuales).
+- Compartir atom solo después de comprobar equivalencia de significado, boundary, serialización y consumers. Coincidencia textual aislada no justifica compartirlo.
+- Mantener atoms puros, sin configuración de entorno, secretos, credenciales, servicios, permisos, imports server-only ni side effects.
+- Preservar orden, identidad y forma observable. No reemplazar referencias canónicas por `Array.from`, spread, `Object.freeze` o composición dinámica cuando eso cambie identidad, mutabilidad o serialización requerida por consumers.
+- No atomizar por estética valores únicos, labels/copy, fixtures externos, mapas contractuales ya cohesivos o literales triviales sin reutilización real.
 
 ## Alcance y exclusiones
 
@@ -105,6 +116,8 @@ Recomendar/aplicar cuando exista una o más condiciones:
 - regex de input usada en varios boundaries;
 - clave pública estable de error, separada de copy traducible;
 - runtime constant ubicada dentro de `interfaces/` o `types/` que debe alimentar varios módulos.
+- literal unitario reutilizado dentro de un mismo contrato, apto para atom escalar y composición en arrays/agregados `as const`.
+- elementos repetidos en más de un array del mismo dominio cuando comparten semántica, sin fusionar arrays contractualmente distintos.
 
 ### Mantener local
 
@@ -120,6 +133,7 @@ No promover automáticamente:
 - timeouts con responsabilidades distintas, aunque compartan valor;
 - mapas de un solo consumidor;
 - constantes matemáticas/triviales sin significado de negocio.
+- literales únicos o elementos de arrays sin reutilización real; no crear atoms solo por uniformidad visual.
 
 ### Separar destinos
 
@@ -148,6 +162,8 @@ No reemplazar automáticamente por un validador distinto: puede cambiar sanitiza
 
 Para límites compartidos, usar misma constante en schema y validación manual. Mantener separados límites con objetivos distintos, por ejemplo lookup frente a payload malformed para logging.
 
+Al componer arrays desde atoms, preservar orden, referencia e identidad cuando forman parte del contrato. `Array.from`, spread, `Object.freeze` y regex dinámicas requieren validación explícita porque pueden cambiar identidad, mutabilidad, flags o serialización.
+
 ### Seguridad y autorización
 
 - Mantener validación basada en schemas en cada boundary usando el validador aprobado por el proyecto.
@@ -164,7 +180,8 @@ Para límites compartidos, usar misma constante en schema y validación manual. 
 - No usar `enum` si configuración TypeScript prohíbe declaraciones no erasables.
 - Mantener imports type-only desde `interfaces/` o `types/` cuando corresponda.
 - Evitar que `constants/` importe valores desde módulos de tipos si esos módulos deben depender de `constants/`.
-- Preferir dirección unidireccional: `constants → tipos/consumers` o imports type-only sin ciclo runtime.
+- Preferir dirección unidireccional: `atoms/constants → tipos/consumers` o imports type-only sin ciclo runtime.
+- Derivar tipos desde atoms/agregados del mismo dominio; no importar valores runtime desde `interfaces/` o `types/` hacia `constants/`.
 - Verificar reglas de ciclo, resolución de imports y aliases configurados por el repositorio.
 
 ### Documentación
@@ -176,8 +193,10 @@ Para límites compartidos, usar misma constante en schema y validación manual. 
 ## Implementación
 
 1. Crear o ampliar archivo de dominio cohesivo en `constants/`.
-2. Mantener nombre semántico; no usar nombres genéricos como `VALUE`, `LIMIT`, `DATA`.
-3. Mover valores sin cambiar strings, orden, default, serialización o respuesta.
+2. Identificar atoms escalares reutilizados y definirlos antes de arrays/agregados contractuales.
+3. Construir arrays/agregados y tipos derivados desde atoms, conservando contratos separados.
+4. Mantener nombre semántico; no usar nombres genéricos como `VALUE`, `LIMIT`, `DATA`.
+5. Mover valores sin cambiar strings, orden, default, serialización o respuesta.
 4. Actualizar imports de producción y tests.
 5. Mantener fixtures literales cuando su finalidad sea validar contrato externo; no reemplazarlos todos por la misma constante.
 6. Revisar diff por dominio excluido antes de continuar.
@@ -197,7 +216,7 @@ Luego detectar y ejecutar comandos disponibles para lint, typecheck, tests y bui
 npx tsc --noEmit
 ```
 
-Para feedback rápido, ejecutar primero suites focales de schemas, rutas, servicios, parser y componentes afectados. Luego ejecutar suite completa.
+Para feedback rápido, ejecutar primero suites focales de schemas, rutas, servicios, parser y componentes afectados. Luego ejecutar suite completa. En refactors con atoms, comprobar además valores, orden, identidad de arrays/tuplas, serialización y rechazo de valores inválidos.
 
 También comprobar:
 
