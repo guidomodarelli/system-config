@@ -81,6 +81,33 @@ Contrato mínimo recomendado:
 
 El dominio no debe depender de `httpStatus` numérico. El adapter final decide cómo mapear el error a transporte. No usar `error.message` como contrato estable ni exigir `instanceof` como única detección cuando pueden existir realms, bundles o runtimes distintos.
 
+## Organización física de errores
+
+Cuando el repositorio mantiene errores bajo `api/errors/` u otra carpeta equivalente, agruparlos por dominio funcional para que la estructura refleje sus boundaries:
+
+```text
+errors/
+├── <domain-a>/
+│   ├── index.ts
+│   ├── <base-error>.ts
+│   └── <specific-error>.ts
+├── <domain-b>/
+│   └── index.ts
+└── <independent-domain>/
+    └── index.ts
+```
+
+Aplicar estas reglas:
+
+- Mantener una única implementación canónica por clase, factory y type guard. Los índices deben reexportar; nunca duplicar lógica para compatibilidad.
+- Usar `index.ts` como entrypoint público del dominio y exportar desde allí los contratos que consumen routes, services, loaders y tests.
+- Evitar colisiones entre archivo y carpeta con el mismo basename (`errors/process-contingency.ts` y `errors/process-contingency/`). Si el path público debe conservarse, mover la implementación al directorio y convertir el entrypoint en `index.ts`.
+- Conservar shims legacy como archivos que solo reexportan la implementación canónica cuando el path profundo no colisiona con una carpeta nueva. Retirarlos solo después de migrar y validar todos los consumers.
+- Mantener imports internos de leaf modules contra sus dependencias canónicas directas, no contra el barrel, para evitar ciclos.
+- Preservar el alias que soporte el runtime real (bundler, server y tests); no cambiar a otro alias como efecto incidental del refactor.
+- Mantener separados errores server/API y errores client/UI (`api/errors` frente a `app/errors`), especialmente cuando contienen `cause`, respuestas upstream o metadata que no debe llegar al bundle del browser.
+- Después de mover módulos, validar resolución de barrels y shims, identidad runtime (`instanceof` cuando exista), type guards, códigos, status, `cause` y metadata mediante tests de comportamiento.
+
 ## Migración segura por fases
 
 ### Fase 0 — Baseline y caracterización
