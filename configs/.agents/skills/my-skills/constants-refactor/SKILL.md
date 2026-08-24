@@ -60,6 +60,8 @@ Aplicar estas reglas:
 - Mantener atoms puros, sin configuración de entorno, secretos, credenciales, servicios, permisos, imports server-only ni side effects.
 - Preservar orden, identidad y forma observable. No reemplazar referencias canónicas por `Array.from`, spread, `Object.freeze` o composición dinámica cuando eso cambie identidad, mutabilidad o serialización requerida por consumers.
 - No atomizar por estética valores únicos, labels/copy, fixtures externos, mapas contractuales ya cohesivos o literales triviales sin reutilización real.
+- Un refactor de constants debe limitarse a extracción, composición y migración de referencias; no agregar condicionales, guards, normalización ni cambios de validación salvo pedido explícito separado.
+- Priorizar composición simple y legible. Mantener regex literales cuando derivarlas dinámicamente agregue helpers, escapes o complejidad sin reducir un drift comprobado; en ese caso cubrir sincronización con tests.
 
 ## Alcance y exclusiones
 
