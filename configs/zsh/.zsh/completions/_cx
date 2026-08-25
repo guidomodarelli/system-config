@@ -18,8 +18,7 @@ gpt-5.6-sol"
 }
 
 _cx_reasoning() {
-  echo "low
-medium
+  echo "medium
 high
 xhigh
 max"
