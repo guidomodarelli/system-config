@@ -93,8 +93,10 @@ errors/
 │   └── <specific-error>.ts
 ├── <domain-b>/
 │   └── index.ts
-└── <independent-domain>/
-    └── index.ts
+├── generic/
+│   ├── index.ts
+│   └── <generic-error>.ts
+└── index.ts
 ```
 
 Aplicar estas reglas:
@@ -107,6 +109,13 @@ Aplicar estas reglas:
 - Preservar el alias que soporte el runtime real (bundler, server y tests); no cambiar a otro alias como efecto incidental del refactor.
 - Mantener separados errores server/API y errores client/UI (`server/errors` frente a `client/errors`), especialmente cuando contienen `cause`, respuestas upstream o metadata que no debe llegar al bundle del browser.
 - Después de mover módulos, validar resolución de barrels y shims, identidad runtime (`instanceof` cuando exista), type guards, códigos, status, `cause` y metadata mediante tests de comportamiento.
+- Todo error de dominio debe vivir dentro de `errors/<domain>/`, junto con su `index.ts` de dominio; no dejar implementaciones de dominio directamente bajo `errors/` raíz.
+- Los errores genéricos deben vivir aparte, preferentemente bajo `errors/generic/`, sin mezclarse con barrels de dominios funcionales.
+- Crear siempre `errors/index.ts` como fachada raíz con exports explícitos de índices de dominio y del grupo genérico; el barrel raíz no debe implementar lógica.
+- Si ya existe un archivo que representa un dominio (`errors/<domain>.ts`), mover el barrel a `errors/<domain>/index.ts` para evitar colisión archivo/carpeta y conservar el mismo specifier resoluble por el runtime.
+- Migrar routes, services, loaders, componentes y tests al entrypoint público elegido sin cambiar imports de hojas por uniformidad cuando expresen un boundary más preciso.
+- No convertir un default export en una implementación nueva ni duplicar clases para habilitar el barrel: reexportar la única clase canónica, preservando identidad, `instanceof`, `name`, códigos, status, `cause` y serialización.
+- Un barrel de errores client-side solo puede exponer contratos seguros para browser; no importar ni reexportar errores server/API con `response`, stack, headers, secretos o metadata upstream.
 
 ## Migración segura por fases
 
