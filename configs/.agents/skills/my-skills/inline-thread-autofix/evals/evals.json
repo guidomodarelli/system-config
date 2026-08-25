@@ -142,6 +142,18 @@
         "No usa Review body actualizada ni Comentario fallback: publicado",
         "No usa Resuelto ni resolveReviewThread"
       ]
+    },
+    {
+      "id": 12,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456794\nEl body que devuelve GitHub se ve con la secuencia backslash+n entre párrafos. Procesá el feedback sin confundir esa representación con contenido literal.",
+      "expected_output": "Interpreta backslash+n visible como escape de serialización cuando corresponda, decodifica una sola vez para analizar estructura, conserva secuencias literales del autor y mantiene body original exacto en cualquier closeout.",
+      "files": [],
+      "expectations": [
+        "Distingue JSON serializado de una secuencia literal backslash+n escrita por el autor",
+        "Prefiere body parseado o jq y evita reemplazo global ambiguo",
+        "No decodifica dos veces ni pierde contenido del body original",
+        "Usa body normalizado solo para analizar feedback y no para reconstruirlo sin necesidad"
+      ]
     }
   ]
 }

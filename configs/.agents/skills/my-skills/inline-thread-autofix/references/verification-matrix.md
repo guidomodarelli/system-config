@@ -18,6 +18,7 @@
 | Verificación | Resultado requerido |
 |---|---|
 | Comentario | body, path, line y commit de origen leídos |
+| Saltos de línea | `\\n` de JSON serializado interpretado una sola vez; secuencias literales del autor preservadas |
 | Thread | `thread.id`, `isResolved: false` antes del trabajo |
 | Estado | `isOutdated` evaluado sin invalidación automática |
 | Duplicados | no existe reply previo del usuario para comment ID |
