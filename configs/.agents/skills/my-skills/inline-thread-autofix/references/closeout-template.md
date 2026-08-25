@@ -32,6 +32,25 @@ Agregar este bloque al body original, sin reemplazarlo:
 <!-- inline-thread-autofix: review:{{review_id}} -->
 ```
 
+## Hallazgo ya resuelto en otra capa
+
+Usar solo después de confirmar explícitamente closeout del destino indicado por URL. No afirmar `Fix aplicado` ni `Resuelto` en PR que no recibió patch:
+
+```markdown
+ℹ️ **Sin cambios en esta capa**
+
+El hallazgo ya está corregido en [PR #{{pull_request_number}}]({{pull_request_url}}), commit [`{{sha_corto}}`]({{commit_url}}).
+
+### Evidencia
+> {{resumen_de_la_evidencia}}
+
+<sub>🤖 Corrección verificada en otra capa del stack; no se aplicó patch duplicado aquí.</sub>
+
+<!-- inline-thread-autofix: finding:{{finding_key}} -->
+```
+
+Para `review_body`, este bloque solo puede publicarse como comentario fallback; no usar `Review body: actualizada` si body no fue editado y nunca llamar `resolveReviewThread`.
+
 ## Comentario general fallback
 
 Usar misma variante review-body, precedida por referencia inequívoca:
@@ -54,6 +73,7 @@ No usar `in_reply_to` para fallback. Mantener marcador estable `review:{{review_
 - No publicar hasta confirmar push y head remoto.
 - No incluir stack, `cause`, tokens, secrets, cookies, headers, payloads, PII ni logs raw.
 - Review editada debe conservar body original completo; fallback debe enlazar review original.
+- `finding:{{finding_key}}` es opcional, determinístico y no reemplaza evidencia de código.
 - No publicar template de éxito ante tests fallidos, fix no aplicado o closeout ambiguo.
 
 ## Falla del flujo
