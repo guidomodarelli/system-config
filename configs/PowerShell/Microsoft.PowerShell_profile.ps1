@@ -475,14 +475,11 @@ if ($codexCommandInfo) {
             @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Actualiza Codex desde el wrapper' }
         )
         $modelOptions = @(
-            'gpt-5.6-sol',
-            'gpt-5.6-terra',
             'gpt-5.6-luna',
-            'gpt-5.5',
-            'gpt-5.4',
-            'gpt-5.4-mini'
+            'gpt-5.6-terra',
+            'gpt-5.6-sol'
         )
-        $reasoningOptions = @('low', 'medium', 'high', 'xhigh')
+        $reasoningOptions = @('low', 'medium', 'high', 'xhigh', 'max')
 
         $results = New-Object System.Collections.Generic.List[System.Management.Automation.CompletionResult]
         $dashMode = 'none'
