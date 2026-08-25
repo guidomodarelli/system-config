@@ -1,0 +1,20 @@
+{
+  "skill_name": "stacked-pr",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Tengo un PR grande contra develop y quiero dividirlo en stacked PRs por contracts/dependencies, backend, frontend, mocks/tests, i18n y cleanup, usando branches feature/* y validando que el último diff coincida con el head original.",
+      "expected_output": "Inspecciona PR/base/head, crea backup, define manifests explícitos, construye branches feature/* encadenados, valida cada capa y compara el árbol final con el golden sin publicar hasta autorización."
+    },
+    {
+      "id": 2,
+      "prompt": "Ya tengo un PR normal abierto en GitHub. Quiero convertirlo en el primer PR de un stack y agregar dos capas dependientes sin cambiar el diff de la primera.",
+      "expected_output": "Conserva el PR existente, crea branches hijas desde cada head, usa el head anterior como base del siguiente PR, verifica same-repository y reporta bases/CI."
+    },
+    {
+      "id": 3,
+      "prompt": "Hay un stack existente y necesito agregarle otro PR para una nueva capa de tests y fixtures. Revisá la cadena, encontrá el top y abrí el nuevo PR con feature/*.",
+      "expected_output": "Lista PRs y relaciones base/head, identifica top layer sin ciclos, crea branch feature/* desde top head, abre el PR dependiente y valida diff incremental y checks."
+    }
+  ]
+}
