@@ -288,14 +288,14 @@
     {
       "id": 23,
       "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456804\nEl owner del defecto es PR #42, ya mergeado. Hay un único PR #44 abierto donde el cambio puede aplicarse sin ambigüedad; explicá impacto en descendants.",
-      "expected_output": "Selecciona PR #44 solo como alternativa inequívoca, devuelve NEEDS_SCOPE_CONFIRMATION y marca descendants que requerirían rebase; no actúa sin autorización.",
+      "expected_output": "Selecciona PR #44 solo como alternativa inequívoca, devuelve NEEDS_SCOPE_CONFIRMATION y explica el impacto en descendants; no actúa sin autorización.",
       "files": [],
       "expectations": [
         "Incluye PR mergeado al reconstruir contexto del stack",
         "Demuestra owner cerrado y alternativa abierta inequívoca",
         "Devuelve NEEDS_SCOPE_CONFIRMATION antes de tocar otra capa",
-        "Informa DESCENDANTS_REQUIRE_REBASE cuando corresponda",
-        "No rebasea, pushea ni modifica descendants automáticamente"
+        "Explica que descendants requerirían rebase si se autoriza alternativa",
+        "No rebasea, pushea ni modifica descendants sin autorización de scope"
       ]
     },
     {
@@ -309,6 +309,20 @@
         "Verifica reply o closeout explícito como segunda señal",
         "No duplica patch, commit, push o comentario",
         "No usa resolveReviewThread sobre review-body"
+      ]
+    },
+    {
+      "id": 25,
+      "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456806\nAplicá el fix en este PR. Tiene descendants abiertos en el mismo repositorio.",
+      "expected_output": "Detecta STACK_FOUND, aplica el fix en el owner y rebasea automáticamente los descendants abiertos en orden bottom-up, con backups, validaciones y force-with-lease; no requiere que el usuario agregue una instrucción de rebase.",
+      "files": [],
+      "expectations": [
+        "Detecta el stack lineal y verifica bases, heads y OIDs",
+        "Crea backups antes de reescribir branches",
+        "Rebasea descendants automáticamente en orden bottom-up",
+        "Valida cada capa antes de publicar",
+        "Usa force-with-lease y relee OIDs antes de cada push",
+        "Detiene y no hace closeout si rebase o validación falla"
       ]
     }
   ]
