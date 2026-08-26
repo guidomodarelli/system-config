@@ -1,6 +1,6 @@
 ---
 name: worktree-hermano
-description: "Gestiona worktrees hermanos persistentes reutilizando ramas existentes, locales o remotas, sin crear ramas derivadas. Usar cuando pidan crear, listar o remover un worktree hermano, mantener misma rama en otro checkout, resolver conflictos de rama ya checkout o mover principal a develop con confirmación explícita. No usar para clones efímeros, commits, pushes ni fixes aislados."
+description: "Gestiona worktrees hermanos persistentes reutilizando ramas existentes, locales o remotas, sin crear ramas derivadas. Usar cuando pidan crear, listar, remover o migrar una branch a otro worktree hermano, mantener misma branch en otro checkout, liberar branch ocupada cambiando worktree actual a develop o mover principal a develop con confirmación explícita. No usar para clones efímeros, commits, pushes ni fixes aislados."
 ---
 
 # Worktree hermano
@@ -38,9 +38,40 @@ Todo worktree nuevo debe quedar como hermano inmediato del repo principal, nunca
 2. Ejecutar primero `--dry-run` para `create` o `remove`.
 3. Mostrar al usuario ruta, rama, tracking, operación y bloqueos detectados.
 4. Si helper termina con código `3`, tratarlo como bloqueo de seguridad; no repetir operación cambiando flags por iniciativa propia.
-5. Si rama solicitada está checkout en worktree principal, explicar que misma rama no puede estar checkout dos veces. Pedir confirmación explícita para mover principal a `develop`.
-6. Solo después de confirmación afirmativa, repetir `create` agregando `--confirm-primary-switch-to-develop`.
-7. Informar resultado final con ruta, rama, commit y estado.
+5. Si branch solicitada está checkout en worktree principal, explicar que misma branch no puede estar checkout dos veces. Pedir confirmación explícita para mover principal a `develop`.
+6. Si solicitud es migrar branch checkout en worktree hermano actual, no remover ese worktree ni ejecutar `git worktree remove`. Preservar archivos ignorados y cambiar worktree actual a branch de reemplazo solo después de confirmar que `git status --short --untracked-files=all` está vacío. Usar `develop` como reemplazo únicamente cuando usuario lo confirme o lo haya indicado; no ejecutar `git clean`, reset ni stash.
+7. Después de liberar branch, ejecutar `create --branch BRANCH --name/path DESTINO --dry-run`, mostrar OID y destino, solicitar confirmación y repetir `create` sin `--dry-run`.
+8. Tras creación exitosa, cambiar sesión al nuevo checkout mediante mecanismo de entrada de worktree disponible; verificar ruta, branch, upstream, HEAD y estado. Worktree origen queda en branch de reemplazo, sin cambios de archivos intencionales.
+9. Solo después de confirmación afirmativa para mover principal, repetir `create` agregando `--confirm-primary-switch-to-develop`.
+10. Informar resultado final con ruta, branch, commit y estado.
+
+## Migrar branch checkout actual a otro worktree hermano
+
+Usar cuando usuario quiere conservar worktree actual y mover su branch a un sibling, no eliminar checkout actual.
+
+1. Listar worktrees y capturar `source_worktree`, `source_branch`, `source_head`, upstream y estado.
+2. Confirmar branch destino para worktree origen. Si usuario no indica branch y `develop` está libre, proponer `develop`; no cambiar silenciosamente si branch destino está ocupada, tiene cambios o hay ambigüedad.
+3. Ejecutar desde worktree origen:
+
+```bash
+git status --short --untracked-files=all
+git switch develop
+```
+
+`git switch` puede conservar directorios ignorados (`node_modules`, `build`, `coverage`, `.nordic`) sin modificarlos. No exigir worktree vacío de archivos ignorados para este patrón; sí detener si hay cambios tracked o archivos untracked. Nunca usar `git clean`, reset, stash o remover worktree.
+
+4. Ejecutar helper desde worktree que no sea destino actual para validar y crear nuevo sibling:
+
+```bash
+SCRIPT=/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/worktree-hermano/scripts/worktree-hermano
+"$SCRIPT" create --branch feature/example --name example-migrated --dry-run
+# pedir confirmación
+"$SCRIPT" create --branch feature/example --name example-migrated
+```
+
+Si helper se ejecuta desde branch que se quiere liberar, primero completar `git switch` y volver a ejecutar dry-run. No interpretar bloqueo `no se permite remover worktree desde sí mismo` como motivo para remover; `remove` no es operación necesaria en migración.
+
+5. Entrar al path nuevo, verificar branch/HEAD/upstream/estado y reportar OID original versus OID creado. Si destino ya existe, es symlink, está registrado o branch sigue ocupada, detener sin sobrescribir.
 
 ## Operaciones
 
