@@ -23,6 +23,10 @@ alwaysApply: false
   - nombres de enums
   - otros términos técnicos o de implementación
 
+## Verificación Runtime De Aplicaciones Nordic
+
+- Si `package.json` declara una dependencia cuyo nombre contiene `nordic` (sin distinguir mayúsculas/minúsculas) en `dependencies`, `devDependencies`, `optionalDependencies` o `peerDependencies`, leer y aplicar `@/Users/gmodarelli/.claude/skills/nordic-dev-verify/SKILL.md` antes de verificar manualmente flujos runtime o cambios frontend en `dev.adminml.com`.
+
 ## Reglas De Testing Específicas De Plataforma (MELI/Nordic)
 
 - Los paquetes `@andes/*`, `@meli/*`, `nordic/*` y `@kraken/*` son ejemplos concretos de las "librerías internas o de plataforma" que la regla global de testing prohíbe mockear; no es una lista exhaustiva.
