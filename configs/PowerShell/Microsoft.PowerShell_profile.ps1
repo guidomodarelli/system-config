@@ -353,8 +353,8 @@ function cx {
         return
     }
 
-    $model = 'gpt-5.5'
-    $reasoning = 'low'
+    $model = 'gpt-5.6-luna'
+    $reasoning = 'high'
     $yolo = $false
     $commitMode = $false
     $disableMcps = $false
