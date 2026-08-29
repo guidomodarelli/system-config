@@ -6,12 +6,11 @@ usage() {
 Usage: codex-review [options]
 
 Options:
-  -p, --provider auto|claude|copilot|codex
+  -p, --provider auto|claude|codex
                               Review provider. Default: auto.
   --mode auto|local|branch   Target selection. Default: auto.
   --base REF                 Base ref for branch review. Default: PR base or origin/main.
   --claude-bin PATH          Claude Code binary. Default: claude.
-  --copilot-bin PATH         GitHub Copilot binary. Default: copilot.
   --codex-bin PATH           Codex binary. Default: codex.
   --output FILE              Also save provider output to file.
   --parallel-tests CMD       Run review and test command concurrently.
@@ -20,10 +19,9 @@ Options:
   -h, --help                 Show help.
 
 Providers:
-  auto     Try Claude Code, then GitHub Copilot, then Codex. Fallback only on
+  auto     Try Claude Code, then Codex. Fallback only on
            unavailable binaries, authentication, quota, or infrastructure errors.
   claude   Run Claude Code only.
-  copilot  Run GitHub Copilot only.
   codex    Run Codex only.
 
 Modes:
@@ -37,7 +35,6 @@ provider=auto
 mode=auto
 base_ref=
 claude_bin=${CLAUDE_BIN:-claude}
-copilot_bin=${COPILOT_BIN:-copilot}
 codex_bin=${CODEX_BIN:-codex}
 output=${CODEX_REVIEW_OUTPUT:-}
 parallel_tests=
@@ -83,11 +80,6 @@ while [[ $# -gt 0 ]]; do
       claude_bin=$2
       shift 2
       ;;
-    --copilot-bin)
-      require_option_value "$1" "${2:-}"
-      copilot_bin=$2
-      shift 2
-      ;;
     --codex-bin)
       require_option_value "$1" "${2:-}"
       codex_bin=$2
@@ -124,7 +116,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$provider" in
-  auto|claude|copilot|codex) ;;
+  auto|claude|codex) ;;
   *)
     printf 'invalid --provider: %s\n' "$provider" >&2
     exit 2
@@ -207,18 +199,6 @@ build_review_command() {
         -p "$review_prompt"
       )
       ;;
-    copilot)
-      provider_bin=$copilot_bin
-      review_cmd=(
-        "$copilot_bin"
-        --mode plan
-        --no-ask-user
-        --allow-all-tools
-        --deny-tool=write
-        --silent
-        -p "$review_prompt"
-      )
-      ;;
     codex)
       provider_bin=$codex_bin
       if [[ "$review_kind" == local ]]; then
@@ -276,7 +256,7 @@ print_command() {
 }
 
 if [[ "$provider" == auto ]]; then
-  providers=(claude copilot codex)
+  providers=(claude codex)
 else
   providers=("$provider")
 fi
@@ -285,7 +265,7 @@ printf 'code-review target: %s\n' "$review_kind"
 printf 'branch: %s\n' "${current_branch:-detached}"
 printf 'provider: %s\n' "$provider"
 if [[ "$provider" == auto ]]; then
-  printf 'provider order: claude -> copilot -> codex\n'
+  printf 'provider order: claude -> codex\n'
 fi
 if [[ -n "$pr_url" ]]; then
   printf 'pr: %s\n' "$pr_url"

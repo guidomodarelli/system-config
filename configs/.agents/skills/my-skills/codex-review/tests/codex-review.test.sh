@@ -63,11 +63,6 @@ case "$provider_name" in
     printf '%s\n' "${FAKE_CLAUDE_OUTPUT:-No actionable findings.}"
     exit "${FAKE_CLAUDE_STATUS:-0}"
     ;;
-  copilot)
-    sleep "${FAKE_COPILOT_SLEEP_SECONDS:-0}"
-    printf '%s\n' "${FAKE_COPILOT_OUTPUT:-No actionable findings.}"
-    exit "${FAKE_COPILOT_STATUS:-0}"
-    ;;
   codex)
     sleep "${FAKE_CODEX_SLEEP_SECONDS:-0}"
     printf '%s\n' "${FAKE_CODEX_OUTPUT:-No actionable findings.}"
@@ -77,14 +72,12 @@ esac
 EOF
   chmod 700 "$FAKE_BIN/provider"
   ln -s provider "$FAKE_BIN/claude"
-  ln -s provider "$FAKE_BIN/copilot"
   ln -s provider "$FAKE_BIN/codex"
 
   export TEST_ROOT REPOSITORY FAKE_BIN CALL_LOG STDOUT_FILE STDERR_FILE
-  export FAKE_CLAUDE_STATUS=0 FAKE_COPILOT_STATUS=0 FAKE_CODEX_STATUS=0
-  export FAKE_CLAUDE_SLEEP_SECONDS=0 FAKE_COPILOT_SLEEP_SECONDS=0 FAKE_CODEX_SLEEP_SECONDS=0
+  export FAKE_CLAUDE_STATUS=0 FAKE_CODEX_STATUS=0
+  export FAKE_CLAUDE_SLEEP_SECONDS=0 FAKE_CODEX_SLEEP_SECONDS=0
   export FAKE_CLAUDE_OUTPUT='No actionable findings.'
-  export FAKE_COPILOT_OUTPUT='No actionable findings.'
   export FAKE_CODEX_OUTPUT='No actionable findings.'
 }
 
@@ -100,7 +93,6 @@ run_helper() {
     "$HELPER" \
       --mode local \
       --claude-bin "$FAKE_BIN/claude" \
-      --copilot-bin "$FAKE_BIN/copilot" \
       --codex-bin "$FAKE_BIN/codex" \
       "$@"
   ) > "$STDOUT_FILE" 2> "$STDERR_FILE"
@@ -115,43 +107,43 @@ test_auto_stops_after_claude_success() {
 
   run_helper --provider auto
   assert_calls 'claude'
-  assert_contains "$STDOUT_FILE" 'provider order: claude -> copilot -> codex'
+  assert_contains "$STDOUT_FILE" 'provider order: claude -> codex'
   assert_contains "$STDOUT_FILE" 'code-review completed by provider: claude'
 }
 
-test_short_provider_selects_copilot_only() {
+test_short_provider_selects_codex_only() {
   setup_fixture
   trap teardown_fixture EXIT
 
-  run_helper -p copilot
-  assert_calls 'copilot'
-  assert_contains "$STDOUT_FILE" 'provider: copilot'
+  run_helper -p codex
+  assert_calls 'codex'
+  assert_contains "$STDOUT_FILE" 'provider: codex'
 }
 
-test_quota_failure_falls_back_to_copilot() {
+test_quota_failure_falls_back_to_codex() {
   setup_fixture
   trap teardown_fixture EXIT
   export FAKE_CLAUDE_STATUS=1
   export FAKE_CLAUDE_OUTPUT='You hit your spend cap set by the owner of your workspace.'
 
   run_helper
-  assert_calls 'claude copilot'
+  assert_calls 'claude codex'
   assert_contains "$STDERR_FILE" 'quota_exceeded'
-  assert_contains "$STDOUT_FILE" 'code-review completed by provider: copilot'
+  assert_contains "$STDOUT_FILE" 'code-review completed by provider: codex'
 }
 
-test_timeout_falls_back_to_copilot() {
+test_timeout_falls_back_to_codex() {
   setup_fixture
   trap teardown_fixture EXIT
   export FAKE_CLAUDE_SLEEP_SECONDS=2
 
   run_helper --timeout-seconds 1
-  assert_calls 'claude copilot'
+  assert_calls 'claude codex'
   assert_contains "$STDERR_FILE" 'infrastructure_error'
-  assert_contains "$STDOUT_FILE" 'code-review completed by provider: copilot'
+  assert_contains "$STDOUT_FILE" 'code-review completed by provider: codex'
 }
 
-test_missing_claude_falls_back_to_copilot() {
+test_missing_claude_falls_back_to_codex() {
   setup_fixture
   trap teardown_fixture EXIT
 
@@ -160,29 +152,25 @@ test_missing_claude_falls_back_to_copilot() {
     cd "$REPOSITORY"
     "$HELPER" --mode local \
       --claude-bin "$FAKE_BIN/missing-claude" \
-      --copilot-bin "$FAKE_BIN/copilot" \
       --codex-bin "$FAKE_BIN/codex"
   ) > "$STDOUT_FILE" 2> "$STDERR_FILE"
   status=$?
   set -e
 
   [[ "$status" -eq 0 ]] || fail "expected fallback success, got exit $status"
-  assert_calls 'copilot'
+  assert_calls 'codex'
   assert_contains "$STDERR_FILE" 'provider_unavailable'
 }
 
-test_auth_and_quota_failures_reach_codex() {
+test_auth_failure_reaches_codex() {
   setup_fixture
   trap teardown_fixture EXIT
   export FAKE_CLAUDE_STATUS=1
   export FAKE_CLAUDE_OUTPUT='Authentication required. Run login.'
-  export FAKE_COPILOT_STATUS=1
-  export FAKE_COPILOT_OUTPUT='Rate limit exceeded.'
 
   run_helper
-  assert_calls 'claude copilot codex'
+  assert_calls 'claude codex'
   assert_contains "$STDERR_FILE" 'not_authenticated'
-  assert_contains "$STDERR_FILE" 'quota_exceeded'
   assert_contains "$STDOUT_FILE" 'code-review completed by provider: codex'
 }
 
@@ -196,7 +184,7 @@ test_explicit_provider_never_falls_back() {
     fail 'expected explicit Claude failure'
   fi
   assert_calls 'claude'
-  assert_not_contains "$CALL_LOG" 'copilot'
+  assert_not_contains "$CALL_LOG" 'codex'
 }
 
 test_unknown_failure_never_falls_back() {
@@ -241,7 +229,6 @@ test_dry_run_does_not_invoke_providers() {
   run_helper --dry-run
   [[ ! -s "$CALL_LOG" ]] || fail 'dry-run invoked a provider'
   assert_contains "$STDOUT_FILE" 'review[claude]:'
-  assert_contains "$STDOUT_FILE" 'review[copilot]:'
   assert_contains "$STDOUT_FILE" 'review[codex]:'
 }
 
@@ -250,8 +237,8 @@ test_output_captures_provider_result() {
   trap teardown_fixture EXIT
   local saved_output="$TEST_ROOT/review.log"
 
-  run_helper -p copilot --output "$saved_output"
-  assert_contains "$saved_output" '--- copilot review output ---'
+  run_helper -p codex --output "$saved_output"
+  assert_contains "$saved_output" '--- codex review output ---'
   assert_contains "$saved_output" 'No actionable findings.'
 }
 
@@ -293,11 +280,11 @@ run_test() {
 }
 
 run_test 'auto stops after Claude success' test_auto_stops_after_claude_success
-run_test 'short provider flag selects Copilot only' test_short_provider_selects_copilot_only
-run_test 'quota failure falls back to Copilot' test_quota_failure_falls_back_to_copilot
-run_test 'timeout falls back to Copilot' test_timeout_falls_back_to_copilot
-run_test 'missing Claude falls back to Copilot' test_missing_claude_falls_back_to_copilot
-run_test 'auth and quota failures reach Codex' test_auth_and_quota_failures_reach_codex
+run_test 'short provider flag selects Codex only' test_short_provider_selects_codex_only
+run_test 'quota failure falls back to Codex' test_quota_failure_falls_back_to_codex
+run_test 'timeout falls back to Codex' test_timeout_falls_back_to_codex
+run_test 'missing Claude falls back to Codex' test_missing_claude_falls_back_to_codex
+run_test 'auth failure reaches Codex' test_auth_failure_reaches_codex
 run_test 'explicit provider never falls back' test_explicit_provider_never_falls_back
 run_test 'unknown failure never falls back' test_unknown_failure_never_falls_back
 run_test 'completed review with findings never falls back' test_completed_review_with_findings_never_falls_back

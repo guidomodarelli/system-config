@@ -16,17 +16,6 @@ claude --permission-mode plan \
   -p "$REVIEW_PROMPT"
 ```
 
-## GitHub Copilot
-
-```bash
-copilot --mode plan \
-  --no-ask-user \
-  --allow-all-tools \
-  --deny-tool=write \
-  --silent \
-  -p "$REVIEW_PROMPT"
-```
-
 ## Codex
 
 ```bash

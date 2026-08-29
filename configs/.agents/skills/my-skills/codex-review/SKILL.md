@@ -1,6 +1,6 @@
 ---
 name: codex-review
-description: "Multi-provider code review closeout: Claude Code, GitHub Copilot, then Codex fallback; local or PR targets; parallel tests."
+description: "Multi-provider code review closeout: Claude Code, then Codex fallback; local or PR targets; parallel tests."
 ---
 
 # Multi-Provider Code Review
@@ -8,8 +8,7 @@ description: "Multi-provider code review closeout: Claude Code, GitHub Copilot, 
 Run a code review as a closeout check. Keep the `codex-review` name for compatibility, but select the first available provider in this order:
 
 1. Claude Code
-2. GitHub Copilot
-3. Codex
+2. Codex
 
 This is code review, not Guardian `auto_review` approval routing.
 
@@ -96,11 +95,10 @@ The bundled helper supports:
 ```bash
 scripts/codex-review --provider auto
 scripts/codex-review -p claude
-scripts/codex-review -p copilot
 scripts/codex-review -p codex
 ```
 
-`auto` is the default and tries Claude Code, then GitHub Copilot, then Codex.
+`auto` is the default and tries Claude Code, then Codex.
 
 Do not ask which provider to use by default. A closeout check must remain non-interactive. If the user explicitly names a provider or passes `--provider/-p`, run only that provider and report a provider failure without fallback.
 
@@ -206,10 +204,10 @@ Bundled helper:
 
 The helper:
 
-- accepts `-p/--provider auto|claude|copilot|codex`
+- accepts `-p/--provider auto|claude|codex`
 - chooses dirty local work first, otherwise PR/current branch
 - uses the current PR base when available, otherwise `origin/main`
-- supports binary overrides with `--claude-bin`, `--copilot-bin`, and `--codex-bin`
+- supports binary overrides with `--claude-bin` and `--codex-bin`
 - supports `--output`, `--parallel-tests`, and `--dry-run`
 - supports `--timeout-seconds` (default 600; `0` disables timeout; enabled timeout requires `python3`)
 - prints the provider that completed and every fallback cause
