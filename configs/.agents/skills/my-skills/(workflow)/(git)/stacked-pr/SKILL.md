@@ -1,7 +1,6 @@
 ---
 name: stacked-pr
 description: "Gestiona stacked Pull Requests de GitHub con ramas feature/*: divide PRs grandes por responsabilidad, crea un stack desde un PR normal, agrega capas a un stack existente, preserva un golden diff, resuelve dependencias y valida CI por capa. Usar siempre cuando el usuario mencione stacked PRs, stacked pull requests, dividir un PR, crear un stack, agregar un PR al stack, cambiar la base de un PR dependiente o reordenar capas."
-compatibility: "Git, GitHub CLI autenticado y repositorio Git con remoto origin; todas las ramas deben pertenecer al mismo repositorio."
 allowed-tools: Bash(git:*) Bash(gh:*) Read Write Edit
 ---
 

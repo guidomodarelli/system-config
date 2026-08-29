@@ -7,7 +7,6 @@ description: >
   driven by permissions, roles, and user context (Shipping, external LDAP, etc.). Use when
   the user asks to document the changes on a branch, create a user manual for a feature,
   or explain what changed for a non-technical audience.
-compatibility: Requires git. Designed for Claude Code in MELI/Nordic repos under ~/ghq/work/.
 metadata:
   author: gmodarelli_meli
   version: "1.0"

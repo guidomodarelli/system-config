@@ -1,7 +1,6 @@
 ---
 name: inline-thread-autofix
 description: "Resuelve feedback accionable de un PR GitHub a partir de URL `#discussion_r...` o `#pullrequestreview-...`: inspecciona PR, código y, si pertenece a un stack, sus capas relacionadas; verifica si hallazgo ya fue resuelto y determina dónde corresponde aplicar patch antes de modificar. Aplica fix mínimo, ejecuta validaciones, crea commit, hace push y usa template de cierre. Cuando detecta un stack lineal con descendants abiertos, rebasea automáticamente las capas posteriores de forma segura, sin requerir una instrucción adicional. Para inline comments responde y resuelve thread; para review-bodies edita body preservando contenido o publica comentario general con referencia. Usar siempre cuando usuario pase cualquiera de estos links. No cerrar si fix no está validado, árbol tiene cambios ajenos, destino/capa es ambiguo o closeout no puede verificarse."
-compatibility: Requiere GitHub CLI autenticado (`gh`), git, filesystem y herramientas de validación del repositorio.
 ---
 
 # Inline Thread Autofix

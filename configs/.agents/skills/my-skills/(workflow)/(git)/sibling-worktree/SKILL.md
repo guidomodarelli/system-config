@@ -12,7 +12,7 @@ Gestiona worktrees Git persistentes en rutas hermanas. Cada `create` debe partir
 Invocar siempre:
 
 ```bash
-/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/sibling-worktree/scripts/sibling-worktree
+/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/(workflow)/(git)/sibling-worktree/scripts/sibling-worktree
 ```
 
 Si runtime expone skill mediante `~/.claude/skills`, usar ruta equivalente:
@@ -63,7 +63,7 @@ git switch develop
 4. Ejecutar helper desde worktree que no sea destino actual para validar y crear nuevo sibling:
 
 ```bash
-SCRIPT=/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/sibling-worktree/scripts/sibling-worktree
+SCRIPT=/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/(workflow)/(git)/sibling-worktree/scripts/sibling-worktree
 "$SCRIPT" create --branch feature/example --name example-migrated --dry-run
 # pedir confirmación
 "$SCRIPT" create --branch feature/example --name example-migrated
@@ -78,7 +78,7 @@ Si helper se ejecuta desde branch que se quiere liberar, primero completar `git 
 ### Crear
 
 ```bash
-SCRIPT=/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/sibling-worktree/scripts/sibling-worktree
+SCRIPT=/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/(workflow)/(git)/sibling-worktree/scripts/sibling-worktree
 "$SCRIPT" create --branch feature/example --dry-run
 "$SCRIPT" create --branch feature/example
 ```

@@ -1,6 +1,6 @@
 ---
 name: codex-autofix-loop
-description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea comentarios de Codex (chatgpt-codex-connector[bot]) en un PR: clone efímero → fix → push → closeout del hilo, con dedup por PR y guard de auto-cancelación. Use when the user asks to relaunch/start the Codex auto-fix loop for a PR, set up Codex comment auto-fixing, or mentions docs/codex-autofix-loop.md, processed-<PR>.json, or the codex-autofix workflow."
+description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea comentarios de Codex (chatgpt-codex-connector[bot]) en un PR: clone efímero → fix → push → closeout del hilo, con dedup por PR y guard de auto-cancelación. Use when the user asks to relaunch/start the Codex auto-fix loop for a PR, set up Codex comment auto-fixing, or mentions docs/codex-autofix-loop.md, processed-PR.json, or the codex-autofix workflow."
 ---
 
 # Codex auto-fix loop (local, vía Claude Code)
@@ -8,7 +8,7 @@ description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea 
 Loop local que escucha comentarios de **Codex** (`chatgpt-codex-connector[bot]`)
 en un PR y **spawnea subagentes en paralelo** (uno por GRUPO de archivo, en lotes
 de `{{MAX_PARALLEL}}`) que delegan el fix en la skill
-[`fix-in-ephemeral-clone`](../fix-in-ephemeral-clone/SKILL.md) —invocada vía
+[`fix-in-ephemeral-clone`](../(git)/fix-in-ephemeral-clone/SKILL.md) —invocada vía
 la herramienta `Skill` (`/fix-in-ephemeral-clone`)— tratando cada comentario
 como la "issue" a resolver (clone efímero depth-1 → fix → validar → push a la rama
 del PR). Cada subagente trabaja en su propio clone efímero aislado; como todos

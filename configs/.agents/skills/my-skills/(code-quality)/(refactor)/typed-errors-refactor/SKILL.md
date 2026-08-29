@@ -1,7 +1,6 @@
 ---
 name: typed-errors-refactor
 description: Analiza, diseña y ejecuta refactors de errores tipados en repositorios generales, especialmente JavaScript y TypeScript. Usar siempre cuando el usuario mencione throws o catches genéricos, custom errors, códigos o status inconsistentes, normalización de errores API, filtración de upstream, cause, error boundaries, SSR, cancelación o tests de errores, aunque no pida explícitamente una jerarquía de clases. Preserva comportamiento observable, migra consumers por boundary y agrega tests de contrato sin imponer framework ni patrón de implementación.
-compatibility: Requiere acceso al filesystem, git y a las herramientas de validación definidas por el repositorio.
 ---
 
 # Typed Errors Refactor

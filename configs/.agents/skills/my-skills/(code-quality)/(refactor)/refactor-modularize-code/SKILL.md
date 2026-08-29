@@ -19,7 +19,7 @@ Refactor toward clear responsibilities and smaller, more cohesive modules. Keep 
 
 ## Shared execution
 
-Read [ejecución compartida](../references/refactor-execution.md) before editing. Apply its phases, metrics, and validation workflow.
+Read [ejecución compartida](../../references/refactor-execution.md) before editing. Apply its phases, metrics, and validation workflow.
 
 ## Detect Bad Boundaries
 

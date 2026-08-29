@@ -1,7 +1,6 @@
 ---
 name: nordic-local-mocks
 description: Configura y depura mocks HTTP locales en cualquier aplicación Nordic usando nordic-dev/mocks, Mock.intercept y fixtures JSON. Usar siempre cuando usuario pida mockear APIs en local, generar fixtures, evitar llamadas upstream durante desarrollo, migrar fakes locales a HTTP mocks o investigar errores donde Postman funciona y app falla.
-compatibility: Requiere aplicación Nordic, Node.js, nordic-dev/mocks o frontend-mocks, filesystem y comandos de validación del proyecto.
 ---
 
 # Nordic Local Mocks

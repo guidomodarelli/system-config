@@ -13,7 +13,7 @@ Use `refactor-modularize-code` as a complementary design guide when the task req
 
 ## Shared execution
 
-Read [ejecución compartida](../references/refactor-execution.md) before editing. Apply its phases, metrics, and validation workflow.
+Read [ejecución compartida](../../references/refactor-execution.md) before editing. Apply its phases, metrics, and validation workflow.
 
 ## Extraction Targets
 
