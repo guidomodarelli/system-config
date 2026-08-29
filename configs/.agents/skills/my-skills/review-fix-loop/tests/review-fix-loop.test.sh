@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HELPER=${HELPER:-"$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/codex-review"}
+HELPER=${HELPER:-"$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/review-fix-loop"}
 failures=0
 tests_run=0
 
@@ -32,7 +32,7 @@ assert_calls() {
 }
 
 setup_fixture() {
-  TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/codex-review-test.XXXXXX")
+  TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/review-fix-loop-test.XXXXXX")
   REPOSITORY="$TEST_ROOT/repository"
   FAKE_BIN="$TEST_ROOT/bin"
   CALL_LOG="$TEST_ROOT/calls.log"

@@ -1,11 +1,11 @@
 ---
-name: codex-review
-description: "Multi-provider code review closeout: Claude Code, then Codex fallback; local or PR targets; parallel tests."
+name: review-fix-loop
+description: "Multi-provider review and fix loop: Claude Code, then Codex fallback; local or PR targets; reruns after accepted findings."
 ---
 
-# Multi-Provider Code Review
+# Review Fix Loop
 
-Run a code review as a closeout check. Keep the `codex-review` name for compatibility, but select the first available provider in this order:
+Run a code review as a closeout check. Select the first available provider in this order:
 
 1. Claude Code
 2. Codex
@@ -45,7 +45,7 @@ flowchart TD
         BLOCKED["Reportar bloqueo exacto"]
     end
 
-    subgraph HELPER["Helper: scripts/codex-review"]
+    subgraph HELPER["Helper: scripts/review-fix-loop"]
         REVIEW["Iniciar proceso de review"]
         PROVIDER["Intentar provider actual"]
         RESULT{"¿Cómo terminó?"}
@@ -93,9 +93,9 @@ Límites de responsabilidad:
 The bundled helper supports:
 
 ```bash
-scripts/codex-review --provider auto
-scripts/codex-review -p claude
-scripts/codex-review -p codex
+scripts/review-fix-loop --provider auto
+scripts/review-fix-loop -p claude
+scripts/review-fix-loop -p codex
 ```
 
 `auto` is the default and tries Claude Code, then Codex.
@@ -140,7 +140,7 @@ Resolve one target before selecting a provider. Every fallback must review that 
 Dirty local work:
 
 ```bash
-<skill-root>/scripts/codex-review --mode local
+<skill-root>/scripts/review-fix-loop --mode local
 ```
 
 Use local mode only when the patch is actually staged, unstaged, or untracked. A clean local review proves nothing about committed branch work.
@@ -150,7 +150,7 @@ Branch/PR work:
 ```bash
 git fetch origin
 base=$(gh pr view --json baseRefName --jq .baseRefName)
-scripts/codex-review --mode branch --base "origin/$base"
+<skill-root>/scripts/review-fix-loop --mode branch --base "origin/$base"
 ```
 
 Without an open PR, the helper uses `origin/main` for a non-main branch.
@@ -166,7 +166,7 @@ codex review --commit HEAD
 Format first if formatting can change line locations. Then tests and review may run in parallel:
 
 ```bash
-<skill-root>/scripts/codex-review --parallel-tests "<focused test command>"
+<skill-root>/scripts/review-fix-loop --parallel-tests "<focused test command>"
 ```
 
 The review side may perform sequential provider fallbacks while tests run once. Failed tests do not trigger provider fallback. If tests or review lead to edits, rerun affected tests and review the updated target.
@@ -199,7 +199,7 @@ The filter must not invoke this skill or another provider. Run inline only for t
 Bundled helper:
 
 ```bash
-<skill-root>/scripts/codex-review --help
+<skill-root>/scripts/review-fix-loop --help
 ```
 
 The helper:
