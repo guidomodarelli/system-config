@@ -7,8 +7,9 @@ description: "Multi-provider review and fix loop: Claude Code, then Codex fallba
 
 Run a code review as a closeout check. Select the first available provider in this order:
 
-1. Claude Code
-2. Codex
+1. Claude + Copilot API + Terra high
+2. Claude directo
+3. Codex
 
 This is code review, not Guardian `auto_review` approval routing.
 
@@ -94,11 +95,12 @@ The bundled helper supports:
 
 ```bash
 scripts/review-fix-loop --provider auto
+scripts/review-fix-loop -p claude-copilot
 scripts/review-fix-loop -p claude
 scripts/review-fix-loop -p codex
 ```
 
-`auto` is the default and tries Claude Code, then Codex.
+`auto` is the default and tries Claude + Copilot API + Terra high, then direct Claude, then Codex.
 
 Do not ask which provider to use by default. A closeout check must remain non-interactive. If the user explicitly names a provider or passes `--provider/-p`, run only that provider and report a provider failure without fallback.
 
@@ -132,6 +134,12 @@ Treat connector, model-selection, deprecation, or plugin warnings as diagnostics
 ## Provider Adapters
 
 Read [provider adapters](references/provider-adapters.md) before manually invoking or changing provider commands. Prefer a read-only isolated subagent when runtime supports one; otherwise use bundled helper.
+
+### Claude review profiles
+
+`claude-copilot` is first. Helper exports endpoint, dummy token, Terra model mappings, provider flags and MCP timeout explicitly. It never inherits Copilot API variables from user settings. It also sets `CLAUDE_CODE_SUBAGENT_MODEL=gpt-5.6-terra[1m]` so every subagent uses Terra.
+
+`claude` is direct-only. It clears Copilot API Anthropic variables and loads only project/local settings. It never inherits Terra/Copilot profile from `claude-copilot`.
 
 ## Pick Target Once
 
@@ -204,7 +212,7 @@ Bundled helper:
 
 The helper:
 
-- accepts `-p/--provider auto|claude|codex`
+- accepts `-p/--provider auto|claude-copilot|claude|codex`
 - chooses dirty local work first, otherwise PR/current branch
 - uses the current PR base when available, otherwise `origin/main`
 - supports binary overrides with `--claude-bin` and `--codex-bin`

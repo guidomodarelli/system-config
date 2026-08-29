@@ -6,7 +6,7 @@ usage() {
 Usage: review-fix-loop [options]
 
 Options:
-  -p, --provider auto|claude|codex
+  -p, --provider auto|claude-copilot|claude|codex
                               Review provider. Default: auto.
   --mode auto|local|branch   Target selection. Default: auto.
   --base REF                 Base ref for branch review. Default: PR base or origin/main.
@@ -19,8 +19,10 @@ Options:
   -h, --help                 Show help.
 
 Providers:
-  auto     Try Claude Code, then Codex. Fallback only on
+  auto     Try Claude with Copilot API/Terra, then direct Claude, then Codex.
+           Fallback only on
            unavailable binaries, authentication, quota, or infrastructure errors.
+  claude-copilot  Run Claude through user settings with Copilot API, Terra, and high effort.
   claude   Run Claude Code only.
   codex    Run Codex only.
 
@@ -116,7 +118,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$provider" in
-  auto|claude|codex) ;;
+  auto|claude-copilot|claude|codex) ;;
   *)
     printf 'invalid --provider: %s\n' "$provider" >&2
     exit 2
@@ -188,10 +190,46 @@ provider_bin=
 build_review_command() {
   local selected_provider=$1
   case "$selected_provider" in
+    claude-copilot)
+      provider_bin=$claude_bin
+      review_cmd=(
+        env
+        "ANTHROPIC_BASE_URL=http://localhost:4141"
+        "ANTHROPIC_AUTH_TOKEN=dummy"
+        "ANTHROPIC_MODEL=gpt-5.6-terra[1m]"
+        "ANTHROPIC_DEFAULT_OPUS_MODEL=gpt-5.6-terra[1m]"
+        "ANTHROPIC_DEFAULT_SONNET_MODEL=gpt-5.6-terra[1m]"
+        "CLAUDE_CODE_USE_VERTEX=0"
+        "CLAUDE_CODE_USE_BEDROCK=0"
+        "DISABLE_NON_ESSENTIAL_MODEL_CALLS=1"
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1"
+        "CLAUDE_CODE_ATTRIBUTION_HEADER=0"
+        "CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false"
+        "CLAUDE_CODE_ENABLE_AWAY_SUMMARY=0"
+        "CLAUDE_CODE_TOTAL_TOKENS_REMINDER=off"
+        "MCP_CONNECT_TIMEOUT_MS=20000"
+        "CLAUDE_CODE_SUBAGENT_MODEL=gpt-5.6-terra[1m]"
+        "$claude_bin"
+        --permission-mode plan
+        --tools "Read,Grep,Glob,Bash"
+        --no-session-persistence
+        --output-format text
+        -p "$review_prompt"
+      )
+      ;;
     claude)
       provider_bin=$claude_bin
       review_cmd=(
+        env
+        -u ANTHROPIC_BASE_URL
+        -u ANTHROPIC_AUTH_TOKEN
+        -u ANTHROPIC_MODEL
+        -u ANTHROPIC_DEFAULT_HAIKU_MODEL
+        -u ANTHROPIC_DEFAULT_OPUS_MODEL
+        -u ANTHROPIC_DEFAULT_SONNET_MODEL
+        -u CLAUDE_CODE_SUBAGENT_MODEL
         "$claude_bin"
+        --setting-sources project,local
         --permission-mode plan
         --tools "Read,Grep,Glob,Bash"
         --no-session-persistence
@@ -256,7 +294,7 @@ print_command() {
 }
 
 if [[ "$provider" == auto ]]; then
-  providers=(claude codex)
+  providers=(claude-copilot claude codex)
 else
   providers=("$provider")
 fi
@@ -265,7 +303,7 @@ printf 'code-review target: %s\n' "$review_kind"
 printf 'branch: %s\n' "${current_branch:-detached}"
 printf 'provider: %s\n' "$provider"
 if [[ "$provider" == auto ]]; then
-  printf 'provider order: claude -> codex\n'
+  printf 'provider order: claude-copilot -> claude -> codex\n'
 fi
 if [[ -n "$pr_url" ]]; then
   printf 'pr: %s\n' "$pr_url"
