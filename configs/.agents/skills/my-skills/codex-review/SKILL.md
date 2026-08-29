@@ -127,6 +127,10 @@ Fallback is recovery, not a second opinion. Never launch another provider after 
 
 After a provider completes, keep it for review reruns. If that provider later fails for an eligible reason, continue from the next provider in the order; do not restart from Claude.
 
+### Provider diagnostics
+
+Treat connector, model-selection, deprecation, or plugin warnings as diagnostics when provider completes a valid review. Do not trigger fallback from diagnostics alone. Include them briefly in final report only when they can affect review coverage or provider selection.
+
 ## Provider Adapters
 
 ### Claude Code
@@ -208,9 +212,11 @@ scripts/codex-review --parallel-tests "<focused test command>"
 
 The review side may perform sequential provider fallbacks while tests run once. Failed tests do not trigger provider fallback. If tests or review lead to edits, rerun affected tests and review the updated target.
 
+When exact target already has relevant passing test evidence from current task and no files changed afterward, reuse that evidence instead of rerunning tests in parallel. Record command and result in final report.
+
 ## Context Efficiency
 
-Provider output is usually noisy. Default to an isolated subagent filter when available. Ask it to return only:
+Provider output is usually noisy. Use isolated read-only filter only when runtime supports native subagents. Otherwise evaluate provider output directly. Ask filter to return only:
 
 - actionable findings it accepts
 - findings it rejects, with one-line reason
@@ -223,8 +229,8 @@ The filter must not invoke this skill or another provider. Run inline only for t
 - Start exactly one provider attempt at a time.
 - Wait for the selected command and every child process it launches to finish before fallback or closeout.
 - Do not start the next provider while the previous process tree is alive.
-- Do not terminate a review only because it becomes quiet.
-- Inspect process status during long silent periods and keep waiting while related children exist.
+- After 60 seconds without output, inspect provider process tree and publish concise heartbeat. Repeat every 60 seconds while active.
+- Do not terminate a review only because it becomes quiet. At 10 minutes, inspect process tree again and report elapsed time; only helper/provider/host timeout counts as eligible fallback failure.
 - Repeated plugin warnings, validation chatter, or lack of a final clean line are not success evidence.
 - A run is clean only after all launched processes exit and verified review output contains 0 accepted/actionable findings.
 - Never present a self-interrupted review as a clean or responsible partial closeout. If the environment terminates it, report the contract as unsatisfied.
@@ -255,6 +261,7 @@ Include:
 
 - provider that completed the final review
 - failed provider attempts and exact fallback reasons
+- provider diagnostics that materially affected coverage, or `none`
 - review command/surface and target used
 - tests/proof run
 - findings accepted/rejected, briefly why

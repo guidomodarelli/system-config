@@ -1,7 +1,6 @@
 ---
 name: constants-refactor
 description: Analiza y refactoriza constantes, literales funcionales y contratos cross-layer en cualquier repositorio de código. Usar siempre que usuario pida revisar constantes, mover valores a constants/, limpiar hardcodes, responder comentarios de PR sobre constantes, centralizar límites/códigos/rutas/regex o reducir duplicación entre capas, aunque no mencione explícitamente una carpeta constants. Clasifica qué mover y qué mantener local, preserva comportamiento y aplica cambios seguros con validación completa.
-compatibility: Requiere acceso a filesystem, git y herramientas de validación definidas por el repositorio.
 ---
 
 # Constants Refactor
@@ -49,6 +48,20 @@ Aplicar estas reglas:
 - Revisar el boundary de cada constante: no exportar al cliente valores server-only, detalles internos de upstream o metadata sensible. Las constantes compartidas deben ser seguras para el bundle donde se consumen.
 - Mantener constantes puras y sin side effects. Evitar que los barrels importen servicios u otros módulos que introduzcan ciclos; los módulos de dominio pueden depender de constantes compartidas, no al revés.
 - Tras mover constantes, validar valores, referencias, tipos, identidad de objetos cuando importe y resolución de barrels/shims mediante tests de comportamiento o typecheck; no testear strings del archivo fuente.
+
+## Pedidos explícitos de reubicación
+
+Cuando usuario pida mover constantes de módulo o feature hacia `constants/`:
+
+1. Buscar primero archivo de dominio existente, por ejemplo `constants/<domain>/<feature>.ts`; no crear `constants.ts` genérico.
+2. Mover constantes puras de contrato, límites reutilizados, estados o configuración estable del dominio.
+3. Mantener locales copy visible, msgids, estilos, paginación y delays de una sola vista. Si usuario exige incluirlos, registrar excepción explícita y preservar textos exactos e i18n.
+4. Separar tipos runtime de UI: constants no deben importar valores desde `app/`, componentes o tipos que dependan de constants.
+5. Mantener specifiers públicos existentes solo cuando el barrel los soporte; no introducir un alias nuevo por uniformidad.
+
+### Barrels y contratos públicos
+
+Antes de migrar consumers, recorrer destino y todos sus barrels ascendentes. Si un barrel usa lista explícita de exports, agregar el nuevo símbolo allí; `export *` en barrel interno no implica exposición desde entrypoint raíz. Ejecutar typecheck después de actualizar barrels y antes de cerrar refactor.
 
 ### Atoms escalares y agregados
 
@@ -200,10 +213,10 @@ Al componer arrays desde atoms, preservar orden, referencia e identidad cuando f
 3. Construir arrays/agregados y tipos derivados desde atoms, conservando contratos separados.
 4. Mantener nombre semántico; no usar nombres genéricos como `VALUE`, `LIMIT`, `DATA`.
 5. Mover valores sin cambiar strings, orden, default, serialización o respuesta.
-4. Actualizar imports de producción y tests.
-5. Mantener fixtures literales cuando su finalidad sea validar contrato externo; no reemplazarlos todos por la misma constante.
-6. Revisar diff por dominio excluido antes de continuar.
-7. No mezclar refactor de constantes con cambios funcionales no solicitados.
+6. Actualizar barrels, imports de producción y tests.
+7. Mantener fixtures literales cuando su finalidad sea validar contrato externo; no reemplazarlos todos por la misma constante.
+8. Revisar diff por dominio excluido antes de continuar.
+9. No mezclar refactor de constantes con cambios funcionales no solicitados.
 
 ## Verificación
 
