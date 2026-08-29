@@ -18,6 +18,12 @@
       "prompt": "En un repo TypeScript, mové códigos de error, estados de polling, límites de entrada y runtime constants que hoy viven en interfaces/ a fuentes canónicas. Conservá unions TypeScript, evitá ciclos, no edites catálogos generados y explicá qué valores deben quedarse locales.",
       "expected_output": "Objetos as const con tipos derivados, interfaces sin duplicar runtime constants, límites separados por semántica, imports y tests actualizados, validación de typecheck/lint/build y lista de exclusiones.",
       "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Mové constantes de scan a constants/process-contingency/scan.ts. El index interno usa export *, pero constants/index.ts enumera exports manualmente. Algunas constantes son copy de UI y otras son límites de contrato.",
+      "expected_output": "Usa archivo de dominio existente, actualiza cada barrel necesario, mantiene copy UI local salvo excepción explícita, evita ciclos con app/ y ejecuta typecheck antes de cerrar.",
+      "files": []
     }
   ]
 }

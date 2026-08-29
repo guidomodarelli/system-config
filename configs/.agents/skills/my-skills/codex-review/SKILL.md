@@ -133,46 +133,7 @@ Treat connector, model-selection, deprecation, or plugin warnings as diagnostics
 
 ## Provider Adapters
 
-### Claude Code
-
-Prefer a read-only isolated subagent when the runtime supports one. Otherwise use Claude Code non-interactively:
-
-```bash
-claude --permission-mode plan \
-  --tools Read,Grep,Glob,Bash \
-  --no-session-persistence \
-  --output-format text \
-  -p "$REVIEW_PROMPT"
-```
-
-The prompt must identify the exact target, prohibit edits/commits/pushes, prohibit invoking `/codex-review` or any other review provider, and request direct findings only. This anti-recursion rule applies to subagents too.
-
-### GitHub Copilot
-
-Use prompt mode with plan/read-only behavior:
-
-```bash
-copilot --mode plan \
-  --no-ask-user \
-  --allow-all-tools \
-  --deny-tool=write \
-  --silent \
-  -p "$REVIEW_PROMPT"
-```
-
-Do not grant write access. The prompt carries the same exact target and anti-recursion constraints used for Claude Code.
-
-### Codex
-
-Use Codex's built-in code review:
-
-```bash
-codex review --uncommitted
-codex review --base origin/main
-codex review --commit HEAD
-```
-
-Do not pass an inline prompt with `--base`; current CLI rejects `--base` plus `[PROMPT]` even though help text is ambiguous.
+Read [provider adapters](references/provider-adapters.md) before manually invoking or changing provider commands. Prefer a read-only isolated subagent when runtime supports one; otherwise use bundled helper.
 
 ## Pick Target Once
 
@@ -181,7 +142,7 @@ Resolve one target before selecting a provider. Every fallback must review that 
 Dirty local work:
 
 ```bash
-scripts/codex-review --mode local
+<skill-root>/scripts/codex-review --mode local
 ```
 
 Use local mode only when the patch is actually staged, unstaged, or untracked. A clean local review proves nothing about committed branch work.
@@ -207,7 +168,7 @@ codex review --commit HEAD
 Format first if formatting can change line locations. Then tests and review may run in parallel:
 
 ```bash
-scripts/codex-review --parallel-tests "<focused test command>"
+<skill-root>/scripts/codex-review --parallel-tests "<focused test command>"
 ```
 
 The review side may perform sequential provider fallbacks while tests run once. Failed tests do not trigger provider fallback. If tests or review lead to edits, rerun affected tests and review the updated target.
@@ -237,10 +198,10 @@ The filter must not invoke this skill or another provider. Run inline only for t
 
 ## Helper
 
-Installed helper:
+Bundled helper:
 
 ```bash
-~/.claude/skills/codex-review/scripts/codex-review --help
+<skill-root>/scripts/codex-review --help
 ```
 
 The helper:
@@ -250,6 +211,7 @@ The helper:
 - uses the current PR base when available, otherwise `origin/main`
 - supports binary overrides with `--claude-bin`, `--copilot-bin`, and `--codex-bin`
 - supports `--output`, `--parallel-tests`, and `--dry-run`
+- supports `--timeout-seconds` (default 600; `0` disables timeout; enabled timeout requires `python3`)
 - prints the provider that completed and every fallback cause
 - treats unclassified provider failures as terminal instead of silently falling back
 

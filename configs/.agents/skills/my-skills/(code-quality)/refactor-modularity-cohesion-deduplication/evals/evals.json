@@ -1,0 +1,23 @@
+{
+  "skill_name": "refactor-modularity-cohesion-deduplication",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Modularizá un archivo TypeScript de 850 líneas con mapping, validación, requests y render. No cambies contratos públicos.",
+      "expected_output": "Mide archivo principal y feature, acuerda fases, respeta orden tipos/constants/helpers/componentes y valida cada fase.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Dos componentes repiten filtrado de operadores, pero uno busca por LDAP y otro solo por nombre. Reducí duplicación sin crear helper genérico con flags ambiguos.",
+      "expected_output": "Extrae solo lógica realmente común o mantiene variaciones locales; explica frontera y evita ramas específicas de caller.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Separá una cola React con búsqueda, foco, paginación y acciones de fila. Parent controla scanner y necesita conocer foco de búsqueda.",
+      "expected_output": "Componente cola posee estado local; parent/hijo coordinan foco con callback explícito; tests cubren flujo observable y métricas reflejan archivo principal más feature.",
+      "files": []
+    }
+  ]
+}

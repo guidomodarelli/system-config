@@ -15,6 +15,7 @@ Options:
   --codex-bin PATH           Codex binary. Default: codex.
   --output FILE              Also save provider output to file.
   --parallel-tests CMD       Run review and test command concurrently.
+  --timeout-seconds N        Per-provider timeout. Default: 600. Use 0 to disable.
   --dry-run                  Print selected commands, do not run.
   -h, --help                 Show help.
 
@@ -40,6 +41,7 @@ copilot_bin=${COPILOT_BIN:-copilot}
 codex_bin=${CODEX_BIN:-codex}
 output=${CODEX_REVIEW_OUTPUT:-}
 parallel_tests=
+timeout_seconds=${CODEX_REVIEW_TIMEOUT_SECONDS:-600}
 dry_run=false
 
 require_option_value() {
@@ -47,6 +49,14 @@ require_option_value() {
   local value=${2:-}
   if [[ -z "$value" || "$value" == -* ]]; then
     printf 'missing value for %s\n' "$option" >&2
+    exit 2
+  fi
+}
+
+require_timeout_seconds() {
+  local value=$1
+  if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+    printf 'invalid --timeout-seconds: %s\n' "$value" >&2
     exit 2
   fi
 }
@@ -93,6 +103,11 @@ while [[ $# -gt 0 ]]; do
       parallel_tests=$2
       shift 2
       ;;
+    --timeout-seconds)
+      require_option_value "$1" "${2:-}"
+      timeout_seconds=$2
+      shift 2
+      ;;
     --dry-run)
       dry_run=true
       shift
@@ -123,6 +138,8 @@ case "$mode" in
     exit 2
     ;;
 esac
+
+require_timeout_seconds "$timeout_seconds"
 
 git rev-parse --show-toplevel >/dev/null
 repository_root=$(git rev-parse --show-toplevel)
@@ -276,6 +293,7 @@ fi
 if [[ -n "$parallel_tests" ]]; then
   printf 'tests: %s\n' "$parallel_tests"
 fi
+printf 'timeout seconds: %s\n' "$timeout_seconds"
 if [[ "$review_kind" == branch ]]; then
   printf 'fetch: git fetch origin --quiet\n'
 fi
@@ -329,6 +347,54 @@ emit_attempt_output() {
   fi
 }
 
+run_provider_command() {
+  local attempt_output=$1
+
+  if [[ "$timeout_seconds" == 0 ]]; then
+    "${review_cmd[@]}" > "$attempt_output" 2>&1
+
+    return $?
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf 'code-review timeout runner unavailable: python3 is required when timeout is enabled\n' > "$attempt_output"
+
+    return 125
+  fi
+
+  python3 - "$timeout_seconds" "$attempt_output" "${review_cmd[@]}" <<'PY'
+import os
+import signal
+import subprocess
+import sys
+
+timeout_seconds = int(sys.argv[1])
+attempt_output = sys.argv[2]
+command = sys.argv[3:]
+
+with open(attempt_output, 'w', encoding='utf-8') as output:
+    process = subprocess.Popen(
+        command,
+        stdout=output,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+
+    try:
+        sys.exit(process.wait(timeout=timeout_seconds))
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGTERM)
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+
+        output.write(f'\ncode-review timeout: provider exceeded {timeout_seconds} seconds\n')
+        sys.exit(124)
+PY
+}
+
 run_review() {
   local selected_provider
   local attempt_output
@@ -345,7 +411,7 @@ run_review() {
       review_status=127
     else
       set +e
-      "${review_cmd[@]}" > "$attempt_output" 2>&1
+      run_provider_command "$attempt_output"
       review_status=$?
       set -e
     fi

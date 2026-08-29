@@ -59,14 +59,17 @@ printf '%s\n' "$provider_name" >> "$CALL_LOG"
 printf '%s\n' "$*" >> "$CALL_LOG.args"
 case "$provider_name" in
   claude)
+    sleep "${FAKE_CLAUDE_SLEEP_SECONDS:-0}"
     printf '%s\n' "${FAKE_CLAUDE_OUTPUT:-No actionable findings.}"
     exit "${FAKE_CLAUDE_STATUS:-0}"
     ;;
   copilot)
+    sleep "${FAKE_COPILOT_SLEEP_SECONDS:-0}"
     printf '%s\n' "${FAKE_COPILOT_OUTPUT:-No actionable findings.}"
     exit "${FAKE_COPILOT_STATUS:-0}"
     ;;
   codex)
+    sleep "${FAKE_CODEX_SLEEP_SECONDS:-0}"
     printf '%s\n' "${FAKE_CODEX_OUTPUT:-No actionable findings.}"
     exit "${FAKE_CODEX_STATUS:-0}"
     ;;
@@ -79,6 +82,7 @@ EOF
 
   export TEST_ROOT REPOSITORY FAKE_BIN CALL_LOG STDOUT_FILE STDERR_FILE
   export FAKE_CLAUDE_STATUS=0 FAKE_COPILOT_STATUS=0 FAKE_CODEX_STATUS=0
+  export FAKE_CLAUDE_SLEEP_SECONDS=0 FAKE_COPILOT_SLEEP_SECONDS=0 FAKE_CODEX_SLEEP_SECONDS=0
   export FAKE_CLAUDE_OUTPUT='No actionable findings.'
   export FAKE_COPILOT_OUTPUT='No actionable findings.'
   export FAKE_CODEX_OUTPUT='No actionable findings.'
@@ -133,6 +137,17 @@ test_quota_failure_falls_back_to_copilot() {
   run_helper
   assert_calls 'claude copilot'
   assert_contains "$STDERR_FILE" 'quota_exceeded'
+  assert_contains "$STDOUT_FILE" 'code-review completed by provider: copilot'
+}
+
+test_timeout_falls_back_to_copilot() {
+  setup_fixture
+  trap teardown_fixture EXIT
+  export FAKE_CLAUDE_SLEEP_SECONDS=2
+
+  run_helper --timeout-seconds 1
+  assert_calls 'claude copilot'
+  assert_contains "$STDERR_FILE" 'infrastructure_error'
   assert_contains "$STDOUT_FILE" 'code-review completed by provider: copilot'
 }
 
@@ -253,6 +268,18 @@ test_invalid_provider_returns_usage_error() {
   assert_contains "$STDERR_FILE" 'invalid --provider: invalid'
 }
 
+test_invalid_timeout_returns_usage_error() {
+  setup_fixture
+  trap teardown_fixture EXIT
+
+  set +e
+  run_helper --timeout-seconds invalid
+  status=$?
+  set -e
+  [[ "$status" -eq 2 ]] || fail "expected exit 2, got $status"
+  assert_contains "$STDERR_FILE" 'invalid --timeout-seconds: invalid'
+}
+
 run_test() {
   local name=$1
   local test_function=$2
@@ -268,6 +295,7 @@ run_test() {
 run_test 'auto stops after Claude success' test_auto_stops_after_claude_success
 run_test 'short provider flag selects Copilot only' test_short_provider_selects_copilot_only
 run_test 'quota failure falls back to Copilot' test_quota_failure_falls_back_to_copilot
+run_test 'timeout falls back to Copilot' test_timeout_falls_back_to_copilot
 run_test 'missing Claude falls back to Copilot' test_missing_claude_falls_back_to_copilot
 run_test 'auth and quota failures reach Codex' test_auth_and_quota_failures_reach_codex
 run_test 'explicit provider never falls back' test_explicit_provider_never_falls_back
@@ -277,6 +305,7 @@ run_test 'failed parallel tests do not trigger fallback' test_failed_parallel_te
 run_test 'dry-run does not invoke providers' test_dry_run_does_not_invoke_providers
 run_test 'output captures provider result' test_output_captures_provider_result
 run_test 'invalid provider returns usage error' test_invalid_provider_returns_usage_error
+run_test 'invalid timeout returns usage error' test_invalid_timeout_returns_usage_error
 
 if [[ "$failures" -ne 0 ]]; then
   printf '%d/%d tests failed\n' "$failures" "$tests_run" >&2
