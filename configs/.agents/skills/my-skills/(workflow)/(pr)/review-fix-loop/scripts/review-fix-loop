@@ -42,6 +42,7 @@ output=${CODEX_REVIEW_OUTPUT:-}
 parallel_tests=
 timeout_seconds=${CODEX_REVIEW_TIMEOUT_SECONDS:-600}
 dry_run=false
+claude_config_directory=
 
 require_option_value() {
   local option=$1
@@ -209,6 +210,11 @@ build_review_command() {
         "CLAUDE_CODE_TOTAL_TOKENS_REMINDER=off"
         "MCP_CONNECT_TIMEOUT_MS=20000"
         "CLAUDE_CODE_SUBAGENT_MODEL=gpt-5.6-terra[1m]"
+      )
+      if [[ -n "$claude_config_directory" ]]; then
+        review_cmd+=("CLAUDE_CONFIG_DIR=$claude_config_directory")
+      fi
+      review_cmd+=(
         "$claude_bin"
         --permission-mode plan
         --tools "Read,Grep,Glob,Bash"
@@ -312,6 +318,9 @@ if [[ -n "$parallel_tests" ]]; then
   printf 'tests: %s\n' "$parallel_tests"
 fi
 printf 'timeout seconds: %s\n' "$timeout_seconds"
+if [[ "$provider" == auto || "$provider" == claude-copilot ]]; then
+  printf 'claude config: ephemeral directory for claude-copilot\n'
+fi
 if [[ "$review_kind" == branch ]]; then
   printf 'fetch: git fetch origin --quiet\n'
 fi
@@ -338,6 +347,8 @@ if [[ -n "$output" ]]; then
 fi
 
 attempt_directory=$(mktemp -d "${TMPDIR:-/tmp}/review-fix-loop.XXXXXX")
+claude_config_directory="$attempt_directory/claude-config"
+mkdir -m 700 -- "$claude_config_directory"
 review_status_file=
 tests_status_file=
 cleanup() {
