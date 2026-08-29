@@ -1,6 +1,6 @@
 # Ejecución compartida de refactors
 
-Leer este archivo antes de refactorizar con `refactor-decouple-ts-react` o `refactor-modularity-cohesion-deduplication`.
+Leer este archivo antes de refactorizar con `refactor-decouple-ts-react` o `refactor-modularize-code`.
 
 ## Alcance y métricas
 

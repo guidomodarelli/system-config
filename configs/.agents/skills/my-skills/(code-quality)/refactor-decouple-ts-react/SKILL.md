@@ -9,7 +9,7 @@ description: Decouple JavaScript, TypeScript, and React code by extracting cohes
 
 Refactor JS/TS and React code toward explicit boundaries while preserving behavior. Prefer small, purposeful extractions that make the main flow easier to read, test, and change.
 
-Use `refactor-modularity-cohesion-deduplication` as a complementary design guide when the task requires broader modularity, cohesion, or duplication tradeoffs.
+Use `refactor-modularize-code` as a complementary design guide when the task requires broader modularity, cohesion, or duplication tradeoffs.
 
 ## Shared execution
 

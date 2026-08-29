@@ -8,8 +8,8 @@ description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea 
 Loop local que escucha comentarios de **Codex** (`chatgpt-codex-connector[bot]`)
 en un PR y **spawnea subagentes en paralelo** (uno por GRUPO de archivo, en lotes
 de `{{MAX_PARALLEL}}`) que delegan el fix en la skill
-[`fix-issue-efimeral-clone`](../fix-issue-efimeral-clone/SKILL.md) —invocada vía
-la herramienta `Skill` (`/fix-issue-efimeral-clone`)— tratando cada comentario
+[`fix-in-ephemeral-clone`](../fix-in-ephemeral-clone/SKILL.md) —invocada vía
+la herramienta `Skill` (`/fix-in-ephemeral-clone`)— tratando cada comentario
 como la "issue" a resolver (clone efímero depth-1 → fix → validar → push a la rama
 del PR). Cada subagente trabaja en su propio clone efímero aislado; como todos
 pushean a la misma rama, ante non-fast-forward cada subagente reintegra (rebase
@@ -24,7 +24,7 @@ Cubre **tres fuentes** de comentarios de Codex:
 2. **Generales** (`issues/{pr}/comments`): comentarios sueltos del PR; closeout = 👍 + reply.
 3. **Review-body de primer nivel** (`pulls/{pr}/reviews`, anchor `#pullrequestreview-…`): el resumen que Codex postea al enviar una review. Se procesa **solo cuando el body trae una sugerencia accionable real** (no un mero resumen). Closeout = 👍 + **quote reply** (citando el body). Cuando el review-body **y todos sus comments inline** quedan resueltos, se **minimiza la review con estado `RESOLVED`** (queda oculta/colapsada). `PullRequestReview` implementa `Reactable` y `Minimizable`, así que reacción y minimize van por GraphQL sobre su `node_id`.
 
-> **Por qué delegar en `fix-issue-efimeral-clone`:** esa skill es la dueña del
+> **Por qué delegar en `fix-in-ephemeral-clone`:** esa skill es la dueña del
 > contrato de aislamiento (clone efímero, copia de `.env*`, deps por plataforma,
 > rebase pre-push, push con retry, cleanup). Este loop NO reimplementa ese flujo:
 > solo arma el input (comentarios agrupados por archivo → issue), spawnea un
@@ -107,11 +107,11 @@ Si OPEN, procesá:
 (3b) ACCIONABILIDAD DE REVIEW-BODIES (antes de agrupar/spawnear, la decide el LOOP PRINCIPAL). Evaluá si el body trae una **sugerencia accionable real** (un cambio concreto de código). Si es solo un resumen/observación no accionable ("revisé X, ver inline", aprobación, etc.), SALTEALO: no lo metas en ningún grupo, no reacciones, no respondas y NO lo marques como procesado (no ensucia el estado; igual entra en el paso de minimize si corresponde).
 
 (3c) SPAWNEÁ EN LOTES DE `{{MAX_PARALLEL}}`. Lanzá hasta `{{MAX_PARALLEL}}` subagentes a la vez (herramienta `Agent`/`Task`, varios tool-uses en un mismo mensaje); cuando un grupo termina, arrancá el siguiente, hasta agotar la cola. **Etiquetá cada subagente con los comment ids de su grupo** (label), para mapear sin ambigüedad resultado→comentarios al cerrar. Cada subagente:
-   - Recibe en su prompt el **path absoluto al `SKILL.md` de `fix-issue-efimeral-clone`** como fuente de verdad del flujo de aislamiento (que lo lea), además de intentar invocarla por nombre vía la herramienta `Skill` (`/fix-issue-efimeral-clone`). NO reimplementa el clone/push a mano.
+   - Recibe en su prompt el **path absoluto al `SKILL.md` de `fix-in-ephemeral-clone`** como fuente de verdad del flujo de aislamiento (que lo lea), además de intentar invocarla por nombre vía la herramienta `Skill` (`/fix-in-ephemeral-clone`). NO reimplementa el clone/push a mano.
    - Recibe como "issue(s)" el contexto de los comentarios de su grupo: cuerpo, `path` y `line` (inline) o solo el body (general/review-body), y la rama objetivo {{BRANCH}}.
    - Vía esa skill, hace el clone efímero depth-1, copia `.env*`, instala/linkea deps según plataforma, aplica el/los fix(es) de su grupo, valida, rebasea sobre el último remoto y pushea a {{BRANCH}}, y limpia el clone.
 
-   **Push concurrente**: como varios subagentes pushean a la MISMA rama, ante un rechazo por non-fast-forward el subagente NO repushea a ciegas: corre un ciclo completo de re-integración —re-fetch → rebase sobre el nuevo remoto → resolver conflictos → revalidar que TANTO el fix recién hecho COMO los cambios que integró de los otros subagentes (fixes de otros comentarios que ya cayeron a la rama) siguen pasando sobre la nueva base → recién ahí pushea; si vuelve a rebotar, repite el ciclo entero hasta subir— (esa lógica vive en `fix-issue-efimeral-clone`, paso 9). Cada subagente DEVUELVE el sha COMPLETO del commit pusheado en éxito (uno por grupo), o un fallo explícito + el path del clone que quedó para inspección. Recogé los resultados; por cada comentario fixeado guardá su sha (para el closeout) y sumá 1 al contador de ítems fixeados esta vuelta.
+   **Push concurrente**: como varios subagentes pushean a la MISMA rama, ante un rechazo por non-fast-forward el subagente NO repushea a ciegas: corre un ciclo completo de re-integración —re-fetch → rebase sobre el nuevo remoto → resolver conflictos → revalidar que TANTO el fix recién hecho COMO los cambios que integró de los otros subagentes (fixes de otros comentarios que ya cayeron a la rama) siguen pasando sobre la nueva base → recién ahí pushea; si vuelve a rebotar, repite el ciclo entero hasta subir— (esa lógica vive en `fix-in-ephemeral-clone`, paso 9). Cada subagente DEVUELVE el sha COMPLETO del commit pusheado en éxito (uno por grupo), o un fallo explícito + el path del clone que quedó para inspección. Recogé los resultados; por cada comentario fixeado guardá su sha (para el closeout) y sumá 1 al contador de ítems fixeados esta vuelta.
 
 (4) CLOSEOUT en ÉXITO (push hecho). Hacelo por cada comentario cuyo subagente volvió con éxito, usando el sha que ese subagente reportó (no esperes a que terminen todos: a medida que vuelven, cerrás). Las acciones de closeout en GitHub (reacciones, replies, resolver hilos) son independientes por comentario; el ÚNICO recurso compartido es `.codex-autofix/processed-{{PR}}.json`, así que el loop principal es el único escritor y serializa esas escrituras (paso d) para no corromper el JSON cuando varios subagentes terminan casi a la vez. Definí el link al commit: COMMIT_URL=https://github.com/{{OWNER}}/{{REPO}}/commit/<sha>
    a. Reacción 👍:
@@ -137,7 +137,7 @@ Si OPEN, procesá:
    NO minimices reviews donde el loop no resolvió nada (sin inline resueltos por el loop y body no accionable): dejalas como están.
 
 (5) Si FALLA (no se pudo aplicar el fix por una falla del loop/agente, no porque la sugerencia sea inválida): NO marques el id, NO resuelvas, y NO cuentes ese comentario como fixeado. NO reacciones 👎 (content=-1): el 👎 es la señal de "sugerencia incorrecta/no útil" que Codex interpreta sobre su comentario, y acá el problema es el loop, no la sugerencia. No agregues reacción final; opcionalmente, dejá un reply con el motivo/link al error. Reservá el 👎 solo para cuando evaluaste la sugerencia y concluiste que no requería cambios.
-   - **Clones huérfanos**: en fallo, `fix-issue-efimeral-clone` conserva el clone para inspección y reporta su path. Recolectá esos paths de los subagentes que fallaron y, al cerrar la vuelta, listalos en UNA línea de PushNotification (p. ej. "PR #{{PR}}: 2 fixes fallaron, clones en <paths>"). Si no los vas a inspeccionar, podés limpiarlos vos (`rm -rf <path>`) DESPUÉS de loguear el path, nunca antes. Con varios fallos en paralelo el tempdir se llena: no dejes los paths sin reportar.
+   - **Clones huérfanos**: en fallo, `fix-in-ephemeral-clone` conserva el clone para inspección y reporta su path. Recolectá esos paths de los subagentes que fallaron y, al cerrar la vuelta, listalos en UNA línea de PushNotification (p. ej. "PR #{{PR}}: 2 fixes fallaron, clones en <paths>"). Si no los vas a inspeccionar, podés limpiarlos vos (`rm -rf <path>`) DESPUÉS de loguear el path, nunca antes. Con varios fallos en paralelo el tempdir se llena: no dejes los paths sin reportar.
 
 (5-bis) TERMINACIÓN POR REVIEW LIMPIA (mergear + cortar). Chequealo cuando NO quedó ningún ítem accionable de Codex sin resolver esta vuelta (ni nuevos sin procesar, ni fallas pendientes del paso 5). Buscá el ÚLTIMO comentario general de Codex que sea una review limpia y de qué commit es:
    CLEAN=$(gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate --jq '[.[] | select(.user.login=="chatgpt-codex-connector[bot]") | select(.body | test("Codex Review:.*([Dd]idn.t find any|[Nn]o (major )?issues|[Ff]ound no issues)"))] | last // empty')
@@ -210,7 +210,7 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   fixes sobre el mismo archivo no se pisan ni chocan en el rebase. Se spawnean en
   lotes de `{{MAX_PARALLEL}}` para no fundir disco/CPU (cada subagente es clone +
   install + tests). Cada subagente lleva como label los comment ids de su grupo, y
-  recibe en el prompt el path al `SKILL.md` de `fix-issue-efimeral-clone` como
+  recibe en el prompt el path al `SKILL.md` de `fix-in-ephemeral-clone` como
   fuente de verdad (además de invocarla por nombre).
 - **Push con re-integración (clones aislados)**: el cómputo del fix está aislado
   por clone; el único punto compartido es el push a la rama del PR. Ante non-fast-forward,
