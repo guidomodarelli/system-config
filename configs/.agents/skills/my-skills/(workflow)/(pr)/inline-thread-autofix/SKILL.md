@@ -89,6 +89,10 @@ Las respuestas JSON de GitHub y sus representaciones en herramientas pueden most
 
 Si la herramienta solo entrega texto ambiguo, comprobar si se trata de JSON serializado antes de normalizar. No asumir que `\\n` visible implica texto literal del comentario ni que un salto mostrado visualmente representa siempre un newline real.
 
+### Quoting obligatorio para GitHub CLI
+
+Todos los argumentos de `gh api` que contengan `?`, `&`, `#`, `%`, rutas dinámicas o cuerpos multilínea deben viajar como un argumento quoted único. En zsh, una URL sin comillas puede sufrir glob expansion antes de llegar a `gh`; si aparece `no matches found`, no reintentar comando idéntico: inspeccionar refspec/argumentos y corregir quoting. Preferir variables construidas solo con IDs ya validados y expansión explícita (`"${new_head}:refs/heads/${branch}"`), nunca concatenación ambigua.
+
 ## Preflight GitHub común
 
 Ejecutar con valores validados y quoting seguro:
@@ -111,7 +115,9 @@ Releer PR objetivo con metadata estructurada:
 ```bash
 gh pr view "$pull_request_number" \
   --repo "$owner/$repo" \
-  --json number,state,mergedAt,headRefName,headRefOid,baseRefName,baseRefOid,headRepository,baseRepository,url
+  --json number,state,mergedAt,headRefName,headRefOid,baseRefName,baseRefOid,headRepository,headRepositoryOwner,url
+gh api "repos/$owner/$repo/pulls/$pull_request_number" \
+  --jq '{base_repo:.base.repo.full_name,head_repo:.head.repo.full_name,base_sha:.base.sha,head_sha:.head.sha}'
 gh repo view "$owner/$repo" --json defaultBranchRef
 ```
 
@@ -144,11 +150,13 @@ Cuando el grafo sea `STACK_FOUND` y el owner abierto coincida con el PR indicado
 6. Releer head remoto inmediatamente antes de cada publicación. Publicar owner y luego descendants bottom-up, solo en branches `feature/*` del mismo repositorio y con `git push --force-with-lease`; no usar `git push --force`.
 7. Verificar bases y heads finales de todo el stack y comparar golden diff contra backups. Si cualquier push o verificación falla, no cerrar el feedback.
 
+Después de cada push, verificar dos fuentes independientes: `git ls-remote origin refs/heads/<branch>` y `gh api "repos/<owner>/<repo>/pulls/<PR>" --jq .head.sha`. `gh pr view` puede devolver metadata stale o diferir de API directa; cualquier discrepancia entre ref remota y PR produce `PUBLICATION_UNVERIFIED` y bloquea reply, resolución y issue closeout. No usar un SHA local ni el resultado de un push como prueba suficiente.
+
 La preferencia de rebase automático constituye autorización persistente para esas reescrituras acotadas y seguras. No habilita modificar PRs fuera del grafo, otros threads, forks, branches no relacionadas ni contenido ajeno al stack. Si el PR fuente está cerrado/mergeado, aplicar las mismas salvaguardas desde el único `implementation_pr` abierto elegido: backup, checkout/worktree local, rebase bottom-up solo dentro de la cadena y publicación con `force-with-lease` después de validar cada capa.
 
 ### Ciclo de vida de backups locales
 
-Usar exclusivamente refs locales bajo `refs/heads/backup/*`; no confundirlas con refs remote-tracking ni con archivos de trabajo. Antes de crear el primer backup, inventariar nombres y OIDs existentes:
+Usar exclusivamente refs locales bajo `refs/heads/backup/*`; no crear ni buscar backups bajo `refs/backup/*`, no confundirlos con refs remote-tracking ni con archivos de trabajo. Antes de crear el primer backup, inventariar nombres y OIDs existentes:
 
 ```bash
 git for-each-ref \
@@ -216,10 +224,19 @@ Mantener marker de review-body `<!-- inline-thread-autofix: review:<review_id> -
 Consultar comentario:
 
 ```bash
-gh api repos/<owner>/<repo>/pulls/comments/<comment_id>
+gh api "repos/<owner>/<repo>/pulls/comments/<comment_id>"
 ```
 
-Consultar GraphQL para obtener `thread.id`, `isResolved`, `isOutdated`, comentario y replies. Consultar replies del usuario autenticado para detectar referencias explícitas a issue y evitar duplicar closeout.
+Esta ruta lee un comentario por `comment_id`; no confundirla con creación de reply, que requiere `/pulls/<PR>/comments`. Consultar GraphQL para obtener `thread.id`, `isResolved`, `isOutdated`, comentario y replies. Consultar replies del usuario autenticado para detectar referencias explícitas a issue y evitar duplicar closeout.
+
+### Identidad estricta del thread objetivo
+
+- Derivar `target_thread_id` únicamente del nodo cuyo `comments.nodes[].databaseId` coincide exactamente con `commentId`; exigir exactamente un nodo coincidente. Si no aparece en la primera página, paginar GraphQL; nunca seleccionar nodo vecino ni inferir por orden.
+- Guardar juntos `commentId`, `source_comment_url`, `path`, `commit_id`, `target_thread_id` y snapshot inicial de estados. Nunca elegir `thread.id` por posición, proximidad numérica, comentario vecino, review ID, PR ID ni copiar un ID visto en otra respuesta.
+- Antes de cualquier mutation, imprimir/validar una aserción equivalente a `target_thread_id -> commentId`; si no coincide, detener con `THREAD_TARGET_MISMATCH`.
+- `resolveReviewThread` solo puede recibir `target_thread_id`. Verificar que la respuesta de mutation contenga el mismo `thread.id`; ID distinto es `THREAD_TARGET_MISMATCH`, no éxito.
+- Reconsultar GraphQL usando el mismo `commentId` y exigir `target_thread_id` exacto, `isResolved: true` e `isOutdated` esperado antes de continuar con issue closeout. Un `true` de mutation aislado no alcanza.
+- Tomar snapshot de todos los threads relevantes antes de resolver y comparar después; si otro thread cambia, detener closeout. Si una mutation accidental cambia otro thread, y su estado previo está probado, ejecutar solo la mutation inversa (`unresolveReviewThread`) sobre ese ID, verificar restauración y reportar el incidente; nunca afirmar que no hubo otro thread tocado.
 
 - `isResolved: true`: no editar, responder ni resolver thread otra vez; si existe issue validada cuyo comentario/cierre falta, continuar desde el paso pendiente de closeout de issue.
 - Reply previo del usuario para mismo comentario: no publicar otro closeout si ya contiene template, marker, commit y URL verificados. Un reply informativo que solo enlaza una issue no es closeout y no bloquea pasos faltantes.
@@ -237,7 +254,7 @@ gh api repos/<owner>/<repo>/issues/<issue_number>/comments --paginate
 
 Exigir `number`, `html_url`, `repository_url`, `state`, `title` y `pull_request == null`. Buscar marker `<!-- inline-thread-autofix: issue:<owner>/<repo>#<issue_number>:comment:<comment_id> -->` en comentarios de issue. Una issue ya cerrada no debe reabrirse; si falta marker, todavía puede recibir comentario de cierre y debe verificarse que permanezca `closed`. Si issue, permisos o estado no pueden releerse, detener con `ISSUE_CLOSEOUT_UNVERIFIED`.
 
-Después de publicar y verificar el fix en `implementation_pr`, completar destinos en este orden, sin afirmar éxito parcial como cierre total:
+Después de publicar y verificar el fix en `implementation_pr`, completar destinos en este orden, sin afirmar éxito parcial como cierre total. Issue comment y cierre de issue están bloqueados hasta que la relectura confirme el `target_thread_id` correcto y `isResolved: true`; resolver otro thread no satisface este gate.
 
 1. Responder el comment inline con template que enlace issue, `source_comment_url`, PR de implementación y SHA; verificar `html_url`, `in_reply_to` y SHA.
 2. Resolver `thread.id` y releer hasta confirmar `isResolved: true`.
@@ -318,18 +335,20 @@ Solo después de validar:
 5. Push a branch de `implementation_pr`; nunca a branch del PR fuente cerrado/mergeado.
 6. Confirmar `gh pr view <implementation_pr> --json headRefOid` coincide con SHA publicado. Conservar `source_pr` para reply, issue y trazabilidad.
 
-Ante `non-fast-forward`, no forzar: fetch/rebase, resolver conflictos, repetir validaciones y push. No hacer closeout con SHA que no pertenezca al PR.
+Ante `non-fast-forward`, no forzar: fetch/rebase, resolver conflictos, repetir validaciones y push. Para publicar con lease, usar refspec explícito y quoted, por ejemplo `git push --force-with-lease=refs/heads/<branch>:<expected_old_sha> origin "<new_sha>:refs/heads/<branch>"`; validar que `new_sha` exista y que el refspec conserve el separador `:`. Un error `src refspec ... does not match any` bloquea closeout hasta corregir y volver a validar lease. No hacer closeout con SHA que no pertenezca al PR.
 
 ## Closeout inline
 
 Leer [`closeout-template.md`](references/closeout-template.md) y usar variante inline. Publicar con SHA completo:
 
 ```bash
-gh api repos/<owner>/<repo>/pulls/<PR>/comments \
+gh api "repos/<owner>/<repo>/pulls/<PR>/comments" \
   -f body='<template en español>' \
   -f commit_id='<sha completo>' \
   -F in_reply_to=<comment_id>
 ```
+
+El endpoint de creación de reply incluye siempre `/pulls/<PR>/comments`; `repos/<owner>/<repo>/pulls/comments/<comment_id>` sirve para leer un comentario por ID, no para crear reply. Verificar `html_url`, `in_reply_to_id == <comment_id>` y `commit_id` antes de resolver thread. Un `404` por ruta incorrecta no autoriza reintentar idéntico ni avanzar closeout.
 
 Verificar reply URL. Solo después resolver thread:
 
@@ -381,7 +400,7 @@ No usar fallback automático ante `404`, timeout, red, `5xx` o resultado ambiguo
 
 ## Verificación final y salida
 
-Para `inline`, confirmar SHA remoto del `implementation_pr`, reply en thread correcto, `thread.isResolved === true`, working tree seguro y ningún otro thread tocado. Si hay issue asociada, confirmar comentario de issue con marker, `state == closed` y URL canónica; si `implementation_pr != source_pr`, confirmar además comentario en PR destino con links a issue y comment original. El PR fuente puede estar `CLOSED`/`MERGED` solo cuando la implementación alternativa quedó verificada.
+Para `inline`, confirmar SHA remoto del `implementation_pr`, reply en el thread cuyo `comments.nodes[].databaseId == commentId`, `thread.id == target_thread_id`, `thread.isResolved === true`, working tree seguro y snapshot final de threads sin cambios ajenos. Si una mutation accidental fue revertida, reportar la incidencia y evidencia de restauración; no describir estado como "ningún otro thread tocado" si hubo cambio transitorio. Si hay issue asociada, confirmar comentario de issue con marker, `state == closed` y URL canónica; si `implementation_pr != source_pr`, confirmar además comentario en PR destino con links a issue y comment original. El PR fuente puede estar `CLOSED`/`MERGED` solo cuando la implementación alternativa quedó verificada.
 
 Para `review_body`, confirmar PR `OPEN`, SHA remoto, body actualizado preservando original o comentario fallback con URL verificable, marcador presente, y que no se llamó a resolución de thread.
 
