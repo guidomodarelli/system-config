@@ -188,7 +188,7 @@ gh api repos/<owner>/<repo>/pulls/comments/<comment_id>
 Consultar GraphQL para obtener `thread.id`, `isResolved`, `isOutdated`, comentario y replies. Consultar replies del usuario autenticado para detectar referencias explícitas a issue y evitar duplicar closeout.
 
 - `isResolved: true`: no editar, responder ni resolver thread otra vez; si existe issue validada cuyo comentario/cierre falta, continuar desde el paso pendiente de closeout de issue.
-- Reply previo del usuario para mismo comentario: no publicar otro closeout si ya contiene template, marker, commit y URL verificados. Un reply informativo como `New issue: <URL>` no es closeout y no bloquea pasos faltantes.
+- Reply previo del usuario para mismo comentario: no publicar otro closeout si ya contiene template, marker, commit y URL verificados. Un reply informativo que solo enlaza una issue no es closeout y no bloquea pasos faltantes.
 - `isOutdated: true` no invalida automáticamente hallazgo: inspeccionar código vigente.
 - Solo esta rama puede usar `resolveReviewThread`.
 
