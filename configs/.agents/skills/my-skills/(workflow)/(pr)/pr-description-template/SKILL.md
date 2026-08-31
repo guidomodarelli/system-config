@@ -46,16 +46,46 @@ Use for new PRs or when the user explicitly asks to fill or restructure the comp
 Use when another skill updates an existing PR only to add or normalize traceability metadata.
 
 - Do not regenerate the template or edit the PR title.
+- Do not add or recompute the initial `<sub>` file-count metadata.
 - Do not modify **Tipo de Cambio**, **Pruebas Manuales**, **Cambios en la API**, optional sections, reviewer notes, or unrelated ticket links.
 - A canonical Jira backlink may be inserted as the first content under `## 📝 Descripción`; this is not the removed top-level **Referencia** metadata block.
 - Delegate position, legacy cleanup, deduplication, concurrency, and byte-preservation rules to [pr-traceability.md](../kraken-jira-ticket/references/pr-traceability.md).
 - Read `title`, `body`, and `url`; edit only through `gh pr edit <url> --body-file <temp-file>` without `--title`.
 - Re-read the PR and verify title identity plus protected body content after the patch.
 
+### Initial file-count metadata
+
+Apply only during `full composition`, before writing the body. Obtain the changed paths from the actual PR comparison range (`base...head`), not from the whole repository, a line-count statistic, or unrelated working-tree changes. For a caller that already resolved the range, reuse its exact `git diff --name-only` output.
+
+- Exclude paths containing a `test`, `tests`, `__tests__`, `mock`, `mocks`, or `__mocks__` path segment.
+- Exclude basenames with `.test.*`, `.spec.*`, or `.mock.*` suffixes.
+- Exclude image extensions (`.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp`, `.avif`, `.ico`, `.bmp`, `.tif`, `.tiff`) and stylesheet extensions (`.scss`, `.sass`).
+- From paths that remain, count only names ending in `.js`, `.jsx`, `.ts`, or `.tsx`, case-insensitively. This includes dotfiles such as `.eslintrc.js`; count files, not changed lines.
+- Emit `0` when no eligible path remains. If comparison range cannot be determined, stop and report the concrete blocker instead of inventing a number.
+
+Use a path-based count equivalent to:
+
+```bash
+git diff --name-only "$BASE_REF...$HEAD_REF" |
+awk '
+  {
+    path = tolower($0)
+    if (path ~ /(^|\/)(__tests__|__mocks__|tests?|mocks?)(\/|$)/) next
+    if (path ~ /(^|\/)([^\/]*[-_.])?(test|tests|mock|mocks)([-_.][^\/]*)?\.[^\/]+$/) next
+    if (path ~ /(^|\/)[^\/]+\.(spec)\.[^\/]+$/) next
+    if (path ~ /\.(png|jpe?g|gif|svg|webp|avif|ico|bmp|tif|tiff|scss|sass)$/) next
+    if (path ~ /\.[tj]sx?$/) count++
+  }
+  END { print count + 0 }
+'
+```
+
+Place exactly one line, `<sub>📄 Archivos de código modificados: N</sub>`, as the first body content, followed by one blank line and `## 📝 Descripción`. Replace `N` with computed integer; never leave placeholder text. Do not add this line in `traceability-only`.
+
 ## Full-composition rules
 
 - Fill every section from the actual diff — never leave the `*italic placeholders*`. Delete sections that genuinely do not apply (e.g. **Decisiones técnicas relevantes**, **Cambios en la API**, or **Notas para el Revisor**).
-- Start the body directly with **Descripción**. The PR title already carries the change summary, so do not repeat it as a body heading.
+- Start the body with the generated `<sub>` file-count line, then one blank line and **Descripción**. The PR title already carries the change summary, so do not repeat it as a body heading.
 - Do not add a compact **Tipo** metadata block above **Descripción**. In **Tipo de Cambio**, mark exactly one primary category with `[x]` and leave every other category unmarked with `[ ]`.
 - Include ordinary ticket or issue links naturally in **Descripción** or **Notas para el Revisor**; do not create a fixed metadata block.
 - When fully composing an existing PR, preserve every canonical `🎫 Jira: [...]` backlink already present. Extract backlinks before replacing body and reinsert each once as first content under `## 📝 Descripción`; never drop established traceability.
@@ -75,6 +105,8 @@ Single line, descriptive, English-friendly subject. Example: `Add user status si
 ## Body template
 
 ```markdown
+<sub>📄 Archivos de código modificados: N</sub>
+
 ## 📝 Descripción
 
 ### ❓ ¿Qué problema resuelve?
