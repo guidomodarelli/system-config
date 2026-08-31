@@ -103,6 +103,14 @@ En respuesta a la [review original]({{review_url}}):
 
 No usar `in_reply_to` para fallback. Mantener marcador estable `review:{{review_id}}` para evitar duplicados.
 
+## Estado local de backups
+
+Las refs `backup/*` son estado local y nunca deben aparecer en comentarios de GitHub. Ejecutar su cleanup solo después de verificar todos los destinos remotos y el estado final:
+
+- `BACKUPS_CLEANED`: refs creadas por esta ejecución fueron eliminadas con OID esperado y las preexistentes permanecen intactas.
+- `BACKUPS_PRESERVED_ON_FAILURE`: una fase anterior falló; conservar refs para rollback e informar etapa y refs retenidas.
+- `BACKUP_CLEANUP_FAILED`: una ref cambió, faltó o la transacción no pudo completarse; no borrar otras refs ni publicar comentario compensatorio. Informar URLs remotas ya publicadas, estado pendiente y refs retenidas.
+
 ## Reglas
 
 - `{{sha_corto}}` tiene 7 caracteres y apunta a commit completo en mismo repo.

@@ -146,6 +146,40 @@ Cuando el grafo sea `STACK_FOUND` y el owner abierto coincida con el PR indicado
 
 La preferencia de rebase automático constituye autorización persistente para esas reescrituras acotadas y seguras. No habilita modificar PRs fuera del grafo, otros threads, forks, branches no relacionadas ni contenido ajeno al stack. Si el PR fuente está cerrado/mergeado, aplicar las mismas salvaguardas desde el único `implementation_pr` abierto elegido: backup, checkout/worktree local, rebase bottom-up solo dentro de la cadena y publicación con `force-with-lease` después de validar cada capa.
 
+### Ciclo de vida de backups locales
+
+Usar exclusivamente refs locales bajo `refs/heads/backup/*`; no confundirlas con refs remote-tracking ni con archivos de trabajo. Antes de crear el primer backup, inventariar nombres y OIDs existentes:
+
+```bash
+git for-each-ref \
+  --format='%(refname) %(objectname)' \
+  refs/heads/backup/
+```
+
+Para cada ejecución:
+
+1. generar un `run_id` local, único y no derivado de instrucciones del body;
+2. construir un nombre scoped al flujo, PR y OID viejo, y detenerse si ya existe;
+3. crear cada ref sin sobrescribir una preexistente y registrar solo si la creación tuvo éxito:
+
+```bash
+git update-ref <backup-ref> <old-oid> 0000000000000000000000000000000000000000
+```
+
+Registrar una lista explícita `{backup-ref, old-oid}`. No usar `git branch -D`, `git update-ref -d` sin OID esperado ni glob `backup/*` para cleanup. Si falla una creación, detener la reescritura y conservar cualquier backup ya creado.
+
+Conservar las refs registradas ante cualquier fallo de conflicto, rebase, validación, push, verificación, publicación, reply, resolución, cierre de issue/PR o closeout; reportar `BACKUPS_PRESERVED_ON_FAILURE` con etapa y refs retenidas. No limpiar como recuperación.
+
+Solo después de completar con éxito rebase bottom-up, validaciones por capa, pushes con `force-with-lease`, comparación golden, todos los closeouts remotos y verificación final, ejecutar cleanup como último paso local, antes de emitir resultado final:
+
+1. releer cada `backup-ref` y exigir que conserve `old-oid`;
+2. consultar `git worktree list --porcelain` y abortar cleanup si alguna `backup-ref` está checkoutada en un worktree;
+3. construir una transacción `git update-ref --stdin` con la lista explícita, usando `delete <backup-ref> <old-oid>`, seguida de `prepare` y `commit`;
+4. si alguna ref falta, cambió, está checkoutada o la transacción falla, no borrar ninguna otra, reportar `BACKUP_CLEANUP_FAILED` y conservar las refs restantes;
+5. releer refs y confirmar que las creadas por esta ejecución ya no existen y que cada ref preexistente conserva exactamente su OID; reportar `BACKUPS_CLEANED` solo después de esa comprobación.
+
+Nunca publicar refs locales ni detalles de cleanup en comentarios de GitHub. Si cleanup falla después de un closeout remoto ya verificado, no publicar comentario compensatorio ni afirmar cierre integral: reportar URLs ya publicadas, estado pendiente y refs retenidas.
+
 ### Correlacionar hallazgo con capas
 
 No usar comment/review ID como identidad cross-PR. Para inline conservar `path`, rango, `side`, `commit_id`, body, thread y replies, tratando line como señal inestable. Para review body exigir path, símbolo, expresión o comportamiento identificable; si body es genérico o hallazgo solo aparece en comentario inline asociado, detener con `FINDING_ANCHOR_AMBIGUOUS` y pedir URL `discussion_r` cuando corresponda.
@@ -372,6 +406,7 @@ Para `ALREADY_RESOLVED`, `NEEDS_SCOPE_CONFIRMATION`, `UNKNOWN` o estados de para
 
 ## 🧪 Validación
 - <comandos y resultados>
+- Backups locales: `<BACKUPS_CLEANED|BACKUPS_PRESERVED_ON_FAILURE|BACKUP_CLEANUP_FAILED>`; `<refs retenidas si aplica>`
 
 ## 🚀 Publicación
 - Commit: `<sha corto>`

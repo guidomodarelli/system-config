@@ -322,7 +322,8 @@
         "Rebasea descendants automáticamente en orden bottom-up",
         "Valida cada capa antes de publicar",
         "Usa force-with-lease y relee OIDs antes de cada push",
-        "Detiene y no hace closeout si rebase o validación falla"
+        "Tras closeout y verificación final, elimina solo backups creados por esta ejecución y conserva preexistentes",
+        "Detiene y no hace closeout si rebase o validación falla y conserva backups"
       ]
     },
     {
@@ -353,6 +354,7 @@
         "Completa reply y resolución del thread original",
         "Publica comentario y cierra issue #902 verificando estado",
         "Publica comentario general en PR #44 sin in_reply_to",
+        "Después de verificar todos los closeouts, limpia solo backups propios y conserva los preexistentes",
         "Mantiene cadena verificable PR #44 → issue #902 → comment original"
       ]
     },
@@ -395,6 +397,59 @@
         "No cambia branch ni aplica patch en PR alternativo",
         "No publica comentario en issue o PR destino",
         "No cierra issue ni afirma resolución"
+      ]
+    },
+    {
+      "id": 31,
+      "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456812\nEl stack terminó con rebase, validaciones, pushes, golden diff y closeout verificados. Hay una ref backup/legacy que ya existía y refs nuevas creadas por esta ejecución. Limpiá al terminar.",
+      "expected_output": "Reporta BACKUPS_CLEANED después del éxito completo, elimina únicamente las refs creadas por esta ejecución mediante OID esperado y conserva backup/legacy con su OID original.",
+      "files": [],
+      "expectations": [
+        "Ejecuta cleanup solo después de verificar rebase, validaciones, publicación y closeout",
+        "Registra explícitamente refs y OIDs creados por esta ejecución",
+        "No elimina backup/legacy ni otras refs preexistentes",
+        "Usa transacción git update-ref --stdin con delete y OID esperado",
+        "Relee refs y confirma refs propias ausentes y preexistentes intactas",
+        "Reporta BACKUPS_CLEANED solo después de verificación posterior"
+      ]
+    },
+    {
+      "id": 32,
+      "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456813\nDurante el rebase de descendants aparece conflicto y no puede resolverse con seguridad. Indicá qué hacer con las refs backup/*.",
+      "expected_output": "Aborta el rebase sin comandos destructivos, conserva las refs backup creadas y reporta BACKUPS_PRESERVED_ON_FAILURE; no hace closeout exitoso.",
+      "files": [],
+      "expectations": [
+        "Conserva backups ante conflicto o fallo de rebase",
+        "Reporta BACKUPS_PRESERVED_ON_FAILURE con etapa y refs retenidas",
+        "No ejecuta git reset --hard, git clean -fd ni git push --force",
+        "No ejecuta cleanup ni elimina refs por wildcard",
+        "No publica template de éxito ni resuelve el thread"
+      ]
+    },
+    {
+      "id": 33,
+      "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456814\nEl fix y push fueron verificados, pero falla resolución del thread o closeout de issue después de crear backups. No ocultes el fallo; decidí si borrar backups.",
+      "expected_output": "Conserva backups porque falló una fase tardía de closeout, reporta BACKUPS_PRESERVED_ON_FAILURE y detalla URLs o pasos pendientes sin afirmar cierre integral.",
+      "files": [],
+      "expectations": [
+        "Trata reply, resolución y closeout como fases necesarias antes del cleanup",
+        "No elimina backups después de fallo tardío",
+        "Reporta BACKUPS_PRESERVED_ON_FAILURE con mutaciones remotas y pendientes",
+        "No publica comentario compensatorio para ocultar el fallo",
+        "No afirma thread, issue o flujo completamente resuelto"
+      ]
+    },
+    {
+      "id": 34,
+      "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456815\nAntes del cleanup cambia el OID de una ref backup creada por esta ejecución. Intentá finalizar sin borrar backups ajenos ni la ref que cambió.",
+      "expected_output": "Detiene la transacción completa, reporta BACKUP_CLEANUP_FAILED y conserva todas las refs restantes; no usa borrado inseguro ni cleanup parcial.",
+      "files": [],
+      "expectations": [
+        "Relee cada ref y detecta OID cambiado antes de eliminar",
+        "Usa OID esperado como guard de delete",
+        "Reporta BACKUP_CLEANUP_FAILED con refs retenidas",
+        "No elimina refs ajenas ni realiza cleanup parcial",
+        "Verifica que refs preexistentes permanecen intactas"
       ]
     }
   ]
