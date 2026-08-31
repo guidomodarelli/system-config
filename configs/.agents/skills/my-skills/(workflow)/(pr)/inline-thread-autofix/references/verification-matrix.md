@@ -5,7 +5,9 @@
 | Verificación | Resultado requerido |
 |---|---|
 | URL | host, owner, repo, PR y fragment válidos |
-| PR | estado `OPEN`, branch y head conocidos |
+| PR | estado, branch y head conocidos; `OPEN` requerido para implementar en source |
+| PR fuente cerrado | solo ancla histórica; existe un único `implementation_pr` abierto, relacionado y con ownership verificable |
+| Issue asociada | referencia explícita; mismo repo; `number`, `html_url`, `state` y `pull_request == null` verificados |
 | Identidad | usuario autenticado leído con `gh api user` |
 | Duplicados | no existe closeout previo del destino |
 | Árbol | limpio o aislado antes de editar |
@@ -40,9 +42,13 @@
 | Thread | `thread.id`, `isResolved: false` antes del trabajo |
 | Estado | `isOutdated` evaluado sin invalidación automática |
 | Duplicados | no existe reply previo del usuario para comment ID |
-| Reply | creado en endpoint de comments con `in_reply_to` y SHA del PR |
+| Reply | creado en endpoint de comments con `in_reply_to` y SHA de `implementation_pr` |
 | Resolve | `resolveReviewThread` confirma `isResolved: true` |
-| Salida | `Thread: resuelto` y URL de reply |
+| Issue reply | comentario en `issues/<issue_number>/comments` incluye comment URL original, PR de implementación, SHA y marker único |
+| Issue close | `PATCH` seguido de releer confirma `state == closed`; nunca reabre issue |
+| PR alternativo | cuando `implementation_pr != source_pr`, comentario general en `issues/<implementation_pr>/comments` incluye links a issue y comment original, sin `in_reply_to` |
+| Cadena | `implementation_pr → issue → source_comment` verificable con URLs canónicas |
+| Salida | `Thread: resuelto`, `Issue: resuelta y cerrada`, y URL de reply; agregar `PR destino: comentario publicado` si aplica |
 
 ## Destino review-body (`#pullrequestreview-<review_id>`)
 
@@ -64,7 +70,8 @@
 Detener sin commit/push/closeout si:
 
 - URL no coincide con formato inline o review-body válido;
-- PR está cerrado/mergeado;
+- PR está cerrado/mergeado y no existe `implementation_pr` abierto inequívoco de branch relacionada;
+- se exige closeout compuesto y referencia de issue falta, es ambigua, inválida, pertenece a otro repo o apunta a pull request;
 - destino no pertenece a PR/repo indicado;
 - stack está `STACK_INCOMPLETE` o `STACK_AMBIGUOUS` y se pretende elegir otra capa;
 - hallazgo queda `FINDING_ANCHOR_AMBIGUOUS` o `UNKNOWN`;
@@ -80,7 +87,9 @@ Detener sin commit/push/closeout si:
 - sugerencia no es reproducible o exige decisión funcional no dada;
 - typecheck, tests o build fallan sin causa preexistente demostrada;
 - SHA publicado no coincide con head remoto;
-- comentario, review, reply o fallback no pueden dirigirse inequívocamente;
+- comentario, review, reply, issue reply o comentario de PR alternativo no pueden dirigirse inequívocamente;
+- comentario de issue, cierre de issue o estado final no pueden verificarse;
+- la cadena final `PR destino → issue → comment` no contiene links canónicos o queda incompleta;
 - PUT de review tiene resultado ambiguo tras relectura;
 - body actualizado no conserva body original completo;
 - fallback no contiene URL inequívoca a review y marker estable;

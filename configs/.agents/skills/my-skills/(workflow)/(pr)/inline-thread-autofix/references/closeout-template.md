@@ -13,7 +13,47 @@ Usar después de fix validado y commit pusheado/verificado en head de PR. Elegir
 <sub>🤖 Fix aplicado en respuesta a este comentario inline.</sub>
 ```
 
-Usar `Resuelto` solo cuando reply fue creado en `in_reply_to` correcto y `resolveReviewThread` confirmó `isResolved: true`.
+Usar `Resuelto` solo cuando reply fue creado en `in_reply_to` correcto y `resolveReviewThread` confirmó `isResolved: true`. Si existe issue asociada, agregar `Issue asociada: [{{owner}}/{{repo}}#{{issue_number}}]({{issue_url}})` al reply y usar SHA de `implementation_pr`, aunque `source_pr` sea otro PR.
+
+## Issue asociada a inline comment
+
+Publicar en `repos/{{owner}}/{{repo}}/issues/{{issue_number}}/comments`, después de verificar reply y resolución del thread:
+
+```markdown
+✅ **Resuelto** en [PR #{{implementation_pr}}]({{implementation_pr_url}}), commit [`{{sha_corto}}`]({{commit_url}}).
+
+Issue atendida a partir de este [comentario inline]({{source_comment_url}}).
+
+### 🔧 Qué cambió
+> {{resumen_de_una_linea}}
+
+<sub>🤖 Fix aplicado y verificado; issue cerrada después de completar el thread.</sub>
+
+<!-- inline-thread-autofix: issue:{{owner}}/{{repo}}#{{issue_number}}:comment:{{comment_id}} -->
+```
+
+Reglas:
+
+- Verificar que issue pertenece a `{{owner}}/{{repo}}`, es issue y no pull request.
+- No editar body ni reabrir issue; cerrar con `PATCH .../issues/{{issue_number}} -f state=closed` y releer `state == closed`.
+- Si marker ya existe, reutilizar comentario verificado y no publicar otro.
+- No afirmar issue cerrada si comentario, PATCH o releer estado falló.
+
+## PR de implementación alternativo
+
+Publicar como comentario general en `repos/{{owner}}/{{repo}}/issues/{{implementation_pr}}/comments`, sin `in_reply_to`, solo cuando `implementation_pr != source_pr`:
+
+```markdown
+✅ **Issue resuelta**: [{{owner}}/{{repo}}#{{issue_number}}]({{issue_url}}).
+
+El fix quedó aplicado en este [PR #{{implementation_pr}}]({{implementation_pr_url}}), commit [`{{sha_corto}}`]({{commit_url}}).
+
+Origen: [comentario inline original]({{source_comment_url}}).
+
+<!-- inline-thread-autofix: pr:{{implementation_pr}}:issue:{{issue_number}}:comment:{{comment_id}} -->
+```
+
+Verificar que `html_url` pertenece al PR de implementación y contiene links a issue y comment original. Este comentario completa la dirección `PR destino → issue → comment`; no reemplaza reply/resolución del thread ni comentario/cierre de issue.
 
 ## Review body editada
 

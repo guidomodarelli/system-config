@@ -324,6 +324,78 @@
         "Usa force-with-lease y relee OIDs antes de cada push",
         "Detiene y no hace closeout si rebase o validación falla"
       ]
+    },
+    {
+      "id": 26,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456807\nEl body del comment referencia explícitamente https://github.com/acme/widgets/issues/901. Aplicá el fix validado y completá el cierre en todos los destinos.",
+      "expected_output": "Valida issue #901 del mismo repo, aplica fix, responde ✅ Resuelto y resuelve solo el thread, publica ✅ Resuelto en issue #901 y la cierra verificando state=closed.",
+      "files": [],
+      "expectations": [
+        "Extrae y valida URL explícita de issue del mismo repositorio",
+        "Distingue issue #901 del PR fuente #42",
+        "Publica reply inline con SHA e issue URL y verifica in_reply_to",
+        "Resuelve thread y verifica isResolved=true",
+        "Publica comentario en issue con comment original, PR de implementación, SHA y marker",
+        "Cierra issue con PATCH y relee state=closed",
+        "No duplica comentarios ni modifica otros threads"
+      ]
+    },
+    {
+      "id": 27,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456808\nEl PR #42 está merged y el comment referencia https://github.com/acme/widgets/issues/902. Hay un único PR #44 abierto en la branch relacionada donde corresponde el fix. Modificá ese PR en checkout local y dejá trazabilidad completa.",
+      "expected_output": "Usa #42 solo como ancla histórica, aplica y valida el fix en checkout local de branch del PR #44, publica allí, responde/resuelve comment original, comenta y cierra issue #902 y agrega comentario en PR #44 apuntando a issue y comment original.",
+      "files": [],
+      "expectations": [
+        "Permite leer PR fuente merged sin parchearlo",
+        "Demuestra relación y ownership inequívocos del PR #44",
+        "Trabaja en checkout/worktree local de la branch relacionada con árbol seguro y backup",
+        "Publica SHA verificado en PR #44 y usa ese SHA en todos los closeouts",
+        "Completa reply y resolución del thread original",
+        "Publica comentario y cierra issue #902 verificando estado",
+        "Publica comentario general en PR #44 sin in_reply_to",
+        "Mantiene cadena verificable PR #44 → issue #902 → comment original"
+      ]
+    },
+    {
+      "id": 28,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456809\nEl comentario describe un bug, pero no contiene URL, owner/repo#N ni referencia #N a una issue. Aplicá el fix y no inventes una issue.",
+      "expected_output": "Informa ISSUE_REFERENCE_MISSING y no crea, busca por similitud, comenta ni cierra ninguna issue; si el PR está abierto puede continuar únicamente con closeout inline normal.",
+      "files": [],
+      "expectations": [
+        "No usa issue_url null ni búsqueda por título o similitud",
+        "Reporta ISSUE_REFERENCE_MISSING",
+        "No inventa número ni URL de issue",
+        "No publica comentario ni cambia estado de issue",
+        "Conserva separación entre closeout inline y closeout compuesto"
+      ]
+    },
+    {
+      "id": 29,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456810\nEl comment referencia https://github.com/acme/widgets/issues/903. Ya existen el marker de issue y el marker del comentario en PR destino #44; issue está closed. Reprocesá sin duplicar.",
+      "expected_output": "Relee los markers, comentarios y estado cerrado, reutiliza evidencia verificable y no publica replies, comentarios, commits, pushes ni cierres duplicados.",
+      "files": [],
+      "expectations": [
+        "Busca markers de issue y PR alternativo antes de mutar",
+        "Verifica que markers contienen URLs y SHA esperados",
+        "Acepta issue closed sin reabrirla",
+        "No duplica comentario en issue ni PR destino",
+        "No duplica reply o resolución del thread",
+        "Reporta estado final ya completado"
+      ]
+    },
+    {
+      "id": 30,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456811\nEl PR fuente está closed, referencia https://github.com/acme/widgets/issues/904 y dos PRs abiertos de branches relacionadas parecen dueños. El checkout local también tiene cambios ajenos. Elegí uno y aplicá el fix igual.",
+      "expected_output": "Detiene con IMPLEMENTATION_TARGET_AMBIGUOUS o estado equivalente; no elige por fecha/título, no descarta cambios locales y no hace patch, push ni closeout compuesto.",
+      "files": [],
+      "expectations": [
+        "Detecta múltiples destinos relacionados sin desempatar por título o fecha",
+        "Reporta IMPLEMENTATION_TARGET_AMBIGUOUS",
+        "Revisa árbol local y preserva cambios ajenos",
+        "No cambia branch ni aplica patch en PR alternativo",
+        "No publica comentario en issue o PR destino",
+        "No cierra issue ni afirma resolución"
+      ]
     }
   ]
 }
