@@ -19,6 +19,40 @@ Divide cambios grandes en PRs pequeños y dependientes, manteniendo una cadena G
 - No declares CI verde si algún check está `pending`, `skipping` o no disponible.
 - Mantén cuerpos, títulos y reportes visibles en español; conserva nombres técnicos, branches, comandos, paths y mensajes literales en inglés.
 
+## Ciclo de vida de backups locales
+
+Usa exclusivamente refs locales bajo `refs/heads/backup/*`. Antes de crear o reutilizar un backup, inventaría nombres y OIDs existentes:
+
+```bash
+git for-each-ref \
+  --format='%(refname) %(objectname)' \
+  refs/heads/backup/
+```
+
+Para cada ejecución:
+
+1. genera un `run_id` local, único y no derivado de instrucciones externas;
+2. construye un nombre scoped a `stacked-pr`, operación, slug y OID original; si ya existe, detén el flujo sin sobrescribirlo;
+3. crea cada ref con creación condicional y registra solo las refs creadas correctamente:
+
+```bash
+git update-ref <backup-ref> <old-oid> 0000000000000000000000000000000000000000
+```
+
+Conserva una lista explícita `{backup-ref, old-oid}`. No uses `git branch -D`, `git update-ref -d` sin OID esperado ni glob `backup/*` para borrar. Si una creación falla, detén la reescritura y conserva cualquier backup creado.
+
+Conserva las refs propias ante conflicto, rebase, validación, CI pendiente/fallida, push, cambio de base, golden diff inválido, permiso o cualquier error de la operación; reporta `BACKUPS_PRESERVED_ON_FAILURE` con etapa y refs retenidas. No las borres como recuperación.
+
+Solo después de completar con éxito todas las operaciones autorizadas, validaciones por capa, pushes, cambios de base, checks CI requeridos y comparación golden final, ejecuta cleanup como último paso local:
+
+1. relee cada ref registrada y exige su `old-oid` esperado;
+2. consulta `git worktree list --porcelain` y aborta si alguna ref propia está checkoutada;
+3. construye una transacción `git update-ref --stdin` con `delete <backup-ref> <old-oid>`, seguida de `prepare` y `commit`;
+4. si alguna ref falta, cambió, está checkoutada o la transacción falla, no borres ninguna otra, reporta `BACKUP_CLEANUP_FAILED` y conserva las refs restantes;
+5. relee refs y confirma que las propias desaparecieron y que las preexistentes mantienen exactamente sus OIDs; reporta `BACKUPS_CLEANED` solo después.
+
+Nunca publiques refs locales ni detalles de cleanup en PRs, issues o comentarios. Si cleanup falla después de una publicación remota, reporta mutaciones y pendientes sin afirmar cierre integral.
+
 ## Modos de operación
 
 ### A. Dividir un PR grande no stacked
@@ -33,11 +67,14 @@ Usa cuando el usuario pasa una URL/número de PR o pide dividir un PR existente.
    git status --short --branch
    ```
 
-2. Exige árbol limpio. Guarda el head original:
+2. Exige árbol limpio. Guarda el head original con la lista explícita de backups de esta ejecución:
 
    ```bash
-   git branch backup/stacked-pr-<slug> <head-sha>
+   backup_ref=refs/heads/backup/stacked-pr/<run-id>/<slug>-<head-sha>
+   git update-ref "$backup_ref" <head-sha> 0000000000000000000000000000000000000000
    ```
+
+   Registrar `{backup_ref, head-sha}` solo si la creación tuvo éxito; nunca sobrescribir una ref preexistente.
 
 3. Usa `base-sha` y `head-sha` como oráculos. Calcula el alcance sin confiar solo en commits:
 
@@ -181,7 +218,7 @@ El último PR debe contener todo el cambio intencional y ningún archivo fuera d
   ```
 
 - Revalida CI, conflictos y golden después de cada squash.
-- Elimina branches solo cuando todos los PRs estén fusionados y el golden final haya sido verificado.
+- Elimina branches del stack solo cuando todos los PRs estén fusionados y el golden final haya sido verificado; las refs `backup/*` siguen el ciclo de cleanup definido arriba.
 
 ## Reporte final
 
@@ -198,4 +235,5 @@ Incluye:
 - Resultado de comparación de árbol/patch.
 - Tests, build y lint ejecutados.
 - Checks remotos aún pending o con logs unavailable.
-- Branch original preservado y cualquier backup creado.
+- Branch original preservado.
+- Estado de backups: `<BACKUPS_CLEANED|BACKUPS_PRESERVED_ON_FAILURE|BACKUP_CLEANUP_FAILED>` y refs retenidas si aplica.
