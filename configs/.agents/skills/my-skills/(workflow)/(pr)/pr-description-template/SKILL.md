@@ -105,7 +105,7 @@ Single line, descriptive, English-friendly subject. Example: `Add user status si
 ## Body template
 
 ```markdown
-<sub>📄 Archivos de código modificados: N</sub>
+<div align="right"><sup>📄 Archivos de código modificados: N</sup></div>
 
 ## 📝 Descripción
 
