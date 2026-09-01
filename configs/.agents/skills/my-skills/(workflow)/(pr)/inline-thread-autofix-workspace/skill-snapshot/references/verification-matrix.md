@@ -20,12 +20,7 @@
 | Evidencia | código corregido más señal independiente antes de `ALREADY_RESOLVED` |
 | Capa | owner y PR óptimo identificados bottom-up; no cambiar branch sin autorización |
 | Concurrencia | `headRefOid`/`baseRefOid` releídos antes de mutar; cambios invalidan análisis |
-| Preflight | Wave A bounded; Wave B solo si no hay fast path; snapshot/fingerprints reutilizados sin relectura amplia |
-| Mutaciones | Effects seriales; solo lecturas, comentarios independientes post-thread y verificaciones finales pueden fan-out |
-| Freshness | `HEAD` del clone y vector de OIDs coinciden antes de editar; mismatch produce `TARGET_STALE` |
-| Golden | manifest de paths, name-status, patch/tree verificado por layer; discrepancia produce `GOLDEN_DIFF_MISMATCH` |
-| Validación | fingerprints por command/surface; rerun solo ante cambio relacionado, conflicto, duda o configuración compartida |
-| Backups | orchestrator crea refs fuera clone, registra `{ref, OID}` y backend devuelve `BACKUPS_PENDING_CLOSEOUT`; `BACKUPS_NOT_APPLICABLE` si no hubo stack |
+| Backups | inventario inicial de `refs/heads/backup/*`, nombres scoped a ejecución y registro explícito de `{ref, OID}` creados |
 | Ownership de backup | refs preexistentes no se reutilizan, sobrescriben ni eliminan; cada ref propia tiene OID esperado |
 | Worktrees | ninguna ref propia está checkoutada antes de cleanup; si lo está, se conserva y se informa fallo |
 | Cleanup | solo después de rebase, validaciones, publicación, closeout y verificación final; transacción condicional y comprobación posterior |
@@ -34,15 +29,15 @@
 
 | Verificación | Resultado requerido |
 |---|---|
-| Ownership | `inline-thread-autofix` coordina GitHub/stack/closeout y backups; `fix-in-ephemeral-clone` ejecuta clone, código, validación, commit, push y cleanup de clone |
-| Entrada | header `HANDOFF: INLINE_THREAD_AUTOFIX` versionado, con repo, PR, branch, OIDs, ancla, criterios, `stack_plan` y `backup_manifest` validados |
+| Ownership | `inline-thread-autofix` coordina GitHub/stack/closeout; `fix-in-ephemeral-clone` ejecuta clone, código, validación, commit, push y cleanup |
+| Entrada | header `HANDOFF: INLINE_THREAD_AUTOFIX` completo, con repo, PR, branch, OIDs, ancla y criterios validados |
 | Routing | URL PR directa delega una sola vez a `inline-thread-autofix`; handoff no vuelve a delegar |
 | Frescura | `expected_head_oid` y `expected_base_oid` coinciden antes de editar y publicar; cambios producen `TARGET_STALE` |
 | Aislamiento | un único clone depth-1; checkout original permanece intacto; no se crean worktrees/clones adicionales |
 | Scope | backend usa solo branch y `stack_plan` entregados; no descubre ni publica ramas adicionales |
-| Resultado | `HANDOFF_RESULT` contiene status exitoso, SHA completo, head remoto verificado, validaciones y `BACKUPS_PENDING_CLOSEOUT` o `BACKUPS_NOT_APPLICABLE` |
+| Resultado | `HANDOFF_RESULT` contiene status exitoso, SHA completo, head remoto verificado, validaciones, backups y cleanup |
 | Closeout | backend no muta GitHub; reply, resolución, review, issue y comentarios quedan bloqueados hasta resultado completo |
-| Fallos | resultado incompleto, validación fallida, clone retenido o backup en estado de fallo bloquea closeout y evita reintento duplicado |
+| Fallos | resultado incompleto, validación fallida, clone retenido o backup preservado bloquea closeout y evita reintento duplicado |
 
 ## Stack y selección de capa
 
@@ -63,10 +58,10 @@
 |---|---|
 | Comentario | body, path, line y commit de origen leídos |
 | Saltos de línea | `\\n` de JSON serializado interpretado una sola vez; secuencias literales del autor preservadas |
-| Thread | `thread.id` exacto; `isResolved: false` para implementación, `true` solo habilita fast path con closeout/evidencia verificados |
+| Thread | `thread.id`, `isResolved: false` antes del trabajo |
 | Estado | `isOutdated` evaluado sin invalidación automática |
 | Duplicados | no existe reply previo del usuario para comment ID |
-| Reply | creado en endpoint de comments con `in_reply_to` exacto; body enlaza SHA de `implementation_pr` y `commit_id` devuelto puede conservar commit de ancla |
+| Reply | creado en endpoint de comments con `in_reply_to` y SHA de `implementation_pr` |
 | Resolve | `resolveReviewThread` confirma `isResolved: true` |
 | Issue reply | comentario en `issues/<issue_number>/comments` incluye comment URL original, PR de implementación, SHA y marker único |
 | Issue close | `PATCH` seguido de releer confirma `state == closed`; nunca reabre issue |

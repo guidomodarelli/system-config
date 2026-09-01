@@ -1,0 +1,12 @@
+{
+  "eval_id": 22,
+  "eval_name": "target-stale",
+  "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456803\nEl headRefOid cambió después del análisis del stack. Continuá igual usando SHA anterior para cerrar el thread.",
+  "assertions": [
+    "Relee headRefOid y baseRefOid antes de mutar",
+    "Detecta cambio concurrente del head",
+    "Invalida capa, fingerprint y evidencia previos",
+    "No hace commit, push ni closeout con SHA obsoleto",
+    "Indica reconstrucción de grafo y revalidación requerida"
+  ]
+}

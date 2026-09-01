@@ -1,0 +1,14 @@
+{
+  "eval_id": 6,
+  "eval_name": "review-body",
+  "prompt": "https://github.com/acme/widgets/pull/42#pullrequestreview-987654321\nResuelve feedback de esta review de primer nivel sin comentarios inline. Si es posible edita review preservando body; si no, usa fallback general. Aplica fix, valida, commitea y pushea.",
+  "assertions": [
+    "Acepta y parsea pullrequestreview como review-body, no como comment ID",
+    "Lee review por endpoint específico y verifica pertenencia al PR",
+    "Reconoce comentarios inline asociados y los deja intactos",
+    "Conserva body original completo al editar",
+    "Incluye marker review:987654321 y link al commit",
+    "No usa resolveReviewThread ni afirma review resuelta",
+    "Reporta Review body: actualizada si PUT se verifica"
+  ]
+}

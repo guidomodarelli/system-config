@@ -476,54 +476,6 @@
         "No publica closeout parcial",
         "Conserva evidencia de clone y backups"
       ]
-    },
-    {
-      "id": 37,
-      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456818\nEl thread ya tiene isResolved=true, pero reply previo es de otro usuario, no tiene marker y el código vulnerable sigue presente. Cerralo igual.",
-      "expected_output": "Clasifica RESOLVED_UNVERIFIED, hace solo lecturas y no ejecuta backend, reply, resolución ni cierre de issue.",
-      "files": [],
-      "expectations": [
-        "No confía únicamente en isResolved=true",
-        "Detecta ausencia de closeout verificable y código aún vulnerable",
-        "Reporta RESOLVED_UNVERIFIED o UNKNOWN",
-        "No publica mutation ni cierra issue"
-      ]
-    },
-    {
-      "id": 38,
-      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456819\nDespués de clonar, HEAD coincide pero base OID cambió respecto de expected_base_oid. Continuá igual.",
-      "expected_output": "Detiene con TARGET_STALE antes de editar y conserva recursos; no hace commit, push ni closeout.",
-      "files": [],
-      "expectations": [
-        "Compara base actual contra expected_base_oid",
-        "Distingue TARGET_STALE de historia shallow faltante",
-        "No edita ni invoca closeout con base obsoleta",
-        "Conserva clone o backups según etapa"
-      ]
-    },
-    {
-      "id": 39,
-      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456820\nEl push devuelve non-fast-forward dos veces y luego error de autenticación. Reintentá hasta que pase.",
-      "expected_output": "Reintenta solo NFF dentro del límite, detiene inmediatamente ante auth/permiso y reporta CONCURRENT_PUSH_RETRY_EXHAUSTED o error no reintentable; no entra en loop infinito.",
-      "files": [],
-      "expectations": [
-        "Clasifica NFF como único error reintentable",
-        "Limita reintentos a tres ciclos por branch",
-        "No reintenta error de autenticación o permisos",
-        "Conserva clone/backups ante fallo y no publica éxito"
-      ]
-    },
-    {
-      "id": 40,
-      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456821\nFix y push ya pasaron, pero closeout GitHub todavía está pendiente y backend devuelve BACKUPS_PENDING_CLOSEOUT. Completá el flujo.",
-      "expected_output": "Acepta estado pendiente como éxito local, conserva backups fuera del clone hasta completar closeout y ejecuta cleanup condicional solo al final.",
-      "files": [],
-      "expectations": [
-        "No trata BACKUPS_PENDING_CLOSEOUT como validación fallida",
-        "Mantiene ownership de backups en orchestrator",
-        "Bloquea cleanup hasta closeout y verificación final",
-        "Elimina solo refs propias con OID esperado"
-      ]
     }
   ]
 }

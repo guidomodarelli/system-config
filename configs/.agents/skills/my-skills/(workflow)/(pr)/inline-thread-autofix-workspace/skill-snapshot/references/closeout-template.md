@@ -13,7 +13,7 @@ Usar después de fix validado y commit pusheado/verificado en head de PR. Elegir
 <sub>🤖 Fix aplicado en respuesta a este comentario inline.</sub>
 ```
 
-Usar `Resuelto` solo cuando reply fue creado en `in_reply_to` correcto y `resolveReviewThread` confirmó `isResolved: true`. Si existe issue asociada, agregar `Issue asociada: [{{owner}}/{{repo}}#{{issue_number}}]({{issue_url}})` al reply y usar SHA de `implementation_pr`, aunque `source_pr` sea otro PR. El body debe enlazar SHA completo de implementación; GitHub puede conservar en metadata `commit_id` de comment de ancla para replies, lo que no justifica duplicar reply si `in_reply_to`, body, head remoto y thread están verificados.
+Usar `Resuelto` solo cuando reply fue creado en `in_reply_to` correcto y `resolveReviewThread` confirmó `isResolved: true`. Si existe issue asociada, agregar `Issue asociada: [{{owner}}/{{repo}}#{{issue_number}}]({{issue_url}})` al reply y usar SHA de `implementation_pr`, aunque `source_pr` sea otro PR.
 
 ## Issue asociada a inline comment
 
@@ -107,8 +107,6 @@ No usar `in_reply_to` para fallback. Mantener marcador estable `review:{{review_
 
 Las refs `backup/*` son estado local y nunca deben aparecer en comentarios de GitHub. Ejecutar su cleanup solo después de verificar todos los destinos remotos y el estado final:
 
-- `BACKUPS_NOT_APPLICABLE`: no hubo stack ni refs propias; no inventar cleanup.
-- `BACKUPS_PENDING_CLOSEOUT`: backend terminó implementación/publicación, pero orchestrator conserva refs fuera clone hasta completar destinos.
 - `BACKUPS_CLEANED`: refs creadas por esta ejecución fueron eliminadas con OID esperado y las preexistentes permanecen intactas.
 - `BACKUPS_PRESERVED_ON_FAILURE`: una fase anterior falló; conservar refs para rollback e informar etapa y refs retenidas.
 - `BACKUP_CLEANUP_FAILED`: una ref cambió, faltó o la transacción no pudo completarse; no borrar otras refs ni publicar comentario compensatorio. Informar URLs remotas ya publicadas, estado pendiente y refs retenidas.
