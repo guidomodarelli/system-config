@@ -1,6 +1,6 @@
 ---
 name: nordic-local-mocks
-description: Configura y depura mocks HTTP locales en cualquier aplicación Nordic usando nordic-dev/mocks, Mock.intercept y fixtures JSON. Usar siempre cuando usuario pida mockear APIs en local, generar fixtures, evitar llamadas upstream durante desarrollo, migrar fakes locales a HTTP mocks o investigar errores donde Postman funciona y app falla.
+description: Configura y depura mocks HTTP locales en cualquier aplicación Nordic usando nordic-dev/mocks, Mock.intercept y fixtures JSON. Invocar SIEMPRE antes de inspeccionar, crear, modificar, eliminar o validar mocks o fixtures HTTP locales, aunque usuario solo pida ajustar mocks, entregue respuesta upstream, ejecute tests que generan fixtures, quiera evitar llamadas upstream, migre fakes a HTTP mocks o investigue diferencias con Postman.
 ---
 
 # Nordic Local Mocks
@@ -44,9 +44,10 @@ Ejemplos concretos, no requisitos: `mocks/development`, `process-contingency`, `
 4. Reutilizar helper de entorno existente si existe. Si falta, crear helper cohesivo sobre `nordic/env` en ubicación convencional del proyecto.
 5. No desactivar autenticación, autorización, CSRF ni schema validation para que fixture responda.
 6. Usar allowlists de hosts y paths derivadas de configuración del proyecto; no aceptar destinos controlados por usuario.
-7. No guardar tokens, cookies, authorization headers, secrets, PII real ni respuestas upstream sensibles.
-8. No guardar ninguna `property` cuyo nombre empiece en `x-`; omitirla antes de persistir o versionar fixture, sin renombrarla ni trasladarla.
-9. Tratar `ignoreParams` como normalización de filename, nunca como control de autorización o validación.
+7. Usar únicamente datos determinísticos sintéticos e inventados; no copiar nombres, IDs, LDAP, emails, facilities, tokens, cookies, secrets, PII real ni respuestas upstream sensibles.
+8. Omitir `headers` de fixtures por defecto. Si transporte exige conservarlos, mantener solo headers no sensibles y eliminar cualquier clave `x-*` dentro de `headers`.
+9. No guardar ninguna `property` cuyo nombre empiece en `x-`; omitirla antes de persistir o versionar fixture, sin renombrarla ni trasladarla.
+10. Tratar `ignoreParams` como normalización de filename, nunca como control de autorización o validación.
 
 ## Descubrimiento inicial
 
@@ -154,19 +155,24 @@ Este mapa es solo ejemplo. Reemplazar nombres por clientes y config keys descubi
 
 `frontend-mocks` suele escribir bajo `mocks/${NODE_ENV}`. Respetar nombres y carpetas generados por framework; modificar contenido únicamente cuando usuario lo pida. Confirmar `.gitignore`: si fixtures deben viajar en PR, versionarlos explícitamente y evitar que queden solo en filesystem local.
 
+### Datos sintéticos y headers
+
+Antes de guardar, generar o versionar una fixture:
+
+1. Usar datos determinísticos inventados, sin copiar respuesta upstream real. Sustituir nombres, IDs, LDAP, emails, facilities y cualquier PII por valores ficticios mínimos.
+2. Omitir propiedad `headers` completa siempre que cliente y framework lo permitan. No agregarla solo para imitar respuesta upstream.
+3. Si `headers` es imprescindible para transporte, recorrer sus claves y eliminar cualquier propiedad cuyo nombre comience por `x-` (comparación case-insensitive), además de tokens, cookies, authorization headers y correlation IDs.
+
 ### Properties excluidas
 
-Antes de guardar, generar o versionar una fixture, recorrer todas sus propiedades, incluidas las anidadas, y omitir cualquier clave cuyo nombre empiece exactamente en `x-` (`propertyName.startsWith('x-')`). No confundir esta regla con valores que contengan `x-`: solo se filtran nombres de propiedades. No renombrar ni reemplazar claves excluidas; si fixture depende de ellas, detener persistencia e informar el conflicto.
+Recorrer todas las propiedades restantes, incluidas las anidadas, y omitir cualquier clave cuyo nombre empiece exactamente en `x-` (`propertyName.startsWith('x-')`). No confundir esta regla con valores que contengan `x-`: solo se filtran nombres de propiedades. No renombrar ni reemplazar claves excluidas; si fixture depende de ellas, detener persistencia e informar el conflicto.
 
-Response simple:
+Response simple preferida:
 
 ```json
 {
   "status": 200,
   "statusText": "OK",
-  "headers": {
-    "content-type": "application/json"
-  },
   "data": {
     "results": []
   }
@@ -181,7 +187,6 @@ Array de recursos pertenece dentro de `data`:
 {
   "status": 200,
   "statusText": "OK",
-  "headers": { "content-type": "application/json" },
   "data": [
     { "id": 1, "attributes": [] },
     { "id": 2, "attributes": [] }
@@ -196,13 +201,11 @@ Array externo representa respuestas secuenciales; usarlo para polling u otro end
   {
     "status": 200,
     "statusText": "OK",
-    "headers": { "content-type": "application/json" },
     "data": { "run_id": "fixed-run-id", "status": "PROCESSING" }
   },
   {
     "status": 200,
     "statusText": "OK",
-    "headers": { "content-type": "application/json" },
     "data": { "run_id": "fixed-run-id", "status": "FINISHED" }
   }
 ]
@@ -288,7 +291,7 @@ npm run build
 También comprobar:
 
 - no quedan imports o ramas del fake local eliminado;
-- cada JSON parsea y contiene `status`, `statusText`, `headers` y `data`;
+- cada JSON parsea y contiene `status`, `statusText` y `data`; `headers` solo aparece cuando transporte lo exige y nunca contiene claves `x-*`;
 - fixtures de listados tienen array dentro de `data`;
 - fixtures de polling tienen secuencia externa intencional;
 - un `GET` y un `POST` interceptados responden usando cliente HTTP real del stack;
