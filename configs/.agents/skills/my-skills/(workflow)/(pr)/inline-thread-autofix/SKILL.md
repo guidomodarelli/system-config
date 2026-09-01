@@ -64,6 +64,8 @@ Para inline, aceptar issue solo por referencia explícita en body, solicitud dir
 
 Derivar localmente ownership, duplicados, grafo y señales de finding desde snapshot. No repetir preflight completo: conservar snapshot y fingerprints. Releer solo OIDs, branch/PR destino y entidad que se va a mutar inmediatamente antes de esa mutación; si cambian, invalidar análisis con `TARGET_STALE`.
 
+Los flujos largos vuelven obsoleto snapshot de threads: justo antes de cada reply, resolución, comentario o cambio de issue, releer target y vector completo de estados de threads. Si cambia cualquier thread ajeno, reply ajeno o estado no esperado desde snapshot previo, detener con `SNAPSHOT_STALE` sin nuevas mutaciones; después de cada mutación del target, crear snapshot nuevo antes de siguiente mutación.
+
 ## Thread y review: identidad estricta
 
 ### Inline
@@ -121,7 +123,7 @@ backup_manifest: <none o [{ref,old_oid}] creada por orchestrator>
 issue: <issue validada o none>
 ```
 
-Para `STACK_FOUND`, `stack_plan` debe incluir únicamente branches autorizadas y `schema_version: 1`, más layers con `{pr,branch,old_head_oid,base_oid,parent_old_oid,new_parent_oid,paths,name-status,patch_fingerprint,tree_manifest}` y orden bottom-up. Manifest incompleto, OID faltante o branch no autorizada produce `STACK_INCOMPLETE`; nunca completar campos por inferencia. Backend debe hacer un clone, fetch agrupado de refs necesarias y validar `HEAD == expected_head_oid` más OIDs requeridos antes de editar; si depth-1 no contiene historia, profundizar solo rango necesario. Usar `git rebase --onto <nuevo-parent-tip> <parent-tip-anterior>`. Nunca `-X ours`, `-X theirs`, `--skip`, `reset --hard`, `clean -fd` o `git push --force`.
+Para `STACK_FOUND`, `stack_plan` debe incluir únicamente branches autorizadas y `schema_version: 1`, más layers con `{pr,branch,old_head_oid,base_oid,parent_old_oid,new_parent_oid,paths,name-status,patch_fingerprint,tree_manifest}` y orden bottom-up. Manifest incompleto, OID faltante o branch no autorizada produce `STACK_INCOMPLETE`; nunca completar campos por inferencia. Calcular `patch_fingerprint` con formato canónico estable (por ejemplo `git diff --binary --full-index --no-ext-diff --no-renames --no-textconv`) y comparar hunks/name-status, no hashes afectados por `core.abbrev` ni solo estadísticas. Backend debe hacer un clone, fetch agrupado de refs necesarias y validar `HEAD == expected_head_oid` más OIDs requeridos antes de editar; si depth-1 no contiene historia, profundizar solo rango necesario. Después de crear commit owner, sustituir `new_parent_oid` de cada descendant por ese SHA nuevo y revalidar antes de rebasear; nunca reutilizar tip pre-fix. Usar `git rebase --onto <nuevo-parent-tip> <parent-tip-anterior>`. Nunca `-X ours`, `-X theirs`, `--skip`, `reset --hard`, `clean -fd` o `git push --force`.
 
 Backups pertenecen a orchestrator: antes del handoff, inventariar `refs/heads/backup/*`, obtener refs/OIDs autorizados sin cambiar checkout, generar `run_id`, crear refs scoped condicionales fuera del clone y registrar `{ref,old_oid}`. Pasar `backup_manifest` y mantenerlo como `BACKUPS_PENDING_CLOSEOUT` hasta finalizar todos destinos. Backend nunca limpia refs. Orchestrator elimina únicamente al final con `git update-ref --stdin` y OID esperado, después de comprobar worktrees; ante cualquier fallo conserva refs y reporta `BACKUPS_PRESERVED_ON_FAILURE`. No publicar nombres de refs.
 

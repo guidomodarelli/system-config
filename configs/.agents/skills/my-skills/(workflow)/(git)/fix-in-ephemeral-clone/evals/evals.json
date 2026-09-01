@@ -87,6 +87,18 @@
         "No reintenta error de autenticación o permisos",
         "Reporta estado fallido y conserva clone"
       ]
+    },
+    {
+      "id": 8,
+      "prompt": "Corregí issue #901 desde zsh: copiá configuración opcional `.env.*` y publicá el commit a la branch autorizada.",
+      "expected_output": "Maneja glob opcional sin abortar por `nomatch`, usa expansión segura de variables al construir refspecs con `:`, valida el comando y no reintenta un error local de shell.",
+      "files": [],
+      "expectations": [
+        "Enumera `.env` y `.env.*` sin depender de un glob zsh sin coincidencias",
+        "Usa `${variable}:suffix` al concatenar variables y dos puntos en refspecs",
+        "Distingue error local de refspec de NFF remoto",
+        "No deja paths temporales sin ownership o cleanup verificable"
+      ]
     }
   ]
 }

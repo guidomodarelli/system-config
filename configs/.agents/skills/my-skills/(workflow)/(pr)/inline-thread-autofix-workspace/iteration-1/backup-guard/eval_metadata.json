@@ -7,6 +7,7 @@
     "Usa OID esperado como guard de delete",
     "Reporta BACKUP_CLEANUP_FAILED con refs retenidas",
     "No elimina refs ajenas ni realiza cleanup parcial",
+    "No limpia backups mientras closeout o verificación de threads siga pendiente",
     "Verifica que refs preexistentes permanecen intactas"
   ]
 }

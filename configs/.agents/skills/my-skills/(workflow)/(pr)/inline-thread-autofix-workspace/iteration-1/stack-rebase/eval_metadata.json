@@ -8,6 +8,9 @@
     "Rebasea descendants automáticamente en orden bottom-up",
     "Valida cada capa antes de publicar",
     "Usa force-with-lease y relee OIDs antes de cada push",
+    "Calcula golden fingerprints con object IDs completos y compara hunks/name-status, no solo estadísticas",
+    "Recalcula new_parent_oid con el commit owner nuevo antes de rebasear descendants",
+    "Integra cambios remotos no relacionados sin descartar contenido y repite gates cuando la superficie cambia",
     "Tras closeout y verificación final, elimina solo backups creados por esta ejecución y conserva preexistentes",
     "Detiene y no hace closeout si rebase o validación falla y conserva backups"
   ]

@@ -9,6 +9,8 @@
     "Resuelve thread y verifica isResolved=true",
     "Publica comentario en issue con comment original, PR de implementación, SHA y marker",
     "Cierra issue con PATCH y relee state=closed",
-    "No duplica comentarios ni modifica otros threads"
+    "No duplica comentarios ni modifica otros threads",
+    "Relee target y vector completo de threads inmediatamente antes de cada mutación de closeout",
+    "Detiene con SNAPSHOT_STALE si cambia un thread ajeno durante implementación o closeout"
   ]
 }

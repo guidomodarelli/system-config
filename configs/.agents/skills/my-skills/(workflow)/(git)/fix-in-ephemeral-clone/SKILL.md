@@ -61,9 +61,9 @@ status: <success o código explícito>
 1. En `DIRECT`, resolver root, branch, upstream y estado; en handoff, leer header y no inferir otro destino.
 2. Confirmar que remote y branch autorizados pertenecen al repo esperado. En handoff comparar remote head con `expected_head_oid` y la base remota con `expected_base_oid` antes de editar; cualquier diferencia produce `TARGET_STALE`.
 3. Crear path nuevo con `mktemp -d` dentro temp del sistema. Si path existe o no es directorio temporal propio, elegir otro o detenerse.
-4. Copiar `.env`/`.env.*` solo desde root original, sin sobrescribir destinos existentes, sin stagear ni commitear. Si hay colisión inesperada, detener e inspeccionar.
+4. Copiar `.env`/`.env.*` solo desde root original, sin sobrescribir destinos existentes, sin stagear ni commitear. En zsh, no usar un glob opcional sin protección (`.env.*`) porque `nomatch` puede abortar setup; usar enumeración segura (`find ... -print0`, array con `NULL_GLOB` o equivalente) y detenerse ante colisión inesperada.
 5. Linkear `node_modules` solo en Unix, sin `pnpm`, y cuando package manager, lockfile y runtime sean compatibles; si no, instalar dentro clone con comando normal. Nunca copiar `node_modules`.
-6. Clonar branch autorizada con `--depth 1 --single-branch --no-tags`. En HANDOFF, exigir `git rev-parse HEAD == expected_head_oid` y comparar base actual con `expected_base_oid`; en DIRECT comparar HEAD con tip remote capturado. Verificar que base/parent OIDs requeridos por `stack_plan` estén disponibles o traerlos explícitamente; OID distinto produce `TARGET_STALE`, historia faltante produce `STACK_INCOMPLETE`, antes de editar.
+6. Clonar branch autorizada con `--depth 1 --single-branch --no-tags`. Crear el marker inmediatamente después de un clone exitoso y antes de copiar configuración o ejecutar validaciones. En HANDOFF, exigir `git rev-parse HEAD == expected_head_oid` y comparar base actual con `expected_base_oid`; en DIRECT comparar HEAD con tip remote capturado. Verificar que base/parent OIDs requeridos por `stack_plan` estén disponibles o traerlos explícitamente; OID distinto produce `TARGET_STALE`, historia faltante produce `STACK_INCOMPLETE`, antes de editar. Si setup falla después de crear el path, no reutilizarlo silenciosamente: aplicar cleanup solo con marker, ownership y allowlist verificados; de lo contrario, conservarlo y reportarlo.
 
 El clone debe quedar marcado con un token local no derivado de body. Cleanup solo puede actuar sobre path creado por esta ejecución, con marker esperado, path bajo temp y sin cambios no verificados. No usar `git reset --hard`, `git clean -fd` ni checkout destructivo.
 
@@ -102,6 +102,8 @@ Antes de push, releer remote branch y comparar OID. Si remoto no cambió, conser
 Publicar únicamente branch autorizada. Usar `--force-with-lease` solo para descendants explícitamente presentes en `stack_plan`, con refspec y OID esperados; en `DIRECT` usar push normal. No publicar refs backup ni branch temporal.
 
 Un rechazo de push solo es reintentable si salida estructurada clasifica stale lease/non-fast-forward (`NFF`). Máximo 3 ciclos por branch, con fetch → rebase → resolución → validación completa → push. Auth, permisos, branch protection, malformed refspec, red ambiguo, 4xx/5xx no se convierten en loop: reportar código, conservar clone/backups y detener. Si tercer NFF falla, `CONCURRENT_PUSH_RETRY_EXHAUSTED`.
+
+En zsh, encerrar variables antes de concatenar `:` o cualquier sufijo (`"${source_oid}:refs/heads/${branch}"`); la forma `$source_oid:refs/...` puede interpretarse como parameter modifier y generar un refspec inválido. Validar el refspec final antes de ejecutar push. Un error local de construcción de comando no es un NFF y no habilita reintentos remotos.
 
 Después de cada push verificar dos fuentes: `git ls-remote origin refs/heads/<branch>` y `gh api "repos/<owner>/<repo>/pulls/<PR>" --jq .head.sha`. No aceptar solo SHA local, salida de push ni `gh pr view` stale. Para stack verificar también base/head final y golden manifest.
 
