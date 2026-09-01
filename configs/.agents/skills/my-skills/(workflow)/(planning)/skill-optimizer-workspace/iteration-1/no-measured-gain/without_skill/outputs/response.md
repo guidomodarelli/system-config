@@ -1,0 +1,1 @@
+Aplicaría la versión más corta de la optimización, pero el `skill_path` es ficticio y no hay tool trace ni timing confiable para validarla. La evaluación queda en modo read-only simulado: no se modificó el target ni se puede afirmar una reducción de latencia.

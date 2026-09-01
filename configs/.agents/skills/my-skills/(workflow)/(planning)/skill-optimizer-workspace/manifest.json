@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "target": "/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/(workflow)/(planning)/skill-optimizer",
+  "target_name": "skill-optimizer",
+  "workspace": "/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/(workflow)/(planning)/skill-optimizer-workspace",
+  "objective": "balanced",
+  "mode": "full",
+  "target_fingerprint": "b4b82901f4b81cdc8e3f05197b8355f2916a413475dfd565e4395c3c378f14e1",
+  "files": [
+    {
+      "path": "SKILL.md",
+      "sha256": "b4b82901f4b81cdc8e3f05197b8355f2916a413475dfd565e4395c3c378f14e1",
+      "bytes": 13190
+    },
+    {
+      "path": "evals/evals.json",
+      "sha256": "a1e82df1425eaa51867087a6cc4e75afb809c1cfff7b524a0a9c531b4bbadf21",
+      "bytes": 3838
+    },
+    {
+      "path": "evals/trigger-evals.json",
+      "sha256": "fb3985795c6280e28f71035f2e99ed68b20b4a6796931a1fbe006dcf388b7047",
+      "bytes": 3640
+    }
+  ],
+  "artifacts_note": "Read-only simulations; timing without provider trace is not a performance benchmark."
+}

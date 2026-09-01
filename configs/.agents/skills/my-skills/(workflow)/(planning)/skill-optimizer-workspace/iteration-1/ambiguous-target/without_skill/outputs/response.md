@@ -1,0 +1,1 @@
+Necesito el path absoluto e inequívoco del `SKILL.md` que debo optimizar. Hay tres archivos con ese nombre y uno está fuera del workspace permitido; no seleccionaré uno por similitud ni editaré ninguno sin esa confirmación. Indicá el path exacto ubicado dentro del workspace permitido.

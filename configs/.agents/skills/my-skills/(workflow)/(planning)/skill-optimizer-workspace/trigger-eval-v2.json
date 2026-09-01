@@ -1,0 +1,171 @@
+{
+  "skill_name": "skill-optimizer",
+  "description": "Optimiza skills existentes de Claude Code de forma segura y medible. Usar siempre cuando alguien pida optimizar, acelerar, simplificar, reducir tokens/steps/tool calls, mejorar triggers, agregar evals/benchmarks o comparar una skill existente, incluso sin mencionar este nombre. Audita primero, compara baseline contra candidato, preserva contratos y guards, y nunca afirma una mejora sin evidencia de ejecuci\u00f3n. Para crear una skill desde cero, usar skill-creator.",
+  "results": [
+    {
+      "query": "En `configs/.agents/skills/my-skills/(workflow)/(pr)/inline-thread-autofix/SKILL.md` quiero reducir pasos redundantes sin perder closeout, OID checks ni backups. Hac\u00e9 auditor\u00eda y benchmark old-vs-new.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Compar\u00e1 `/tmp/skill-v1` y `/tmp/skill-v2` como baseline/candidato. Report\u00e1 p50/p95, tokens reales, tool calls, regresiones de seguridad y qu\u00e9 versi\u00f3n conviene conservar.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Mi skill de despliegue tiene 600 l\u00edneas y muchas fases seriales; encontr\u00e1 fan-out seguro, fast paths y referencias repetidas, y demostr\u00ed paridad funcional antes de editar.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Tengo una skill existente en `/Users/me/.claude/skills/review/SKILL.md` que tarda por repetir lecturas y contexto. Compar\u00e1 snapshot anterior contra candidato, med\u00ed tokens/tool calls y preserv\u00e1 todos sus guards.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Una skill con `evals/evals.json` pas\u00f3 tests pero no tiene timing ni transcript de herramientas. Audit\u00e1 si se puede afirmar que es m\u00e1s r\u00e1pida y gener\u00e1 un reporte honesto.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Necesito optimizar una Agent Skill ya publicada para mejorar precision/recall de activaci\u00f3n. Us\u00e1 queries positivas y near-miss con holdout, no cambies solo description sin medir.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Quiero compactar instrucciones de una skill, pero sus referencias contienen estados de error, permisos y pasos de rollback. Identific\u00e1 duplicaci\u00f3n sin eliminar invariantes.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Optimiz\u00e1 workflow de una skill que usa un backend delegado: reduc\u00ed round-trips, manten\u00e9 mutations seriales y verific\u00e1 que handoff y output sigan compatibles.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Optimiz\u00e1 este componente React en `app/components/Table.tsx`: typing lento, renders repetidos y filtros costosos; agreg\u00e1 memoizaci\u00f3n y tests.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Tengo dos versiones de `SKILL.md` y quiero elegir la m\u00e1s r\u00e1pida sin aceptar una ca\u00edda de calidad, cobertura, autorizaci\u00f3n o comportamiento ante errores.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Revis\u00e1 una skill existente que tiene evals viejas y un nuevo objetivo de latencia. Congel\u00e1 baseline, agreg\u00e1 casos de seguridad y compar\u00e1 candidato con holdout.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Hac\u00e9 una performance review de API para encontrar N+1, latencia de base de datos y allocations innecesarias en `api/services/users.ts`.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Empaquet\u00e1 la skill existente en `/tmp/my-skill` como `.skill` y subila al marketplace.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Cre\u00e1 desde cero una skill llamada `pdf-processing` con SKILL.md, ejemplos y evals para extraer tablas.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Configur\u00e1 settings.json para que Claude Code permita `npm run test` autom\u00e1ticamente sin prompts.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Cre\u00e1 una issue de Jira describiendo optimizaci\u00f3n del workflow de onboarding y agreg\u00e1 criterios de aceptaci\u00f3n.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Revis\u00e1 este PR contra develop y correg\u00ed bugs de autorizaci\u00f3n en `api/routes/users.ts`; commite\u00e1 y pushe\u00e1 el fix.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Reduc\u00ed bundle JavaScript, mejor\u00e1 LCP y corr\u00e9 Lighthouse sobre la aplicaci\u00f3n web sin tocar ninguna Agent Skill.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Corr\u00e9 todos los tests de un repositorio y arregl\u00e1 assertions flaky hasta dejar CI verde.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Actualiz\u00e1 `CLAUDE.md` con instrucciones m\u00e1s cortas para el equipo y elimin\u00e1 texto duplicado.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    }
+  ],
+  "summary": {
+    "total": 20,
+    "passed": 10,
+    "failed": 10
+  }
+}

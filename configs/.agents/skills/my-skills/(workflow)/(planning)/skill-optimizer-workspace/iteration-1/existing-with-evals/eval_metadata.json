@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "eval_name": "existing-with-evals",
+  "prompt": "Optimizá /Users/me/.claude/skills/example/SKILL.md para reducir tokens y pasos. Tiene evals/evals.json y dos referencias. Hacé baseline versus candidato, preservá el contrato y dejame un reporte.",
+  "assertions": [
+    "Lee target, referencias y evals antes de editar",
+    "Crea snapshot separado del target",
+    "Preserva name, frontmatter, contrato y guards",
+    "Compara baseline contra candidato con assertions observables",
+    "Reporta limitaciones si no hay trace real",
+    "No hace commit ni push sin solicitud"
+  ]
+}
