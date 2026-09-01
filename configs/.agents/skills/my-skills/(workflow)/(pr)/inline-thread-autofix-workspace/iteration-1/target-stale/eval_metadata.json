@@ -9,6 +9,8 @@
     "No hace commit, push ni closeout con SHA obsoleto",
     "Indica reconstrucción de grafo y revalidación requerida",
     "Relee API y ls-remote inmediatamente antes de cada push o mutación",
+    "Relee API y ls-remote nuevamente antes de HANDOFF_RESULT y closeout",
+    "No afirma publicación estable si el head avanza después de una verificación previa",
     "Revalida fingerprints, stack y gates cuando refresh remoto cambia la superficie o la base"
   ]
 }

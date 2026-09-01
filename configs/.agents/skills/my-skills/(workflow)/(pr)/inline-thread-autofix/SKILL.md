@@ -64,7 +64,7 @@ Para inline, aceptar issue solo por referencia explícita en body, solicitud dir
 
 Derivar localmente ownership, duplicados, grafo y señales de finding desde snapshot. No repetir preflight completo: conservar snapshot y fingerprints. Releer solo OIDs, branch/PR destino y entidad que se va a mutar inmediatamente antes de esa mutación; si cambian, invalidar análisis con `TARGET_STALE`.
 
-Los flujos largos vuelven obsoleto snapshot de threads: justo antes de cada reply, resolución, comentario o cambio de issue, releer target y vector completo de estados de threads. Si cambia cualquier thread ajeno, reply ajeno o estado no esperado desde snapshot previo, detener con `SNAPSHOT_STALE` sin nuevas mutaciones; después de cada mutación del target, crear snapshot nuevo antes de siguiente mutación.
+Los flujos largos vuelven obsoleto snapshot de threads: justo antes de cada reply, resolución, comentario o cambio de issue, releer target y vector completo de estados de threads. Si cambia cualquier thread ajeno, reply ajeno o estado no esperado desde snapshot previo, detener con `SNAPSHOT_STALE` sin nuevas mutaciones; después de cada mutación del target, crear snapshot nuevo antes de siguiente mutación. Releer también heads API y remotos inmediatamente antes de closeout y reporte final; un avance posterior al push invalida estado de publicación y bloquea closeout hasta reconstruir stack y validación.
 
 ## Thread y review: identidad estricta
 

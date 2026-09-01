@@ -280,6 +280,7 @@
       "expectations": [
         "Relee headRefOid y baseRefOid antes de mutar",
         "Detecta cambio concurrente del head",
+        "Relee heads API y remotos antes de HANDOFF_RESULT y closeout",
         "Invalida capa, fingerprint y evidencia previos",
         "No hace commit, push ni closeout con SHA obsoleto",
         "Indica reconstrucción de grafo y revalidación requerida"

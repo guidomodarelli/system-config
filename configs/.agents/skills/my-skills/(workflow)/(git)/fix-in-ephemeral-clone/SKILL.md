@@ -105,7 +105,7 @@ Un rechazo de push solo es reintentable si salida estructurada clasifica stale l
 
 En zsh, citar siempre paths dinámicos y paths con metacaracteres (`*`, `?`, `(`, `)`, `[`, `]`) al pasarlos a comandos; usar arrays para listas de archivos y no depender de globbing implícito. No usar `path` como variable: zsh lo vincula al array especial de `$PATH` y puede dejar comandos básicos fuera del `PATH`; preferir `file_path` u otro nombre descriptivo. Encerrar variables antes de concatenar `:` o cualquier sufijo (`"${source_oid}:refs/heads/${branch}"`); la forma `$source_oid:refs/...` puede interpretarse como parameter modifier y generar un refspec inválido. Validar el refspec final antes de ejecutar push. Un error local de expansión o construcción de comando no es un NFF y no habilita reintentos remotos.
 
-Después de cada push verificar dos fuentes: `git ls-remote origin refs/heads/<branch>` y `gh api "repos/<owner>/<repo>/pulls/<PR>" --jq .head.sha`. No aceptar solo SHA local, salida de push ni `gh pr view` stale. Para stack verificar también base/head final y golden manifest.
+Después de cada push verificar dos fuentes: `git ls-remote origin refs/heads/<branch>` y `gh api "repos/<owner>/<repo>/pulls/<PR>" --jq .head.sha`. No aceptar solo SHA local, salida de push ni `gh pr view` stale. Para stack verificar también base/head final y golden manifest. Releer esas fuentes inmediatamente antes de devolver `HANDOFF_RESULT`; si cualquier head avanzó después de la verificación previa, reportar el SHA actual como stale, no afirmar publicación final estable ni habilitar closeout con snapshot obsoleto.
 
 ## Cleanup y fallos
 
