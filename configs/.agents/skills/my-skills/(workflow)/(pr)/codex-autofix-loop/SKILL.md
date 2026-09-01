@@ -43,7 +43,7 @@ Cubre **tres fuentes** de comentarios de Codex:
 2. Inicializá el estado de dedup del PR (vacío procesa todo el backlog; con ids
    ya cargados procesa solo los nuevos):
    ```
-   .codex-autofix/processed-{{PR}}.json  ->  {"pr":{{PR}},"processedCommentIds":[]}
+   .codex-autofix/processed-{{PR}}.json  ->  {"pr":{{PR}},"processedCommentIds":[],"deferredCommentIds":[]}
    ```
    (`.codex-autofix/` está gitignored: es estado de runtime, no se commitea.)
 3. Lanzá el loop pegando el prompt con el intervalo `{{INTERVAL}}`:
@@ -82,7 +82,7 @@ GUARD DE AUTO-CANCELACIÓN (hacelo SIEMPRE primero). Obtené el estado del PR:
 Auto-cancelar = CronList, identificá el job de ESTE loop (cron `{{CRON}}`, auto-fix de Codex en PR #{{PR}}), borralo con CronDelete por id, PushNotification de una línea avisando el motivo, y terminá sin procesar.
 
 Si OPEN, procesá:
-(1) Leé processedCommentIds desde .codex-autofix/processed-{{PR}}.json. Los ids de comentarios (inline/generales) se guardan como número crudo; los ids de review-body se guardan namespaceados como `"review:<id>"` (evita colisión entre espacios de id distintos).
+(1) Leé `processedCommentIds` y `deferredCommentIds` desde `.codex-autofix/processed-{{PR}}.json`. Los ids de comentarios (inline/generales) se guardan como número crudo; los ids de review-body se guardan namespaceados como `"review:<id>"` (evita colisión entre espacios de id distintos). `processedCommentIds` representa fixes aplicados y cerrados; `deferredCommentIds` representa hallazgos vistos y analizados que el loop decidió no resolver automáticamente. Nunca mezcles ambos estados.
 
 (2) Traé comentarios de chatgpt-codex-connector[bot] de las TRES fuentes:
    - inline: `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments --paginate` (cada uno trae `id`, `path`, `line`, `body` y `pull_request_review_id` = review padre).
@@ -99,7 +99,15 @@ Si OPEN, procesá:
 
 (3) FAN-OUT EN PARALELO (por GRUPO de archivo, con cap de concurrencia).
 
-(3a) ARMÁ LOS GRUPOS DE TRABAJO. Tomá los ítems accionables (los que NO están en processedCommentIds; para review-bodies, además, pasá el filtro de accionabilidad de (3b)) y agrupalos así, porque dos fixes sobre el MISMO archivo/zona en clones paralelos se pisan o explotan en el rebase:
+(3-bis) GUARD DE LÓGICA DE NEGOCIO PARA P1/P2 (antes de (3a), lo decide el LOOP PRINCIPAL). Severidad y naturaleza son ejes independientes: un `P2` puede afectar lógica de negocio. Para cada hallazgo accionable nuevo, leé comentario, código referenciado y cambio solicitado; identificá severidad reportada (`P1`, `P2`, etc.) y si el cambio altera reglas, decisiones, validaciones, cálculos, permisos, estados o cualquier otro comportamiento propio del dominio. No uses tamaño del diff como criterio: un cambio mínimo sigue protegido.
+   - Si severidad es `P1` o `P2` **y** el cambio afecta lógica de negocio, NO lo envíes a ningún grupo ni invoques `fix-in-ephemeral-clone`. No lo cuentes como fix exitoso, no le des 👍, no resuelvas su thread, no lo minimices y no publiques `@codex review` por ese hallazgo.
+   - Marcá su id en `deferredCommentIds` —namespaceado como `"review:<id>"` para review-bodies— solo después de completar y verificar la notificación diferida. No lo agregues a `processedCommentIds`: diferido no significa resuelto ni descartado.
+   - Notificación diferida, idempotente: agregá reacción `eyes` (`👀`) y reply en español indicando que el hallazgo fue visto y analizado, que no se resolverá automáticamente en este loop y que puede resolverse después mediante análisis independiente. Usá la respuesta estándar de «Respuesta de diferimiento» y su marker para detectar replies existentes. Para inline: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/comments/<id>/reactions -f content=eyes` y reply con `in_reply_to=<id>`; para general: `gh api -X POST repos/{{OWNER}}/{{REPO}}/issues/comments/<id>/reactions -f content=eyes` y comentario de respuesta en el PR; para review-body: reacción GraphQL `addReaction` con `content:EYES` sobre `node_id` y quote reply citando el body. Antes de cada POST, releé reacciones/comentarios y no dupliques una reacción o reply ya verificados; ante resultado ambiguo, releé antes de reintentar.
+   - Si el comentario ya está en `deferredCommentIds`, no vuelvas a reaccionar ni responder. Si falla cualquier publicación de la notificación diferida, no marques el id y reportá la etapa pendiente; no lo envíes al fan-out.
+   - Este camino no es `Sin cambios` ni falla técnica: no uses 👎 y no cierres/resuelvas el hallazgo. La resolución posterior, si corresponde, ocurre fuera de este loop.
+   - Todos los demás hallazgos accionables cuyo cambio no afecta lógica de negocio y que sean válidos siguen entrando al autofix, incluso si son `P1`/`P2`. Hallazgos con clasificación insuficiente o incierta no deben entrar al fan-out: detené ese ítem y reportá que requiere análisis independiente, sin presentarlo como fix aplicado.
+
+(3a) ARMÁ LOS GRUPOS DE TRABAJO. Tomá los ítems accionables y elegibles (los que NO están en `processedCommentIds` ni en `deferredCommentIds`; para review-bodies, además, pasá el filtro de accionabilidad de (3b)) y agrupalos así, porque dos fixes sobre el MISMO archivo/zona en clones paralelos se pisan o explotan en el rebase:
    - Los **inline** se agrupan por `path`; si dos inline del mismo `path` tienen `line` solapadas o cercanas, van en el MISMO grupo igual.
    - Cada **general** y cada **review-body accionable** es su propio grupo (no tienen `path`; asumí que pueden tocar cualquier archivo, así que no los mezcles con otros).
    - Un grupo = la unidad que toma UN subagente. Dentro del grupo, el subagente resuelve sus comentarios **secuencialmente en el mismo clone** (un solo push al final). Entre grupos de archivos DISJUNTOS sí hay paralelismo.
@@ -201,6 +209,23 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
 > vive solo en este loop local; portarlo al Action `.github/workflows/codex-autofix.yml`
 > queda como follow-up pendiente.
 
+## Respuesta de diferimiento (solo loop local)
+
+Esta respuesta no es closeout compartido con el Action: documenta una decisión del
+loop local y no resuelve el hallazgo.
+
+```text
+👀 **Visto y analizado.** Este hallazgo involucra lógica de negocio y no se resolverá automáticamente en este loop. Puede resolverse después mediante análisis independiente.
+
+<!-- codex-autofix: deferred:{{comment_id}} -->
+
+<sub>🤖 Auto-fix de Codex: diferido, no resuelto · [run]({{run_url}})</sub>
+```
+
+Antes de publicar, buscá el marker `<!-- codex-autofix: deferred:<comment_id> -->` en
+respuestas/comentarios del mismo PR. Si existe, no publiques otro reply; verificá la
+reacción `eyes` del actor del loop y agregala solo si falta.
+
 ## Notas
 
 - **Fan-out por grupo de archivo, con cap de concurrencia**: la unidad de trabajo
@@ -224,9 +249,13 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   escritura de `processed-<PR>.json` la serializa el loop principal (único
   escritor).
 - **Estado por PR**: un archivo `processed-<PR>.json` por cada PR en seguimiento;
-  así un mismo loop o varios loops no reprocesan lo ya hecho. Los review-bodies
-  se guardan namespaceados (`"review:<id>"`) para no colisionar con ids de
-  comentarios inline/generales (espacios de id distintos).
+  así un mismo loop o varios loops no reprocesan lo ya hecho. `processedCommentIds`
+  contiene únicamente fixes aplicados/cerrados; `deferredCommentIds` contiene
+  hallazgos P1/P2 de lógica de negocio ya vistos y analizados, pero no resueltos
+  automáticamente. Los review-bodies se guardan namespaceados (`"review:<id>"`)
+  para no colisionar con ids de comentarios inline/generales (espacios de id
+  distintos). En estados anteriores sin `deferredCommentIds`, tratá el campo como
+  una lista vacía.
 - **Tres fuentes**: inline (`pulls/{pr}/comments`), generales
   (`issues/{pr}/comments`) y review-bodies (`pulls/{pr}/reviews`). El review-body
   se procesa solo si trae una sugerencia accionable real; igual entra al paso de
