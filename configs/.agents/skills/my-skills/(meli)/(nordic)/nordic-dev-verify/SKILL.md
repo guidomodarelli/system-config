@@ -1,6 +1,6 @@
 ---
 name: nordic-dev-verify
-description: Verifica flujos runtime de aplicaciones web Nordic en entorno de desarrollo mediante browser y Chrome DevTools MCP. Usar siempre que se pida ejecutar, probar, validar o confirmar manualmente un cambio frontend Nordic en `dev.adminml.com`, incluso si usuario no menciona esta skill por nombre.
+description: Verifica flujos runtime de aplicaciones web Nordic en entorno local o de desarrollo mediante browser y Chrome DevTools MCP. Activar de forma proactiva siempre que el usuario proporcione una URL Nordic (incluida `dev.adminml.com`), mencione una acción de UI o reporte un stack trace, error de consola, request XHR/fetch, `404`, `5xx`, `JSON.parse`, fallo de red o comportamiento inesperado al ejecutar la aplicación; también cuando pida ejecutar, reproducir, depurar, probar, validar o confirmar un flujo frontend. Usar aunque no diga explícitamente “validar”, no pida una prueba manual o no mencione esta skill por nombre.
 ---
 
 # Verificar aplicaciones Nordic en desarrollo
