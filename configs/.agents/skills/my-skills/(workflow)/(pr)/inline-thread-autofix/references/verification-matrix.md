@@ -25,6 +25,20 @@
 | Worktrees | ninguna ref propia está checkoutada antes de cleanup; si lo está, se conserva y se informa fallo |
 | Cleanup | solo después de rebase, validaciones, publicación, closeout y verificación final; transacción condicional y comprobación posterior |
 
+## Handoff a `fix-in-ephemeral-clone`
+
+| Verificación | Resultado requerido |
+|---|---|
+| Ownership | `inline-thread-autofix` coordina GitHub/stack/closeout; `fix-in-ephemeral-clone` ejecuta clone, código, validación, commit, push y cleanup |
+| Entrada | header `HANDOFF: INLINE_THREAD_AUTOFIX` completo, con repo, PR, branch, OIDs, ancla y criterios validados |
+| Routing | URL PR directa delega una sola vez a `inline-thread-autofix`; handoff no vuelve a delegar |
+| Frescura | `expected_head_oid` y `expected_base_oid` coinciden antes de editar y publicar; cambios producen `TARGET_STALE` |
+| Aislamiento | un único clone depth-1; checkout original permanece intacto; no se crean worktrees/clones adicionales |
+| Scope | backend usa solo branch y `stack_plan` entregados; no descubre ni publica ramas adicionales |
+| Resultado | `HANDOFF_RESULT` contiene status exitoso, SHA completo, head remoto verificado, validaciones, backups y cleanup |
+| Closeout | backend no muta GitHub; reply, resolución, review, issue y comentarios quedan bloqueados hasta resultado completo |
+| Fallos | resultado incompleto, validación fallida, clone retenido o backup preservado bloquea closeout y evita reintento duplicado |
+
 ## Stack y selección de capa
 
 | Verificación | Resultado requerido |

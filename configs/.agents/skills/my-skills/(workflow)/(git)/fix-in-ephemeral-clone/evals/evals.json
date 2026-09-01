@@ -1,0 +1,68 @@
+{
+  "skill_name": "fix-in-ephemeral-clone",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456789\nResuelve este comentario inline.",
+      "expected_output": "Delegá exactamente una vez en inline-thread-autofix y no ejecutes clone, edición, commit, push ni closeout desde este flujo.",
+      "files": [],
+      "expectations": [
+        "Reconoce URL PR inline válida",
+        "Invoca inline-thread-autofix como orquestadora",
+        "Detiene el flujo local antes de crear clone",
+        "No duplica commit, push ni closeout"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nfinding_anchor: src/service.js:42\nfinding_summary: Evitar exposición de datos upstream\nacceptance_criteria: DTO allowlisted y test negativo\nstack_plan: none\nissue: none",
+      "expected_output": "Ejecuta un único clone efímero sobre branch y OIDs entregados, valida, commitea, pushea solo branch autorizada, devuelve HANDOFF_RESULT y no muta GitHub.",
+      "files": [],
+      "expectations": [
+        "Acepta modo INLINE_THREAD_AUTOFIX_HANDOFF",
+        "Usa implementation_repo y implementation_branch sin inferir destino",
+        "Valida expected_head_oid antes de editar",
+        "Devuelve SHA completo y evidencia de validación",
+        "No invoca inline-thread-autofix recursivamente",
+        "No publica reply, review, issue o resolución"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nexpected_head_oid: 0123456789012345678901234567890123456789",
+      "expected_output": "Rechaza handoff incompleto antes de editar o pushear; devuelve fallo explícito al orquestador y conserva cualquier recurso creado.",
+      "files": [],
+      "expectations": [
+        "Exige campos obligatorios del contrato",
+        "No inventa ancla ni criterios de aceptación",
+        "No crea commit ni push con handoff incompleto",
+        "No inicia closeout GitHub"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Corregí issue #901 en un clone efímero, validá, commiteá, pusheá a la branch actual y limpiá el clone.",
+      "expected_output": "Mantiene modo DIRECT y ejecuta el flujo genérico completo sin intentar invocar inline-thread-autofix.",
+      "files": [],
+      "expectations": [
+        "Clasifica solicitud sin URL PR como DIRECT",
+        "Descubre branch y upstream actuales",
+        "Crea clone depth-1 nuevo",
+        "Valida antes de commit y push",
+        "Limpia únicamente clone creado"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "https://github.com/acme/widgets/pull/42#pullrequestreview-invalid\nAplicá cualquier fix.",
+      "expected_output": "Trata entrada como intento de PR review, delega validación a inline-thread-autofix y no la interpreta como issue genérica.",
+      "files": [],
+      "expectations": [
+        "Reconoce fragment inválido de review",
+        "Delega validación al orquestador",
+        "No inventa review ID",
+        "No crea clone ni mutación"
+      ]
+    }
+  ]
+}

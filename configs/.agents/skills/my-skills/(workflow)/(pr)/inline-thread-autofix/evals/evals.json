@@ -451,6 +451,31 @@
         "No elimina refs ajenas ni realiza cleanup parcial",
         "Verifica que refs preexistentes permanecen intactas"
       ]
+    },
+    {
+      "id": 35,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456816\nAplicá este fix usando aislamiento efímero y cerrá el comentario.",
+      "expected_output": "Orquesta preflight y closeout, delega una sola ejecución local a fix-in-ephemeral-clone y espera HANDOFF_RESULT antes de mutar GitHub.",
+      "files": [],
+      "expectations": [
+        "Declara inline-thread-autofix como orquestadora",
+        "Construye HANDOFF con branch, OIDs, ancla y criterios validados",
+        "Invoca fix-in-ephemeral-clone exactamente una vez",
+        "No crea clone, commit ni push directamente",
+        "Bloquea closeout ante resultado incompleto"
+      ]
+    },
+    {
+      "id": 36,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456817\nEl backend devuelve TARGET_STALE y conserva clone o backups.",
+      "expected_output": "Detiene closeout, reporta fallo y estado de recursos retenidos; no reintenta backend ni publica reply o resolución.",
+      "files": [],
+      "expectations": [
+        "Trata TARGET_STALE como fallo de handoff",
+        "No invoca backend una segunda vez",
+        "No publica closeout parcial",
+        "Conserva evidencia de clone y backups"
+      ]
     }
   ]
 }
