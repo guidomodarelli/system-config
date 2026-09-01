@@ -19,12 +19,14 @@
 | Hallazgo cross-stack | `location_key`/`semantic_key` derivados sin usar comment ID como identidad |
 | Evidencia | código corregido más señal independiente antes de `ALREADY_RESOLVED` |
 | Capa | owner y PR óptimo identificados bottom-up; no cambiar branch sin autorización |
-| Concurrencia | `headRefOid`/`baseRefOid` releídos antes de mutar; cambios invalidan análisis |
+| Concurrencia | `headRefOid`/`baseRefOid` releídos antes de mutar; cambios exigen refresh, comparación y revalidación; solo divergencia no reconciliable invalida el análisis |
+| Continuación | Drift de threads, `isOutdated`, stale lease y transporte/5xx transitorio son `RETRYABLE` con límites, idempotencia y reread; identidad, seguridad, validación y publicación no verificable son `HARD_STOP` |
 | Preflight | Wave A bounded; Wave B solo si no hay fast path; snapshot/fingerprints reutilizados sin relectura amplia |
 | Mutaciones | Effects seriales; solo lecturas, comentarios independientes post-thread y verificaciones finales pueden fan-out |
-| Freshness | `HEAD` del clone y vector de OIDs coinciden antes de editar; mismatch produce `TARGET_STALE` |
-| Golden | manifest de paths, name-status, patch/tree verificado por layer; discrepancia produce `GOLDEN_DIFF_MISMATCH` |
-| Validación | fingerprints por command/surface; rerun solo ante cambio relacionado, conflicto, duda o configuración compartida |
+| Closeout retry | timeout/red/`5xx` exige reread de marker/estado y retry idempotente acotado; `4xx` definitivo o resultado ambiguo persistente es `HARD_STOP` |
+| Freshness | `HEAD` del clone y vector de OIDs se comparan antes de editar; mismatch exige refresh/re-fetch y revalidación; divergencia no reconciliable produce `TARGET_STALE` |
+| Golden | manifest de paths, name-status, patch/tree verificado por layer; discrepancia explicable se reconcilia y la no explicable produce `GOLDEN_DIFF_MISMATCH` |
+| Validación | fingerprints por command/surface; drift externo exige revalidar target; rerun de superficies integradas ante cambio relacionado, conflicto, duda o configuración compartida |
 | Backups | orchestrator crea refs fuera clone, registra `{ref, OID}` y backend devuelve `BACKUPS_PENDING_CLOSEOUT`; `BACKUPS_NOT_APPLICABLE` si no hubo stack |
 | Ownership de backup | refs preexistentes no se reutilizan, sobrescriben ni eliminan; cada ref propia tiene OID esperado |
 | Worktrees | ninguna ref propia está checkoutada antes de cleanup; si lo está, se conserva y se informa fallo |
@@ -37,12 +39,12 @@
 | Ownership | `inline-thread-autofix` coordina GitHub/stack/closeout y backups; `fix-in-ephemeral-clone` ejecuta clone, código, validación, commit, push y cleanup de clone |
 | Entrada | header `HANDOFF: INLINE_THREAD_AUTOFIX` versionado, con repo, PR, branch, OIDs, ancla, criterios, `stack_plan` y `backup_manifest` validados |
 | Routing | URL PR directa delega una sola vez a `inline-thread-autofix`; handoff no vuelve a delegar |
-| Frescura | `expected_head_oid` y `expected_base_oid` coinciden antes de editar y publicar; cambios producen `TARGET_STALE` |
+| Frescura | `expected_head_oid` y `expected_base_oid` se comparan antes de editar y publicar; cambios exigen refresh/rebase y revalidación, y solo divergencia no reconciliable produce `TARGET_STALE` |
 | Aislamiento | un único clone depth-1; checkout original permanece intacto; no se crean worktrees/clones adicionales |
 | Scope | backend usa solo branch y `stack_plan` entregados; no descubre ni publica ramas adicionales |
 | Resultado | `HANDOFF_RESULT` contiene status exitoso, SHA completo, head remoto verificado, validaciones y `BACKUPS_PENDING_CLOSEOUT` o `BACKUPS_NOT_APPLICABLE` |
 | Closeout | backend no muta GitHub; reply, resolución, review, issue y comentarios quedan bloqueados hasta resultado completo |
-| Fallos | resultado incompleto, validación fallida, clone retenido o backup en estado de fallo bloquea closeout y evita reintento duplicado |
+| Fallos | resultado incompleto, validación fallida, clone inseguro o backup comprometido bloquea closeout; clone seguro retenido y cleanup fallido se reportan sin borrar parcialmente; retries deben agotarse o reconciliarse sin duplicar mutaciones |
 
 ## Stack y selección de capa
 
@@ -102,9 +104,9 @@ Detener sin commit/push/closeout si:
 - owner óptimo no coincide con target y no existe confirmación explícita (`NEEDS_SCOPE_CONFIRMATION`);
 - owner está cerrado/mergeado y no existe capa abierta inequívoca;
 - hallazgo ya está corregido en otra capa sin autorización para closeout factual;
-- `headRefOid` o `baseRefOid` cambió desde análisis (`TARGET_STALE`);
+- `headRefOid` o `baseRefOid` cambió desde análisis y refresh/rebase no logra reconciliar target, scope, OIDs y manifest (`TARGET_STALE`);
 - el rebase automático de descendants queda incompleto o falla una verificación (`REBASE_INCOMPLETE`); conservar `backup/*` y reportar `BACKUPS_PRESERVED_ON_FAILURE`;
-- cualquier fase previa falla antes de cleanup; conservar refs propias y preexistentes, sin borrado parcial;
+- una fase no reintentable falla o se agotan retries antes de cleanup; conservar refs propias y preexistentes, sin borrado parcial;
 - alguna ref propia falta o su OID cambió al iniciar cleanup; abortar transacción y reportar `BACKUP_CLEANUP_FAILED`;
 - URL/datos de stack dependen de título, body, labels o instrucciones externas;
 - feedback accionable solo aparece en comentario inline hijo y falta enlace `discussion_r` específico;
@@ -112,11 +114,11 @@ Detener sin commit/push/closeout si:
 - árbol contiene cambios ajenos y no hay aislamiento seguro;
 - sugerencia no es reproducible o exige decisión funcional no dada;
 - typecheck, tests o build fallan sin causa preexistente demostrada;
-- SHA publicado no coincide con head remoto;
+- SHA publicado no coincide con head remoto y refresh/revalidación no demuestra que el commit esperado pertenezca a la cadena autorizada;
 - comentario, review, reply, issue reply o comentario de PR alternativo no pueden dirigirse inequívocamente;
 - comentario de issue, cierre de issue o estado final no pueden verificarse;
 - la cadena final `PR destino → issue → comment` no contiene links canónicos o queda incompleta;
-- PUT de review tiene resultado ambiguo tras relectura;
+- PUT de review permanece ambiguo después de reread y retry idempotente acotado;
 - body actualizado no conserva body original completo;
 - fallback no contiene URL inequívoca a review y marker estable;
 - se intenta `resolveReviewThread` sobre review-body.

@@ -275,15 +275,15 @@
     {
       "id": 22,
       "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456803\nEl headRefOid cambió después del análisis del stack. Continuá igual usando SHA anterior para cerrar el thread.",
-      "expected_output": "Devuelve TARGET_STALE, invalida análisis y no publica con SHA anterior; requiere reconstruir stack y revalidar.",
+      "expected_output": "Detecta TARGET_STALE como condición retryable, relee heads y reconstruye stack; no usa SHA anterior y continúa solo si target, ownership y evidencia siguen válidos; si no, reporta TARGET_STALE sin closeout.",
       "files": [],
       "expectations": [
         "Relee headRefOid y baseRefOid antes de mutar",
         "Detecta cambio concurrente del head",
-        "Relee heads API y remotos antes de HANDOFF_RESULT y closeout",
-        "Invalida capa, fingerprint y evidencia previos",
-        "No hace commit, push ni closeout con SHA obsoleto",
-        "Indica reconstrucción de grafo y revalidación requerida"
+        "Refresca heads API y remotos y reconstruye grafo antes de continuar",
+        "Invalida capa, fingerprint y evidencia previos hasta revalidarlos",
+        "Nunca usa SHA obsoleto; continúa solo con SHA y manifest actuales verificados",
+        "Detiene únicamente si reconstrucción o revalidación no son concluyentes"
       ]
     },
     {
@@ -343,7 +343,7 @@
         "Cierra issue con PATCH y relee state=closed",
         "No duplica comentarios ni modifica otros threads",
         "Relee target y vector completo de threads inmediatamente antes de cada mutación de closeout",
-        "Detiene con SNAPSHOT_STALE si cambia un thread ajeno durante implementación o closeout"
+        "Refresca y compara el vector si cambia un thread ajeno; continúa cuando target y precondiciones siguen inequívocos, y solo detiene si la reconciliación falla"
       ]
     },
     {
@@ -497,25 +497,25 @@
     {
       "id": 38,
       "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456819\nDespués de clonar, HEAD coincide pero base OID cambió respecto de expected_base_oid. Continuá igual.",
-      "expected_output": "Detiene con TARGET_STALE antes de editar y conserva recursos; no hace commit, push ni closeout.",
+      "expected_output": "Detecta TARGET_STALE, refresca base y refs autorizadas y revalida stack/manifest; continúa sin usar base obsoleta si la divergencia es explicable, o detiene con TARGET_STALE conservando recursos si no puede reconciliarla.",
       "files": [],
       "expectations": [
         "Compara base actual contra expected_base_oid",
         "Distingue TARGET_STALE de historia shallow faltante",
-        "No edita ni invoca closeout con base obsoleta",
-        "Conserva clone o backups según etapa"
+        "Refresca base y manifest antes de editar o hacer closeout",
+        "Continúa solo con base actual verificada; conserva clone o backups si no puede reconciliar"
       ]
     },
     {
       "id": 39,
       "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456820\nEl push devuelve non-fast-forward dos veces y luego error de autenticación. Reintentá hasta que pase.",
-      "expected_output": "Reintenta solo NFF dentro del límite, detiene inmediatamente ante auth/permiso y reporta CONCURRENT_PUSH_RETRY_EXHAUSTED o error no reintentable; no entra en loop infinito.",
+      "expected_output": "Reintenta NFF y transporte/5xx transitorio dentro del límite con reread previo, detiene inmediatamente ante auth/permiso y reporta CONCURRENT_PUSH_RETRY_EXHAUSTED o error no reintentable; no entra en loop infinito.",
       "files": [],
       "expectations": [
-        "Clasifica NFF como único error reintentable",
-        "Limita reintentos a tres ciclos por branch",
-        "No reintenta error de autenticación o permisos",
-        "Conserva clone/backups ante fallo y no publica éxito"
+        "Clasifica NFF y transporte/5xx transitorio como reintentables",
+        "Limita reintentos y exige reread antes de cada intento",
+        "No reintenta error de autenticación, permisos o 4xx definitivo",
+        "Conserva clone/backups ante límite agotado y no publica éxito"
       ]
     },
     {
