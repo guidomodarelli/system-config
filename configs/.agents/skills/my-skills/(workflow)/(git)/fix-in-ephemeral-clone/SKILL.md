@@ -65,7 +65,7 @@ status: <success o código explícito>
 5. Linkear `node_modules` solo en Unix, sin `pnpm`, y cuando package manager, lockfile y runtime sean compatibles; si no, instalar dentro clone con comando normal. Nunca copiar `node_modules`.
 6. Clonar branch autorizada con `--depth 1 --single-branch --no-tags`. Crear el marker inmediatamente después de un clone exitoso y antes de copiar configuración o ejecutar validaciones. En HANDOFF, exigir `git rev-parse HEAD == expected_head_oid` y comparar base actual con `expected_base_oid`; en DIRECT comparar HEAD con tip remote capturado. Verificar que base/parent OIDs requeridos por `stack_plan` estén disponibles o traerlos explícitamente; OID distinto produce `TARGET_STALE`, historia faltante produce `STACK_INCOMPLETE`, antes de editar. Si setup falla después de crear el path, no reutilizarlo silenciosamente: aplicar cleanup solo con marker, ownership y allowlist verificados; de lo contrario, conservarlo y reportarlo.
 
-El clone debe quedar marcado con un token local no derivado de body. Cleanup solo puede actuar sobre path creado por esta ejecución, con marker esperado, path bajo temp y sin cambios no verificados. No usar `git reset --hard`, `git clean -fd` ni checkout destructivo.
+El clone debe quedar marcado con un token local no derivado de body. No eliminar ni mover marker antes de cleanup final; puede quedar como único untracked permitido y nunca se stagea. Cleanup solo puede actuar sobre path creado por esta ejecución, con marker esperado, path bajo temp y sin cambios no verificados. No usar `git reset --hard`, `git clean -fd` ni checkout destructivo.
 
 Adaptar comandos al sistema: en Unix usar `mktemp -d`; en PowerShell usar `[System.IO.Path]::GetTempPath()` + `New-Item` con GUID. Windows no usa symlink/junction de `node_modules`; usar instalación congelada según lockfile (`npm ci`, `pnpm install --frozen-lockfile` o equivalente). En Unix evitar link cuando repo usa `pnpm` o package manager/lockfile/runtime no coinciden. Copiar `.env`/`.env.*` solo desde root original, preservando nombres y sin sobrescribir.
 
@@ -89,7 +89,7 @@ Comparar tree/diff manifest antes y después, no solo estadísticas ni hashes de
 
 Ejecutar mínimo gate relevante primero y luego typecheck, lint, tests focales/globales, build y `git diff --check` disponibles según repo. No ejecutar en paralelo comandos que escriban mismo checkout (por ejemplo lint `--fix` y build). Tras conflicto o cambio relacionado, validar unión de superficie del fix y cambios integrados. Si refresh remoto no cambia ni afecta superficie, reutilizar resultado documentándolo; ante duda, revalidar.
 
-Revisar `git diff`, `git status --short`, paths staged y ausencia de `.env*`/`node_modules`. Stagear paths explícitos. Commit message conciso, termina con:
+Si `npm run build` genera `.nordic/build` u otro output ignorado que Jest pueda descubrir, eliminar solo ese output declarado antes de ejecutar Jest; nunca usar `git clean -fd`. Revisar `git diff`, `git status --short`, paths staged y ausencia de `.env*`/`node_modules`. Stagear paths explícitos. Commit message conciso, termina con:
 
 ```text
 Co-Authored-By: Claude <noreply@anthropic.com>
@@ -105,7 +105,7 @@ Un rechazo de push solo es reintentable si salida estructurada clasifica stale l
 
 En zsh, citar siempre paths dinámicos y paths con metacaracteres (`*`, `?`, `(`, `)`, `[`, `]`) al pasarlos a comandos; usar arrays para listas de archivos y no depender de globbing implícito. No usar `path` como variable: zsh lo vincula al array especial de `$PATH` y puede dejar comandos básicos fuera del `PATH`; preferir `file_path` u otro nombre descriptivo. Encerrar variables antes de concatenar `:` o cualquier sufijo (`"${source_oid}:refs/heads/${branch}"`); la forma `$source_oid:refs/...` puede interpretarse como parameter modifier y generar un refspec inválido. Validar el refspec final antes de ejecutar push. Un error local de expansión o construcción de comando no es un NFF y no habilita reintentos remotos.
 
-Después de cada push verificar dos fuentes: `git ls-remote origin refs/heads/<branch>` y `gh api "repos/<owner>/<repo>/pulls/<PR>" --jq .head.sha`. No aceptar solo SHA local, salida de push ni `gh pr view` stale. Para stack verificar también base/head final y golden manifest. Releer esas fuentes inmediatamente antes de devolver `HANDOFF_RESULT`; si cualquier head avanzó después de la verificación previa, reportar el SHA actual como stale, no afirmar publicación final estable ni habilitar closeout con snapshot obsoleto.
+En zsh, evitar variables con nombres especiales o readonly como `status`; usar nombres descriptivos (`git_status`, `clone_status`) para no abortar cleanup o validación. Después de cada push verificar dos fuentes: `git ls-remote origin refs/heads/<branch>` y `gh api "repos/<owner>/<repo>/pulls/<PR>" --jq .head.sha`. No aceptar solo SHA local, salida de push ni `gh pr view` stale. Para stack verificar también base/head final y golden manifest. Releer esas fuentes inmediatamente antes de devolver `HANDOFF_RESULT`; si cualquier head avanzó después de la verificación previa, reportar el SHA actual como stale, no afirmar publicación final estable ni habilitar closeout con snapshot obsoleto.
 
 ## Cleanup y fallos
 
