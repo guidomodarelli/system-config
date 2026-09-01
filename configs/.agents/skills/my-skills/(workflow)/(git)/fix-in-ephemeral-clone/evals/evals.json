@@ -96,6 +96,7 @@
       "expectations": [
         "Enumera `.env` y `.env.*` sin depender de un glob zsh sin coincidencias",
         "Cita paths con paréntesis y metacaracteres antes de pasarlos a comandos zsh",
+        "No usa `path` como variable zsh porque modifica el array especial de `$PATH`",
         "Usa `${variable}:suffix` al concatenar variables y dos puntos en refspecs",
         "Distingue error local de expansión o refspec de NFF remoto",
         "No deja paths temporales sin ownership o cleanup verificable"
