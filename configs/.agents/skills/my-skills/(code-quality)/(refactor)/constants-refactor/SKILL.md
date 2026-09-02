@@ -1,6 +1,6 @@
 ---
 name: constants-refactor
-description: Analiza y refactoriza constantes, literales funcionales y contratos cross-layer en cualquier repositorio de código. Usar siempre que usuario pida revisar constantes, mover valores a constants/, limpiar hardcodes, responder comentarios de PR sobre constantes, centralizar límites/códigos/rutas/regex o reducir duplicación entre capas, aunque no mencione explícitamente una carpeta constants. Clasifica qué mover y qué mantener local, preserva comportamiento y aplica cambios seguros con validación completa.
+description: Analiza y refactoriza constantes, literales funcionales y contratos cross-layer en cualquier repositorio de código. Invocar siempre que se cree, modifique, elimine, mueva o revise una constante, aunque el cambio parezca puntual; también usar cuando usuario pida revisar constantes, mover valores a constants/, limpiar hardcodes, responder comentarios de PR sobre constantes, centralizar límites/códigos/rutas/regex o reducir duplicación entre capas, aunque no mencione explícitamente una carpeta constants. Clasifica qué mover y qué mantener local, preserva comportamiento y aplica cambios seguros con validación completa.
 ---
 
 # Constants Refactor
@@ -75,6 +75,8 @@ Antes de migrar consumers, recorrer destino y todos sus barrels ascendentes. Si 
 - No atomizar por estética valores únicos, labels/copy, fixtures externos, mapas contractuales ya cohesivos o literales triviales sin reutilización real.
 - Un refactor de constants debe limitarse a extracción, composición y migración de referencias; no agregar condicionales, guards, normalización ni cambios de validación salvo pedido explícito separado.
 - Priorizar composición simple y legible. Mantener regex literales cuando derivarlas dinámicamente agregue helpers, escapes o complejidad sin reducir un drift comprobado; en ese caso cubrir sincronización con tests.
+- Si patrón canónico ya existe como variable (por ejemplo, string compartido entre schemas legacy), reutilizarlo mediante `new RegExp(CANONICAL_PATTERN)` cuando consumidor requiera `RegExp`; no duplicar equivalente literal solo para evitar una advertencia de lint.
+- Cuando `security/detect-non-literal-regexp` marque una conversión segura desde constante canónica, usar suppress puntual y documentado en inglés, limitado a esa línea o bloque; no eliminar fuente única ni silenciar regla para archivo completo sin motivo.
 
 ## Alcance y exclusiones
 
