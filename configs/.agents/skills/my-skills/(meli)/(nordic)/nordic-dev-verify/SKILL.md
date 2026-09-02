@@ -12,10 +12,29 @@ Validar comportamiento observable desde UI y requests de red sin exponer credenc
 ## Preparar verificación
 
 1. Confirmar servidor disponible en `https://dev.adminml.com:8443`.
-2. Autenticar sesión corporativa en browser cuando sea necesario.
-3. Identificar ruta afectada, flujo esperado y requests relevantes antes de interactuar.
-4. Si flujo modifica estado, elegir fixture sandbox conocido, registrar estado inicial y definir restauración antes de ejecutar acción.
-5. No usar datos productivos ni fixtures compartidos cuyo estado no pueda restaurarse con seguridad.
+2. Abrir la ruta en browser y detectar si redirige a Okta u otro proveedor corporativo, o si browser muestra una advertencia de certificado/TLS.
+3. Si aparece autenticación Okta:
+   - pausar el workflow inmediatamente y dejar browser abierto;
+   - informar al usuario que debe completar/aprobar autenticación;
+   - esperar confirmación explícita del usuario (por ejemplo, `listo` o `aprobado`) antes de continuar;
+   - no solicitar, ingresar, leer ni reportar credenciales, códigos, cookies o tokens;
+   - después de confirmación, verificar que browser volvió a ruta original y que sesión quedó activa; si no, clasificar como `BLOCKED`.
+4. Si una URL empieza con `https://` pero browser muestra `Not secure`, o aparece un intersticial de certificado:
+   - pausar el workflow y dejar browser abierto;
+   - informar al usuario que debe revisar el host y el certificado;
+   - pedirle que pulse `Advanced` y el enlace equivalente a `Proceed/Continue ... (unsafe)` solo si reconoce y acepta el entorno de desarrollo;
+   - esperar confirmación explícita del usuario antes de ejecutar cualquier snapshot, click, probe o lectura de requests;
+   - no hacer click en la excepción TLS por cuenta propia ni ocultar la advertencia;
+   - después de confirmación, verificar que la URL sigue usando `https://` y que el host coincide exactamente con el destino esperado; si no, clasificar como `BLOCKED`.
+5. Identificar ruta afectada, flujo esperado y requests relevantes antes de interactuar.
+6. Si flujo modifica estado, elegir fixture sandbox conocido, registrar estado inicial y definir restauración antes de ejecutar acción.
+7. No usar datos productivos ni fixtures compartidos cuyo estado no pueda restaurarse con seguridad.
+
+## Protocolo de espera por autenticación y seguridad del browser
+
+La aprobación del usuario es un punto de sincronización obligatorio, no una instrucción implícita para continuar. Tras abrir Okta o una advertencia TLS/`Not secure`, no ejecutar snapshot final, clicks, probes, lectura de requests de la aplicación ni diagnóstico de negocio hasta recibir confirmación explícita. Mantener el mismo browser/contexto para conservar sesión; nunca reiniciar o reemplazarlo durante la espera salvo que el usuario lo solicite.
+
+No clasificar una pantalla de login, un `401` previo a autenticación, una advertencia TLS o la ausencia de requests de aplicación como `FAIL` del producto. Clasificar como `BLOCKED` y pedir al usuario completar/aprobar el paso interactivo; solo investigar el flujo después de confirmar callback exitoso y conexión HTTPS aceptada conscientemente.
 
 ## Ejecutar flujo
 
