@@ -286,7 +286,7 @@ Use `nordic-dev-verify` for browser runtime evidence.
 - Async effect cancellation: use `react-useeffect-abortcontroller`.
 - Render performance: use `react-render-performance-patterns`.
 - User-facing translations: use `react-i18n-ui-text`.
-- Route input schemas: use `input-validation` alongside this skill.
+- Route input schemas: use `fix-unvalidated-input-access` alongside this skill.
 
 This skill owns consistency between SSR HTML and first client render.
 

@@ -156,7 +156,7 @@ Si datos SSR hidratan React, aplicar `prevent-ssr-hydration-mismatches`. En Nord
 - `prevent-ssr-hydration-mismatches`: igualdad entre HTML SSR y primer render cliente.
 - `react-useeffect-abortcontroller`: cancelación y races en efectos async.
 - `refactor-nordic-api-service-restclient`: mecánica Nordic/Kraken service → API route → browser hook.
-- `input-validation`: API concreta de schema validation Nordic.
+- `fix-unvalidated-input-access`: API concreta de schema validation Nordic.
 - `use-nordic-logger`: API y formato de logging estructurado.
 - `nordic-dev-verify`: validación runtime de app Nordic.
 - `review-security`: auditoría AppSec exhaustiva.
