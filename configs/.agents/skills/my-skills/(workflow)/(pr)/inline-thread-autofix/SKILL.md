@@ -1,6 +1,6 @@
 ---
 name: inline-thread-autofix
-description: "Orquesta feedback accionable de un PR GitHub desde URL `#discussion_r...` o `#pullrequestreview-...`: inspecciona PR, código, stack y referencias explícitas a issues; antes de implementar pregunta si el usuario quiere checkout actual, worktree hermano mediante `/sibling-worktree` o clone efímero mediante `/fix-in-ephemeral-clone`. Ejecuta solo el entorno elegido y reporta path absoluto y branch cuando corresponda. Para inline comments responde y resuelve thread; si comment referencia inequívocamente issue del mismo repo, responde y cierra también issue. Si PR fuente está cerrado/mergeado, trabaja en PR abierto de branch relacionada solo con ownership verificable y agrega comentario PR destino → issue → comment original. Para review-bodies preserva body o usa fallback. Usar siempre al recibir estos links; refrescar y reconciliar cambios ajenos de threads, y detener ante ambigüedad, precondiciones inseguras o closeout no verificable."
+description: "Orquesta feedback accionable de un PR GitHub desde URL `#discussion_r...` o `#pullrequestreview-...`: inspecciona PR, código, stack y referencias explícitas a issues; antes de implementar pregunta si el usuario quiere checkout actual, worktree hermano mediante `/sibling-worktree` o clone efímero mediante `/fix-in-ephemeral-clone`. Ejecuta solo el entorno elegido y reporta path absoluto y branch cuando corresponda. Para inline comments responde y resuelve thread; si el comentario no se encuentra, asume que fue eliminado y permite closeout sin publicar reply `Resuelto`, sujeto a fix y head verificables; si comment referencia inequívocamente issue del mismo repo, responde y cierra también issue. Si PR fuente está cerrado/mergeado, trabaja en PR abierto de branch relacionada solo con ownership verificable y agrega comentario PR destino → issue → comment original. Para review-bodies preserva body o usa fallback. Usar siempre al recibir estos links; refrescar y reconciliar cambios ajenos de threads, y detener ante ambigüedad, precondiciones inseguras o closeout no verificable."
 ---
 
 # Inline Thread Autofix
@@ -115,6 +115,17 @@ Antes de cualquier mutation afirmar equivalencia `target_thread_id -> commentId`
 
 `isOutdated: true` no invalida automáticamente hallazgo: revisar código vigente y reconstruir evidencia sobre head actual. Si target ya tiene `isResolved: true`, aplicar distinción de fast gate anterior: closeout verificado termina; `ALREADY_RESOLVED` con evidencia permite solo destinos faltantes; `RESOLVED_UNVERIFIED` queda read-only, sin backend, reply, resolución ni cierre de issue. Un reply que solo enlaza issue no es closeout.
 
+#### Comentario inline eliminado
+
+Si el comentario devuelve `404 Not Found` o no aparece después de refrescar comentarios y threads, asumir `COMMENT_DELETED`. Revalidar PR, head remoto, commit del fix y validaciones; luego:
+
+- No publicar reply ni comentario `Resuelto`.
+- Resolver solo `target_thread_id` exacto si el thread todavía existe.
+- Si el thread también desapareció, registrar `thread: not_resolvable` y finalizar sin otra mutation.
+- No cerrar una issue automáticamente; hacerlo solo ante solicitud explícita del usuario y asociación previamente validada.
+
+Un error distinto de `404`, una respuesta ambigua o un thread diferente mantienen `HARD_STOP`.
+
 ### Review body
 
 Validar `id`, `node_id`, `pull_request_url`, `html_url`, autor, body no vacío y estado publicado (`COMMENTED`, `APPROVED` o `CHANGES_REQUESTED`). Comentarios con `pull_request_review_id == reviewId` son hijos separados: no modificarlos ni inferir feedback desde ellos. Si body no identifica path, símbolo, expresión o comportamiento, detener con `FINDING_ANCHOR_AMBIGUOUS`.
@@ -192,7 +203,10 @@ Leer [`closeout-template.md`](references/closeout-template.md). Antes de mutatio
 
 ### Inline
 
-1. Si no existe closeout previo, crear reply en endpoint `/pulls/<PR>/comments`, con body en español, URL comment original, issue si aplica, link SHA completo, `### 🔧 Qué cambió` y `in_reply_to=<commentId>`.
+Si el comentario original está ausente y el estado es `COMMENT_DELETED`, usar la variante sin reply: verificar head/commit/validación final, no publicar ningún comentario `Resuelto`, y resolver solo el `target_thread_id` exacto si todavía existe. Si el thread también desapareció, reportar `thread: not_resolvable` sin buscar un reemplazo. No cerrar issue automáticamente en esta variante; requiere solicitud explícita del usuario y asociación previamente validada.
+
+1. Si no existe closeout previo y el comentario original está disponible, crear reply en endpoint `/pulls/<PR>/comments`, con body en español, URL comment original, issue si aplica, link SHA completo, `### 🔧 Qué cambió` y `in_reply_to=<commentId>`.
+
 2. Verificar `html_url` y `in_reply_to_id == commentId`. En REST, enviar `in_reply_to` como número con `-F`/JSON numérico, nunca como string mediante `--raw-field`; un `422` por tipo es fallo de request, no evidencia de reply creado: releer por marker/anchor antes de reintentar y no duplicar. GitHub puede devolver en reply el `commit_id` del comment de ancla aunque se envíe SHA nuevo; no duplicar reply por esa metadata heredada. Exigir link al SHA final en body y verificar independientemente head remoto/API.
 3. Resolver solo `target_thread_id`; releer GraphQL y exigir mismo ID, `isResolved: true`, `isOutdated` esperado y snapshot sin cambios ajenos.
 4. Tras thread resuelto, publicar en paralelo (cuando aplique) comentario de issue con `✅ **Resuelto**`, PR, SHA, comment original y marker `<!-- inline-thread-autofix: issue:<owner>/<repo>#<issue_number>:comment:<comment_id> -->`, y comentario general en `issues/<implementation_pr>/comments` con marker `pr:<implementation_pr>:issue:<issue_number>:comment:<comment_id>` si `implementation_pr != source_pr`.
@@ -209,7 +223,7 @@ Tras validar head y releer review inmediatamente antes de editar, agregar body o
 
 Consultar [`verification-matrix.md`](references/verification-matrix.md). Backend debe ejecutar diff check, typecheck, lint, tests focales/globales y build disponibles, sin debilitar assertions ni agregar mocks de plataforma sin justificación. Revalidar superficies integradas tras rebase/refresh relacionado.
 
-Detener antes de mutation si URL, target, repo, branch, issue, stack, ownership, anchor, OID, permisos, validación, reply, marker o estado final no son inequívocos/verificables. Un cambio de threads ajenos no basta para detener: primero ejecutar refresh, comparación y reconciliación según el protocolo anterior. Códigos principales: `ISSUE_REFERENCE_MISSING`, `ISSUE_REFERENCE_AMBIGUOUS`, `ISSUE_REFERENCE_INVALID`, `FINDING_ANCHOR_AMBIGUOUS`, `TARGET_STALE`, `SNAPSHOT_STALE` (solo refresh o reconciliación no concluyente), `RESOLVED_UNVERIFIED`, `THREAD_TARGET_MISMATCH`, `STACK_INCOMPLETE`, `STACK_AMBIGUOUS`, `NEEDS_SCOPE_CONFIRMATION`, `IMPLEMENTATION_TARGET_AMBIGUOUS`, `REBASE_INCOMPLETE`, `GOLDEN_DIFF_MISMATCH`, `CONCURRENT_PUSH_RETRY_EXHAUSTED`, `PUBLICATION_UNVERIFIED`, `ISSUE_CLOSEOUT_UNVERIFIED`, `BACKUPS_NOT_APPLICABLE`, `BACKUPS_PENDING_CLOSEOUT`, `BACKUPS_PRESERVED_ON_FAILURE`, `BACKUP_CLEANUP_FAILED`, `CLONE_CLEANUP_FAILED`.
+Detener antes de mutation si URL, target, repo, branch, issue, stack, ownership, anchor, OID, permisos, validación, reply, marker o estado final no son inequívocos/verificables, excepto en la variante `COMMENT_DELETED` descrita arriba. Un cambio de threads ajenos no basta para detener: primero ejecutar refresh, comparación y reconciliación según el protocolo anterior. Códigos principales: `ISSUE_REFERENCE_MISSING`, `ISSUE_REFERENCE_AMBIGUOUS`, `ISSUE_REFERENCE_INVALID`, `FINDING_ANCHOR_AMBIGUOUS`, `COMMENT_DELETED`, `TARGET_STALE`, `SNAPSHOT_STALE` (solo refresh o reconciliación no concluyente), `RESOLVED_UNVERIFIED`, `THREAD_TARGET_MISMATCH`, `STACK_INCOMPLETE`, `STACK_AMBIGUOUS`, `NEEDS_SCOPE_CONFIRMATION`, `IMPLEMENTATION_TARGET_AMBIGUOUS`, `REBASE_INCOMPLETE`, `GOLDEN_DIFF_MISMATCH`, `CONCURRENT_PUSH_RETRY_EXHAUSTED`, `PUBLICATION_UNVERIFIED`, `ISSUE_CLOSEOUT_UNVERIFIED`, `BACKUPS_NOT_APPLICABLE`, `BACKUPS_PENDING_CLOSEOUT`, `BACKUPS_PRESERVED_ON_FAILURE`, `BACKUP_CLEANUP_FAILED`, `CLONE_CLEANUP_FAILED`.
 
 Verificaciones finales independientes pueden ejecutarse en paralelo: refs remotas/API de cada PR, bases/heads del stack, reply por `in_reply_to`, GraphQL del thread exacto, markers/URLs de issue o PR destino, estado issue y árbol seguro. Cleanup de backups es último paso local y solo reporta `BACKUPS_CLEANED` tras comprobar refs propias ausentes y preexistentes intactas.
 
@@ -243,8 +257,9 @@ Solo éxito completo usa:
 ## 🚀 Publicación
 - Commit: `<sha corto>`
 - PR implementación: `#<número>` si difiere del source
-- Reply: <URL>                 # inline
-- Thread: resuelto             # inline
+- Reply: <URL>                 # inline normal; omitido si COMMENT_DELETED
+- Comentario original: eliminado/no disponible # COMMENT_DELETED
+- Thread: resuelto | not_resolvable # inline
 - Issue: resuelta y cerrada    # issue asociada
 - PR destino: comentario publicado # implementation_pr != source_pr
 - Review body: actualizada     # review body

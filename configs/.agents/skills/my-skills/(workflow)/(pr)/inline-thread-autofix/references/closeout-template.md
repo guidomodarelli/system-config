@@ -15,6 +15,25 @@ Usar después de fix validado y commit pusheado/verificado en head de PR. Elegir
 
 Usar `Resuelto` solo cuando reply fue creado en `in_reply_to` correcto y `resolveReviewThread` confirmó `isResolved: true`. Si existe issue asociada, agregar `Issue asociada: [{{owner}}/{{repo}}#{{issue_number}}]({{issue_url}})` al reply y usar SHA de `implementation_pr`, aunque `source_pr` sea otro PR. El body debe enlazar SHA completo de implementación; GitHub puede conservar en metadata `commit_id` de comment de ancla para replies, lo que no justifica duplicar reply si `in_reply_to`, body, head remoto y thread están verificados.
 
+## Comentario inline eliminado
+
+Usar esta variante cuando el comentario original devuelve `404` o no aparece tras refrescar comentarios y threads, y el fix/head remoto están verificados:
+
+```markdown
+ℹ️ **Closeout realizado sin reply**
+
+El comentario inline original fue eliminado o ya no está disponible.
+
+### 🔧 Qué cambió
+> {{resumen_de_una_linea}}
+
+- Commit: [`{{sha_corto}}`]({{commit_url}})
+- Reply `Resuelto`: omitido
+- Thread: `{{resuelto|not_resolvable}}`
+```
+
+No publicar comentarios adicionales ni asumir identidad de otro thread. Si la issue asociada debe cerrarse sin comentario, exigir solicitud explícita del usuario y validación previa de la asociación.
+
 ## Issue asociada a inline comment
 
 Publicar en `repos/{{owner}}/{{repo}}/issues/{{issue_number}}/comments`, después de verificar reply y resolución del thread:
