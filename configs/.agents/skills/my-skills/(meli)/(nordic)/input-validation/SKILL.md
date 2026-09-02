@@ -1,6 +1,6 @@
 ---
 name: input-validation
-description: Validates req.query, req.body, and req.params in Nordic/Node.js routes using @meli/input-validation. Use when adding route-level validation, fixing UNVALIDATED INPUT ACCESS warnings from input-validation-enforcer, or replacing any AJV/schemaValidationMiddleware usage.
+description: Validates req.query, req.body, and req.params in Nordic/Node.js routes using @meli/input-validation. Invoke proactively when a user reports an InputValidationError, UNVALIDATED INPUT ACCESS stack trace, or runtime failure at req.query/req.body/req.params; also use when adding route-level validation or replacing AJV/schemaValidationMiddleware.
 ---
 
 # @meli/input-validation
@@ -11,6 +11,10 @@ description: Validates req.query, req.body, and req.params in Nordic/Node.js rou
 - **Prefer `createValidationMiddleware({ schema })` for routes.** Register it before every middleware or handler that reads `req.query`, `req.body`, or `req.params`. It validates declared request parts and returns `422` by default when validation fails.
 - **Use one `.validate()` call for manual validation.** Check its boolean result and reject invalid input before access. Do not require a second `.validate(input, { global: true })` call: official Nordic guidance does not document a two-call pattern.
 - **Fix `UNVALIDATED INPUT ACCESS` at route ordering/schema coverage.** Confirm validation middleware runs before access and schema declares exact request part and property. Do not silence warning by adding redundant validation passes.
+- **Treat stack traces as route evidence.** Locate the exact source line, identify the route that reaches it, enumerate every `req.query`, `req.body`, and `req.params` property read by that handler/helper, and declare all of them in the preceding schema, including optional properties.
+- **Place validation before authorization and other parameter-reading middleware when possible.** `createValidationMiddleware` should be the first route middleware; keep authorization after validation unless framework constraints require another order, then document and test the exception.
+- **Preserve existing API contracts.** If legacy route behavior returns `400`, uses a custom error payload, or intentionally normalizes malformed values (for example, falls back to a default page size), provide a narrow `errorHandler` or schema boundary that preserves that observable behavior while still validating unsafe input.
+- **Do not assume coercion mutates requests.** `coerce` validates converted values but the SDK keeps original `req` values unchanged; use string schemas when downstream code relies on raw query strings, or normalize explicitly only when behavior requires it.
 - **`coerce.boolean()` is too permissive** — accepts `'1'`, `'yes'`, any truthy string. For strict `'true'`/`'false'` query params use `inputValidation.string().regex(/^(true|false)?$/).optional()`.
 - **`coerce.number()`** coerces query string numbers (always strings on `req.query`) to numbers before validation.
 - **`string().secure()`** adds MELI security checks on string fields (injection, etc.). Prefer over bare `.string()` for user-supplied strings.
