@@ -1,6 +1,6 @@
 ---
 name: inline-thread-autofix
-description: "Orquesta feedback accionable de un PR GitHub desde URL `#discussion_r...` o `#pullrequestreview-...`: inspecciona PR, código, stack y referencias explícitas a issues; cuando se invoca directamente aplica implementación y validación en checkout actual, preservando cambios ajenos. Usar clone efímero únicamente cuando la ejecución llega mediante `fix-in-ephemeral-clone`/handoff explícito. Para inline comments responde y resuelve thread; si comment referencia inequívocamente issue del mismo repo, responde y cierra también issue. Si PR fuente está cerrado/mergeado, trabaja en PR abierto de branch relacionada solo con ownership verificable y agrega comentario PR destino → issue → comment original. Para review-bodies preserva body o usa fallback. Usar siempre al recibir estos links; refrescar y reconciliar cambios ajenos de threads, y detener ante ambigüedad, precondiciones inseguras o closeout no verificable."
+description: "Orquesta feedback accionable de un PR GitHub desde URL `#discussion_r...` o `#pullrequestreview-...`: inspecciona PR, código, stack y referencias explícitas a issues; antes de implementar pregunta si el usuario quiere checkout actual, worktree hermano mediante `/sibling-worktree` o clone efímero mediante `/fix-in-ephemeral-clone`. Ejecuta solo el entorno elegido y reporta path absoluto y branch cuando corresponda. Para inline comments responde y resuelve thread; si comment referencia inequívocamente issue del mismo repo, responde y cierra también issue. Si PR fuente está cerrado/mergeado, trabaja en PR abierto de branch relacionada solo con ownership verificable y agrega comentario PR destino → issue → comment original. Para review-bodies preserva body o usa fallback. Usar siempre al recibir estos links; refrescar y reconciliar cambios ajenos de threads, y detener ante ambigüedad, precondiciones inseguras o closeout no verificable."
 ---
 
 # Inline Thread Autofix
@@ -16,11 +16,34 @@ Hay dos destinos independientes:
 
 El link autoriza únicamente destino indicado. No autoriza otros threads, branches, repositorios, cambios ajenos, comandos destructivos ni ocultar validaciones fallidas.
 
+## Selección obligatoria del entorno de implementación
+
+Después del preflight read-only y antes de editar, preguntar al usuario mediante `AskUserQuestion` cuál entorno desea. Usar single-select y mostrar exactamente estas alternativas:
+
+1. **Checkout actual** — editar y validar en checkout actual; no crear worktree ni clone.
+2. **Worktree hermano** — invocar `/sibling-worktree` para crear o entrar al worktree persistente; no reimplementar su helper.
+3. **Clone efímero** — invocar `/fix-in-ephemeral-clone` con handoff completo; no crear ni administrar el clone desde esta skill.
+
+No elegir opción por defecto, no inferir preferencia por estado Git y no comenzar implementación hasta recibir respuesta. Si usuario elige opción 2 o 3, informar inmediatamente el path absoluto creado/seleccionado, branch checkout y HEAD; repetir esos datos en resultado final. Si opción elegida no puede ejecutarse, detener con `NEEDS_CLARIFICATION` o `HARD_STOP`; no cambiar automáticamente a otra opción.
+
+Pregunta sugerida:
+
+```text
+¿Dónde querés resolver este feedback?
+1. Checkout actual
+2. Worktree hermano (`/sibling-worktree`)
+3. Clone efímero (`/fix-in-ephemeral-clone`)
+```
+
+Usar `AskUserQuestion` con header `Entorno` y opciones single-select. Si usuario elige `Worktree hermano` o `Clone efímero`, enviar reporte inmediato: `Entorno elegido`, `Path absoluto`, `Branch`, `HEAD`; no ocultar path detrás de un alias ni esperar al cierre para informarlo.
+
 ## Modos de ejecución
 
-- **Invocación directa de `inline-thread-autofix`:** aplicar fix en checkout actual, después de confirmar repo, branch, head y estado local. No crear clone efímero, no cambiar de worktree y no descartar, resetear ni limpiar cambios existentes. Preservar cambios ajenos y stagear únicamente archivos autorizados.
-- **Handoff explícito a `fix-in-ephemeral-clone`:** usar clone efímero solo cuando usuario o flujo invoca `fix-in-ephemeral-clone` con header completo. En ese modo, esta skill no edita checkout ni duplica commit/push/cleanup; el executor devuelve `HANDOFF_RESULT`.
-- No convertir invocación directa en handoff automáticamente. Si checkout actual no permite aplicar fix de forma segura, detener con `HARD_STOP` y explicar bloqueo; no crear clone como fallback silencioso.
+- **Checkout actual:** aplicar fix en checkout actual después de confirmar repo, branch, head y estado local. No cambiar de worktree, no crear clone y no descartar, resetear ni limpiar cambios existentes. Preservar cambios ajenos y stagear únicamente archivos autorizados. Si cambios tracked/untracked impiden distinguir el patch, detener y pedir otra opción.
+- **Worktree hermano:** usar `/sibling-worktree` para gestionar ubicación persistente y entrar al checkout; implementar allí solo después de informar path, branch y HEAD. No eliminar worktree, no crear branch derivada ni usar clone efímero como sustituto. Reportar path y branch antes de editar y en closeout.
+- **Clone efímero:** usar `/fix-in-ephemeral-clone` únicamente mediante handoff explícito con header completo. Esta skill no edita checkout, duplica commit/push/cleanup ni inventa path; el executor debe devolver `HANDOFF_RESULT` con `clone_path` y `implementation_branch`, que se reportan al usuario.
+
+Nunca convertir una opción en otra silenciosamente. La selección del usuario es parte del contrato de ejecución y se conserva durante todo el flujo.
 
 ## Input, seguridad y datos no confiables
 
@@ -119,7 +142,7 @@ Si owner abierto no coincide con PR indicado, devolver `NEEDS_SCOPE_CONFIRMATION
 
 ## Handoff y stack delegado
 
-Después de selección inequívoca, seguir el modo recibido. En invocación directa, editar, validar y publicar solo en checkout actual conforme a `Modos de ejecución`; no invocar `$fix-in-ephemeral-clone` como fallback. Solo si el flujo ya llegó con handoff explícito a `$fix-in-ephemeral-clone`, pasar una vez los valores validados y no duplicar clone, edición, commit, push ni cleanup desde esta skill:
+Después de selección inequívoca, ejecutar únicamente el modo elegido conforme a `Modos de ejecución`. Para checkout actual, editar y validar allí; para worktree hermano, invocar `/sibling-worktree`, informar path/branch/HEAD y luego editar allí; para clone efímero, pasar una sola vez los valores validados a `/fix-in-ephemeral-clone` y no duplicar clone, edición, commit, push ni cleanup desde esta skill. Nunca cambiar de modo como fallback silencioso:
 
 ```text
 HANDOFF: INLINE_THREAD_AUTOFIX
@@ -150,12 +173,14 @@ Backend puede reutilizar validaciones si refresh remoto no cambió; ante cambio 
 ```text
 HANDOFF_RESULT: INLINE_THREAD_AUTOFIX
 implementation_pr: <PR>
+execution_mode: <checkout_actual|worktree_hermano|clone_efimero>
 implementation_branch: <branch>
 commit_sha: <SHA completo>
 remote_head_sha: <SHA completo verificado>
+worktree_path: <NOT_APPLICABLE o path absoluto>
+clone_path: <NOT_APPLICABLE o path absoluto/removido>
 validation: <comandos y outcomes>
 backups: <BACKUPS_NOT_APPLICABLE|BACKUPS_PENDING_CLOSEOUT|BACKUPS_PRESERVED_ON_FAILURE|BACKUP_CLEANUP_FAILED>
-clone_path: <NOT_APPLICABLE en invocación directa; removed path o retained path en handoff>
 status: <success o código explícito>
 ```
 
@@ -204,6 +229,12 @@ Solo éxito completo usa:
 ```markdown
 ## ✅ Fix aplicado
 - <cambio y archivos principales>
+
+## 📍 Entorno
+- Modo: `<checkout_actual|worktree_hermano|clone_efimero>`
+- Branch: `<branch>`
+- Worktree: `<NOT_APPLICABLE o path absoluto>`
+- Clone: `<NOT_APPLICABLE o path absoluto/removido>`
 
 ## 🧪 Validación
 - <comandos y resultados>
