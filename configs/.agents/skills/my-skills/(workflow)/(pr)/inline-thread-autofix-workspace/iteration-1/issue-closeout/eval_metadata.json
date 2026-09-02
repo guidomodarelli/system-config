@@ -1,0 +1,16 @@
+{
+  "eval_id": 26,
+  "eval_name": "issue-closeout",
+  "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456807\nEl body del comment referencia explícitamente https://github.com/acme/widgets/issues/901. Aplicá el fix validado y completá el cierre en todos los destinos.",
+  "assertions": [
+    "Extrae y valida URL explícita de issue del mismo repositorio",
+    "Distingue issue #901 del PR fuente #42",
+    "Publica reply inline con SHA e issue URL y verifica in_reply_to",
+    "Resuelve thread y verifica isResolved=true",
+    "Publica comentario en issue con comment original, PR de implementación, SHA y marker",
+    "Cierra issue con PATCH y relee state=closed",
+    "No duplica comentarios ni modifica otros threads",
+    "Relee target y vector completo de threads inmediatamente antes de cada mutación de closeout",
+    "Detiene con SNAPSHOT_STALE si cambia un thread ajeno durante implementación o closeout"
+  ]
+}

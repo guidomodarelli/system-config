@@ -1,5 +1,9 @@
 # yaml-language-server: $schema=schema.json
 paths:
+  - path: tmux/.tmux.conf
+    target: .
+    excludeFor:
+      - platform: win32
   - path: zsh/.zsh
     excludeFor:
       - platform: win32

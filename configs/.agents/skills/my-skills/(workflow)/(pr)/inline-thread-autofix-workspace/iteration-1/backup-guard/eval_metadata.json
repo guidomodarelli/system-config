@@ -1,0 +1,13 @@
+{
+  "eval_id": 34,
+  "eval_name": "backup-guard",
+  "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456815\nAntes del cleanup cambia el OID de una ref backup creada por esta ejecución. Intentá finalizar sin borrar backups ajenos ni la ref que cambió.",
+  "assertions": [
+    "Relee cada ref y detecta OID cambiado antes de eliminar",
+    "Usa OID esperado como guard de delete",
+    "Reporta BACKUP_CLEANUP_FAILED con refs retenidas",
+    "No elimina refs ajenas ni realiza cleanup parcial",
+    "No limpia backups mientras closeout o verificación de threads siga pendiente",
+    "Verifica que refs preexistentes permanecen intactas"
+  ]
+}

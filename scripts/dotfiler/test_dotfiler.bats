@@ -177,6 +177,22 @@ YAML
   assert_path_missing "$HOME_DIR/AGENTS.md"
 }
 
+@test "un archivo de configuración en raíz se enlaza directamente en HOME" {
+  printf "set -g allow-passthrough on\\n" > "$REPO_DIR/configs/.tmux.conf"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: .tmux.conf
+    target: .
+YAML
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/.tmux.conf" \
+    "$REPO_DIR/configs/.tmux.conf"
+}
+
 @test "output does not print duplicated separators consecutively" {
   install_fixture "debug_flow"
 

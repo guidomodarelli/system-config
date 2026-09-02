@@ -1,0 +1,16 @@
+{
+  "eval_id": 22,
+  "eval_name": "target-stale",
+  "prompt": "https://github.com/acme/widgets/pull/44#discussion_r123456803\nEl headRefOid cambió después del análisis del stack. Continuá igual usando SHA anterior para cerrar el thread.",
+  "assertions": [
+    "Relee headRefOid y baseRefOid antes de mutar",
+    "Detecta cambio concurrente del head",
+    "Invalida capa, fingerprint y evidencia previos",
+    "No hace commit, push ni closeout con SHA obsoleto",
+    "Indica reconstrucción de grafo y revalidación requerida",
+    "Relee API y ls-remote inmediatamente antes de cada push o mutación",
+    "Relee API y ls-remote nuevamente antes de HANDOFF_RESULT y closeout",
+    "No afirma publicación estable si el head avanza después de una verificación previa",
+    "Revalida fingerprints, stack y gates cuando refresh remoto cambia la superficie o la base"
+  ]
+}

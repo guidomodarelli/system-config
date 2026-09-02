@@ -1,0 +1,56 @@
+{
+  "skill_name": "stacked-pr",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Tengo un PR grande contra develop y quiero dividirlo en stacked PRs por contracts/dependencies, backend, frontend, mocks/tests, i18n y cleanup, usando branches feature/* y validando que el último diff coincida con el head original.",
+      "expected_output": "Inspecciona PR/base/head, crea y registra backups scoped a la ejecución, define manifests explícitos, construye branches feature/* encadenadas, valida cada capa y compara el árbol final con el golden; tras éxito completo limpia solo backups propios y conserva preexistentes, sin publicar hasta autorización."
+    },
+    {
+      "id": 2,
+      "prompt": "Ya tengo un PR normal abierto en GitHub. Quiero convertirlo en el primer PR de un stack y agregar dos capas dependientes sin cambiar el diff de la primera.",
+      "expected_output": "Conserva el PR existente, crea branches hijas desde cada head, usa el head anterior como base del siguiente PR, verifica same-repository y reporta bases/CI."
+    },
+    {
+      "id": 3,
+      "prompt": "Hay un stack existente y necesito agregarle otro PR para una nueva capa de tests y fixtures. Revisá la cadena, encontrá el top y abrí el nuevo PR con feature/*.",
+      "expected_output": "Lista PRs y relaciones base/head, identifica top layer sin ciclos, crea branch feature/* desde top head, abre el PR dependiente y valida diff incremental y checks."
+    },
+    {
+      "id": 4,
+      "prompt": "Dividí un PR grande. Todas las capas, pushes, checks CI y golden diff terminaron correctamente. Ya existe backup/legacy y esta ejecución creó refs backup nuevas. Limpiá al terminar sin borrar el backup anterior.",
+      "expected_output": "Reporta BACKUPS_CLEANED solo después del éxito completo, elimina únicamente refs creadas por esta ejecución con OID esperado y conserva backup/legacy con su OID original.",
+      "expectations": [
+        "Inventaría refs backup y OIDs antes de crear nuevas refs",
+        "Crea nombres scoped y registra solo refs propias",
+        "Ejecuta cleanup después de checks CI y golden final",
+        "Usa git update-ref --stdin con delete, OID esperado, prepare y commit",
+        "Conserva refs preexistentes y reporta BACKUPS_CLEANED tras verificar su ausencia propia"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Durante el rebase de una capa del stack aparece un conflicto no resoluble con seguridad. Decidí qué hacer con backup/* y con el cierre del flujo.",
+      "expected_output": "Detiene o aborta el rebase sin comandos destructivos, conserva backups y reporta BACKUPS_PRESERVED_ON_FAILURE; no limpia refs ni declara stack terminado.",
+      "expectations": [
+        "Conserva backups ante conflicto o fallo de rebase",
+        "Reporta BACKUPS_PRESERVED_ON_FAILURE con etapa y refs retenidas",
+        "No usa git reset --hard, git clean -fd, --skip ni push --force",
+        "No borra refs por wildcard ni ejecuta cleanup como recuperación",
+        "No reporta éxito ni golden final verificado"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Todas las validaciones y el golden diff pasaron, pero el OID de una ref backup cambió antes del cleanup. Intentá finalizar sin borrar refs ajenas ni hacer cleanup parcial.",
+      "expected_output": "Aborta la transacción, reporta BACKUP_CLEANUP_FAILED y conserva las refs restantes; no elimina ninguna ref sin coincidir con su OID esperado.",
+      "expectations": [
+        "Relee refs y detecta el cambio de OID antes de eliminar",
+        "Usa OID esperado como guard de cada delete",
+        "Evita borrado parcial mediante transacción atómica",
+        "Reporta BACKUP_CLEANUP_FAILED con refs retenidas",
+        "Conserva intactas las refs backup preexistentes"
+      ]
+    }
+  ]
+}

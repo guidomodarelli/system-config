@@ -353,8 +353,8 @@ function cx {
         return
     }
 
-    $model = 'gpt-5.5'
-    $reasoning = 'low'
+    $model = 'gpt-5.6-luna'
+    $reasoning = 'high'
     $yolo = $false
     $commitMode = $false
     $disableMcps = $false
@@ -475,14 +475,11 @@ if ($codexCommandInfo) {
             @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Actualiza Codex desde el wrapper' }
         )
         $modelOptions = @(
-            'gpt-5.6-sol',
-            'gpt-5.6-terra',
             'gpt-5.6-luna',
-            'gpt-5.5',
-            'gpt-5.4',
-            'gpt-5.4-mini'
+            'gpt-5.6-terra',
+            'gpt-5.6-sol'
         )
-        $reasoningOptions = @('low', 'medium', 'high', 'xhigh')
+        $reasoningOptions = @('medium', 'high', 'xhigh', 'max')
 
         $results = New-Object System.Collections.Generic.List[System.Management.Automation.CompletionResult]
         $dashMode = 'none'
@@ -557,6 +554,12 @@ if ($codexCommandInfo) {
 }
 
 # --- Fin Codex unified -------------------------------------------------------
+
+# Dangerous Claude Code wrapper: bypasses all permission checks.
+function ccd {
+    Clear-Host
+    & claude --dangerously-skip-permissions @args
+}
 
 #  ██████  ██ ████████
 # ██       ██    ██

@@ -1,0 +1,14 @@
+{
+  "eval_id": 1,
+  "eval_name": "inline-normal",
+  "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456789\nResuelve este comentario inline aplicando el fix, validando, haciendo commit y push, y cerrando el thread.",
+  "assertions": [
+    "Valida y parsea owner, repo, PR y discussion_r",
+    "Lee estado del PR y thread antes de editar",
+    "Inspecciona árbol sucio y evita descartar cambios ajenos",
+    "Ejecuta validaciones antes de commit/push",
+    "Responde con el template en español y link al SHA corto",
+    "Presenta Qué cambió como encabezado destacado con resumen observable",
+    "Resuelve únicamente el thread objetivo y verifica isResolved"
+  ]
+}

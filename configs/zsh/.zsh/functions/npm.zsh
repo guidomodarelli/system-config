@@ -10,8 +10,8 @@ npm-clean-install() {
     [ -d node_modules ] && rm -rf node_modules && print -r -- "${log_prefix} $(styleText -b -c yellow "Warning: node_modules removed.")"
     print -r -- "${log_prefix} Removing package-lock.json if exists..."
     [ -f package-lock.json ] && rm -rf package-lock.json && print -r -- "${log_prefix} $(styleText -b -c yellow "Warning: package-lock.json removed.")"
-    # print -r -- "${log_prefix} Cleaning npm cache..."
-    # npm cache clean --force
+    print -r -- "${log_prefix} Cleaning npm cache..."
+    npm cache clean --force
     print -r -- "${log_separator}"
     print -r -- "${log_prefix} Installing dependencies..."
     npm install

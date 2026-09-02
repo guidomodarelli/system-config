@@ -1,0 +1,171 @@
+{
+  "skill_name": "skill-optimizer",
+  "description": "Optimiza skills existentes de Claude Code de forma segura y medible. Usar siempre cuando alguien pida optimizar, acelerar, simplificar, reducir tokens/steps/tool calls, mejorar triggers, agregar evals/benchmarks o comparar una skill existente, incluso sin mencionar este nombre. Audita primero, compara baseline contra candidato, preserva contratos y guards, y nunca afirma una mejora sin evidencia de ejecuci\u00f3n. Para crear una skill desde cero, usar skill-creator.",
+  "results": [
+    {
+      "query": "Pod\u00e9s acelerar pasos redundantes de esta SKILL.md y medir si la nueva versi\u00f3n conserva el contrato?",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Compar\u00e1 dos versiones de una Agent Skill y decime cu\u00e1l usa menos tokens sin bajar calidad.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "La skill funciona, pero tarda mucho por revalidaciones seriales; optimiz\u00e1 su flujo con evidencia.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Optimiz\u00e1 mi skill existente para reducir tokens y tool calls sin perder sus guards; compar\u00e1 baseline contra candidato.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Revis\u00e1 esta skill porque hace demasiadas lecturas repetidas y propon\u00e9 un fast path seguro.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Necesito mejorar precision y recall de triggers de una skill ya publicada, con holdout y benchmark.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Audit\u00e1 el contrato de esta skill y simplific\u00e1 sus referencias sin eliminar condiciones de parada.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Quiero un benchmark old-vs-new de mi skill, incluyendo tool calls, timing y regresiones de seguridad.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Mejor\u00e1 una skill existente para que use snapshots y paralelismo bounded donde sea seguro.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Optimiz\u00e1 este componente React: typing est\u00e1 lento y hay demasiados renders.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Optimizaci\u00f3n de skill: manten\u00e9 mutations seriales y reduc\u00ed round-trips innecesarios.",
+      "should_trigger": true,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": false
+    },
+    {
+      "query": "Hac\u00e9 performance review de endpoint API y encontr\u00e1 consultas N+1.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Cre\u00e1 una skill nueva desde cero para procesar archivos PDF.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Revis\u00e1 este PR y correg\u00ed el bug de autenticaci\u00f3n en el c\u00f3digo.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Cre\u00e1 una issue de Jira para optimizar el proceso de onboarding.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Empaquet\u00e1 esta skill como archivo .skill y publicala.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Configur\u00e1 Claude Code para permitir comandos npm sin pedir permisos.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Reduc\u00ed el tama\u00f1o de este bundle JavaScript y ejecut\u00e1 Lighthouse.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Actualiz\u00e1 CLAUDE.md con instrucciones para nuevos desarrolladores.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    },
+    {
+      "query": "Corr\u00e9 la suite de tests y arregl\u00e1 los asserts que fallan.",
+      "should_trigger": false,
+      "trigger_rate": 0.0,
+      "triggers": 0,
+      "runs": 1,
+      "pass": true
+    }
+  ],
+  "summary": {
+    "total": 20,
+    "passed": 10,
+    "failed": 10
+  }
+}

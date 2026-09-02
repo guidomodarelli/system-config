@@ -1,0 +1,20 @@
+{
+  "skill_name": "pr-description-template",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Componé un body nuevo de PR en full composition. El diff tiene `src/App.tsx`, `src/utils/date.ts`, `src/App.test.tsx`, `tests/helpers.ts`, `__mocks__/client.ts`, `assets/logo.svg` y `styles/theme.scss`. Agregá metadata inicial y completá el template sin placeholders.",
+      "expected_output": "El body comienza con una única línea `<sub>📄 Archivos de código modificados: 2</sub>`, seguida por `## 📝 Descripción`; cuenta solo `src/App.tsx` y `src/utils/date.ts`, excluye tests, mocks, imagen y SCSS, y completa el resto del template aplicable."
+    },
+    {
+      "id": 2,
+      "prompt": "Componé un body de PR en full composition para un diff que solo contiene `src/Button.spec.tsx`, `__tests__/setup.ts`, `mocks/api.ts`, `public/icon.png` y `styles/layout.scss`. No hay archivos de código elegibles.",
+      "expected_output": "El body conserva metadata inicial y muestra `<sub>📄 Archivos de código modificados: 0</sub>` antes de `## 📝 Descripción`; no omite la línea ni cuenta archivos excluidos."
+    },
+    {
+      "id": 3,
+      "prompt": "Aplicá traceability-only sobre un PR existente para agregar o normalizar backlink Jira. El body actual ya tiene sus secciones y no debe retemplarse.",
+      "expected_output": "No agrega ni recalcula metadata `<sub>`; modifica únicamente backlink Jira permitido, preserva título y contenido protegido, y verifica el body resultante."
+    }
+  ]
+}

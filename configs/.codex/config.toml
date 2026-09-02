@@ -1,7 +1,7 @@
 # :schema https://developers.openai.com/codex/config-schema.json
 
-model = "gpt-5.5"
-model_reasoning_effort = "low"
+model = "gpt-5.6-luna"
+model_reasoning_effort = "high"
 personality = "pragmatic"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
@@ -70,7 +70,7 @@ global = "vscode"
 # planificar antes de ejecutar.
 collaboration_modes = true
 default_mode_request_user_input = false
-goals = false
+goals = true
 hooks = true
 js_repl = false
 memories = true
@@ -101,15 +101,6 @@ enabled = true
 disable_on_external_context = false
 generate_memories = false
 use_memories = false
-
-[model_providers.meli]
-base_url = "https://genai-agentic.melioffice.com/proxy/openai/v1"
-env_key = "MELI_API_KEY"
-name = "Meli"
-wire_api = "responses"
-
-[model_providers.meli.http_headers]
-X-GenAI-Agentic = "codex-cli"
 
 [plugins."browser-use@openai-bundled"]
 enabled = true

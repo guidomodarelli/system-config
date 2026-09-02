@@ -1,0 +1,12 @@
+{
+  "eval_id": 2,
+  "eval_name": "missing-evals-audit",
+  "prompt": "Quiero optimizar una skill que no tiene evals. El path es /Users/me/.claude/skills/new-workflow/SKILL.md. No cambies comportamiento todavía: auditá y proponé cómo probarla.",
+  "assertions": [
+    "Detecta que target no tiene evals suficientes",
+    "Propone entre tres y cinco casos con éxito, error y seguridad",
+    "No inventa baseline de calidad",
+    "Mantiene target sin cambios en modo audit",
+    "Reporta estado AUDIT_ONLY, OPTIMIZATION_READY o BLOCKED"
+  ]
+}

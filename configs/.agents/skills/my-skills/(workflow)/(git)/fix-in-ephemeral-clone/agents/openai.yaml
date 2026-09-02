@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fix Issue Efimeral Clone"
+  short_description: "Fix an issue from an isolated depth-1 clone"
+  default_prompt: "Use $fix-in-ephemeral-clone for direct repository issues or as the isolated execution backend for $inline-thread-autofix: create one fresh depth-1 clone, fix and validate there, refresh from remote, push only the authorized branch, return full SHA and evidence, and delete the clone. For PR review URLs, delegate routing and closeout to $inline-thread-autofix instead of running a second workflow."

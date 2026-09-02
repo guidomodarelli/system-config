@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactor Modularity"
+  short_description: "Modularize code, raise cohesion, remove duplication"
+  default_prompt: "Use $refactor-modularize-code to refactor this code for better module boundaries, stronger cohesion, and less duplication."

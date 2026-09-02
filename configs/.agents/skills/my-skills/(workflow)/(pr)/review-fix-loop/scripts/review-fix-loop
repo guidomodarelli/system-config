@@ -1,0 +1,510 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: review-fix-loop [options]
+
+Options:
+  -p, --provider auto|claude-copilot|claude|codex
+                              Review provider. Default: auto.
+  --mode auto|local|branch   Target selection. Default: auto.
+  --base REF                 Base ref for branch review. Default: PR base or origin/main.
+  --claude-bin PATH          Claude Code binary. Default: claude.
+  --codex-bin PATH           Codex binary. Default: codex.
+  --output FILE              Also save provider output to file.
+  --parallel-tests CMD       Run review and test command concurrently.
+  --timeout-seconds N        Per-provider timeout. Default: 600. Use 0 to disable.
+  --dry-run                  Print selected commands, do not run.
+  -h, --help                 Show help.
+
+Providers:
+  auto     Try Claude with Copilot API/Terra, then direct Claude, then Codex.
+           Fallback only on
+           unavailable binaries, authentication, quota, or infrastructure errors.
+  claude-copilot  Run Claude through user settings with Copilot API, Terra, and high effort.
+  claude   Run Claude Code only.
+  codex    Run Codex only.
+
+Modes:
+  local   Review staged, unstaged, and untracked changes.
+  branch  Review current branch against the selected base.
+  auto    Dirty tree -> local, else PR/current branch -> branch.
+EOF
+}
+
+provider=auto
+mode=auto
+base_ref=
+claude_bin=${CLAUDE_BIN:-claude}
+codex_bin=${CODEX_BIN:-codex}
+output=${CODEX_REVIEW_OUTPUT:-}
+parallel_tests=
+timeout_seconds=${CODEX_REVIEW_TIMEOUT_SECONDS:-600}
+dry_run=false
+claude_config_directory=
+
+require_option_value() {
+  local option=$1
+  local value=${2:-}
+  if [[ -z "$value" || "$value" == -* ]]; then
+    printf 'missing value for %s\n' "$option" >&2
+    exit 2
+  fi
+}
+
+require_timeout_seconds() {
+  local value=$1
+  if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+    printf 'invalid --timeout-seconds: %s\n' "$value" >&2
+    exit 2
+  fi
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -p|--provider)
+      require_option_value "$1" "${2:-}"
+      provider=$2
+      shift 2
+      ;;
+    --mode)
+      require_option_value "$1" "${2:-}"
+      mode=$2
+      shift 2
+      ;;
+    --base)
+      require_option_value "$1" "${2:-}"
+      base_ref=$2
+      shift 2
+      ;;
+    --claude-bin)
+      require_option_value "$1" "${2:-}"
+      claude_bin=$2
+      shift 2
+      ;;
+    --codex-bin)
+      require_option_value "$1" "${2:-}"
+      codex_bin=$2
+      shift 2
+      ;;
+    --output)
+      require_option_value "$1" "${2:-}"
+      output=$2
+      shift 2
+      ;;
+    --parallel-tests)
+      require_option_value "$1" "${2:-}"
+      parallel_tests=$2
+      shift 2
+      ;;
+    --timeout-seconds)
+      require_option_value "$1" "${2:-}"
+      timeout_seconds=$2
+      shift 2
+      ;;
+    --dry-run)
+      dry_run=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+case "$provider" in
+  auto|claude-copilot|claude|codex) ;;
+  *)
+    printf 'invalid --provider: %s\n' "$provider" >&2
+    exit 2
+    ;;
+esac
+
+case "$mode" in
+  auto|local|branch) ;;
+  *)
+    printf 'invalid --mode: %s\n' "$mode" >&2
+    exit 2
+    ;;
+esac
+
+require_timeout_seconds "$timeout_seconds"
+
+git rev-parse --show-toplevel >/dev/null
+repository_root=$(git rev-parse --show-toplevel)
+current_branch=$(git branch --show-current 2>/dev/null || true)
+dirty=false
+if [[ -n "$(git status --porcelain)" ]]; then
+  dirty=true
+fi
+
+pr_url=
+if [[ -z "$base_ref" && "$mode" != local ]] && command -v gh >/dev/null 2>&1; then
+  if pr_lines=$(gh pr view --json baseRefName,url --jq '[.baseRefName, .url] | @tsv' 2>/dev/null); then
+    base_name=${pr_lines%%$'\t'*}
+    pr_url=${pr_lines#*$'\t'}
+    if [[ -n "$base_name" ]]; then
+      base_ref="origin/$base_name"
+    fi
+  fi
+fi
+
+if [[ -z "$base_ref" ]]; then
+  base_ref=origin/main
+fi
+
+review_kind=
+if [[ "$mode" == local || ( "$mode" == auto && "$dirty" == true ) ]]; then
+  review_kind=local
+elif [[ "$mode" == branch || ( "$mode" == auto && -n "$current_branch" && "$current_branch" != "main" ) ]]; then
+  review_kind=branch
+else
+  printf 'no review target: clean main checkout and no forced mode\n' >&2
+  exit 1
+fi
+
+build_review_prompt() {
+  local target_description
+  if [[ "$review_kind" == local ]]; then
+    target_description='staged, unstaged, and untracked changes in the current checkout compared with HEAD'
+  else
+    target_description="changes in the current branch compared with ${base_ref} (equivalent to git diff ${base_ref}...HEAD)"
+  fi
+
+  cat <<EOF
+Perform a read-only code review of ${target_description} in ${repository_root}.
+Report every correctness bug or concrete simplification/efficiency issue introduced by this target. For each finding include file, line, failure scenario, severity, and confidence. If no actionable findings exist, state that explicitly.
+Do not edit files, run formatters, commit, push, invoke /review-fix-loop or any other review skill/provider, or ask the user questions. Inspect adjacent code when needed to verify findings. Return only the review result.
+EOF
+}
+
+review_prompt=$(build_review_prompt)
+review_cmd=()
+provider_bin=
+
+build_review_command() {
+  local selected_provider=$1
+  case "$selected_provider" in
+    claude-copilot)
+      provider_bin=$claude_bin
+      review_cmd=(
+        env
+        "ANTHROPIC_BASE_URL=http://localhost:4141"
+        "ANTHROPIC_AUTH_TOKEN=dummy"
+        "ANTHROPIC_MODEL=gpt-5.6-terra[1m]"
+        "ANTHROPIC_DEFAULT_OPUS_MODEL=gpt-5.6-terra[1m]"
+        "ANTHROPIC_DEFAULT_SONNET_MODEL=gpt-5.6-terra[1m]"
+        "CLAUDE_CODE_USE_VERTEX=0"
+        "CLAUDE_CODE_USE_BEDROCK=0"
+        "DISABLE_NON_ESSENTIAL_MODEL_CALLS=1"
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1"
+        "CLAUDE_CODE_ATTRIBUTION_HEADER=0"
+        "CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false"
+        "CLAUDE_CODE_ENABLE_AWAY_SUMMARY=0"
+        "CLAUDE_CODE_TOTAL_TOKENS_REMINDER=off"
+        "MCP_CONNECT_TIMEOUT_MS=20000"
+        "CLAUDE_CODE_SUBAGENT_MODEL=gpt-5.6-terra[1m]"
+      )
+      if [[ -n "$claude_config_directory" ]]; then
+        review_cmd+=("CLAUDE_CONFIG_DIR=$claude_config_directory")
+      fi
+      review_cmd+=(
+        "$claude_bin"
+        --permission-mode plan
+        --tools "Read,Grep,Glob,Bash"
+        --no-session-persistence
+        --output-format text
+        -p "$review_prompt"
+      )
+      ;;
+    claude)
+      provider_bin=$claude_bin
+      review_cmd=(
+        env
+        -u ANTHROPIC_BASE_URL
+        -u ANTHROPIC_AUTH_TOKEN
+        -u ANTHROPIC_MODEL
+        -u ANTHROPIC_DEFAULT_HAIKU_MODEL
+        -u ANTHROPIC_DEFAULT_OPUS_MODEL
+        -u ANTHROPIC_DEFAULT_SONNET_MODEL
+        -u CLAUDE_CODE_SUBAGENT_MODEL
+        "$claude_bin"
+        --setting-sources project,local
+        --permission-mode plan
+        --tools "Read,Grep,Glob,Bash"
+        --no-session-persistence
+        --output-format text
+        -p "$review_prompt"
+      )
+      ;;
+    codex)
+      provider_bin=$codex_bin
+      if [[ "$review_kind" == local ]]; then
+        review_cmd=("$codex_bin" review --uncommitted)
+      else
+        review_cmd=("$codex_bin" review --base "$base_ref")
+      fi
+      ;;
+  esac
+}
+
+provider_available() {
+  local binary=$1
+  if [[ "$binary" == */* ]]; then
+    [[ -x "$binary" ]]
+  else
+    command -v "$binary" >/dev/null 2>&1
+  fi
+}
+
+classify_provider_failure() {
+  local status=$1
+  local attempt_output=$2
+
+  if [[ "$status" == 126 || "$status" == 127 ]]; then
+    printf 'provider_unavailable\n'
+    return 0
+  fi
+
+  if grep -Eiq 'not logged in|login required|authentication (failed|required)|unauthorized|invalid (token|credential)|expired (token|credential)|(^|[^0-9])401([^0-9]|$)' "$attempt_output"; then
+    printf 'not_authenticated\n'
+    return 0
+  fi
+
+  if grep -Eiq 'spend cap|quota|rate[ _-]?limit|credits? (exhausted|depleted)|usage limit|billing limit|budget exceeded|(^|[^0-9])429([^0-9]|$)' "$attempt_output"; then
+    printf 'quota_exceeded\n'
+    return 0
+  fi
+
+  if grep -Eiq 'timed? out|timeout|connection (reset|refused)|network error|dns|tls|service unavailable|temporarily unavailable|overloaded|internal server error|(^|[^0-9])(502|503|504)([^0-9]|$)' "$attempt_output"; then
+    printf 'infrastructure_error\n'
+    return 0
+  fi
+
+  printf 'unknown_provider_error\n'
+  return 1
+}
+
+print_command() {
+  local selected_provider=$1
+  build_review_command "$selected_provider"
+  printf 'review[%s]:' "$selected_provider"
+  printf ' %q' "${review_cmd[@]}"
+  printf '\n'
+}
+
+if [[ "$provider" == auto ]]; then
+  providers=(claude-copilot claude codex)
+else
+  providers=("$provider")
+fi
+
+printf 'code-review target: %s\n' "$review_kind"
+printf 'branch: %s\n' "${current_branch:-detached}"
+printf 'provider: %s\n' "$provider"
+if [[ "$provider" == auto ]]; then
+  printf 'provider order: claude-copilot -> claude -> codex\n'
+fi
+if [[ -n "$pr_url" ]]; then
+  printf 'pr: %s\n' "$pr_url"
+fi
+if [[ -n "$parallel_tests" ]]; then
+  printf 'tests: %s\n' "$parallel_tests"
+fi
+printf 'timeout seconds: %s\n' "$timeout_seconds"
+if [[ "$provider" == auto || "$provider" == claude-copilot ]]; then
+  printf 'claude config: ephemeral directory for claude-copilot\n'
+fi
+if [[ "$review_kind" == branch ]]; then
+  printf 'fetch: git fetch origin --quiet\n'
+fi
+if [[ -n "$output" ]]; then
+  printf 'output: %s\n' "$output"
+fi
+
+if [[ "$dry_run" == true ]]; then
+  for selected_provider in "${providers[@]}"; do
+    print_command "$selected_provider"
+  done
+  exit 0
+fi
+
+if [[ "$review_kind" == branch ]]; then
+  git fetch origin --quiet || {
+    printf 'warning: git fetch origin failed; reviewing with existing refs\n' >&2
+  }
+fi
+
+if [[ -n "$output" ]]; then
+  mkdir -p "$(dirname "$output")"
+  : > "$output"
+fi
+
+attempt_directory=$(mktemp -d "${TMPDIR:-/tmp}/review-fix-loop.XXXXXX")
+claude_config_directory="$attempt_directory/claude-config"
+mkdir -m 700 -- "$claude_config_directory"
+review_status_file=
+tests_status_file=
+cleanup() {
+  rm -rf -- "$attempt_directory"
+  if [[ -n "$review_status_file" ]]; then
+    rm -f -- "$review_status_file"
+  fi
+  if [[ -n "$tests_status_file" ]]; then
+    rm -f -- "$tests_status_file"
+  fi
+}
+trap cleanup EXIT
+
+emit_attempt_output() {
+  local selected_provider=$1
+  local attempt_output=$2
+  if [[ -n "$output" ]]; then
+    {
+      printf '%s\n' "--- ${selected_provider} review output ---"
+      cat "$attempt_output"
+    } | tee -a "$output"
+  else
+    printf '%s\n' "--- ${selected_provider} review output ---"
+    cat "$attempt_output"
+  fi
+}
+
+run_provider_command() {
+  local attempt_output=$1
+
+  if [[ "$timeout_seconds" == 0 ]]; then
+    "${review_cmd[@]}" > "$attempt_output" 2>&1
+
+    return $?
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf 'code-review timeout runner unavailable: python3 is required when timeout is enabled\n' > "$attempt_output"
+
+    return 125
+  fi
+
+  python3 - "$timeout_seconds" "$attempt_output" "${review_cmd[@]}" <<'PY'
+import os
+import signal
+import subprocess
+import sys
+
+timeout_seconds = int(sys.argv[1])
+attempt_output = sys.argv[2]
+command = sys.argv[3:]
+
+with open(attempt_output, 'w', encoding='utf-8') as output:
+    process = subprocess.Popen(
+        command,
+        stdout=output,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+
+    try:
+        sys.exit(process.wait(timeout=timeout_seconds))
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGTERM)
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
+
+        output.write(f'\ncode-review timeout: provider exceeded {timeout_seconds} seconds\n')
+        sys.exit(124)
+PY
+}
+
+run_review() {
+  local selected_provider
+  local attempt_output
+  local review_status
+  local failure_kind
+
+  for selected_provider in "${providers[@]}"; do
+    build_review_command "$selected_provider"
+    attempt_output="$attempt_directory/${selected_provider}.log"
+    printf 'code-review attempt: %s\n' "$selected_provider"
+
+    if ! provider_available "$provider_bin"; then
+      printf 'provider binary unavailable: %s\n' "$provider_bin" > "$attempt_output"
+      review_status=127
+    else
+      set +e
+      run_provider_command "$attempt_output"
+      review_status=$?
+      set -e
+    fi
+
+    emit_attempt_output "$selected_provider" "$attempt_output"
+
+    if [[ "$review_status" == 0 ]]; then
+      printf 'code-review completed by provider: %s\n' "$selected_provider"
+      return 0
+    fi
+
+    failure_kind=$(classify_provider_failure "$review_status" "$attempt_output" || true)
+    printf 'code-review provider failed: %s (%s, exit %s)\n' "$selected_provider" "$failure_kind" "$review_status" >&2
+
+    if [[ "$provider" == auto && "$failure_kind" != unknown_provider_error ]]; then
+      printf 'code-review fallback: %s -> next provider (%s)\n' "$selected_provider" "$failure_kind" >&2
+      continue
+    fi
+
+    return 10
+  done
+
+  printf 'code-review failed: no provider completed the review\n' >&2
+  return 10
+}
+
+if [[ -z "$parallel_tests" ]]; then
+  set +e
+  run_review
+  review_status=$?
+  set -e
+  exit "$review_status"
+fi
+
+review_status_file=$(mktemp)
+tests_status_file=$(mktemp)
+
+(
+  set +e
+  run_review
+  status=$?
+  printf '%s\n' "$status" > "$review_status_file"
+) &
+review_pid=$!
+
+(
+  set +e
+  bash -lc "$parallel_tests"
+  status=$?
+  printf '%s\n' "$status" > "$tests_status_file"
+) &
+tests_pid=$!
+
+wait "$review_pid" || true
+wait "$tests_pid" || true
+
+review_status=$(cat "$review_status_file")
+tests_status=$(cat "$tests_status_file")
+
+printf 'code-review exit: %s\n' "$review_status"
+printf 'tests exit: %s\n' "$tests_status"
+
+if [[ "$review_status" != 0 || "$tests_status" != 0 ]]; then
+  exit 1
+fi
+
+printf 'code-review and tests completed successfully\n'
