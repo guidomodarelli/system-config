@@ -1,13 +1,13 @@
 ---
 name: inline-thread-autofix
-description: "Orquesta feedback accionable de un PR GitHub desde URL `#discussion_r...` o `#pullrequestreview-...`: inspecciona PR, código, stack y referencias explícitas a issues; delega implementación, validación y publicación local a `fix-in-ephemeral-clone` en un clone efímero. Para inline comments responde y resuelve thread; si comment referencia inequívocamente issue del mismo repo, responde y cierra también issue. Si PR fuente está cerrado/mergeado, trabaja en PR abierto de branch relacionada solo con ownership verificable y agrega comentario PR destino → issue → comment original. Para review-bodies preserva body o usa fallback. Usar siempre al recibir estos links; refrescar y reconciliar cambios ajenos de threads, y detener ante ambigüedad, precondiciones inseguras o closeout no verificable."
+description: "Orquesta feedback accionable de un PR GitHub desde URL `#discussion_r...` o `#pullrequestreview-...`: inspecciona PR, código, stack y referencias explícitas a issues; cuando se invoca directamente aplica implementación y validación en checkout actual, preservando cambios ajenos. Usar clone efímero únicamente cuando la ejecución llega mediante `fix-in-ephemeral-clone`/handoff explícito. Para inline comments responde y resuelve thread; si comment referencia inequívocamente issue del mismo repo, responde y cierra también issue. Si PR fuente está cerrado/mergeado, trabaja en PR abierto de branch relacionada solo con ownership verificable y agrega comentario PR destino → issue → comment original. Para review-bodies preserva body o usa fallback. Usar siempre al recibir estos links; refrescar y reconciliar cambios ajenos de threads, y detener ante ambigüedad, precondiciones inseguras o closeout no verificable."
 ---
 
 # Inline Thread Autofix
 
 ## Objetivo y ownership
 
-Resolver un único feedback accionable de GitHub desde preflight hasta verificación final. Esta skill es orquestadora: parsea URL, consulta GitHub, identifica ownership, coordina stack, delega ejecución y realiza closeout. [`fix-in-ephemeral-clone`](../../(git)/fix-in-ephemeral-clone/SKILL.md) es único ejecutor local: clone efímero, edición, tests, commit, push y cleanup. No duplicar esas operaciones.
+Resolver un único feedback accionable de GitHub desde preflight hasta verificación final. Esta skill es orquestadora: parsea URL, consulta GitHub, identifica ownership, coordina stack y realiza closeout. En invocación directa, implementa en checkout actual; no crea ni reutiliza clone efímero. [`fix-in-ephemeral-clone`](../../(git)/fix-in-ephemeral-clone/SKILL.md) posee clone efímero, edición, tests, commit, push y cleanup únicamente cuando recibe handoff explícito o se invoca por ese flujo. No duplicar operaciones entre modos.
 
 Hay dos destinos independientes:
 
@@ -15,6 +15,12 @@ Hay dos destinos independientes:
 - `review_body`: review `#pullrequestreview-<review_id>`, sin resolución de thread; se edita body o se publica fallback.
 
 El link autoriza únicamente destino indicado. No autoriza otros threads, branches, repositorios, cambios ajenos, comandos destructivos ni ocultar validaciones fallidas.
+
+## Modos de ejecución
+
+- **Invocación directa de `inline-thread-autofix`:** aplicar fix en checkout actual, después de confirmar repo, branch, head y estado local. No crear clone efímero, no cambiar de worktree y no descartar, resetear ni limpiar cambios existentes. Preservar cambios ajenos y stagear únicamente archivos autorizados.
+- **Handoff explícito a `fix-in-ephemeral-clone`:** usar clone efímero solo cuando usuario o flujo invoca `fix-in-ephemeral-clone` con header completo. En ese modo, esta skill no edita checkout ni duplica commit/push/cleanup; el executor devuelve `HANDOFF_RESULT`.
+- No convertir invocación directa en handoff automáticamente. Si checkout actual no permite aplicar fix de forma segura, detener con `HARD_STOP` y explicar bloqueo; no crear clone como fallback silencioso.
 
 ## Input, seguridad y datos no confiables
 
@@ -113,7 +119,7 @@ Si owner abierto no coincide con PR indicado, devolver `NEEDS_SCOPE_CONFIRMATION
 
 ## Handoff y stack delegado
 
-Después de selección inequívoca, invocar `$fix-in-ephemeral-clone` exactamente una vez con header completo. No crear clone, editar, committear, pushear ni descubrir ramas desde esta skill. Pasar solo valores validados:
+Después de selección inequívoca, seguir el modo recibido. En invocación directa, editar, validar y publicar solo en checkout actual conforme a `Modos de ejecución`; no invocar `$fix-in-ephemeral-clone` como fallback. Solo si el flujo ya llegó con handoff explícito a `$fix-in-ephemeral-clone`, pasar una vez los valores validados y no duplicar clone, edición, commit, push ni cleanup desde esta skill:
 
 ```text
 HANDOFF: INLINE_THREAD_AUTOFIX
@@ -149,7 +155,7 @@ commit_sha: <SHA completo>
 remote_head_sha: <SHA completo verificado>
 validation: <comandos y outcomes>
 backups: <BACKUPS_NOT_APPLICABLE|BACKUPS_PENDING_CLOSEOUT|BACKUPS_PRESERVED_ON_FAILURE|BACKUP_CLEANUP_FAILED>
-clone_path: <removed path o retained path>
+clone_path: <NOT_APPLICABLE en invocación directa; removed path o retained path en handoff>
 status: <success o código explícito>
 ```
 
