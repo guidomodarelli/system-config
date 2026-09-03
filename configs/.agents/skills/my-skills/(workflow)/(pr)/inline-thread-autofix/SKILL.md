@@ -1,30 +1,21 @@
 ---
 name: inline-thread-autofix
-description: "Orquesta feedback accionable de un PR GitHub desde URL `#discussion_r...` o `#pullrequestreview-...`: inspecciona PR, código, stack y referencias explícitas a issues; antes de implementar pregunta si el usuario quiere checkout actual, worktree hermano (`/sibling-worktree`) o clone efímero (`/fix-in-ephemeral-clone`) y ejecuta solo el entorno elegido. Para inline comments responde y resuelve el thread (si el comentario fue eliminado, permite closeout sin reply); si referencia inequívocamente una issue del mismo repo, la responde y cierra. Si el PR fuente está cerrado/mergeado, trabaja en el PR abierto de branch relacionada solo con ownership verificable. Para review-bodies preserva body o usa fallback. Usar siempre al recibir estos links; detener ante ambigüedad, precondiciones inseguras o closeout no verificable."
+description: "Orquesta feedback accionable de un PR GitHub desde URL `#discussion_r...` o `#pullrequestreview-...`: al activarse pregunta primero si el usuario quiere checkout actual, worktree hermano (`/sibling-worktree`) o clone efímero (`/fix-in-ephemeral-clone`), y recién después inspecciona PR, código, stack y referencias explícitas a issues. Ejecuta solo el entorno elegido. Para inline comments responde y resuelve el thread (si el comentario fue eliminado, permite closeout sin reply); si referencia inequívocamente una issue del mismo repo, la responde y cierra. Si el PR fuente está cerrado/mergeado, trabaja en el PR abierto de branch relacionada solo con ownership verificable. Para review-bodies preserva body o usa fallback. Usar siempre al recibir estos links; detener ante ambigüedad, precondiciones inseguras o closeout no verificable."
 ---
 
 # Inline Thread Autofix
 
-## Objetivo y ownership
+## Selección obligatoria del entorno: primer paso
 
-Resolver un único feedback accionable de GitHub desde preflight hasta verificación final. Esta skill es orquestadora: parsea URL, consulta GitHub, identifica ownership, coordina stack y realiza closeout. En invocación directa, implementa en checkout actual; no crea ni reutiliza clone efímero. [`fix-in-ephemeral-clone`](../../(git)/fix-in-ephemeral-clone/SKILL.md) posee clone efímero, edición, tests, commit, push y cleanup únicamente cuando recibe handoff explícito o se invoca por ese flujo. No duplicar operaciones entre modos.
+En una invocación directa por URL, formular primero la pregunta mediante `AskUserQuestion`, antes de cualquier otro análisis o acción. No parsear ni validar la URL, consultar GitHub, leer checkout o código, ejecutar `git status`, construir el stack ni analizar el feedback antes de recibir respuesta. Esta pregunta define el entorno, no autoriza mutaciones: las validaciones y gates posteriores siguen siendo obligatorios.
 
-Hay dos destinos independientes:
-
-- `inline`: comentario de línea `#discussion_r<comment_id>`, con `ReviewThread` resoluble.
-- `review_body`: review `#pullrequestreview-<review_id>`, sin resolución de thread; se edita body o se publica fallback.
-
-El link autoriza únicamente destino indicado. No autoriza otros threads, branches, repositorios, cambios ajenos, comandos destructivos ni ocultar validaciones fallidas.
-
-## Selección obligatoria del entorno de implementación
-
-Después del preflight read-only y antes de editar, preguntar al usuario mediante `AskUserQuestion` cuál entorno desea. Usar single-select y mostrar exactamente estas alternativas:
+Usar single-select y mostrar exactamente estas alternativas:
 
 1. **Checkout actual** — editar y validar en checkout actual; no crear worktree ni clone.
 2. **Worktree hermano** — invocar `/sibling-worktree` para crear o entrar al worktree persistente; no reimplementar su helper.
 3. **Clone efímero** — invocar `/fix-in-ephemeral-clone` con handoff completo; no crear ni administrar el clone desde esta skill.
 
-No elegir opción por defecto, no inferir preferencia por estado Git y no comenzar implementación hasta recibir respuesta. Si usuario elige opción 2 o 3, informar inmediatamente el path absoluto creado/seleccionado, branch checkout y HEAD; repetir esos datos en resultado final. Si opción elegida no puede ejecutarse, detener con `NEEDS_CLARIFICATION` o `HARD_STOP`; no cambiar automáticamente a otra opción.
+No elegir opción por defecto, no inferir preferencia por estado Git y no comenzar análisis o implementación hasta recibir respuesta. Si el flujo ya llega con un `HANDOFF: INLINE_THREAD_AUTOFIX` explícito, usar el `execution_mode` entregado como selección previa y no volver a preguntar. Si opción elegida no puede ejecutarse, detener con `NEEDS_CLARIFICATION` o `HARD_STOP`; no cambiar automáticamente a otra opción.
 
 Pregunta sugerida:
 
@@ -35,7 +26,18 @@ Pregunta sugerida:
 3. Clone efímero (`/fix-in-ephemeral-clone`)
 ```
 
-Usar `AskUserQuestion` con header `Entorno` y opciones single-select. Si usuario elige `Worktree hermano` o `Clone efímero`, enviar reporte inmediato: `Entorno elegido`, `Path absoluto`, `Branch`, `HEAD`; no ocultar path detrás de un alias ni esperar al cierre para informarlo.
+Usar `AskUserQuestion` con header `Entorno` y opciones single-select. Si usuario elige `Worktree hermano` o `Clone efímero`, informar inmediatamente después de crear o seleccionar el entorno: `Entorno elegido`, `Path absoluto`, `Branch`, `HEAD`; repetir esos datos en resultado final. No ocultar path detrás de un alias ni esperar al cierre para informarlo.
+
+## Objetivo y ownership
+
+Resolver un único feedback accionable de GitHub desde preflight hasta verificación final. Esta skill es orquestadora: parsea URL, consulta GitHub, identifica ownership, coordina stack y realiza closeout. La implementación ocurre únicamente en el entorno elegido. [`fix-in-ephemeral-clone`](../../(git)/fix-in-ephemeral-clone/SKILL.md) posee clone efímero, edición, tests, commit, push y cleanup únicamente cuando recibe handoff explícito o se invoca por ese flujo. No duplicar operaciones entre modos.
+
+Hay dos destinos independientes:
+
+- `inline`: comentario de línea `#discussion_r<comment_id>`, con `ReviewThread` resoluble.
+- `review_body`: review `#pullrequestreview-<review_id>`, sin resolución de thread; se edita body o se publica fallback.
+
+El link autoriza únicamente destino indicado. No autoriza otros threads, branches, repositorios, cambios ajenos, comandos destructivos ni ocultar validaciones fallidas.
 
 ## Modos de ejecución
 

@@ -460,9 +460,10 @@
     {
       "id": 35,
       "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456816\nAplicá este fix usando aislamiento efímero y cerrá el comentario.",
-      "expected_output": "Orquesta preflight y closeout, delega una sola ejecución local a fix-in-ephemeral-clone y espera HANDOFF_RESULT antes de mutar GitHub.",
+      "expected_output": "Pregunta primero por el entorno, conserva Clone efímero como elección y, después del análisis read-only, delega una sola ejecución local a fix-in-ephemeral-clone; espera HANDOFF_RESULT antes de mutar GitHub.",
       "files": [],
       "expectations": [
+        "Pregunta por entorno antes de preflight, análisis o handoff",
         "Declara inline-thread-autofix como orquestadora",
         "Construye HANDOFF con branch, OIDs, ancla y criterios validados",
         "Invoca fix-in-ephemeral-clone exactamente una vez",
@@ -528,6 +529,30 @@
         "Mantiene ownership de backups en orchestrator",
         "Bloquea cleanup hasta closeout y verificación final",
         "Elimina solo refs propias con OID esperado"
+      ]
+    },
+    {
+      "id": 41,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456822\nAplicá el fix y cerrá este comentario.",
+      "expected_output": "La primera interacción visible es una pregunta `AskUserQuestion` para elegir entorno; espera la respuesta y no analiza URL, PR, código o stack ni ejecuta comandos antes de esa elección.",
+      "files": [],
+      "expectations": [
+        "Formula primero `AskUserQuestion` antes de cualquier análisis o acción",
+        "Usa header `Entorno` y las tres opciones exactas de checkout actual, worktree hermano y clone efímero",
+        "No consulta GitHub, no lee checkout/código y no ejecuta `git status` antes de recibir respuesta",
+        "No elige una opción por defecto ni comienza implementación antes de la respuesta"
+      ]
+    },
+    {
+      "id": 42,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456823\nAntes de revisar nada, preguntame si querés hacerlo en checkout actual, worktree hermano o clone efímero; después analizá y seguí únicamente la opción que elija.",
+      "expected_output": "Formula la pregunta de entorno como primera interacción, espera la elección y luego analiza; conserva el modo elegido durante toda la ejecución y no cambia silenciosamente a otro entorno.",
+      "files": [],
+      "expectations": [
+        "Pregunta por entorno antes de analizar el feedback",
+        "Conserva la opción elegida durante todo el flujo",
+        "No cambia a otro entorno como fallback silencioso",
+        "Mantiene validaciones y gates posteriores después de la selección"
       ]
     }
   ]
