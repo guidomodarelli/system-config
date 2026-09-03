@@ -5,9 +5,9 @@ Leer esta referencia después de verificar trazabilidad bidireccional y antes de
 ## Entradas requeridas
 
 - `is_new_ticket`
-- `current_parent_status`, obtenido con re-fetch inmediato
+- `current_parent_status`, obtenido con una relectura al entrar a esta máquina
 - `PULL_REQUESTS`, colección canónica no obsoleta
-- Estado individual de cada PR, reconsultado desde GitHub
+- Estado individual de cada PR, obtenido en el paso 6 del flujo principal
 - `ALL_PRS_MERGED`
 - `reverse_links_verified`
 - Lista actual de transiciones disponibles cuando ruta la requiera
@@ -76,16 +76,18 @@ To Do → In Progress → Create New Release → Done
 
 Procedimiento:
 
-1. Re-fetch padre y leer status exacto.
-2. Si está antes de `To Do`, aplicar `331`; si no está disponible, `51`.
-3. Re-fetch. Si está `To Do`, aplicar `71`.
-4. Re-fetch y consultar `getTransitionsForJiraIssue`.
+1. Leer status exacto del padre (relectura de entrada).
+2. Si está antes de `To Do`, aplicar `331` (o `51` si no está disponible) y releer.
+3. Si está `To Do`, aplicar `71` y releer.
+4. Consultar `getTransitionsForJiraIssue` sin releer el padre: la lista de transiciones ya refleja el estado actual.
 5. Elegir transición cuyo name o target status sea exactamente `Create New Release`.
-6. Aplicar id retornado; nunca adivinarlo ni hardcodearlo.
-7. Re-fetch y consultar transiciones nuevamente.
+6. Aplicar id retornado; nunca adivinarlo ni hardcodearlo. Releer padre.
+7. Consultar transiciones disponibles.
 8. Elegir transición cuyo target status sea exactamente `Done`.
 9. Aplicar id retornado; nunca adivinarlo ni hardcodearlo.
-10. Re-fetch y bloquear finalización hasta status exacto `Done`.
+10. Releer padre y bloquear finalización hasta status exacto `Done`.
+
+Regla: releer el padre solo después de aplicar una transición; nunca dos relecturas consecutivas sin mutación entre ellas.
 
 Si padre ya ocupa un estado de ruta, continuar desde allí. Si ya está `Done`, no aplicar transiciones; verificar únicamente coherencia con estados PR.
 

@@ -254,24 +254,20 @@ Si hay PR, ejecutar `pr-traceability.md` en este orden:
    - fallback primer heading;
    - fallback prepend;
    - no tocar título ni contenido protegido.
-4. Re-fetch Jira y GitHub.
-5. Verificar Jira→PR y PR→Jira.
+4. Verificar Jira→PR y PR→Jira con las respuestas de las escrituras del paso 3; la relectura completa queda para el gate final.
 
 Si cualquier asociación falla, detener antes de transición y reportar URL/issue exacto. No afirmar trazabilidad completa.
 
 ## Paso 7 — Resolver estado padre
 
-1. Reconsultar estado de cada PR desde GitHub.
-2. Recalcular `ALL_PRS_MERGED`.
-3. Re-fetch status padre.
-4. Leer y ejecutar `status-transitions.md`.
-5. Verificar status real después de cada transición.
+1. Recalcular `ALL_PRS_MERGED` con los estados de PR ya obtenidos en el paso 6.
+2. Leer y ejecutar `status-transitions.md`; el padre se relee una vez al entrar a la máquina y después de cada transición aplicada, nada más.
 
 No continuar al gate final si máquina devuelve bloqueo.
 
 ## Paso 8 — Gate final
 
-Re-fetch padre, subtareas y todos los PR. Validar:
+Única relectura completa del flujo: re-fetch padre, subtareas y todos los PR una vez. Validar:
 
 - Campos obligatorios según `jira-fields.md`.
 - Summary/description en español.

@@ -21,7 +21,7 @@ If the user has not already chosen the scope, ask in Spanish before reviewing:
 
 Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
 
-Always run `git fetch --all --prune` before resolving branches, selecting files, or reading diffs. If fetch fails, stop the review and report the fetch error instead of continuing with stale refs.
+For options `1` and `2`, run `git fetch --prune origin` once before resolving the base branch. If fetch fails, warn that remote refs may be stale and continue with local refs. Option `3` does not need a fetch.
 
 Use these scopes:
 
@@ -33,7 +33,7 @@ Use these scopes:
 Useful commands:
 
 ```bash
-git fetch --all --prune
+git fetch --prune origin
 git status --short
 git diff --cached --name-status
 git diff --name-status
@@ -56,7 +56,7 @@ Use `git merge-base HEAD <base>` and review from that merge base to `HEAD`. When
 Useful commands:
 
 ```bash
-git fetch --all --prune
+git fetch --prune origin
 git branch --list develop main master
 git branch -r --list origin/develop origin/main origin/master
 git merge-base HEAD <base>

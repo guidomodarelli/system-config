@@ -142,7 +142,7 @@ Para subtareas, omitir descripción si no cambió y usar siempre fecha del padre
 
 ## Checklist bloqueante
 
-Después de cada sincronización, re-fetch padre y todas las subtareas. Verificar por issue:
+Verificar por issue en el gate final (Paso 8), sobre la única relectura completa del flujo; no releer después de cada sincronización:
 
 - [ ] `labels` contiene `kraken-user-role`.
 - [ ] `labels` contiene todos los `PR_LABELS` esperados.
@@ -151,4 +151,4 @@ Después de cada sincronización, re-fetch padre y todas las subtareas. Verifica
 - [ ] `customfield_12410` contiene fecha esperada.
 - [ ] Subtareas coinciden con campos heredados del padre.
 
-Corregir cualquier mismatch y re-fetch. Flujo no puede finalizar mientras alguna validación falle.
+Corregir cualquier mismatch y releer solo la issue corregida. Flujo no puede finalizar mientras alguna validación falle.

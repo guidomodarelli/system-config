@@ -29,7 +29,6 @@ Use when:
 - When a provider reports accepted/actionable findings, enter the mandatory loop: review -> verify findings -> fix accepted/actionable findings -> run relevant tests -> rerun the same provider -> repeat until 0 accepted/actionable findings.
 - Never stop after reporting findings with a passive closeout such as "No hice cambios; esto fue solo review." Fix accepted findings unless the user explicitly asks for review-only or forbids changes.
 - If every finding is rejected after verification, document the rejection reason. Rerun only when code or review target changed.
-- If a review-triggered fix changes code, rerun focused tests and review the updated target.
 - Do not push just to review. Push only when the user requested push/ship/PR update.
 
 ## Arquitectura y bucle de feedback
