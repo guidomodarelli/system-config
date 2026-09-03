@@ -92,7 +92,6 @@ responses_websockets = true
 shell_snapshot = true
 terminal_resize_reflow = true
 plugin_hooks = true
-enabled = true
 
 [plugins."spreadsheets@openai-primary-runtime"]
 enabled = true
