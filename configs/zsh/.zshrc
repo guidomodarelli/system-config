@@ -56,3 +56,72 @@ if [[ -d "$ZSH_HOME" ]]; then
     done
   }
 fi
+
+############### MELI ###############
+
+# Internal Python Registry
+export PIP_INDEX_URL='https://pypi.artifacts.furycloud.io/simple'
+export UV_INDEX_URL='https://pypi.artifacts.furycloud.io/simple'
+
+# >>> es-wrapper initialize >>>
+# Agregado automáticamente por el instalador de es-wrapper
+# Para desinstalar, ejecuta: ~/.es-wrapper/uninstall.sh
+export PATH="$HOME/.es-wrapper/bin:$PATH"
+
+unalias source 2>/dev/null
+unalias . 2>/dev/null
+source() {
+    builtin source "$@"
+    local ret=$?
+    if [[ -n "$VIRTUAL_ENV" ]]; then
+        export PATH="$HOME/.es-wrapper/bin:$PATH"
+    fi
+    return $ret
+}
+alias .='source'
+
+_es_wrapper_guard() {
+    case ":$PATH:" in
+        *":$HOME/.es-wrapper/bin:"*)
+            if [[ "$PATH" != "$HOME/.es-wrapper/bin:"* ]]; then
+                local _eswrap_p="${PATH//$HOME\/.es-wrapper\/bin:/}"
+                _eswrap_p="${_eswrap_p//:$HOME\/.es-wrapper\/bin/}"
+                export PATH="$HOME/.es-wrapper/bin:$_eswrap_p"
+            fi
+            ;;
+        *)
+            export PATH="$HOME/.es-wrapper/bin:$PATH"
+            ;;
+    esac
+}
+precmd_functions+=(_es_wrapper_guard)
+
+_es_wrapper_vm_hook() {
+    [[ -f .nvmrc || -f .node-version ]] && type nvm &>/dev/null && nvm use --silent 2>/dev/null
+    [[ -f .python-version ]] && command -v pyenv &>/dev/null && pyenv local 2>/dev/null
+}
+if [[ -n "$ZSH_VERSION" ]]; then
+    autoload -U add-zsh-hook 2>/dev/null
+    add-zsh-hook chpwd _es_wrapper_vm_hook
+    _es_wrapper_vm_hook
+fi
+# <<< es-wrapper initialize <<<
+
+fury() {
+  PYTHONWARNINGS='ignore:unknown terminal capability:UserWarning:inquirer.themes' command fury "$@"
+}
+
+# bun completions
+[ -s "/Users/gmodarelli/.bun/_bun" ] && source "/Users/gmodarelli/.bun/_bun"
+
+# Added by Fury CLI installation process
+export PATH="$HOME/.fury/fury_venv/bin:$PATH"
+
+# Added by git-ai installer on Mon Aug 10 10:01:57 -03 2026
+export PATH="/Users/gmodarelli/.git-ai/bin:$PATH"
+
+# Added by Swarm CLI installer
+export PATH="/Users/gmodarelli/.swarm/bin:$PATH"
+
+export GROOT_QUEUE_AUTORUN=true
+

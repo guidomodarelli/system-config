@@ -4,6 +4,10 @@ model = "gpt-5.6-luna"
 model_reasoning_effort = "max"
 model_context_window = 1000000
 model_auto_compact_token_limit = 900000
+notify = [
+    "/Users/gmodarelli/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
+    "turn-ended",
+]
 personality = "pragmatic"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
@@ -31,6 +35,7 @@ selected-avatar-id = "codex"
 show-context-window-usage = true
 usePointerCursors = true
 dock-icon-preference = "codex-system"
+enabled-reasoning-efforts = ["low", "medium", "high", "xhigh", "ultra", "persistent", "max"]
 
 [desktop.appearanceDarkChromeTheme]
 accent = "#1f6feb"
@@ -93,20 +98,162 @@ shell_snapshot = true
 terminal_resize_reflow = true
 plugin_hooks = true
 
-[plugins."spreadsheets@openai-primary-runtime"]
-enabled = true
+[[hooks.SessionStart]]
 
-[plugins."presentations@openai-primary-runtime"]
-enabled = true
+[[hooks.SessionStart.hooks]]
+command = """echo '{"systemMessage":"🦴 Caveman mode ON","hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"CAVEMAN MODE ACTIVE (full). Rules: drop articles (a/an/the/el/la/un/una), filler (just/really/basically/actually/solo/simplemente), pleasantries (sure/of course/happy to/claro/con gusto), hedging (maybe/perhaps/I think/quizas/creo que). Fragments OK. Short synonyms. Exact technical terms. Pattern: [thing] [action] [reason]. [next step]. Match user language immediately. Off only when user says: stop caveman / normal mode / modo normal."}}' """
+statusMessage = "🦴 Caveman mode ON"
+timeout = 5
+type = "command"
+
+[hooks.state]
+
+[hooks.state."/Users/gmodarelli/.codex/config.toml:session_start:0:0"]
+trusted_hash = "sha256:3d43a4a0fae562512fb7816680bf64d10441497595d55787ff86c92b54bb7386"
+
+[hooks.state."meli-claude-memory@tech-plugins-marketplace:codex/hooks/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:4aeb472cd1224f473a2ad3a4efe6b07d22b952a3032b77fc71237bdb9f2772ab"
+
+[hooks.state."meli-claude-memory@tech-plugins-marketplace:codex/hooks/hooks.json:session_start:1:0"]
+trusted_hash = "sha256:8b173992bde3841e27b89f64825abcf78c64bd5f9e44dee1bd6e0618932f9e4c"
+
+[hooks.state."meli-claude-memory@tech-plugins-marketplace:codex/hooks/hooks.json:session_start:1:1"]
+trusted_hash = "sha256:cba57bc8d50aab0a7e0858baa6db7687a26f61fbe76982ae1f3153ef0511847e"
+
+[hooks.state."meli-claude-memory@tech-plugins-marketplace:codex/hooks/hooks.json:session_start:1:2"]
+trusted_hash = "sha256:8e8f6979c49fd8bab05953fa223aaafc2978ff9f539acf560c96d56f7743fe5b"
+
+[hooks.state."meli-claude-memory@tech-plugins-marketplace:codex/hooks/hooks.json:stop:0:0"]
+trusted_hash = "sha256:4dd2e0c3d2a9c81aa1b75c60dc1ecd65475d2b698a08250da9025b73365dd0f8"
+
+[hooks.state."meli-claude-memory@tech-plugins-marketplace:codex/hooks/hooks.json:stop:0:1"]
+trusted_hash = "sha256:4cee4a30af43283969d67d49982b5e5da99cd2ccb7a690f443f84b7604697551"
+
+[hooks.state."meli-security-expert@cyber-plugins-marketplace:hooks/hooks-codex.json:permission_request:0:0"]
+trusted_hash = "sha256:55e4efd4973cee947019e20ab71ab9a94dcf4bb3b8c5c2d36a2361b0331bb567"
+
+[hooks.state."meli-security-expert@cyber-plugins-marketplace:hooks/hooks-codex.json:session_start:0:1"]
+trusted_hash = "sha256:f7330b3a29ca6ddac4eb5a0ae78050aab3a0363a418bd390382d9a2c4319378c"
+
+[hooks.state."meli-security-expert@cyber-plugins-marketplace:hooks/hooks.json:permission_request:0:0"]
+trusted_hash = "sha256:55e4efd4973cee947019e20ab71ab9a94dcf4bb3b8c5c2d36a2361b0331bb567"
+
+[hooks.state."meli-security-expert@cyber-plugins-marketplace:hooks/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:35bf24127fcd8df2d5ed2ca74c48e53dd64536bc891e6c7613a00c43e4793c8d"
+
+[hooks.state."meli-security-expert@cyber-plugins-marketplace:hooks/hooks.json:session_start:0:1"]
+trusted_hash = "sha256:cff9bdb54bc85cd22d466a3f41a5da03847e1e4f8dedaaa601b0a721074f3909"
+
+[hooks.state."fury-services@tech-plugins-marketplace:hooks/codex/config/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:6b31d4efed580f27b7ba10666e800c1b0ba13dea0db7cfd78b8a82880e5f3c09"
+
+[hooks.state."fury-services@tech-plugins-marketplace:hooks/codex/config/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:6f432af4b4ad85aa9d3f92112116325ce5e0a6dd3ad74eb13361c66073abd298"
+
+[hooks.state."fury-services@tech-plugins-marketplace:hooks/codex/config/hooks.json:post_tool_use:0:1"]
+trusted_hash = "sha256:443d3cc15dc675430982236742793bd82290144300645e51ee46d617d9339d8f"
+
+[hooks.state."fury-services@tech-plugins-marketplace:hooks/codex/config/hooks.json:post_tool_use:1:0"]
+trusted_hash = "sha256:d7aed0e9759ccd5802fb8315a1a430a9dc4ae4713c3449b475d301983d1dd498"
+
+[hooks.state."fury-services@tech-plugins-marketplace:hooks/codex/config/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:ed9c1a43024d6d3e1cc6fba7be73a95c7432a40b4d8788d34777583ab58fe3bb"
+
+[hooks.state."fury-services@tech-plugins-marketplace:hooks/codex/config/hooks.json:session_start:0:1"]
+trusted_hash = "sha256:8d2ca50e84f9a5e2b3a071879292ee65e4ff46a8c22158f397e758f63a539428"
+
+[hooks.state."fury-services@tech-plugins-marketplace:hooks/codex/config/hooks.json:user_prompt_submit:0:0"]
+trusted_hash = "sha256:4bc23e928c365010317bdb6caf8d7945159fc349eef04a9129774c3c28f573c3"
+
+[hooks.state."fury-services@tech-plugins-marketplace:hooks/codex/config/hooks.json:user_prompt_submit:0:1"]
+trusted_hash = "sha256:73535386872e50dd8b5d635c6a9c1d894c03f437e55205b911422c461abdfd6c"
+
+[hooks.state."bigquery-meli@workspace-directory:hooks/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:5fd44a27614c12b2fb0e2d173b9085413c7d2bf3324e381e671dfd3fcc004df1"
+
+[hooks.state."conversational-analytics@workspace-directory:hooks/hooks.json:permission_request:0:0"]
+trusted_hash = "sha256:aa4581a3790f62b215b0b5eff12a13fed66c3eba4685201d4add141c1c45b205"
+
+[hooks.state."rag@workspace-directory:hooks/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:286cf4bbb02b135f21ad271c00212ad7e7369fb7b79e0b569fcb9e2222236128"
+
+[marketplaces.openai-bundled]
+source_type = "local"
+source = "/Users/gmodarelli/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+source_type = "local"
+source = "/Users/gmodarelli/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[marketplaces.tech-plugins-marketplace]
+source_type = "git"
+source = "git@github.com:melisource/fury_tech-plugins-marketplace.git"
+
+[marketplaces.groot-marketplace]
+source_type = "local"
+source = "/Users/gmodarelli/ghq/work/groot-marketplace-agent-ready"
+
+[marketplaces.cx-plugins-marketplace]
+source_type = "git"
+source = "git@github.com:melisource/fury_cx-plugins-marketplace.git"
+
+[marketplaces.cyber-plugins-marketplace]
+source_type = "git"
+source = "git@github.com:melisource/fury_cyber-plugins-marketplace.git"
+
+[mcp_servers.mcmemory-mcp]
+command = "mcp-remote-proxy"
+args = ["https://km-dev-mcp.melioffice.com/mcp", "--transport", "http"]
+
+[mcp_servers.node_repl]
+args = []
+command = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl"
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_PATH = "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/Users/gmodarelli/.codex:/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules"
+CODEX_HOME = "/Users/gmodarelli/.codex"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+BROWSER_USE_TINYSKY_ENABLED = "1"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = ""
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = ""
+NODE_REPL_INSTRUCTIONS_USE_CASE_COMPUTER_USE = ""
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.901.22334"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"/Users/gmodarelli/.codex/plugins/cache/openai-bundled/browser/26.901.22334/scripts/browser-service.mjs","sky":"@oai/sky/service"}'
+SKY_CUA_SERVICE_PATH = "/Users/gmodarelli/.codex/computer-use/Codex Computer Use.app"
+CODEX_CLI_PATH = "/Applications/ChatGPT.app/Contents/Resources/codex"
+
+[mcp_servers.computer-use]
+command = "./Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient"
+args = ["mcp"]
+cwd = "."
+enabled = false
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = ["-y", "chrome-devtools-mcp@latest"]
+
+[mcp_servers.fury]
+command = "mcp-remote-proxy"
+args = ["https://mcp-services-gateway.furycloud.io/v1/servers/fury", "--headers", "x-origin", "fury-services-plugin"]
+
 [memories]
 disable_on_external_context = false
 generate_memories = false
 use_memories = false
 
+[notice.model_migrations]
+"gpt-5.5" = "gpt-5.6-sol"
+
 [plugins."browser-use@openai-bundled"]
 enabled = true
 
-[plugins."github@openai-curated"]
+
+[plugins."browser@openai-bundled"]
 enabled = true
 
 [plugins."chrome@openai-bundled"]
@@ -115,11 +262,116 @@ enabled = true
 [plugins."computer-use@openai-bundled"]
 enabled = true
 
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."github@openai-curated"]
+enabled = true
+
 [plugins."grid-sharing@tech-plugins-marketplace"]
 enabled = true
 
-[plugins."browser@openai-bundled"]
+[plugins."meli-claude-memory@tech-plugins-marketplace"]
 enabled = true
+
+[plugins."meli-frontend-web@tech-plugins-marketplace"]
+enabled = true
+
+[plugins."meli-security-expert@cyber-plugins-marketplace"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[plugins."visualize@openai-bundled"]
+enabled = true
+
+[plugins."codex-app-tools@openai-bundled"]
+enabled = true
+
+[plugins."fury-code-reviewer@tech-plugins-marketplace"]
+enabled = true
+
+[plugins."groot-kit@groot-marketplace"]
+enabled = true
+
+[plugins."failure-screen@cx-plugins-marketplace"]
+enabled = true
+
+[plugins."fury-services@tech-plugins-marketplace"]
+enabled = true
+
+[plugins."unified-computer-use@openai-bundled"]
+enabled = true
+
+[projects."/Users/gmodarelli"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/.claude/skills"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/Documents/Codex/2026-06-23/hi"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/Documents/Codex/2026-07-08/pasame-de-manera-estructura-todos-los"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/Documents/Codex/2026-07-08/pasame-de-manera-estructura-todos-los-2"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/Documents/Codex/2026-07-08/pasame-de-manera-estructura-todos-los-3"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/Documents/Codex/2026-07-08/pasame-de-manera-estructura-todos-los-4"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/Documents/Codex/2026-07-13/pasaba-por-aca-para-avisarte-que"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/Documents/Codex/2026-07-15/referenced-chatgpt-conversation-this-is-untrusted"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/ghq/work/fury_alfred-frontend"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/ghq/work/fury_groot-ui"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/ghq/work/fury_kraken-application-mgmt-fe"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/ghq/work/fury_kraken-auth-admin-fe"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/ghq/work/fury_kraken-help-center-fe"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/ghq/work/fury_kraken-user-managment-fe"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/ghq/work/fury_kraken-user-managment-fe--feature-op-reassignment"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/ghq/work/fury_mcp-kraken-integration"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/ghq/work/groot-marketplace"]
+trust_level = "trusted"
+
+[projects."/Users/gmodarelli/system-config"]
+trust_level = "trusted"
+
+[shell_environment_policy.set]
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "e7fc907079d6797973cb63f97d2562c965aad8d33f52fb726005bf6702f30afc"
 
 [tui]
 notification_method = "osc9"
@@ -128,24 +380,17 @@ notifications = [
     "user-input-requested",
     "approval-requested",
 ]
-status_line = [
-    "model-with-reasoning",
-    "git-branch",
-    "pull-request-number",
-    "task-progress",
-    "project-name",
-    "context-remaining",
-    "run-state",
-]
+status_line = ["model-with-reasoning", "git-branch", "pull-request-number", "task-progress", "context-remaining", "run-state", "context-window-size", "thread-title", "project-name"]
 status_line_use_colors = true
 theme = "two-dark"
+pet = "fireball"
 
 [tui.model_availability_nux]
+"gpt-5.4-mini" = 4
 "gpt-5.5" = 4
-"gpt-5.6-sol" = 1
+"gpt-5.6-luna" = 4
+"gpt-5.6-sol" = 4
+"gpt-5.6-terra" = 4
 
 [windows]
 sandbox = "unelevated"
-
-[notice.model_migrations]
-"gpt-5.5" = "gpt-5.6-sol"
