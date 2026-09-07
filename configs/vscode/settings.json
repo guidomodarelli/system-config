@@ -451,7 +451,6 @@
     "editor.defaultFormatter": "vscode.json-language-features"
   },
   "[markdown]": {
-    "diffEditor.ignoreTrimWhitespace": false,
     "editor.defaultFormatter": "yzhang.markdown-all-in-one"
   },
   "[html]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
