@@ -192,8 +192,7 @@
     ]
   },
 
-  /* Prettier & CSS Linters */
-  "prettier.requireConfig": true,
+  /* Linters */
   "css.lint.unknownAtRules": "ignore",
   "css.completion.triggerPropertyValueCompletion": true,
   "css.completion.completePropertyWithSemicolon": true,
@@ -250,10 +249,8 @@
   "chat.agent.maxRequests": 5000,
   "chat.useHooks": true,
   "chat.useNestedAgentsMdFiles": true,
-  "chat.tools.terminal.autoReplyToPrompts": true,
   "chat.mcp.gallery.enabled": true,
   "chat.editing.autoAcceptDelay": 1,
-  "chat.customAgentInSubagent.enabled": true,
   "chat.extensionUnification.enabled": true,
   "chat.useAgentSkills": true,
   "chat.viewSessions.orientation": "stacked",
@@ -261,10 +258,7 @@
   "chat.agentSkillsLocations": {
     "~/.codex/skills": true
   },
-  "inlineChat.enableV2": true,
   "inlineChat.affordance": "gutter",
-  "chatgpt.composerEnterBehavior": "cmdIfMultiline",
-  "chatgpt.localeOverride": "en-US",
 
   /* ------------------------------- Copilot/PR -------------------------------- */
   "github.copilot.chat.githubMcpServer.enabled": true,
@@ -275,16 +269,6 @@
   "githubPullRequests.hideViewedFiles": true,
 
   /* ------------------------------- GitLens (AI) ------------------------------ */
-  "gitlens.ai.vscode.model": "copilot:gpt-4.1",
-  "gitlens.ai.modelOptions.temperature": 0.7,
-  "gitlens.ai.generateCommitMessage.customInstructions": "Generate commit messages in conventional commit style, but omit the type prefix. Example: instead of 'feat: add new feature', write 'add new feature'. Do not include issue numbers. Use imperative mood (e.g., 'add feature', 'fix bug', 'update docs'). When mentioning functions or variables, wrap their names in «». Example: 'update function «myFunction» to handle edge cases'. If a variable starts with $, escape it with a backslash. Example: 'fix issue with \\\\$var when it is null'. Replace backticks (`...`) with «...» formatting.",
-  "gitlens.ai.explainChanges.customInstructions": "Review the changes and make sure they are correct. If you see any issues, please fix them.",
-  "gitlens.ai.generateStashMessage.customInstructions": "Use imperative mood. Example: 'stash changes'.",
-  "gitlens.ai.model": "vscode",
-  "gitlens.ai.largePromptWarningThreshold": 200000,
-  "gitlens.views.searchAndCompare.files.layout": "tree",
-  "gitlens.views.searchAndCompare.files.compact": false,
-  "gitlens.graph.minimap.enabled": false,
   "github.copilot.nextEditSuggestions.enabled": true,
   "github.copilot.chat.codesearch.enabled": true,
   "github.copilot.chat.commitMessageGeneration.instructions": [
@@ -348,87 +332,8 @@
   ],
   "tailwindCSS.classAttributes": ["class", "className", "ngClass", "tw"],
 
-  // Tag matching / closing
-  "highlight-matching-tag.highlightFromContent": true,
-  "highlight-matching-tag.highlightSelfClosing": true,
-  "auto-close-tag.activationOnLanguage": [
-    "poml",
-    "astro",
-    "xml",
-    "php",
-    "blade",
-    "ejs",
-    "jinja",
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact",
-    "plaintext",
-    "markdown",
-    "vue",
-    "liquid",
-    "erb",
-    "lang-cfml",
-    "cfml",
-    "HTML (EEx)",
-    "HTML (Eex)",
-    "plist"
-  ],
-
-  // Error Lens
-  "errorLens.fontSize": "13",
-  "errorLens.fontWeight": "bold",
-  "errorLens.severityText": ["ERROR", "WARNING", "INFO", "HINT"],
-  "errorLens.messageTemplate": "[$severity] $message",
-
-  // Markdown preview
-  "markdown-preview-enhanced.enablePreviewZenMode": true,
-
   // Otros
   "extensions.ignoreRecommendations": true,
-  "banner-comments.h1": "ANSI Regular",
-
-  /* ======================================================================== */
-  /*                                TODO TREE                                  */
-  /* ======================================================================== */
-  "todomd.webview.showRecurringUpcoming": false,
-  "todomd.activatePattern": "**/{todo,someday,todo.archive,TODO}.md",
-  "todo-tree.general.tags": ["FIXME", "FIX", "FIXIT", "TODO", "[ ]", "[x]"],
-  "todo-tree.general.tagGroups": { "FIXME": ["FIX", "FIXIT"] },
-  "todo-tree.filtering.excludeGlobs": [
-    "**/node_modules/**",
-    "**/target/**",
-    "**/dist/**",
-    "**/out/**",
-    "**/build/**",
-    "**/vendor/**",
-    "**/coverage/**",
-    "**/packages/**",
-    "**/CHANGELOG.md",
-    "**/CONTRIBUTING.md",
-    "**/RELEASING.md",
-    "**/SECURITY.md",
-    "**/STYLEGUIDE.md",
-    "**/DEVELOPER_GUIDE.md"
-  ],
-  "todo-tree.regex.regex": "(?://|#|<!--|;|/\\*|^\\s*(?:-|\\d+.)).*\\b($TAGS)[: \n]",
-  "todo-tree.regex.regexCaseSensitive": false,
-  "todo-tree.tree.filterCaseSensitive": false,
-  "todo-tree.general.statusBar": "tags",
-  "todo-tree.highlights.customHighlight": {
-    "FIXME": {
-      "icon": "tools",
-      "background": "#d41212",
-      "foreground": "#fff",
-      "iconColour": "#d41212"
-    },
-    "TODO": {
-      "icon": "tasklist",
-      "background": "#4C82EF",
-      "foreground": "#fff",
-      "iconColour": "#4C82EF"
-    }
-  },
 
   /* ======================================================================== */
   /*                           SEGURIDAD / REMOTO / DEV                        */
@@ -451,48 +356,6 @@
   "json.maxItemsComputed": 50000,
   "redhat.telemetry.enabled": true,
   "docker.extension.enableComposeLanguageServer": false,
-
-  /* ======================================================================== */
-  /*                               SPELL CHECKER                               */
-  /* ======================================================================== */
-  "cSpell.userWords": [
-    "aggs",
-    "ameriten",
-    "atomicidad",
-    "Bitwarden",
-    "Choco",
-    "debatible",
-    "distro",
-    "encapsularla",
-    "Espanso",
-    "Flameshot",
-    "indirección",
-    "instanciación",
-    "instanciarla",
-    "issuetype",
-    "kuery",
-    "Lazygit",
-    "mantenibilidad",
-    "mantenible",
-    "mantenibles",
-    "modularidad",
-    "motemen",
-    "opendistro",
-    "opensearch",
-    "Podés",
-    "reusabilidad",
-    "Termius",
-    "testabilidad",
-    "testeen",
-    "testeo",
-    "toplevel",
-    "ubicarla",
-    "úsalo",
-    "wazuh",
-    "Winget",
-    "WSLENV",
-    "wslpath"
-  ],
 
   /* ======================================================================== */
   /*                         OVERRIDES POR LENGUAJE                             */
