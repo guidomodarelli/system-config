@@ -1,5 +1,13 @@
 # yaml-language-server: $schema=schema.json
 paths:
+  - path: vscode/settings.json
+    target: AppData/Roaming/Code/User
+    onlyFor:
+      - platform: win32
+      - platform: darwin
+    overrides:
+      - target: Library/Application Support/Code/User
+        platform: darwin
   - path: tmux/.tmux.conf
     target: .
     excludeFor:
