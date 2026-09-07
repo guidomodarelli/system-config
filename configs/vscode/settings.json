@@ -4,6 +4,7 @@
   /* ======================================================================== */
   "workbench.colorTheme": "One Dark Pro Mix",
   "workbench.iconTheme": "catppuccin-perfect-ayu",
+  "workbench.productIconTheme": "fluent-icons",
   "workbench.colorCustomizations": {
     // // Texto insertado/eliminado (nivel carácter)
     "diffEditor.insertedTextBackground": "#00C84640",
@@ -18,14 +19,22 @@
   /* ----------------------------- Workbench/Window ----------------------------- */
   "workbench.localHistory.enabled": false,
   "workbench.startupEditor": "none",
+  "workbench.sideBar.location": "right",
+  "workbench.activityBar.location": "top",
   "workbench.list.smoothScrolling": true,
   "workbench.list.horizontalScrolling": true,
   "workbench.tree.indent": 20,
   "workbench.tree.enableStickyScroll": true,
   "workbench.editor.showTabs": "multiple",
+  "workbench.editor.enablePreviewFromCodeNavigation": true,
+  "workbench.editor.enablePreviewFromQuickOpen": true,
+  "workbench.editor.enablePreview": false,
+  "workbench.panel.showLabels": false,
+  "workbench.browser.openLocalhostLinks": true,
   "window.titleBarStyle": "custom",
   "window.customTitleBarVisibility": "auto",
   "window.menuBarVisibility": "visible",
+  "window.newWindowProfile": "Agents",
   "window.title": "${rootNameShort}${separator}${activeEditorShort}",
 
   /* ======================================================================== */
@@ -107,6 +116,8 @@
   "terminal.integrated.env.windows": {},
   "terminal.integrated.suggest.enabled": false,
   "terminal.integrated.defaultProfile.linux": "zsh",
+  "terminal.integrated.enableMultiLinePasteWarning": "never",
+  "powershell.promptToUpdatePowerShell": false,
 
   /* ======================================================================== */
   /*                               EXPLORER/FILES                              */
@@ -136,6 +147,9 @@
     "**/node_modules/*/**": true,
     "**/.pytest_cache/*/**": true,
     "**/dist/*/**": true
+  },
+  "search.exclude": {
+    "**/mocks/**": true
   },
 
   /* ======================================================================== */
@@ -224,6 +238,10 @@
   "git.confirmSync": false,
   "git.openRepositoryInParentFolders": "always",
   "git.allowNoVerifyCommit": true,
+  "git.replaceTagsWhenPull": true,
+  "git.blame.editorDecoration.enabled": true,
+  "git.blame.statusBarItem.enabled": true,
+  "scm.repositories.selectionMode": "single",
 
   /* ======================================================================== */
   /*                                   CHAT/AI                                 */
@@ -234,6 +252,27 @@
   "chat.useNestedAgentsMdFiles": true,
   "chat.tools.terminal.autoReplyToPrompts": true,
   "chat.mcp.gallery.enabled": true,
+  "chat.editing.autoAcceptDelay": 1,
+  "chat.customAgentInSubagent.enabled": true,
+  "chat.extensionUnification.enabled": true,
+  "chat.useAgentSkills": true,
+  "chat.viewSessions.orientation": "stacked",
+  "chat.permissions.default": "autoApprove",
+  "chat.agentSkillsLocations": {
+    "~/.codex/skills": true
+  },
+  "inlineChat.enableV2": true,
+  "inlineChat.affordance": "gutter",
+  "chatgpt.composerEnterBehavior": "cmdIfMultiline",
+  "chatgpt.localeOverride": "en-US",
+
+  /* ------------------------------- Copilot/PR -------------------------------- */
+  "github.copilot.chat.githubMcpServer.enabled": true,
+  "github.copilot.chat.customInstructionsInSystemMessage": true,
+  "github.copilot.chat.organizationInstructions.enabled": false,
+  "github.copilot.chat.organizationCustomAgents.enabled": false,
+  "github.copilot.nextEditSuggestions.eagerness": "high",
+  "githubPullRequests.hideViewedFiles": true,
 
   /* ------------------------------- GitLens (AI) ------------------------------ */
   "gitlens.ai.vscode.model": "copilot:gpt-4.1",
@@ -241,6 +280,10 @@
   "gitlens.ai.generateCommitMessage.customInstructions": "Generate commit messages in conventional commit style, but omit the type prefix. Example: instead of 'feat: add new feature', write 'add new feature'. Do not include issue numbers. Use imperative mood (e.g., 'add feature', 'fix bug', 'update docs'). When mentioning functions or variables, wrap their names in «». Example: 'update function «myFunction» to handle edge cases'. If a variable starts with $, escape it with a backslash. Example: 'fix issue with \\\\$var when it is null'. Replace backticks (`...`) with «...» formatting.",
   "gitlens.ai.explainChanges.customInstructions": "Review the changes and make sure they are correct. If you see any issues, please fix them.",
   "gitlens.ai.generateStashMessage.customInstructions": "Use imperative mood. Example: 'stash changes'.",
+  "gitlens.ai.model": "vscode",
+  "gitlens.ai.largePromptWarningThreshold": 200000,
+  "gitlens.views.searchAndCompare.files.layout": "tree",
+  "gitlens.views.searchAndCompare.files.compact": false,
   "gitlens.graph.minimap.enabled": false,
   "github.copilot.nextEditSuggestions.enabled": true,
   "github.copilot.chat.codesearch.enabled": true,
@@ -276,6 +319,7 @@
   "diffEditor.ignoreTrimWhitespace": false,
   "diffEditor.diffAlgorithm": "advanced",
   "diffEditor.experimental.showMoves": true,
+  "diffEditor.hideUnchangedRegions.enabled": true,
   "diffEditor.renderSideBySide": true,
   "debug.console.wordWrap": false,
   "debug.console.fontSize": 13,
@@ -337,6 +381,9 @@
   "errorLens.severityText": ["ERROR", "WARNING", "INFO", "HINT"],
   "errorLens.messageTemplate": "[$severity] $message",
 
+  // Markdown preview
+  "markdown-preview-enhanced.enablePreviewZenMode": true,
+
   // Otros
   "extensions.ignoreRecommendations": true,
   "banner-comments.h1": "ANSI Regular",
@@ -344,6 +391,8 @@
   /* ======================================================================== */
   /*                                TODO TREE                                  */
   /* ======================================================================== */
+  "todomd.webview.showRecurringUpcoming": false,
+  "todomd.activatePattern": "**/{todo,someday,todo.archive,TODO}.md",
   "todo-tree.general.tags": ["FIXME", "FIX", "FIXIT", "TODO", "[ ]", "[x]"],
   "todo-tree.general.tagGroups": { "FIXME": ["FIX", "FIXIT"] },
   "todo-tree.filtering.excludeGlobs": [
@@ -385,6 +434,9 @@
   /*                           SEGURIDAD / REMOTO / DEV                        */
   /* ======================================================================== */
   "security.workspace.trust.untrustedFiles": "open",
+  "security.allowedUNCHosts": [
+    "wsl.localhost"
+  ],
   "remote.autoForwardPortsSource": "hybrid",
   "dev.containers.executeInWSL": true,
   "remote.SSH.remotePlatform": {
@@ -483,42 +535,7 @@
   "[github-actions-workflow]": {
     "editor.defaultFormatter": "redhat.vscode-yaml"
   },
-  "gitlens.ai.largePromptWarningThreshold": 200000,
-  "git.replaceTagsWhenPull": true,
-  "chat.editing.autoAcceptDelay": 1,
-  "inlineChat.enableV2": true,
-  "chat.customAgentInSubagent.enabled": true,
-  "github.copilot.chat.githubMcpServer.enabled": true,
-  "chat.extensionUnification.enabled": true,
   "[yaml]": {
     "editor.defaultFormatter": "redhat.vscode-yaml"
-  },
-  "workbench.sideBar.location": "right",
-  "chat.useAgentSkills": true,
-  "chat.viewSessions.orientation": "stacked",
-  "github.copilot.chat.customInstructionsInSystemMessage": true,
-  "security.allowedUNCHosts": [
-    "wsl.localhost"
-  ],
-  "inlineChat.affordance": "gutter",
-  "chat.agentSkillsLocations": {
-    "~/.codex/skills": true
-  },
-  "workbench.activityBar.location": "top",
-  "workbench.browser.openLocalhostLinks": true,
-  "gitlens.views.searchAndCompare.files.layout": "tree",
-  "gitlens.views.searchAndCompare.files.compact": false,
-  "workbench.panel.showLabels": false,
-  "chatgpt.composerEnterBehavior": "cmdIfMultiline",
-  "chatgpt.localeOverride": "en-US",
-  "diffEditor.hideUnchangedRegions.enabled": true,
-  "markdown-preview-enhanced.enablePreviewZenMode": true,
-  "todomd.webview.showRecurringUpcoming": false,
-  "todomd.activatePattern": "**/{todo,someday,todo.archive,TODO}.md",
-  "gitlens.ai.model": "vscode",
-  "terminal.integrated.enableMultiLinePasteWarning": "never",
-  "workbench.productIconTheme": "fluent-icons",
-  "powershell.promptToUpdatePowerShell": false,
-  "github.copilot.nextEditSuggestions.eagerness": "high",
-  "scm.repositories.selectionMode": "single"
+  }
 }
