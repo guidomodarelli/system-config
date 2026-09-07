@@ -11,24 +11,28 @@ Validar comportamiento observable desde UI y requests de red sin exponer credenc
 
 ## Preparar verificación
 
-1. Confirmar servidor disponible en `https://dev.adminml.com:8443`.
-2. Abrir la ruta en browser y detectar si redirige a Okta u otro proveedor corporativo, o si browser muestra una advertencia de certificado/TLS.
-3. Si aparece autenticación Okta:
+1. Verificar primero disponibilidad TCP del puerto `8443` en `dev.adminml.com`, sin inferirla únicamente desde el browser:
+   - ejecutar `nc -z -w 5 dev.adminml.com 8443` o un probe TCP equivalente disponible en el entorno;
+   - registrar resultado como `OPEN`, `REFUSED/CLOSED`, `TIMEOUT` o `DNS/ERROR`;
+   - no afirmar que el servidor rechaza conexión ni clasificar el entorno como bloqueado por conexión sin este probe y su resultado registrado.
+2. Confirmar servidor disponible en `https://dev.adminml.com:8443`.
+3. Abrir la ruta en browser y detectar si redirige a Okta u otro proveedor corporativo, o si browser muestra una advertencia de certificado/TLS.
+4. Si aparece autenticación Okta:
    - pausar el workflow inmediatamente y dejar browser abierto;
    - informar al usuario que debe completar/aprobar autenticación;
    - esperar confirmación explícita del usuario (por ejemplo, `listo` o `aprobado`) antes de continuar;
    - no solicitar, ingresar, leer ni reportar credenciales, códigos, cookies o tokens;
    - después de confirmación, verificar que browser volvió a ruta original y que sesión quedó activa; si no, clasificar como `BLOCKED`.
-4. Si una URL empieza con `https://` pero browser muestra `Not secure`, o aparece un intersticial de certificado:
+5. Si una URL empieza con `https://` pero browser muestra `Not secure`, o aparece un intersticial de certificado:
    - pausar el workflow y dejar browser abierto;
    - informar al usuario que debe revisar el host y el certificado;
    - pedirle que pulse `Advanced` y el enlace equivalente a `Proceed/Continue ... (unsafe)` solo si reconoce y acepta el entorno de desarrollo;
    - esperar confirmación explícita del usuario antes de ejecutar cualquier snapshot, click, probe o lectura de requests;
    - no hacer click en la excepción TLS por cuenta propia ni ocultar la advertencia;
    - después de confirmación, verificar que la URL sigue usando `https://` y que el host coincide exactamente con el destino esperado; si no, clasificar como `BLOCKED`.
-5. Identificar ruta afectada, flujo esperado y requests relevantes antes de interactuar.
-6. Si flujo modifica estado, elegir fixture sandbox conocido, registrar estado inicial y definir restauración antes de ejecutar acción.
-7. No usar datos productivos ni fixtures compartidos cuyo estado no pueda restaurarse con seguridad.
+6. Identificar ruta afectada, flujo esperado y requests relevantes antes de interactuar.
+7. Si flujo modifica estado, elegir fixture sandbox conocido, registrar estado inicial y definir restauración antes de ejecutar acción.
+8. No usar datos productivos ni fixtures compartidos cuyo estado no pueda restaurarse con seguridad.
 
 ## Protocolo de espera por autenticación y seguridad del browser
 
@@ -53,6 +57,10 @@ No clasificar una pantalla de login, un `401` previo a autenticación, una adver
 - `PASS`: flujo y requests esperados funcionan, estado final coincide con expectativa y fixture quedó restaurado.
 - `FAIL`: comportamiento o request contradice resultado esperado. Incluir paso reproducible y evidencia sanitizada.
 - `BLOCKED`: entorno, autenticación, servidor, permisos o fixture impiden verificar. No presentar bloqueo como éxito.
+
+### Regla para rechazo de conexión
+
+Solo usar el mensaje `El entorno https://dev.adminml.com:8443 rechaza conexión, por lo que verificación runtime queda bloqueada por ahora; no lo trataré como fallo de producto. La inspección seguirá sobre código y pruebas para aislar regresión reproducible localmente.` cuando el probe TCP haya devuelto `REFUSED/CLOSED` y la navegación del browser muestre también rechazo de conexión. Si el puerto está `OPEN`, no usar ese mensaje: continuar diagnóstico de HTTP, TLS, autenticación o aplicación. Para `TIMEOUT` o `DNS/ERROR`, reportar exactamente ese estado y no convertirlo en `REFUSED/CLOSED`.
 
 ## Reportar verificación
 
