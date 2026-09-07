@@ -233,6 +233,12 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
 - Comprueba los permisos del directorio destino y, si no es escribible o no
   pertenece al usuario actual, utiliza `sudo` para ejecutar la operación.
 - Notifica al usuario cuando se emplean permisos elevados.
+- En PowerShell, intenta crear los enlaces sin elevacion primero. Los que
+  requieren permisos de administrador se agrupan al final en una sola solicitud
+  UAC por ejecucion. Si se cancela, informa los enlaces pendientes como errores
+  sin volver a solicitar permisos. `--dry-run` no solicita elevacion.
+- El lote elevado conserva los resultados individuales y no sobrescribe destinos
+  que hayan aparecido mientras se esperaba la autorizacion.
 
 4. **Ejemplo de Configuración YAML**
 

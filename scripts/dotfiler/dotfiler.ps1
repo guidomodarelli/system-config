@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $script:ExitCodeSuccess = 0
 $script:ExitCodeRuntimeError = 1
@@ -13,6 +13,7 @@ $script:CliArgs = @($args)
 $script:IsElevatedSymlinkMode = $false
 $script:ElevatedSymlinkSource = $null
 $script:ElevatedSymlinkTarget = $null
+$script:PendingElevatedSymlinks = [System.Collections.Generic.List[object]]::new()
 
 $script:RootDir = $null
 $script:ConfigsDir = $null
@@ -574,6 +575,61 @@ function Invoke-InternalElevatedSymlinkMode {
   }
 
   exit $script:ExitCodeSuccess
+}
+
+# Procesa los enlaces pendientes con una sola solicitud UAC y conserva cada resultado.
+function Complete-PendingElevatedSymlinks {
+  if ($script:DryRun -or $script:PendingElevatedSymlinks.Count -eq 0) {
+    return
+  }
+
+  $operations = @($script:PendingElevatedSymlinks.ToArray())
+  $script:PendingElevatedSymlinks.Clear()
+  $requestPath = $null
+  $resultPath = $null
+  try {
+    $requestPath = [System.IO.Path]::GetTempFileName()
+    $resultPath = [System.IO.Path]::GetTempFileName()
+    ConvertTo-Json -InputObject $operations -Depth 4 | Set-Content -LiteralPath $requestPath -Encoding UTF8
+    $workerPath = Join-Path $PSScriptRoot 'create-symlinks-elevated.ps1'
+    $arguments = ConvertTo-WindowsProcessArgumentsString -ArgumentList @(
+      '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $workerPath,
+      '-RequestPath', $requestPath, '-ResultPath', $resultPath
+    )
+    Write-Info "Solicitando permisos de administrador una vez para $($operations.Count) enlaces pendientes."
+    $process = Start-Process -FilePath (Get-PowerShellExecutablePath) -ArgumentList $arguments -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
+    if ($process.ExitCode -ne 0) {
+      throw "El proceso elevado finalizo con codigo $($process.ExitCode)."
+    }
+    $results = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+    $results = @($results)
+    if ($results.Count -ne $operations.Count) {
+      throw 'El proceso elevado no devolvio todos los resultados esperados.'
+    }
+    for ($index = 0; $index -lt $operations.Count; $index += 1) {
+      $operation = $operations[$index]
+      $result = $results[$index]
+      if ($result.Success -eq $true) {
+        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix 'Symlink creado con elevacion' -TargetPath $operation.Target -SourcePath $operation.Source
+      } else {
+        $script:CountErrors += 1
+        Add-Diagnostic -Target $operation.Target -Reason $result.Error
+        Write-ErrorLog "No se pudo crear symlink $($operation.Target) -> $($operation.Source)"
+      }
+    }
+  } catch {
+    foreach ($operation in $operations) {
+      $script:CountErrors += 1
+      Add-Diagnostic -Target $operation.Target -Reason "No se pudo completar el lote elevado: $($_.Exception.Message)"
+      Write-ErrorLog "No se pudo crear symlink $($operation.Target) -> $($operation.Source)"
+    }
+  } finally {
+    foreach ($temporaryPath in @($requestPath, $resultPath)) {
+      if ($temporaryPath) {
+        Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+      }
+    }
+  }
 }
 
 function Test-CommandAvailable {
@@ -1411,9 +1467,11 @@ function New-DotfileSymlink {
           throw
         }
 
-        Write-Info "Reintentando symlink con elevacion $TargetPath"
-        Invoke-ElevatedSymlinkCreation -SourcePath $SourcePath -TargetPath $TargetPath
-        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix 'Symlink creado con elevacion' -TargetPath $TargetPath -SourcePath $SourcePath
+        if (-not (Test-ElevationTargetAllowed -TargetPath $TargetPath)) {
+          throw "Auto-elevacion bloqueada: el destino '$TargetPath' esta fuera de las rutas permitidas."
+        }
+        $script:PendingElevatedSymlinks.Add([PSCustomObject]@{ Source = $SourcePath; Target = $TargetPath })
+        Write-Info "Symlink pendiente de elevacion: $TargetPath"
       }
     }
 
@@ -1648,6 +1706,7 @@ function Main {
     New-DotfileSymlink -SourcePath $operation.Source -TargetPath $operation.Target
   }
 
+  Complete-PendingElevatedSymlinks
   Print-Summary
   Print-Diagnostics
 

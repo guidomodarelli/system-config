@@ -1,4 +1,4 @@
-Describe 'dotfiler.ps1' {
+﻿Describe 'dotfiler.ps1' {
   BeforeAll {
     $script:PreviousSkipMain = $env:DOTFILER_PS1_SKIP_MAIN
     $env:DOTFILER_PS1_SKIP_MAIN = '1'
@@ -19,6 +19,7 @@ Describe 'dotfiler.ps1' {
     $script:Quiet = $false
     $script:VerboseMode = $false
     $script:IsElevatedSymlinkMode = $false
+    $script:PendingElevatedSymlinks = [System.Collections.Generic.List[object]]::new()
     $script:PreferredCommandPaths = @{}
     $script:DocumentsDir = 'C:\Users\tester\Documents'
     $script:CountCreated = 0
@@ -404,8 +405,7 @@ Describe 'dotfiler.ps1' {
     (Test-IsPrivilegeElevationError -ErrorRecord $errorRecord) | Should -Be $true
   }
 
-  It 'reintenta con elevacion cuando falla New-Item por permisos' {
-    $script:elevatedInvocation = $null
+  It 'acumula los enlaces cuando falla New-Item por permisos sin solicitar UAC por enlace' {
 
     Mock Test-IsSymlink { $false }
     Mock Test-PathEntry { $false }
@@ -413,22 +413,133 @@ Describe 'dotfiler.ps1' {
     Mock Write-Info {}
     Mock Write-Success {}
     Mock Add-Diagnostic {}
-    Mock Invoke-ElevatedSymlinkCreation {
-      param([string]$SourcePath, [string]$TargetPath)
-      $script:elevatedInvocation = [PSCustomObject]@{
-        Source = $SourcePath
-        Target = $TargetPath
-      }
-    }
+    Mock Test-ElevationTargetAllowed { $true }
+    Mock Start-Process { throw 'No debe solicitar UAC al acumular enlaces' }
     Mock New-Item {
       throw [System.UnauthorizedAccessException]::new('The required privilege is not held by the client')
     } -ParameterFilter { $ItemType -eq 'SymbolicLink' }
 
     New-DotfileSymlink -SourcePath 'C:\fuente' -TargetPath 'C:\destino'
+    New-DotfileSymlink -SourcePath 'C:\otra fuente' -TargetPath 'C:\otro destino'
 
-    $script:elevatedInvocation.Source | Should -Be 'C:\fuente'
-    $script:elevatedInvocation.Target | Should -Be 'C:\destino'
+    $script:PendingElevatedSymlinks.Count | Should -Be 2
+    $script:PendingElevatedSymlinks[0].Source | Should -Be 'C:\fuente'
+    $script:PendingElevatedSymlinks[0].Target | Should -Be 'C:\destino'
     $script:CountErrors | Should -Be 0
+    Should -Invoke Start-Process -Times 0 -Exactly
+  }
+
+  Context 'Elevacion agrupada' {
+    BeforeEach {
+      $script:PendingElevatedSymlinks.Add([PSCustomObject]@{ Source = 'C:\fuente'; Target = 'C:\destino' })
+      $script:PendingElevatedSymlinks.Add([PSCustomObject]@{ Source = 'C:\otra fuente'; Target = 'C:\otro destino' })
+      Mock Get-PowerShellExecutablePath { 'powershell.exe' }
+      Mock Write-Info {}
+      Mock Write-SymlinkLine {}
+      Mock Write-ErrorLog {}
+    }
+
+    It 'solicita UAC una vez y conserva los errores individuales del lote' {
+      Mock Start-Process {
+        param($ArgumentList)
+        $requestMatch = [regex]::Match($ArgumentList, '-RequestPath (?:"([^"]+)"|(\S+))')
+        $resultMatch = [regex]::Match($ArgumentList, '-ResultPath (?:"([^"]+)"|(\S+))')
+        $script:BatchRequestPath = ($requestMatch.Groups[1].Value + $requestMatch.Groups[2].Value)
+        $script:BatchResultPath = ($resultMatch.Groups[1].Value + $resultMatch.Groups[2].Value)
+        $requests = Get-Content -LiteralPath $script:BatchRequestPath -Raw | ConvertFrom-Json
+        $requests.Count | Should -Be 2
+        $requests[1].Source | Should -Be 'C:\otra fuente'
+        @(
+          @{ Success = $true; Error = $null },
+          @{ Success = $false; Error = 'Destino ocupado' }
+        ) | ConvertTo-Json | Set-Content -LiteralPath $script:BatchResultPath
+        [PSCustomObject]@{ ExitCode = 0 }
+      }
+
+      Complete-PendingElevatedSymlinks
+      Complete-PendingElevatedSymlinks
+
+      Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { $Verb -eq 'RunAs' -and $Wait -and $WindowStyle -eq 'Hidden' }
+      Should -Invoke Write-SymlinkLine -Times 1 -Exactly
+      $script:CountErrors | Should -Be 1
+      $script:Diagnostics[0].Target | Should -Be 'C:\otro destino'
+      Test-Path -LiteralPath $script:BatchRequestPath | Should -BeFalse
+      Test-Path -LiteralPath $script:BatchResultPath | Should -BeFalse
+    }
+
+    It 'registra todos los pendientes y no vuelve a preguntar cuando se cancela UAC' {
+      Mock Start-Process { throw 'El usuario cancelo la solicitud' }
+
+      Complete-PendingElevatedSymlinks
+      Complete-PendingElevatedSymlinks
+
+      Should -Invoke Start-Process -Times 1 -Exactly
+      $script:CountErrors | Should -Be 2
+      $script:Diagnostics.Count | Should -Be 2
+    }
+
+    It 'no solicita elevacion durante una simulacion' {
+      $script:DryRun = $true
+      Mock Start-Process {}
+
+      Complete-PendingElevatedSymlinks
+
+      Should -Invoke Start-Process -Times 0 -Exactly
+    }
+
+    It 'registra todos los pendientes cuando el proceso elevado falla' {
+      Mock Start-Process { [PSCustomObject]@{ ExitCode = 1 } }
+
+      Complete-PendingElevatedSymlinks
+
+      $script:CountErrors | Should -Be 2
+      $script:PendingElevatedSymlinks.Count | Should -Be 0
+    }
+
+    It 'registra errores si el proceso no devuelve resultados completos' {
+      Mock Start-Process { [PSCustomObject]@{ ExitCode = 0 } }
+
+      Complete-PendingElevatedSymlinks
+
+      $script:CountErrors | Should -Be 2
+    }
+
+    It 'el worker continua despues de un error y devuelve el resultado de cada enlace' {
+      $requestPath = Join-Path $TestDrive 'solicitud con espacios.json'
+      $resultPath = Join-Path $TestDrive 'resultados con espacios.json'
+      ConvertTo-Json -InputObject $script:PendingElevatedSymlinks.ToArray() | Set-Content -LiteralPath $requestPath
+      # Se simula solo la operacion privilegiada del sistema para no abrir UAC en tests.
+      Mock New-Item {
+        param($Path)
+        if ($Path -eq 'C:\destino') { throw 'Destino ocupado' }
+      } -ParameterFilter { $ItemType -eq 'SymbolicLink' }
+
+      & (Join-Path $PSScriptRoot 'create-symlinks-elevated.ps1') -RequestPath $requestPath -ResultPath $resultPath
+
+      $results = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+      $results.Count | Should -Be 2
+      $results[0].Success | Should -BeFalse
+      $results[0].Error | Should -Be 'Destino ocupado'
+      $results[1].Success | Should -BeTrue
+      Should -Invoke New-Item -Times 2 -Exactly -ParameterFilter { $ItemType -eq 'SymbolicLink' -and -not $Force }
+    }
+
+    It 'el worker preserva un archivo que aparecio en el destino' {
+      $requestPath = Join-Path $TestDrive 'request.json'
+      $resultPath = Join-Path $TestDrive 'result.json'
+      $sourcePath = Join-Path $TestDrive 'source.txt'
+      $targetPath = Join-Path $TestDrive 'existing.txt'
+      Set-Content -LiteralPath $sourcePath -Value 'origen'
+      Set-Content -LiteralPath $targetPath -Value 'conservar'
+      ConvertTo-Json -InputObject @(@{ Source = $sourcePath; Target = $targetPath }) | Set-Content -LiteralPath $requestPath
+
+      & (Join-Path $PSScriptRoot 'create-symlinks-elevated.ps1') -RequestPath $requestPath -ResultPath $resultPath
+
+      $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+      $result.Success | Should -BeFalse
+      Get-Content -LiteralPath $targetPath | Should -Be 'conservar'
+      (Get-Item -LiteralPath $targetPath).LinkType | Should -BeNullOrEmpty
+    }
   }
 
   It 'cita argumentos con espacios antes de relanzar el proceso elevado' {
@@ -559,7 +670,7 @@ Describe 'dotfiler.ps1' {
       )
     }
 
-    $operations = Resolve-Operations
+    $operations = @(Resolve-Operations)
 
     $operations.Count | Should -Be 1
     $operations[0].Source | Should -Be $sourceDirectory
@@ -588,7 +699,7 @@ Describe 'dotfiler.ps1' {
       )
     }
 
-    $operations = Resolve-Operations
+    $operations = @(Resolve-Operations)
 
     $operations.Count | Should -Be 0
     $script:CountErrors | Should -Be 1
@@ -610,7 +721,7 @@ Describe 'dotfiler.ps1' {
     }
     Mock Get-ResolvedSources { @([PSCustomObject]@{ Name = 'example.conf'; FullName = 'C:\repo\configs\example.conf' }) }
 
-    $operations = Resolve-Operations
+    $operations = @(Resolve-Operations)
 
     $operations.Count | Should -Be 0
     $script:CountErrors | Should -Be 0
@@ -640,7 +751,7 @@ Describe 'dotfiler.ps1' {
         })
     }
 
-    $operations = Resolve-Operations
+    $operations = @(Resolve-Operations)
 
     $operations.Count | Should -Be 0
     $script:CountErrors | Should -Be 1
@@ -662,7 +773,7 @@ Describe 'dotfiler.ps1' {
       )
     }
 
-    $operations = Resolve-Operations
+    $operations = @(Resolve-Operations)
 
     $operations.Count | Should -Be 0
     $script:CountErrors | Should -Be 0
@@ -679,7 +790,7 @@ Describe 'dotfiler.ps1' {
       )
     }
 
-    $operations = Resolve-Operations
+    $operations = @(Resolve-Operations)
 
     $operations.Count | Should -Be 0
     $script:CountErrors | Should -Be 1
@@ -704,7 +815,7 @@ Describe 'dotfiler.ps1' {
       )
     }
 
-    $operations = Resolve-Operations
+    $operations = @(Resolve-Operations)
 
     $operations.Count | Should -Be 0
     $script:CountErrors | Should -Be 1
@@ -991,4 +1102,3 @@ Describe 'dotfiler.ps1' {
     }
   }
 }
-
