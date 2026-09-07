@@ -45,7 +45,7 @@ Ejemplos concretos, no requisitos: `mocks/development`, `process-contingency`, `
 5. No desactivar autenticación, autorización, CSRF ni schema validation para que fixture responda.
 6. Usar allowlists de hosts y paths derivadas de configuración del proyecto; no aceptar destinos controlados por usuario.
 7. Usar únicamente datos determinísticos sintéticos e inventados; no copiar nombres, IDs, LDAP, emails, facilities, tokens, cookies, secrets, PII real ni respuestas upstream sensibles.
-8. Omitir `headers` de fixtures por defecto. Si transporte exige conservarlos, mantener solo headers no sensibles y eliminar cualquier clave `x-*` dentro de `headers`.
+8. No crear ni persistir nunca una propiedad `headers` en fixtures. Quedan prohibidos `headers: {...}`, `headers: {}`, headers vacíos, placeholders y copias de headers upstream. Si una captura incluye `headers`, eliminar la propiedad completa antes de guardar; si transporte falla sin ella, detenerse e informar el bloqueo en vez de inventarla.
 9. No guardar ninguna `property` cuyo nombre empiece en `x-`; omitirla antes de persistir o versionar fixture, sin renombrarla ni trasladarla.
 10. Tratar `ignoreParams` como normalización de filename, nunca como control de autorización o validación.
 
@@ -160,8 +160,8 @@ Este mapa es solo ejemplo. Reemplazar nombres por clientes y config keys descubi
 Antes de guardar, generar o versionar una fixture:
 
 1. Usar datos determinísticos inventados, sin copiar respuesta upstream real. Sustituir nombres, IDs, LDAP, emails, facilities y cualquier PII por valores ficticios mínimos.
-2. Omitir propiedad `headers` completa siempre que cliente y framework lo permitan. No agregarla solo para imitar respuesta upstream.
-3. Si `headers` es imprescindible para transporte, recorrer sus claves y eliminar cualquier propiedad cuyo nombre comience por `x-` (comparación case-insensitive), además de tokens, cookies, authorization headers y correlation IDs.
+2. Eliminar siempre la propiedad `headers` completa antes de persistir la fixture. No escribir `headers: {...}`, `headers: {}`, headers parciales ni placeholders para imitar respuesta upstream.
+3. Si cliente o transporte parece exigir headers, no agregarlos a la fixture: revisar contrato del cliente, configuración del mock o bootstrap y detener persistencia si el caso no puede resolverse sin esa propiedad. Informar bloqueo concreto.
 
 ### Properties excluidas
 
@@ -291,7 +291,7 @@ npm run build
 También comprobar:
 
 - no quedan imports o ramas del fake local eliminado;
-- cada JSON parsea y contiene `status`, `statusText` y `data`; `headers` solo aparece cuando transporte lo exige y nunca contiene claves `x-*`;
+- cada JSON parsea y contiene `status`, `statusText` y `data`; ninguna fixture contiene propiedad `headers`, ni siquiera vacía, parcial o placeholder;
 - fixtures de listados tienen array dentro de `data`;
 - fixtures de polling tienen secuencia externa intencional;
 - un `GET` y un `POST` interceptados responden usando cliente HTTP real del stack;
