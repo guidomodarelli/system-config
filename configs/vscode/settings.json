@@ -98,7 +98,7 @@
   /* ======================================================================== */
   /*                                  TERMINAL                                 */
   /* ======================================================================== */
-  "terminal.integrated.fontFamily": "'Dank Mono', 'JetBrains Mono', 'IosevkaTerm NF', monospace",
+  "terminal.integrated.fontFamily": "'Dank Mono', 'JetBrains Mono NL', 'JetBrains Mono', 'IosevkaTerm NF', 'Cascadia Code', 'Fira Code', 'Droid Sans Fallback', monospace",
   "terminal.integrated.fontWeight": "normal",
   "terminal.integrated.fontSize": 13,
   "terminal.integrated.lineHeight": 1.2,
