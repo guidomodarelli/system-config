@@ -397,9 +397,6 @@
   /*                                FORMATOS/OTROS                             */
   /* ======================================================================== */
   "json.maxItemsComputed": 50000,
-  "yaml.schemas": {
-    "file:///c%3A/Users/guido/.vscode/extensions/docsmsft.docs-yaml-1.0.6/dist/toc.schema.json": "/toc\\.yml/i"
-  },
   "redhat.telemetry.enabled": true,
   "docker.extension.enableComposeLanguageServer": false,
 
