@@ -7,7 +7,7 @@
   "workbench.colorCustomizations": {
     // // Texto insertado/eliminado (nivel carácter)
     "diffEditor.insertedTextBackground": "#00C84640",
-    "diffEditor.removedTextBackground":  "#FF003C40",
+    "diffEditor.removedTextBackground":  "#FF003C40"
   },
   "oneDarkPro.editorTheme": "One Dark Pro Darker",
   "oneDarkPro.bold": true,
@@ -456,7 +456,7 @@
   },
   "[markdown]": {
     "diffEditor.ignoreTrimWhitespace": false,
-    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one"
   },
   "[html]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
   "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
