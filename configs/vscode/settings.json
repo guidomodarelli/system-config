@@ -2,8 +2,8 @@
   /* ======================================================================== */
   /*                                APARIENCIA                                */
   /* ======================================================================== */
-  "workbench.colorTheme": "One Dark Pro",
-  "workbench.iconTheme": "symbols",
+  "workbench.colorTheme": "One Dark Pro Mix",
+  "workbench.iconTheme": "catppuccin-perfect-ayu",
   "workbench.colorCustomizations": {
     // // Texto insertado/eliminado (nivel carácter)
     "diffEditor.insertedTextBackground": "#00C84640",
