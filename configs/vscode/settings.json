@@ -52,7 +52,7 @@
   "editor.wordWrap": "off",
   "editor.wrappingStrategy": "simple",
   "editor.wrapOnEscapedLineFeeds": true,
-  "editor.wrappingIndent": "deepIndent",
+  "editor.wrappingIndent": "none",
   "editor.showUnused": true,
   "editor.renderWhitespace": "boundary",
   "editor.cursorBlinking": "expand",
@@ -138,7 +138,7 @@
     ".env.production": "properties",
     ".env.local": "properties",
     ".env": "properties",
-    "*.json": "jsonl"
+    "settings.json": "jsonc"
   },
   "files.watcherExclude": {
     "**/.git/objects/**": true,
