@@ -10,6 +10,19 @@ _murilasso_read_pr_cache() {
   { IFS= read -r _MURILASSO_PR_URL; IFS= read -r _MURILASSO_PR_STATE; } < "$cache_file"
 }
 
+_murilasso_fetch_pr() {
+  local branch="$1"
+  local cache_file="$2"
+  local pr_data
+
+  pr_data=$(gh pr list --head "$branch" --state open --limit 1 --json url,state --jq '
+    if length > 0 then .[0] | .url + "\n" + .state else empty end
+  ' 2>/dev/null)
+  [[ -z "$pr_data" ]] && pr_data=$(gh pr view --json url,state -q '.url + "\n" + .state' 2>/dev/null)
+
+  print -r -- "$pr_data" > "$cache_file"
+}
+
 _murilasso_refresh_pr() {
   local branch repo
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
@@ -34,18 +47,15 @@ _murilasso_refresh_pr() {
     _MURILASSO_PR_LAST_FETCH=$SECONDS
     # Muestra cache inmediatamente si existe, y siempre lanza fetch en bg para actualizar
     [[ -f "$cache_file" ]] && _murilasso_read_pr_cache "$cache_file"
-    (gh pr view --json url,state -q '.url + "\n" + .state' 2>/dev/null > "$cache_file") &!
-  elif [[ -z "$_MURILASSO_PR_URL" && -f "$cache_file" ]]; then
-    # El fetch en background terminó — leer el resultado
+    (_murilasso_fetch_pr "$branch" "$cache_file") &!
+  elif [[ -f "$cache_file" ]]; then
+    # Re-leer cache en cada precmd (~1ms), incluso si PR anterior estaba cerrado.
+    # Misma branch puede recibir un PR abierto nuevo posteriormente.
     _murilasso_read_pr_cache "$cache_file"
-    _MURILASSO_PR_LAST_FETCH=$SECONDS
-  elif [[ "$_MURILASSO_PR_STATE" == "OPEN" ]]; then
-    # Re-leer cache en cada precmd (~1ms) para detectar merges/closes
-    [[ -f "$cache_file" ]] && _murilasso_read_pr_cache "$cache_file"
-    # Re-fetchear en background cada 30 segundos
+    # Re-fetchear en background cada 30 segundos para detectar PRs nuevos.
     if (( SECONDS - _MURILASSO_PR_LAST_FETCH > 30 )); then
       _MURILASSO_PR_LAST_FETCH=$SECONDS
-      (gh pr view --json url,state -q '.url + "\n" + .state' 2>/dev/null > "$cache_file") &!
+      (_murilasso_fetch_pr "$branch" "$cache_file") &!
     fi
   fi
 }
