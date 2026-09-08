@@ -2523,21 +2523,47 @@ function Get-MurilassoCachePath {
 # Start-ThreadJob porque `gh` no resuelve bien su contexto (auth/repo) desde un
 # hilo secundario del mismo proceso. Limpia jobs ya terminados para no acumular.
 function Start-MurilassoGhFetch {
-    param([string]$Repo, [string]$CachePath, [string[]]$GhArgs)
+    param(
+        [string]$Repo,
+        [string]$CachePath,
+        [string[]]$GhArgs,
+        [string[]]$FallbackGhArgs = @()
+    )
 
     Get-Job -Name 'murilasso_fetch' -ErrorAction SilentlyContinue |
         Where-Object { $_.State -in 'Completed', 'Failed', 'Stopped' } |
         Remove-Job -Force -ErrorAction SilentlyContinue
 
     $null = Start-Job -Name 'murilasso_fetch' -ScriptBlock {
-        param($repoPath, $cachePath, $ghArgs)
+        param($repoPath, $cachePath, $ghArgs, $fallbackGhArgs)
 
         Set-Location -LiteralPath $repoPath
         $output = & gh @ghArgs 2>$null
+        if ($fallbackGhArgs.Count -gt 0 -and [string]::IsNullOrWhiteSpace(($output -join "`n"))) {
+            $output = & gh @fallbackGhArgs 2>$null
+        }
+
         if ($LASTEXITCODE -eq 0 -and $null -ne $output) {
             Set-Content -LiteralPath $cachePath -Value ($output -join "`n") -Encoding utf8 -NoNewline
         }
-    } -ArgumentList $Repo, $CachePath, $GhArgs
+    } -ArgumentList $Repo, $CachePath, $GhArgs, $FallbackGhArgs
+}
+
+function Start-MurilassoPrFetch {
+    param([string]$Repo, [string]$CachePath, [string]$Branch)
+
+    $openPrQuery = 'if length > 0 then .[0] | .url + "\n" + .state else empty end'
+    $openPrArgs = @(
+        'pr', 'list', '--head', $Branch, '--state', 'open', '--limit', '1',
+        '--json', 'url,state', '--jq', $openPrQuery
+    )
+    $fallbackPrArgs = @('pr', 'view', '--json', 'url,state', '--jq', '.url + "\n" + .state')
+
+    Start-MurilassoGhFetch `
+        -Repo $Repo `
+        -CachePath $CachePath `
+        -GhArgs $openPrArgs `
+        -FallbackGhArgs $fallbackPrArgs
 }
 
 # Lee el cache de PR (linea 1 = url, linea 2 = state) hacia env vars.
@@ -2618,19 +2644,16 @@ function Update-MurilassoPromptContext {
         $promptState.PrLastFetch = $now
         Clear-MurilassoPrContext
         if (Test-Path -LiteralPath $prCache) { Read-MurilassoPrCache $prCache }
-        Start-MurilassoGhFetch -Repo $repo -CachePath $prCache -GhArgs @('pr', 'view', '--json', 'url,state', '-q', '.url + "\n" + .state')
+        Start-MurilassoPrFetch -Repo $repo -CachePath $prCache -Branch $branch
     }
-    elseif ([string]::IsNullOrEmpty($env:MURILASSO_PR_URL) -and (Test-Path -LiteralPath $prCache)) {
-        # El fetch en background termino: leer el resultado.
+    elseif (Test-Path -LiteralPath $prCache) {
+        # Relee cache en cada render, incluso si PR anterior estaba cerrado.
+        # Misma branch puede recibir un PR abierto nuevo posteriormente.
         Read-MurilassoPrCache $prCache
-        $promptState.PrLastFetch = $now
-    }
-    elseif ($env:MURILASSO_PR_STATE -eq 'OPEN') {
-        # Re-lee cache cada render (rapido) y re-fetchea cada 30s.
-        if (Test-Path -LiteralPath $prCache) { Read-MurilassoPrCache $prCache }
+        # Refresca cada 30s para detectar PRs nuevos.
         if (($now - $promptState.PrLastFetch).TotalSeconds -gt $MURILASSO_PR_REFRESH_SECONDS) {
             $promptState.PrLastFetch = $now
-            Start-MurilassoGhFetch -Repo $repo -CachePath $prCache -GhArgs @('pr', 'view', '--json', 'url,state', '-q', '.url + "\n" + .state')
+            Start-MurilassoPrFetch -Repo $repo -CachePath $prCache -Branch $branch
         }
     }
 
