@@ -50,6 +50,9 @@ implementation_pr: <PR validado>
 implementation_branch: <branch validada, cualquier nombre>
 implementation_base: <base branch validada, cualquier nombre>
 handoff_id: <identificador local de correlación>
+drift_classification: <REMOTE_DRIFT_INDEPENDENT|REMOTE_DRIFT_RELATED|NOT_APPLICABLE>
+validation_reused: <commands/fingerprints reused or none>
+validation_executed: <commands run after refresh or rebase>
 commit_sha: <SHA completo>
 remote_head_sha: <SHA completo verificado independientemente>
 validation: <comandos y outcomes>
@@ -87,11 +90,11 @@ order: [owner, descendant-1, ...]
 
 Crear o usar únicamente `backup_manifest` entregadas por orchestrator; no sobrescribir, borrar ni mover refs externas. Rebasear descendants en orden bottom-up con `git rebase --onto <new_parent_oid> <parent_old_oid>`. Resolver conflictos semánticamente; ante duda abortar rebase normal, conservar clone/backups y devolver `REBASE_INCOMPLETE`. Nunca usar `-X ours`, `-X theirs` o `--skip`.
 
-Comparar tree/diff manifest antes y después, no solo estadísticas ni hashes de hunk. Si manifest no coincide, comparar causa contra rebase esperado y actualizarlo solo después de confirmar que scope, name-status y comportamiento permanecen equivalentes; si no puede explicarse o revalidarse, detener y conservar recursos.
+Comparar tree/diff manifest antes y después, no solo estadísticas ni hashes de hunk. Clasificar el refresh como `REMOTE_DRIFT_INDEPENDENT` únicamente si name-status, patch/tree manifest, dependencias, lockfile, configuración, build, setup/fixtures compartidos, base/stack y superficie del finding siguen equivalentes; un cambio aislado de mensaje de timeout y su test puede calificar. Si manifest no coincide o existe overlap/duda, clasificar `REMOTE_DRIFT_RELATED`, comparar causa contra rebase esperado y actualizarlo solo después de confirmar scope, name-status y comportamiento; si no puede explicarse o revalidarse, detener y conservar recursos.
 
 ## Validación y commit
 
-Ejecutar mínimo gate relevante primero y luego typecheck, lint, tests focales/globales, build y `git diff --check` disponibles según repo. No ejecutar en paralelo comandos que escriban mismo checkout (por ejemplo lint `--fix` y build). Tras conflicto o cambio relacionado, validar unión de superficie del fix y cambios integrados. Si refresh remoto no cambia ni afecta superficie, reutilizar resultado documentándolo; ante duda, revalidar.
+Ejecutar mínimo gate relevante primero y luego typecheck, lint, tests focales/globales, build y `git diff --check` disponibles según repo. No ejecutar en paralelo comandos que escriban mismo checkout (por ejemplo lint `--fix` y build). Tras conflicto o `REMOTE_DRIFT_RELATED`, validar unión de superficie del fix y cambios integrados. Tras `REMOTE_DRIFT_INDEPENDENT`, conservar fingerprints y resultados previos, ejecutar solo integridad final y registrar `validation_reused`; no afirmar tests/lint/build rerun. Si equivalencia no puede demostrarse, clasificar drift relacionado y revalidar.
 
 Si `npm run build` genera `.nordic/build` u otro output ignorado que Jest pueda descubrir, eliminar solo ese output declarado antes de ejecutar Jest; nunca usar `git clean -fd`. Revisar `git diff`, `git status --short`, paths staged y ausencia de `.env*`/`node_modules`. Stagear paths explícitos. Commit message conciso, termina con:
 
@@ -101,15 +104,15 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ## Refresh y publicación
 
-Antes de push, releer remote branch y comparar OID. Si remoto no cambió, conservar validación. Si cambió, inspeccionar `git diff --name-only` y rebasear; cambios relacionados, conflicto o duda exigen revalidación.
+Antes de push, releer remote branch y comparar OID. Si remoto no cambió, conservar validación. Si cambió, inspeccionar `git diff --name-status`, patch/tree manifest, dependencias, configuración, setup/fixtures y superficie del finding antes de rebasear. Si la evidencia clasifica `REMOTE_DRIFT_INDEPENDENT`, conservar gates previos y ejecutar solo integridad final; si clasifica `REMOTE_DRIFT_RELATED`, hay conflicto o existe duda, revalidar superficies afectadas o gate completo cuando el impacto no sea aislable. El rebase por sí solo no exige rerun completo.
 
 Publicar únicamente branch autorizada. Usar `--force-with-lease` solo para descendants explícitamente presentes en `stack_plan`, con refspec y OID esperados; en `DIRECT` usar push normal. No publicar refs backup ni branch temporal.
 
-Un rechazo de push puede ser reintentable si salida estructurada clasifica stale lease/non-fast-forward (`NFF`) o transporte/5xx transitorio. Para `NFF`, máximo 3 ciclos por branch con fetch → rebase → resolución → validación completa → push. Para transporte/5xx, releer primero remote/API y reintentar solo si la publicación no quedó aplicada o ambigua y el push es idempotente; limitar los intentos y no duplicar closeout. Auth, permisos, branch protection, malformed refspec y 4xx definitivos no se convierten en loop: reportar código, conservar clone/backups y detener. Si el límite NFF o transporte falla, reportar `CONCURRENT_PUSH_RETRY_EXHAUSTED`.
+Un rechazo de push puede ser reintentable si salida estructurada clasifica stale lease/non-fast-forward (`NFF`) o transporte/5xx transitorio. Para `NFF`, máximo 3 ciclos por branch con fetch → comparar drift → rebase → resolución → gates según `REMOTE_DRIFT_INDEPENDENT`/`REMOTE_DRIFT_RELATED` → push; no convertir automáticamente cada ciclo en validación completa. Para transporte/5xx, releer primero remote/API y reintentar solo si la publicación no quedó aplicada o ambigua y el push es idempotente; limitar los intentos y no duplicar closeout. Auth, permisos, branch protection, malformed refspec y 4xx definitivos no se convierten en loop: reportar código, conservar clone/backups y detener. Si el límite NFF o transporte falla, reportar `CONCURRENT_PUSH_RETRY_EXHAUSTED`.
 
 En zsh, citar siempre paths dinámicos y paths con metacaracteres (`*`, `?`, `(`, `)`, `[`, `]`) al pasarlos a comandos; usar arrays para listas de archivos y no depender de globbing implícito. No usar `path` como variable: zsh lo vincula al array especial de `$PATH` y puede dejar comandos básicos fuera del `PATH`; preferir `file_path` u otro nombre descriptivo. Encerrar variables antes de concatenar `:` o cualquier sufijo (`"${source_oid}:refs/heads/${branch}"`); la forma `$source_oid:refs/...` puede interpretarse como parameter modifier y generar un refspec inválido. Validar el refspec final antes de ejecutar push. Un error local de expansión o construcción de comando no es un NFF y no habilita reintentos remotos.
 
-En zsh, evitar variables con nombres especiales o readonly como `status`; usar nombres descriptivos (`git_status`, `clone_status`) para no abortar cleanup o validación. Después de cada push verificar dos fuentes: `git ls-remote origin refs/heads/<branch>` y `gh api "repos/<owner>/<repo>/pulls/<PR>" --jq .head.sha`. No aceptar solo SHA local, salida de push ni `gh pr view` stale. Para stack verificar también base/head final y golden manifest. Releer esas fuentes inmediatamente antes de devolver `HANDOFF_RESULT`; si cualquier head avanzó después de la verificación previa, refrescar refs y revalidar que el commit esperado siga en la cadena autorizada y que stack/golden permanezcan íntegros. Continuar si esa evidencia es suficiente; si no, reportar `PUBLICATION_UNVERIFIED` o `TARGET_STALE` sin afirmar publicación estable ni habilitar closeout con datos obsoletos.
+En zsh, evitar variables con nombres especiales o readonly como `status`; usar nombres descriptivos (`git_status`, `clone_status`) para no abortar cleanup o validación. Después de cada push verificar dos fuentes: `git ls-remote origin refs/heads/<branch>` y `gh api "repos/<owner>/<repo>/pulls/<PR>" --jq .head.sha`. No aceptar solo SHA local, salida de push ni `gh pr view` stale. Para stack verificar también base/head final y golden manifest. Releer esas fuentes inmediatamente antes de devolver `HANDOFF_RESULT`; si cualquier head avanzó después de la verificación previa, comparar manifest y superficie del finding: conservar `REMOTE_DRIFT_INDEPENDENT` y sus gates previos con integridad final, o clasificar `REMOTE_DRIFT_RELATED` y revalidar según impacto. Continuar si esa evidencia es suficiente; si no, reportar `PUBLICATION_UNVERIFIED` o `TARGET_STALE` sin afirmar publicación estable ni habilitar closeout con datos obsoletos.
 
 ## Cleanup y fallos
 

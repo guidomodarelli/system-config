@@ -19,14 +19,15 @@
 | Hallazgo cross-stack | `location_key`/`semantic_key` derivados sin usar comment ID como identidad |
 | Evidencia | código corregido más señal independiente antes de `ALREADY_RESOLVED` |
 | Capa | owner y PR óptimo identificados bottom-up; no cambiar branch sin autorización |
-| Concurrencia | `headRefOid`/`baseRefOid` releídos antes de mutar; cambios exigen refresh, comparación y revalidación; solo divergencia no reconciliable invalida el análisis |
-| Continuación | Drift de threads, `isOutdated`, stale lease y transporte/5xx transitorio son `RETRYABLE` con límites, idempotencia y reread; identidad, seguridad, validación y publicación no verificable son `HARD_STOP` |
+| Concurrencia | `headRefOid`/`baseRefOid` releídos antes de mutar; cambios exigen refresh y clasificación de drift; solo divergencia no reconciliable invalida el análisis |
+| Continuación | Drift de threads, `isOutdated`, stale lease y transporte/5xx transitorio son `RETRYABLE` con límites, idempotencia y reread; `REMOTE_DRIFT_INDEPENDENT` conserva gates equivalentes; identidad, seguridad, validación y publicación no verificable son `HARD_STOP` |
 | Preflight | Wave A bounded; Wave B solo si no hay fast path; snapshot/fingerprints reutilizados sin relectura amplia |
 | Mutaciones | Effects seriales; solo lecturas, comentarios independientes post-thread y verificaciones finales pueden fan-out |
 | Closeout retry | timeout/red/`5xx` exige reread de marker/estado y retry idempotente acotado; `4xx` definitivo o resultado ambiguo persistente es `HARD_STOP` |
-| Freshness | `HEAD` del clone y vector de OIDs se comparan antes de editar; mismatch exige refresh/re-fetch y revalidación; divergencia no reconciliable produce `TARGET_STALE` |
+| Freshness | `HEAD` del clone y vector de OIDs se comparan antes de editar; mismatch exige refresh/re-fetch y manifest; rebase exitoso no fuerza rerun completo; divergencia no reconciliable produce `TARGET_STALE` |
+| Drift remoto | `REMOTE_DRIFT_INDEPENDENT` requiere equivalencia de name-status, patch/tree, dependencias, configuración, setup/fixtures y superficie semántica; `REMOTE_DRIFT_RELATED` invalida resultados afectados |
 | Golden | manifest de paths, name-status, patch/tree verificado por layer; discrepancia explicable se reconcilia y la no explicable produce `GOLDEN_DIFF_MISMATCH` |
-| Validación | fingerprints por command/surface; drift externo exige revalidar target; rerun de superficies integradas ante cambio relacionado, conflicto, duda o configuración compartida |
+| Validación | reportar `validation_reused` y `validation_executed`; drift independiente ejecuta solo integridad final, drift relacionado ejecuta gates mínimos afectados o gate completo si impacto no es aislable; nunca afirmar comandos no ejecutados |
 | Backups | orchestrator crea refs fuera clone, registra `{ref, OID}` y backend devuelve `BACKUPS_PENDING_CLOSEOUT`; `BACKUPS_NOT_APPLICABLE` si no hubo stack |
 | Ownership de backup | refs preexistentes no se reutilizan, sobrescriben ni eliminan; cada ref propia tiene OID esperado |
 | Worktrees | ninguna ref propia está checkoutada antes de cleanup; si lo está, se conserva y se informa fallo |
@@ -111,6 +112,9 @@ Detener sin commit/push/closeout si:
 - owner está cerrado/mergeado y no existe capa abierta inequívoca;
 - hallazgo ya está corregido en otra capa sin autorización para closeout factual;
 - `headRefOid` o `baseRefOid` cambió desde análisis y refresh/rebase no logra reconciliar target, scope, OIDs y manifest (`TARGET_STALE`);
+- avance remoto/rebase no tiene clasificación ni evidencia suficiente de equivalencia (`REMOTE_DRIFT_RELATED` o `TARGET_STALE`);
+- `REMOTE_DRIFT_RELATED` afecta una superficie y no se ejecutan gates mínimos/completos correspondientes;
+- el reporte afirma tests, lint, typecheck o build ejecutados cuando solo fueron reutilizados;
 - el rebase automático de descendants queda incompleto o falla una verificación (`REBASE_INCOMPLETE`); conservar `backup/*` y reportar `BACKUPS_PRESERVED_ON_FAILURE`;
 - una fase no reintentable falla o se agotan retries antes de cleanup; conservar refs propias y preexistentes, sin borrado parcial;
 - alguna ref propia falta o su OID cambió al iniciar cleanup; abortar transacción y reportar `BACKUP_CLEANUP_FAILED`;

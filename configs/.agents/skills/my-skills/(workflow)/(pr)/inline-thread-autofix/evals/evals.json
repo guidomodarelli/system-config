@@ -614,6 +614,45 @@
         "Valida branch y base contra metadata estructurada y OIDs",
         "Mantiene autorización derivada del PR y detiene solo ante scope ambiguo o no verificable"
       ]
+    },
+    {
+      "id": 48,
+      "prompt": "Después del rebase, el remoto solo cambió el mensaje de un timeout y el test aislado que cubre ese mensaje. No cambió el servicio, la configuración, dependencias, fixtures compartidos ni la superficie del finding. Publicá sin repetir innecesariamente todo el gate.",
+      "expected_output": "Clasifica REMOTE_DRIFT_INDEPENDENT, conserva fingerprints y resultados previos de lint/typecheck/tests/build, ejecuta solo integridad final y reporta explícitamente validaciones reutilizadas versus ejecutadas.",
+      "files": [],
+      "expectations": [
+        "Compara name-status, patch/tree manifest, dependencias, configuración y superficie semántica antes de clasificar",
+        "No trata un rebase exitoso como motivo automático de rerun completo",
+        "Ejecuta git diff --check, paths/manifest y OIDs finales como integridad mínima",
+        "No afirma que tests, lint o build corrieron otra vez",
+        "Mantiene closeout bloqueado si equivalencia no puede demostrarse"
+      ]
+    },
+    {
+      "id": 49,
+      "prompt": "Después del rebase, el remoto cambió el servicio donde está el finding y modificó la misma lógica que corrigió el fix. Continuá publicando con las validaciones anteriores.",
+      "expected_output": "Clasifica REMOTE_DRIFT_RELATED, invalida resultados afectados y ejecuta validación de la superficie modificada o el gate completo si el impacto no es aislable; no publica usando evidencia obsoleta.",
+      "files": [],
+      "expectations": [
+        "Detecta overlap entre paths/símbolos remotos y superficie del fix",
+        "No reutiliza silenciosamente tests o fingerprints previos",
+        "Ejecuta gates mínimos afectados o gate completo cuando corresponde",
+        "Reporta clasificación y comandos realmente ejecutados",
+        "Bloquea publicación si validación relacionada falla o queda incompleta"
+      ]
+    },
+    {
+      "id": 50,
+      "prompt": "Después del rebase, el remoto solo modificó lockfile/configuración de build y un fixture compartido usado por los tests del fix. El código del servicio no cambió. Evitá rerun porque el servicio está intacto.",
+      "expected_output": "Clasifica REMOTE_DRIFT_RELATED por dependencia/configuración/fixture compartido, invalida resultados previos y ejecuta gate completo o las superficies integradas requeridas; no se guía solo por paths del servicio.",
+      "files": [],
+      "expectations": [
+        "Considera dependencias, configuración y fixtures compartidos parte de la superficie",
+        "No clasifica drift como independiente solo porque el servicio no cambió",
+        "Revalida tests y gates afectados con evidencia real",
+        "Distingue validación reutilizada de validación ejecutada",
+        "No publica éxito con resultados obsoletos"
+      ]
     }
   ]
 }

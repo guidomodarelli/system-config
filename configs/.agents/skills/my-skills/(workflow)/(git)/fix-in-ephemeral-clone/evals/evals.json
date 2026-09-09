@@ -101,6 +101,30 @@
         "Distingue error local de expansión o refspec de NFF remoto",
         "No deja paths temporales sin ownership o cleanup verificable"
       ]
+    },
+    {
+      "id": 9,
+      "prompt": "Después del rebase del clone, el remoto solo cambió un mensaje de timeout y el test aislado correspondiente; servicio, dependencias, configuración, fixtures compartidos y finding permanecen iguales. Publicá sin repetir todos los gates.",
+      "expected_output": "Clasifica REMOTE_DRIFT_INDEPENDENT, conserva fingerprints y resultados previos, ejecuta solo integridad final y reporta validation_reused sin afirmar tests/lint/build rerun.",
+      "files": [],
+      "expectations": [
+        "Compara manifest y superficie antes de clasificar",
+        "No trata rebase como rerun completo automático",
+        "Ejecuta integridad final de diff, paths, manifest y OIDs",
+        "Reporta gates reutilizados y comandos realmente ejecutados"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Después del rebase, cambió lockfile, configuración de build y fixture compartido usado por los tests del fix. El servicio no cambió; publicá sin revalidar.",
+      "expected_output": "Clasifica REMOTE_DRIFT_RELATED, invalida resultados previos y ejecuta gates integrados afectados o gate completo; conserva clone y detiene publicación si validación falla.",
+      "files": [],
+      "expectations": [
+        "Trata lockfile, configuración y fixture compartido como drift relacionado",
+        "No reutiliza silenciosamente resultados anteriores",
+        "Revalida tests y superficies integradas requeridas",
+        "No publica éxito con validación incompleta"
+      ]
     }
   ]
 }
