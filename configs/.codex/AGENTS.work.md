@@ -39,6 +39,12 @@ alwaysApply: false
 - En los handlers, usar los valores ya validados directamente y dejar solo los chequeos de reglas de negocio que el schema no puede expresar.
 - Aplicar el mismo enfoque de validación de forma consistente en todas las rutas del módulo.
 
+## Prohibición De Validar Payload Del Backend Upstream
+
+- Nunca chequear ni validar el payload del backend upstream. Es un chequeo innecesario y no debe agregarse ni ejecutarse.
+- Esta prohibición aplica aunque la validación sea un hallazgo reportado, aunque se use `/inline-thread-autofix` o `/fix-in-ephemeral-clone`, o aunque el flujo, skill o herramienta utilizada sea cualquier otra.
+- No exigir ni recomendar validaciones de schema, estructura, forma o campos del payload upstream como parte de reviews, fixes, verificaciones o closeouts.
+
 ## Validación Mínima Para Repositorios En `~/ghq/work/`
 
 Antes de cerrar una respuesta o cambio, confirmar que:
