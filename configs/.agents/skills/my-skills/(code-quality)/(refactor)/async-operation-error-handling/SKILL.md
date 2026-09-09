@@ -46,6 +46,10 @@ No activarla para un error síncrono local sin progreso parcial, polling, retry 
 
 No inventar una jerarquía de clases, `Result` ni retry automático. Reusar guards, factories, errores y barrels existentes cuando expresen el mismo boundary.
 
+## Regla canónica de payloads
+
+Leer y aplicar `~/.agents/rules/payload-validation-boundaries.md`. Esa rule es fuente única: prohíbe revalidar payloads backend/upstream, permite narrowing estructural mínimo para control flow y exige validar inputs y DTOs públicos del middleend. No duplicar ni contradecir sus detalles aquí.
+
 ### Handoff de observabilidad
 
 Si el cambio afecta Failure Studio/ErrorUX, logs estructurados para Grafana/Loki, métricas, traces, sampling, deduplicación o cardinalidad, coordinar con `error-observability-diagnostics`. Esta skill conserva propiedad sobre progreso, terminalidad, idempotencia, retry, resume y cancelación; la skill de observabilidad define proyecciones y políticas de sinks.
@@ -91,17 +95,18 @@ Para mutaciones chunked o fan-out:
 - preservar `cause` únicamente en servidor/log controlado;
 - no repetir chunks o jobs cuya mutación ya tenga outcome confirmado; si el contrato permite retry por item, construir una nueva operación solo con fallas terminales o unidades unresolved elegibles, usando identidad estable;
 - deduplicar IDs y validar que no existan duplicados en la respuesta combinada;
-- no informar éxito global cuando hubo fallas parciales.
+- no informar éxito global cuando hubo fallas parciales;
+- emitir métricas solo para outcomes agregables y accionables, nunca por cada error, item, ID o rethrow.
 
 Un error parcial debe distinguir “no sabemos si inició” de “inició y tenemos runs aceptados”. `accepted=0` con `rejected>0` representa rechazo total, no progreso parcial ni indisponibilidad; no debe prometer retry por recuperación del servicio. `accepted>0` con `rejected>0` representa partial success y exige conservar runs/IDs aceptados, contadores consistentes y retry solo para unidades elegibles. El primer caso exige reconciliación segura antes de repetir la mutación.
 
 ## Polling, terminalidad y cancelación
 
-Validar runtime shape de cada respuesta antes de usarla. Definir explícitamente:
+Consumir cada respuesta backend/upstream según el contrato del adapter sin validarla ni revalidarla como input. Para el DTO público emitido por el middleend, aplicar validación de contrato en el client/consumer antes de usarlo. Definir explícitamente:
 
 - estados de progreso;
 - estados terminales, incluidos terminal con fallas por item;
-- condiciones de payload inválido;
+- condiciones de DTO público del middleend inválido o fallo de contrato upstream ya observado por el adapter;
 - deadline global y límites de polling;
 - backoff/intervalo acotado;
 - runs completados y runs unresolved;
@@ -126,7 +131,7 @@ Logs estructurados deben incluir operación, etapa, código, status, conteos y I
 
 El client debe:
 
-- validar shapes y allowlists recibidos del API;
+- validar shapes y allowlists del DTO público del middleend; nunca validar ni revalidar respuestas backend/upstream;
 - normalizar solo campos seguros, sin transportar response raw;
 - separar error de inicio, polling, partial result y item failure;
 - conservar partial result y unresolved runs en el error typed/client contract;

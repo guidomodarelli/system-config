@@ -42,6 +42,10 @@ No activar solo para cambiar copy UI sin necesidad de diagnóstico operativo, sa
 5. Identificar quién clasifica el error, quién responde al usuario y quién tiene ownership de emitir observabilidad. Evitar duplicar el mismo evento en cada `catch`/rethrow.
 6. Capturar baseline: eventos actuales, campos, severidad, métricas, tags, correlación y tests.
 
+## Regla canónica de payloads
+
+Leer y aplicar `~/.agents/rules/payload-validation-boundaries.md`. Esa rule define el límite global: no revalidar payloads backend/upstream, permitir narrowing estructural mínimo y validar inputs/DTOs públicos del middleend. No duplicar ni contradecir el contrato aquí.
+
 ## Política de cobertura
 
 Cada error relevante debe producir observabilidad suficiente en el boundary que conoce su significado final:
@@ -54,7 +58,7 @@ Cada error relevante debe producir observabilidad suficiente en el boundary que 
 - cancelación intencional: `info`/métrica si aporta trazabilidad, nunca `error` ni Failure Studio;
 - fallo de logger, métricas o Failure Studio: observabilidad degradada aislada, nunca nuevo error de negocio ni retry accidental.
 
-“Cada error importante” no significa registrar cada excepción en cada capa. Emitir un evento dueño por fase; agregar contexto al mismo evento o crear evento nuevo solo cuando cambie etapa, outcome o acción operativa.
+“Cada error importante” no significa registrar cada excepción en cada capa. Emitir un evento dueño por fase; agregar contexto al mismo evento o crear evento nuevo solo cuando cambie etapa, outcome o acción operativa. Emitir métricas únicamente para outcomes agregables y accionables —por ejemplo partial, unresolved, timeout, terminal failure o sink failure con consumer operativo—, nunca una métrica por cada `catch`, item, ID o rethrow.
 
 ## Contrato diagnóstico común
 

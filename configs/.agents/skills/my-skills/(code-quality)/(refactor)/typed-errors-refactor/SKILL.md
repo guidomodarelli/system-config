@@ -27,6 +27,12 @@ Si el inventario encuentra batches/chunks, resultados parciales, polling, jobs/r
 
 Si el cambio agrega o corrige logs de errores, métricas, tracing, correlation IDs, Failure Studio/ErrorUX, sinks tipo Grafana/Loki, severidad, sampling, deduplicación o cardinalidad, coordinar con [`error-observability-diagnostics`](../../observability/error-observability-diagnostics/SKILL.md). Si el flujo no tiene estas características, continuar únicamente con este workflow y los handoffs aplicables.
 
+### Regla canónica de payloads
+
+Leer y aplicar `~/.agents/rules/payload-validation-boundaries.md`. Esa rule define el límite global: no revalidar payloads backend/upstream, permitir narrowing estructural mínimo y validar inputs/DTOs públicos del middleend. No duplicar ni contradecir el contrato aquí.
+
+Los contratos de error deben alimentar métricas solo cuando representan outcomes agregables y accionables; no crear una métrica por cada excepción, item, ID o rethrow. Mantener detalle por error en logs/diagnóstico sanitizado.
+
 ## Inventario mínimo
 
 Adaptar búsquedas al shell y lenguaje. No interpretar el resultado mecánicamente: fixtures, invariantes y cancelaciones pueden tener otra clasificación.

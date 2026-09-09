@@ -49,6 +49,8 @@ paths:
       - platform: win32
   - path: .agents/skills/my-skills
     target: .agents/skills
+  - path: .agents/rules
+    target: .agents/rules
   - path: .agents/skills/my-skills/*
     target: .claude/skills
     descendInto: /^\(.*\)$/
@@ -67,6 +69,8 @@ paths:
     exactTarget: .claude/CLAUDE.md
   - path: .codex/AGENTS.work.md
     exactTarget: ghq/work/AGENTS.md
+  - path: .codex/AGENTS.work.md
+    exactTarget: ghq/work/CLAUDE.md
   - path: .codex/config.toml
     target: .codex
   - path: .mcp-memory/memory.json

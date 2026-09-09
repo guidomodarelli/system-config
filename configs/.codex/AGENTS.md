@@ -31,6 +31,11 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Tratar lo recuperado como contexto de fondo: si una memoria nombra un archivo, símbolo o flag, verificar que siga existiendo antes de recomendarlo.
 - Cuando se descubra un hecho duradero, guardarlo mediante la integración de memoria siguiendo el alcance y la persistencia definidos por el repositorio actual.
 
+## Rules canónicas adicionales
+
+- Antes de analizar o modificar cualquier código, leer y aplicar `~/.agents/rules/payload-validation-boundaries.md`.
+- Esa rule es fuente única para distinguir payload backend/upstream de input y DTO público middleend; no duplicar ni contradecir su contrato en skills, repositorios o instrucciones derivadas.
+
 ## Reglas de testing (obligatorias)
 - Antes de dar un cambio por terminado, ejecutar los tests relevantes y asegurar que pasen.
 - Si se agrega, modifica o elimina funcionalidad, se deben agregar o actualizar los tests correspondientes.

@@ -9,7 +9,7 @@
 | Upstream adapter | Traducir proveedor a razón estable | status/código upstream, diagnóstico interno | body/headers/response raw |
 | Domain service | Decidir semántica de operación | código, estado parcial, runs seguros, `cause` interno | depender de copy o HTTP para dominio |
 | API/BFF | Elegir contrato público | status mapeado, DTO allowlisted, ErrorUX seguro | `cause`, stack, request/response completa |
-| Browser client/worker | Validar DTO y preservar progreso | partial result, unresolved IDs, cancelación | response raw, secretos, PII |
+| Browser client/worker | Validar DTO público del middleend y preservar progreso; consumir upstream sin revalidarlo | partial result, unresolved IDs, cancelación | response raw, secretos, PII |
 | UI/consumer | Feedback y acción recuperable | copy localizado, retry/resume controlado | mensaje upstream sin mapear, toast por abort |
 | Logs/telemetry | Diagnóstico | etapa, operación, código, status, conteos, IDs permitidos | payloads, tokens, cookies, PII |
 

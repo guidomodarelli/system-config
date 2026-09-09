@@ -9,7 +9,7 @@ Los tests deben demostrar comportamiento observable por boundary. Adaptar nombre
 | 4xx con texto timeout | classifier | prevalece rechazo/autorización sobre heurística de mensaje |
 | Rate limit | API/client/UI | razón rate-limit, espera/retry según contrato, feedback accionable |
 | Timeout sin certeza | service/client | estado indeterminado o unresolved; no repetir mutación confirmada |
-| Shape inválido | adapter/route/client | fallback controlado, no éxito inventado, no raw response |
+| DTO middleend no utilizable / mismatch upstream observado | route/client/adapter | validar DTO middleend; mapear mismatch upstream sin revalidarlo, fallback controlado, no éxito inventado ni raw response |
 | Todos chunks aceptados | orchestrator | runs completos y orden/identidad preservados |
 | Algunos chunks rechazados | orchestrator/API | accepted runs + contadores + razón; chunks aceptados no se repiten |
 | Preflight + partial | client/UI | combinación sin duplicados y feedback parcial |
