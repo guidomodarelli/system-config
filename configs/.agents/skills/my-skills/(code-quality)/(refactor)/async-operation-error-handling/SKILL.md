@@ -73,7 +73,7 @@ Aplicar precedencia explícita, documentada y testeada:
 5. Heurística de mensaje, únicamente como último recurso.
 6. Fallback `dependency-unavailable`/`unexpected` seguro.
 
-Un status 4xx no debe convertirse en timeout porque su mensaje contiene `timeout`. `401/403`, rate limit y rechazo de validación requieren semánticas distintas si el contrato las distingue. No usar status upstream como autorización local ni copiarlo automáticamente al público: el boundary final decide el status según reglas del repositorio.
+Un status 4xx no debe convertirse en timeout porque su mensaje contiene `timeout`. Un 4xx upstream atribuible a validación o rechazo contractual debe clasificarse como rechazo (`upstream-rejected` o equivalente), nunca como `dependency-unavailable`/timeout ni como motivo para retry automático por recuperación del servicio. `401/403`, rate limit y rechazo de validación requieren semánticas distintas si el contrato las distingue. No usar status upstream como autorización local ni copiarlo automáticamente al público: el boundary final decide el status según reglas del repositorio.
 
 ## Escrituras parciales e idempotencia
 
@@ -89,7 +89,7 @@ Para mutaciones chunked o fan-out:
 - deduplicar IDs y validar que no existan duplicados en la respuesta combinada;
 - no informar éxito global cuando hubo fallas parciales.
 
-Un error parcial debe distinguir “no sabemos si inició” de “inició y tenemos runs aceptados”. El primer caso exige reconciliación segura antes de repetir la mutación.
+Un error parcial debe distinguir “no sabemos si inició” de “inició y tenemos runs aceptados”. `accepted=0` con `rejected>0` representa rechazo total, no progreso parcial ni indisponibilidad; no debe prometer retry por recuperación del servicio. `accepted>0` con `rejected>0` representa partial success y exige conservar runs/IDs aceptados, contadores consistentes y retry solo para unidades elegibles. El primer caso exige reconciliación segura antes de repetir la mutación.
 
 ## Polling, terminalidad y cancelación
 
@@ -128,6 +128,7 @@ El client debe:
 - conservar partial result y unresolved runs en el error typed/client contract;
 - ofrecer resume para trabajo unresolved y retry solo para fallas terminales o unidades unresolved explícitamente elegibles según contrato;
 - mapear copy por código/razón estable, no por mensaje upstream;
+- para rechazos upstream 4xx, orientar a corregir causa/datos y no sugerir espera por recuperación ni retry automático;
 - usar i18n para todo copy visible y mantener catálogos fuente según convención del repositorio;
 - tratar unknown/malformed response con fallback accionable.
 
@@ -141,6 +142,7 @@ Cubrir como mínimo:
 
 - cada clasificación y precedencia status/código sobre mensaje;
 - status 4xx con texto que menciona timeout;
+- rechazo total (`accepted=0`, `rejected>0`) y partial success (`accepted>0`, `rejected>0`) sin perder progreso ni inventar runs;
 - respuesta upstream inválida y campos sensibles ausentes en DTO/log;
 - cero, todos y algunos chunks aceptados;
 - resultados preflight/immediate/partial combinados sin duplicados;
