@@ -1,6 +1,6 @@
 ---
 name: nordic-dev-verify
-description: Verifica flujos runtime de aplicaciones web Nordic en entorno local o de desarrollo mediante browser y Chrome DevTools MCP. Activar de forma proactiva siempre que el usuario proporcione una URL Nordic (incluida `dev.adminml.com`), mencione una acción de UI o reporte un stack trace, error de consola, request XHR/fetch, `404`, `5xx`, `JSON.parse`, fallo de red o comportamiento inesperado al ejecutar la aplicación; también cuando pida ejecutar, reproducir, depurar, probar, validar o confirmar un flujo frontend. Usar aunque no diga explícitamente “validar”, no pida una prueba manual o no mencione esta skill por nombre.
+description: Verifica flujos runtime de aplicaciones web Nordic en entorno local o de desarrollo mediante browser y Chrome DevTools MCP. Activar de forma proactiva siempre que el usuario proporcione una URL Nordic bajo `dev.adminml.com` o `*.adminml.com`, mencione una acción de UI o reporte un stack trace, error de consola, request XHR/fetch, `404`, `5xx`, `JSON.parse`, fallo de red o comportamiento inesperado al ejecutar la aplicación; también cuando pida ejecutar, reproducir, depurar, probar, validar o confirmar un flujo frontend. Usar aunque no diga explícitamente “validar”, no pida una prueba manual o no mencione esta skill por nombre.
 ---
 
 # Verificar aplicaciones Nordic en desarrollo
@@ -9,14 +9,39 @@ description: Verifica flujos runtime de aplicaciones web Nordic en entorno local
 
 Validar comportamiento observable desde UI y requests de red sin exponer credenciales ni dejar datos de prueba modificados. Reportar evidencia suficiente para distinguir resultado exitoso, fallo real o bloqueo de entorno.
 
+## Hosts permitidos
+
+Usar exclusivamente `dev.adminml.com` o subdominios `*.adminml.com` declarados en `/etc/hosts`:
+
+1. Descubrir hosts con dominio `adminml.com` en `/etc/hosts`, ignorando comentarios y duplicados; incluir siempre `dev.adminml.com` como host permitido.
+2. Seleccionar un host descubierto para listener, health check, navegación, browser y diagnóstico de requests.
+3. Rechazar URLs con otros dominios, `localhost`, `127.0.0.1` o IPs directas; solicitar una ruta equivalente bajo host permitido cuando sea necesario.
+4. Si no existe ningún host permitido resoluble, clasificar verificación como `BLOCKED` y reportar que falta alias `adminml.com` válido en `/etc/hosts`.
+
+## Preflight obligatorio del servidor local
+
+Antes de cualquier probe remoto, navegación o interacción con browser:
+
+1. Verificar que exista un proceso escuchando en el puerto local `8443`:
+   - ejecutar `lsof -nP -iTCP:8443 -sTCP:LISTEN` o un probe equivalente disponible en el entorno;
+   - registrar resultado como `LISTENING` con proceso identificado, `CLOSED`/`REFUSED`, `TIMEOUT` o `ERROR`;
+   - no inferir que server está levantado únicamente porque una URL fue configurada.
+2. Confirmar que server responde en `https://<adminml-host>:8443` usando host permitido seleccionado y timeout corto; usar `http://<adminml-host>:8443` solo si scheme del proyecto lo exige. Un listener sin respuesta de aplicación no cuenta como server levantado. Nunca sustituir `<adminml-host>` por `localhost`, `127.0.0.1` o IP directa.
+3. Si no hay proceso escuchando en `8443`, o server no responde:
+   - detener workflow antes de cualquier otro probe, navegación, snapshot, click o lectura de requests;
+   - informar estado observado sin clasificarlo como fallo de producto;
+   - pedir al usuario que levante server en `8443` y avise cuando esté `up`;
+   - después de confirmación del usuario, repetir listener y health check desde cero; no continuar basándose únicamente en mensaje del usuario.
+4. Continuar solo cuando proceso y server estén confirmados como disponibles. Si el usuario no confirma o checks siguen fallando, clasificar verificación como `BLOCKED`.
+
 ## Preparar verificación
 
-1. Verificar primero disponibilidad TCP del puerto `8443` en `dev.adminml.com`, sin inferirla únicamente desde el browser:
-   - ejecutar `nc -z -w 5 dev.adminml.com 8443` o un probe TCP equivalente disponible en el entorno;
+1. Verificar primero disponibilidad TCP del puerto `8443` en `<adminml-host>`, usando únicamente `dev.adminml.com` o un subdominio `*.adminml.com` descubierto en `/etc/hosts`, sin inferirla únicamente desde el browser:
+   - ejecutar `nc -z -w 5 <adminml-host> 8443` o un probe TCP equivalente disponible en el entorno;
    - registrar resultado como `OPEN`, `REFUSED/CLOSED`, `TIMEOUT` o `DNS/ERROR`;
    - no afirmar que el servidor rechaza conexión ni clasificar el entorno como bloqueado por conexión sin este probe y su resultado registrado.
-2. Confirmar servidor disponible en `https://dev.adminml.com:8443`.
-3. Abrir la ruta en browser y detectar si redirige a Okta u otro proveedor corporativo, o si browser muestra una advertencia de certificado/TLS.
+2. Confirmar servidor disponible en `https://<adminml-host>:8443`.
+3. Abrir la ruta en browser usando `<adminml-host>` y detectar si redirige a Okta u otro proveedor corporativo, o si browser muestra una advertencia de certificado/TLS.
 4. Si aparece autenticación Okta:
    - pausar el workflow inmediatamente y dejar browser abierto;
    - informar al usuario que debe completar/aprobar autenticación;
@@ -60,7 +85,7 @@ No clasificar una pantalla de login, un `401` previo a autenticación, una adver
 
 ### Regla para rechazo de conexión
 
-Solo usar el mensaje `El entorno https://dev.adminml.com:8443 rechaza conexión, por lo que verificación runtime queda bloqueada por ahora; no lo trataré como fallo de producto. La inspección seguirá sobre código y pruebas para aislar regresión reproducible localmente.` cuando el probe TCP haya devuelto `REFUSED/CLOSED` y la navegación del browser muestre también rechazo de conexión. Si el puerto está `OPEN`, no usar ese mensaje: continuar diagnóstico de HTTP, TLS, autenticación o aplicación. Para `TIMEOUT` o `DNS/ERROR`, reportar exactamente ese estado y no convertirlo en `REFUSED/CLOSED`.
+Usar el mensaje `El entorno https://<adminml-host>:8443 rechaza conexión, por lo que verificación runtime queda bloqueada por ahora; no lo trataré como fallo de producto. La inspección seguirá sobre código y pruebas para aislar regresión reproducible localmente.` solo cuando el probe TCP haya devuelto `REFUSED/CLOSED` y la navegación del browser muestre también rechazo de conexión; reemplazar `<adminml-host>` por host permitido real. Si el puerto está `OPEN`, no usar ese mensaje: continuar diagnóstico de HTTP, TLS, autenticación o aplicación. Para `TIMEOUT` o `DNS/ERROR`, reportar exactamente ese estado y no convertirlo en `REFUSED/CLOSED`.
 
 ## Reportar verificación
 
