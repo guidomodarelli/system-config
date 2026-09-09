@@ -27,11 +27,11 @@ No usar ninguna de las siguientes construcciones, ya que rompen en `bash` 3.2:
 
 ### Validación Mínima Antes De Cerrar
 
-- Ejecutar `bash -n <script>` para validar sintaxis.
+Estas validaciones aplican únicamente a archivos Bash o scripts invocados mediante Bash:
+
+- Ejecutar `/bin/bash -n <script>` para validar sintaxis.
 - Ejecutar el script (o su modo `--dry-run` cuando exista) con `/bin/bash` en macOS, no con `bash` 4+ del sistema.
 - Reportar explícitamente en la respuesta final:
   - `Verificado bash 3.2: <sí/no + evidencia>`
 
-## Idioma
-
-- Salida visible en español, identificadores y flags en inglés.
+Los archivos PowerShell, Batch, Python y otros runtimes deben validarse con sus herramientas nativas cuando corresponda.

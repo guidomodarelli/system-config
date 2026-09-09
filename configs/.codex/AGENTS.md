@@ -27,9 +27,9 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 
 ## Memoria persistente (MCP `memory`) — Mandatorio
 
-- Al inicio de cada sesión o tarea, antes de planificar o responder, consultar la memoria con el MCP `memory` (`search_nodes`/`read_graph`) para recuperar contexto relevante del usuario y del proyecto.
-- Tratar lo recuperado como contexto de fondo (refleja lo que era cierto al guardarse): si una memoria nombra un archivo, símbolo o flag, verificar que siga existiendo antes de recomendarlo.
-- Cuando se descubra un hecho duradero (preferencia del usuario, decisión de proyecto, gotcha técnico reusable), guardarlo con el MCP `memory` y commitearlo en `system-config` (el grafo vive en `configs/.mcp-memory/memory.json`, symlinkeado a `~/.mcp-memory/memory.json`).
+- Al inicio de cada sesión o tarea, consultar la integración MCP `memory` para recuperar contexto relevante del usuario y del proyecto.
+- Tratar lo recuperado como contexto de fondo: si una memoria nombra un archivo, símbolo o flag, verificar que siga existiendo antes de recomendarlo.
+- Cuando se descubra un hecho duradero, guardarlo mediante la integración de memoria siguiendo el alcance y la persistencia definidos por el repositorio actual.
 
 ## Reglas de testing (obligatorias)
 - Antes de dar un cambio por terminado, ejecutar los tests relevantes y asegurar que pasen.
@@ -51,8 +51,6 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Antes de implementar cambios relevantes, identificar módulos y responsabilidades; después del cambio, verificar que cada módulo conserve una responsabilidad clara. → Skill: `refactor-structure-a11y`
 - Tras cada edición significativa, incluir una validación breve de 1 a 2 líneas indicando si se cumplió el objetivo del cambio y corregir si no se logró.
 - En cambios relevantes, listar y justificar brevemente las principales decisiones de diseño tomadas.
-- Antes de instalar o declarar una dependencia directa solo para resolver `import/no-extraneous-dependencies`, analizar primero si corresponde actualizar la configuración de ESLint `settings.import/core-modules` u otra configuración equivalente del resolver. Si esa configuración resuelve correctamente el caso y la dependencia ya llega por la plataforma/framework, preferir esa solución y no modificar `package.json`.
-
 ## Naming, literales y errores
 
 ### Naming
@@ -71,12 +69,6 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Evitar malas extracciones: no crear constante por cada literal mecánicamente, no alejar el valor más de lo necesario, no agrupar literales no relacionados en un `constants.js` genérico, no crear config para invariantes de compile-time, no renombrar constantes compartidas salvo que el refactor lo incluya explícitamente.
 - Tras extraer, actualizar imports, tests, mocks y snapshots que dependían del literal.
 
-### Casts y encoding
-- Con inputs ya validados por schema validation middleware: usar `Number()`/`String()` explícitos en el punto de uso; no usar `encodeURIComponent`. Encoding solo para inputs externos/no validados.
-
-### Lodash defaults
-- Si lodash ya está instalado, usar `lodash/defaults({}, userOptions, defaultOptions)` para defaults de options/config (no agregar lodash solo para esto; no mutar inputs). Deep → `lodash/defaultsDeep`.
-
 ### Mensajes de error
 - Errores y logs específicos y accionables. Evitar genéricos ("Error", "Request failed", "Something went wrong") salvo que estén wrappeados con contexto preciso.
 - Incluir la operación (`Component:function failed`), los identificadores mínimos para debuggear (`roleId`, `domainId`, `userId`, `requestId`, valores de filtro/query) y, cuando aplique, contexto de la dependencia: nombre del service/client, HTTP method + path (o endpoint name) y status code, y correlation id (`x-request-id`, trace id).
@@ -84,15 +76,6 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Diferenciar user-facing (corto, claro, safe, puede llevar error code + request id) de logs (contexto técnico + error/stack original).
 - Al wrappear/rethrow, adjuntar el error original como `cause`. Sin silent failures: no swallow sin fallback deliberado y log con contexto.
 - Si el mismo error se usa en varios lugares, centralizar la construcción del mensaje en un helper.
-
-### Errores en UI
-- Validar inputs y props antes de renderizar o usarlos; ante datos inválidos, renderizar un fallback en vez de romper el render.
-- Agregar tests automatizados que cubran escenarios de error y el fallback UI.
-
-### Manejo de errores en SSR (`getServerSideProps`)
-- Envolver cada llamada a API dentro de `getServerSideProps` en try/catch; nunca dejar un throw sin manejo que corte el render SSR.
-- Ante un fallo, loggear el error en server logs sin exponer detalles al usuario y devolver props controladas (valores por defecto o flag de error).
-- La UI debe renderizar un fallback simple y orientado a la acción cuando hay error o datos vacíos.
 
 ## Ubicación de habilidades (AgentSkills)
 - Mis **AgentSkills** están en: `~/.agents/skills`.

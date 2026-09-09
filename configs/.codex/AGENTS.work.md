@@ -23,6 +23,12 @@ alwaysApply: false
   - nombres de enums
   - otros términos técnicos o de implementación
 
+## Convenciones De Implementación Node/Nordic
+
+- Con inputs ya validados por schema validation middleware, usar `Number()`/`String()` explícitos en el punto de uso; no usar `encodeURIComponent`. Aplicar encoding solo a inputs externos no validados.
+- Si `lodash` ya está instalado, usar `lodash/defaults({}, userOptions, defaultOptions)` para defaults de options/config; usar `lodash/defaultsDeep` para estructuras anidadas. No agregar lodash solo para defaults ni mutar inputs.
+- Antes de declarar una dependencia directa solo para resolver `import/no-extraneous-dependencies`, revisar primero `settings.import/core-modules` u otra configuración equivalente del resolver.
+
 ## Verificación Runtime De Aplicaciones Nordic
 
 - Si `package.json` declara una dependencia cuyo nombre contiene `nordic` (sin distinguir mayúsculas/minúsculas) en `dependencies`, `devDependencies`, `optionalDependencies` o `peerDependencies`, leer y aplicar `@/Users/gmodarelli/.claude/skills/nordic-dev-verify/SKILL.md` antes de verificar manualmente flujos runtime o cambios frontend en `dev.adminml.com`.
