@@ -65,6 +65,8 @@ paths:
     target: .codex/
   - path: .codex/AGENTS.md
     exactTarget: .claude/CLAUDE.md
+  - path: .codex/AGENTS.work.md
+    exactTarget: ghq/work/AGENTS.md
   - path: .codex/config.toml
     target: .codex
   - path: .mcp-memory/memory.json

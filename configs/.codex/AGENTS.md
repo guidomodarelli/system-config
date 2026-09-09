@@ -96,9 +96,3 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 
 ## Ubicación de habilidades (AgentSkills)
 - Mis **AgentSkills** están en: `~/.agents/skills`.
-
-## Reglas específicas para repositorios bajo `~/ghq/work/` (carga condicional)
-
-- Las reglas de plataforma Nordic/MELI (tooling obligatorio, código en inglés y testing específico de `@andes`/`@meli`/`nordic`/`@kraken`) viven en un archivo aparte para no aplicarse fuera de su contexto.
-- Condición de carga: leer y aplicar `~/system-config/configs/.codex/AGENTS.work.md` **solo** cuando el directorio de trabajo actual esté ubicado dentro de `~/ghq/work/`.
-- Si el repositorio no está bajo esa ruta, no leer ese archivo ni aplicar esas reglas.
