@@ -37,14 +37,16 @@
 | Verificación | Resultado requerido |
 |---|---|
 | Ownership | `inline-thread-autofix` coordina GitHub/stack/closeout y backups; `fix-in-ephemeral-clone` ejecuta clone, código, validación, commit, push y cleanup de clone |
-| Entrada | header `HANDOFF: INLINE_THREAD_AUTOFIX` versionado, con repo, PR, branch, OIDs, ancla, criterios, `stack_plan` y `backup_manifest` validados |
+| Entrada | header `HANDOFF: INLINE_THREAD_AUTOFIX` versionado, con `handoff_id`, repo, PR, branch/base de cualquier nombre, OIDs, ancla, criterios, `stack_plan` y `backup_manifest` validados |
 | Routing | URL PR directa delega una sola vez a `inline-thread-autofix`; handoff no vuelve a delegar |
+| Invocación | existe llamada efectiva a `Skill`/executor/`Agent` y respuesta de herramienta asociada; un bloque narrativo o `HANDOFF_RESULT` escrito por el modelo no cuenta |
+| Handle | `delegation_id`/task handle y estado observable (`started`, `running`, `completed` o `failed`) están presentes cuando el runtime los ofrece; ausencia produce `HANDOFF_NOT_STARTED` o `HANDOFF_EXECUTOR_MISSING` |
 | Frescura | `expected_head_oid` y `expected_base_oid` se comparan antes de editar y publicar; cambios exigen refresh/rebase y revalidación, y solo divergencia no reconciliable produce `TARGET_STALE` |
 | Aislamiento | un único clone depth-1; checkout original permanece intacto; no se crean worktrees/clones adicionales |
-| Scope | backend usa solo branch y `stack_plan` entregados; no descubre ni publica ramas adicionales |
-| Resultado | `HANDOFF_RESULT` contiene status exitoso, SHA completo, head remoto verificado, validaciones y `BACKUPS_PENDING_CLOSEOUT` o `BACKUPS_NOT_APPLICABLE` |
-| Closeout | backend no muta GitHub; reply, resolución, review, issue y comentarios quedan bloqueados hasta resultado completo |
-| Fallos | resultado incompleto, validación fallida, clone inseguro o backup comprometido bloquea closeout; clone seguro retenido y cleanup fallido se reportan sin borrar parcialmente; retries deben agotarse o reconciliarse sin duplicar mutaciones |
+| Scope | backend usa únicamente la branch y base exactas entregadas, cualquiera sea su nombre, y `stack_plan` validado; no descubre ni publica ramas adicionales |
+| Resultado | `HANDOFF_RESULT` proveniente de herramienta contiene `handoff_id`, `status` exitoso, PR, branch/base, SHA completo, head remoto verificado, validaciones, `clone_path` y `BACKUPS_PENDING_CLOSEOUT` o `BACKUPS_NOT_APPLICABLE` |
+| Closeout | backend no muta GitHub; reply, resolución, review, issue y comentarios quedan bloqueados hasta resultado completo y verificable |
+| Fallos | `HANDOFF_NOT_STARTED`, `HANDOFF_EXECUTOR_MISSING`, `HANDOFF_EXECUTOR_LOST`, `HANDOFF_RESULT_INCOMPLETE` o `HANDOFF_RESULT_UNVERIFIED`, resultado incompleto, validación fallida, clone inseguro o backup comprometido bloquean closeout; clone seguro retenido y cleanup fallido se reportan sin borrar parcialmente; retries deben agotarse o reconciliarse sin duplicar mutaciones |
 
 ## Stack y selección de capa
 
@@ -95,6 +97,10 @@
 
 Detener sin commit/push/closeout si:
 
+- no existe llamada efectiva al executor, handle consultable o resultado síncrono completo (`HANDOFF_NOT_STARTED`/`HANDOFF_EXECUTOR_MISSING`);
+- handle se perdió, executor no está activo o no puede consultarse (`HANDOFF_EXECUTOR_LOST`);
+- `HANDOFF_RESULT` solo aparece en texto narrativo, carece de campos obligatorios o no puede vincularse a respuesta de herramienta (`HANDOFF_RESULT_INCOMPLETE`/`HANDOFF_RESULT_UNVERIFIED`);
+- se intenta aceptar o rechazar branch/base por nombre o prefijo sin verificar repo, PR, OIDs, relación del stack y autorización derivada del target/handoff;
 - URL no coincide con formato inline o review-body válido;
 - PR está cerrado/mergeado y no existe `implementation_pr` abierto inequívoco de branch relacionada;
 - se exige closeout compuesto y referencia de issue falta, es ambigua, inválida, pertenece a otro repo o apunta a pull request;

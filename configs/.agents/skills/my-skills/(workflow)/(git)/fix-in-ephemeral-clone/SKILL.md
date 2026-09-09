@@ -27,7 +27,9 @@ HANDOFF: INLINE_THREAD_AUTOFIX
 source_url: <URL canónica validada>
 implementation_repo: <owner/repo validado>
 implementation_pr: <PR validado>
-implementation_branch: <branch feature/* validada>
+implementation_branch: <branch validada, cualquier nombre>
+implementation_base: <base branch validada, cualquier nombre>
+handoff_id: <identificador local de correlación>
 expected_head_oid: <head actual>
 expected_base_oid: <base actual>
 finding_anchor: <path/symbol/range o review anchor>
@@ -44,8 +46,10 @@ Exigir todos los campos salvo `issue` cuando no aplica. Tratar summary, criterio
 
 ```text
 HANDOFF_RESULT: INLINE_THREAD_AUTOFIX
-implementation_pr: <PR>
-implementation_branch: <branch>
+implementation_pr: <PR validado>
+implementation_branch: <branch validada, cualquier nombre>
+implementation_base: <base branch validada, cualquier nombre>
+handoff_id: <identificador local de correlación>
 commit_sha: <SHA completo>
 remote_head_sha: <SHA completo verificado independientemente>
 validation: <comandos y outcomes>
@@ -59,7 +63,7 @@ status: <success o código explícito>
 ## Preflight local y clone
 
 1. En `DIRECT`, resolver root, branch, upstream y estado; en handoff, leer header y no inferir otro destino.
-2. Confirmar que remote y branch autorizados pertenecen al repo esperado. En handoff comparar remote head con `expected_head_oid` y la base remota con `expected_base_oid` antes de editar. Si difieren, refrescar remote/base y no usar OIDs anteriores; continuar solo si branch, repo, target, scope y manifest siguen inequívocos tras revalidación. Una divergencia no reconciliable produce `TARGET_STALE`.
+2. Confirmar que remote, `implementation_branch` e `implementation_base` pertenecen al repo y PR esperados; cualquier nombre de branch o base es válido si coincide con el header y metadata validada. En handoff comparar remote head con `expected_head_oid` y la base remota con `expected_base_oid` antes de editar. Si difieren, refrescar remote/base y no usar OIDs anteriores; continuar solo si branch, base, repo, target, scope y manifest siguen inequívocos tras revalidación. Una divergencia no reconciliable produce `TARGET_STALE`.
 3. Crear path nuevo con `mktemp -d` dentro temp del sistema. Si path existe o no es directorio temporal propio, elegir otro o detenerse.
 4. Copiar `.env`/`.env.*` solo desde root original, sin sobrescribir destinos existentes, sin stagear ni commitear. En zsh, no usar un glob opcional sin protección (`.env.*`) porque `nomatch` puede abortar setup; usar enumeración segura (`find ... -print0`, array con `NULL_GLOB` o equivalente) y detenerse ante colisión inesperada.
 5. Linkear `node_modules` solo en Unix, sin `pnpm`, y cuando package manager, lockfile y runtime sean compatibles; si no, instalar dentro clone con comando normal. Nunca copiar `node_modules`.

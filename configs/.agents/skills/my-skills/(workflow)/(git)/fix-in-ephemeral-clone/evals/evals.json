@@ -15,7 +15,7 @@
     },
     {
       "id": 2,
-      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nfinding_anchor: src/service.js:42\nfinding_summary: Evitar exposición de datos upstream\nacceptance_criteria: DTO allowlisted y test negativo\nstack_plan: none\nissue: none",
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-handoff-1\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nfinding_anchor: src/service.js:42\nfinding_summary: Evitar exposición de datos upstream\nacceptance_criteria: DTO allowlisted y test negativo\nstack_plan: none\nissue: none",
       "expected_output": "Ejecuta un único clone efímero sobre branch y OIDs entregados, valida, commitea, pushea solo branch autorizada, devuelve HANDOFF_RESULT y no muta GitHub.",
       "files": [],
       "expectations": [
@@ -29,7 +29,7 @@
     },
     {
       "id": 3,
-      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nexpected_head_oid: 0123456789012345678901234567890123456789",
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-handoff-1\nexpected_head_oid: 0123456789012345678901234567890123456789",
       "expected_output": "Rechaza handoff incompleto antes de editar o pushear; devuelve fallo explícito al orquestador y conserva cualquier recurso creado.",
       "files": [],
       "expectations": [
@@ -66,7 +66,7 @@
     },
     {
       "id": 6,
-      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nsnapshot_id: run-1\nfinding_anchor: src/service.js:42\nfinding_summary: Evitar exposición de datos upstream\nacceptance_criteria: DTO allowlisted y test negativo\nvalidation_plan: paths=src/service.js;focused_tests=service.spec.js\nstack_plan: {schema_version:1,layers:[],order:[]}\nbackup_manifest: none\nissue: none",
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-handoff-1\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nsnapshot_id: run-1\nfinding_anchor: src/service.js:42\nfinding_summary: Evitar exposición de datos upstream\nacceptance_criteria: DTO allowlisted y test negativo\nvalidation_plan: paths=src/service.js;focused_tests=service.spec.js\nstack_plan: {schema_version:1,layers:[],order:[]}\nbackup_manifest: none\nissue: none",
       "expected_output": "Ejecuta handoff con schema versionado, valida HEAD/base, devuelve BACKUPS_NOT_APPLICABLE cuando no hay stack y no hace closeout GitHub.",
       "files": [],
       "expectations": [

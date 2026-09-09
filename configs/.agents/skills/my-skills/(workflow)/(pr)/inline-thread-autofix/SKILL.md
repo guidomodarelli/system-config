@@ -43,7 +43,23 @@ El link autoriza únicamente destino indicado. No autoriza otros threads, branch
 
 - **Checkout actual:** aplicar fix en checkout actual después de confirmar repo, branch, head y estado local. No cambiar de worktree, no crear clone y no descartar, resetear ni limpiar cambios existentes. Preservar cambios ajenos y stagear únicamente archivos autorizados. Si cambios tracked/untracked impiden distinguir el patch, detener y pedir otra opción.
 - **Worktree hermano:** usar `/sibling-worktree` para gestionar ubicación persistente y entrar al checkout; implementar allí solo después de informar path, branch y HEAD. No eliminar worktree, no crear branch derivada ni usar clone efímero como sustituto. Reportar path y branch antes de editar y en closeout.
-- **Clone efímero:** usar `/fix-in-ephemeral-clone` únicamente mediante handoff explícito con header completo. Esta skill no edita checkout, duplica commit/push/cleanup ni inventa path; el executor debe devolver `HANDOFF_RESULT` con `clone_path` y `implementation_branch`, que se reportan al usuario.
+- **Clone efímero:** usar `/fix-in-ephemeral-clone` únicamente mediante handoff explícito con header completo. Esta skill no edita checkout, duplica commit/push/cleanup ni inventa path; el executor debe devolver `HANDOFF_RESULT` con `clone_path`, `implementation_branch` y `implementation_base`, que se reportan al usuario solo después de verificar su procedencia.
+
+## Delegación transaccional y evidencia de ejecución
+
+Preparar o mostrar un bloque `HANDOFF` no inicia ningún proceso. La delegación existe únicamente después de una llamada efectiva al executor mediante una herramienta (`Skill` con `fix-in-ephemeral-clone` o `Agent`/job autorizado por el runtime) y una respuesta de herramienta asociada a esta ejecución. Texto narrativo, una intención futura, mencionar `/fix-in-ephemeral-clone`, un bloque copiado en la respuesta o un `HANDOFF_RESULT` escrito por el modelo nunca son evidencia de ejecución.
+
+Al elegir `Clone efímero`, seguir esta secuencia, sin saltos:
+
+1. Generar un `handoff_id` local de correlación y completar/validar el header `HANDOFF`; ese identificador no prueba ejecución. Conservar el `delegation_id`/task handle solo si la herramienta lo devuelve. El URL o la selección del entorno autorizan el target validado; no pedir confirmación adicional por el nombre de branch o base.
+2. Invocar efectivamente el executor una sola vez con ese handoff. Registrar herramienta, identificador devuelto y estado observable (`started`, `running`, `completed`, `failed` o equivalente). Si la llamada es rechazada, no existe herramienta disponible o no devuelve handle ni resultado síncrono completo, reportar `HANDOFF_NOT_STARTED` o `HANDOFF_EXECUTOR_MISSING`; no afirmar clone creado ni implementación en curso.
+3. Si existe handle activo, reportar únicamente `executor iniciado` y los datos que la herramienta ya devolvió. No afirmar path, branch checkout, `HEAD`, commit, validaciones, publicación ni clone creado hasta recibirlos del executor.
+4. Aceptar `HANDOFF_RESULT` únicamente cuando provenga de la respuesta de herramienta del executor y contenga los campos obligatorios; verificar `handoff_id` coincidente, `status`, `implementation_pr`, `implementation_branch`, `implementation_base`, `commit_sha`, `remote_head_sha`, `validation`, `clone_path` y `backups`. Un bloque textual con la misma forma es `HANDOFF_RESULT_UNVERIFIED`.
+5. Si handle desaparece, no puede consultarse, el executor no está activo o devuelve resultado parcial, detener con `HANDOFF_EXECUTOR_LOST` o `HANDOFF_RESULT_INCOMPLETE`. No hacer polling ciego, no crear otro clone y no invocar backend otra vez en la misma ejecución.
+
+Ante una pregunta posterior como “¿dónde fue lanzado?” o “¿hay agente?”, consultar el handle real. Si no existe, responder que no se inició ningún executor (`HANDOFF_NOT_STARTED`), sin inventar path ni decir que el path está pendiente. Si el usuario vuelve a autorizar implementar, iniciar una ejecución nueva mediante una llamada real y un handoff nuevo; no presentar esa ejecución como continuación de una delegación inexistente.
+
+Solo `HANDOFF_RESULT` completo, verificable y proveniente del executor habilita closeout. Un executor activo no habilita reply, resolución de thread, comentarios, PUT/fallback, cierre de issue ni cleanup de backups.
 
 Nunca convertir una opción en otra silenciosamente. La selección del usuario es parte del contrato de ejecución y se conserva durante todo el flujo.
 
@@ -107,6 +123,16 @@ Clasificar cada condición antes de terminar el flujo:
 
 `TARGET_STALE` y `SNAPSHOT_STALE` son estados de revalidación, no bloqueos automáticos: continuar solo cuando refresh produzca una cadena, target, manifest y precondiciones inequívocos; de lo contrario aplicar `HARD_STOP`.
 
+Estados específicos de delegación:
+
+- `HANDOFF_NOT_STARTED`: no hubo llamada efectiva al executor.
+- `HANDOFF_EXECUTOR_MISSING`: la herramienta fue rechazada, no está disponible o no devolvió handle ni resultado síncrono completo.
+- `HANDOFF_EXECUTOR_LOST`: existía handle, pero el executor ya no está activo o no puede consultarse.
+- `HANDOFF_RESULT_INCOMPLETE`: executor respondió sin campos obligatorios, validaciones o evidencia de publicación requeridas.
+- `HANDOFF_RESULT_UNVERIFIED`: el supuesto resultado solo aparece en texto narrativo o no puede vincularse a la respuesta de herramienta.
+
+Todos bloquean edición adicional, publicación y closeout. No convertirlos silenciosamente en `RETRYABLE`; una nueva ejecución requiere autorización del usuario y un handoff nuevo.
+
 ## Thread y review: identidad estricta
 
 ### Inline
@@ -140,7 +166,7 @@ En modo read-only, resolver root y leer `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING`
 
 ## Stack y selección de capa
 
-Representar cada PR como arista `baseRefName -> headRefName`, validando `base_repo`, `head_repo`, branch, base/head OID y paginación completa. Para reducir round-trips, buscar primero parent/children inmediatos con filtros exactos `head=<owner>:<base_branch>` y `base=<head_branch>`, paginando cada resultado y recorriendo solo branches encontradas; si filtros no demuestran exhaustividad, usar una única enumeración completa `state=all`. Fork, página/OID faltante o branch base no default sin PR verificable produce `STACK_INCOMPLETE`; base default sin PR parent puede ser primera capa. Comparar cada capa contra base inmediata usando OIDs; no usar título, body, labels, autor o fecha para inferir relación.
+Representar cada PR como arista `baseRefName -> headRefName`, validando `base_repo`, `head_repo`, nombres de branch/base, base/head OID y paginación completa. Para reducir round-trips, buscar primero parent/children inmediatos con filtros exactos `head=<owner>:<base_branch>` y `base=<head_branch>`, paginando cada resultado y recorriendo solo branches encontradas; si filtros no demuestran exhaustividad, usar una única enumeración completa `state=all`. Aceptar cualquier nombre de branch y cualquier base cuando repo, PR, relación, OIDs y autorización derivada del target o handoff sean verificables; no aceptar ni rechazar por prefijo, nombre `main`/`master`/`develop` o convención. Fork, página/OID faltante, repo incompatible o relación no verificable produce `STACK_INCOMPLETE`; una base sin PR parent puede ser primera capa solo con OID y repo verificados. Comparar cada capa contra base inmediata usando OIDs; no usar título, body, labels, autor o fecha para inferir relación.
 
 Estados:
 
@@ -161,11 +187,13 @@ Después de selección inequívoca, ejecutar únicamente el modo elegido conform
 HANDOFF: INLINE_THREAD_AUTOFIX
 source_url: <originalUrl canónica>
 implementation_repo: <owner/repo>
-implementation_pr: <PR destino>
-implementation_branch: <branch feature/* destino>
+implementation_pr: <PR destino validado>
+implementation_branch: <branch destino validada, cualquier nombre>
+implementation_base: <base branch validada, cualquier nombre>
 expected_head_oid: <head SHA leído inmediatamente antes>
 expected_base_oid: <base SHA leído inmediatamente antes>
 snapshot_id: <identificador local de ejecución>
+handoff_id: <identificador local de correlación; no prueba ejecución>
 finding_anchor: <path/symbol/range o anchor de review-body>
 finding_summary: <invariante observable sanitizada>
 acceptance_criteria: <tests y comportamiento esperado>
@@ -175,19 +203,24 @@ backup_manifest: <none o [{ref,old_oid}] creada por orchestrator>
 issue: <issue validada o none>
 ```
 
-Para `STACK_FOUND`, `stack_plan` debe incluir únicamente branches autorizadas y `schema_version: 1`, más layers con `{pr,branch,old_head_oid,base_oid,parent_old_oid,new_parent_oid,paths,name-status,patch_fingerprint,tree_manifest}` y orden bottom-up. Manifest incompleto, OID faltante o branch no autorizada produce `STACK_INCOMPLETE`; nunca completar campos por inferencia. Calcular `patch_fingerprint` con formato canónico estable (por ejemplo `git diff --binary --full-index --no-ext-diff --no-renames --no-textconv`) y comparar hunks/name-status, no hashes afectados por `core.abbrev` ni solo estadísticas. Backend debe hacer un clone, fetch agrupado de refs necesarias y validar `HEAD == expected_head_oid` más OIDs requeridos antes de editar; si depth-1 no contiene historia, profundizar solo rango necesario. Después de crear commit owner, sustituir `new_parent_oid` de cada descendant por ese SHA nuevo y revalidar antes de rebasear; nunca reutilizar tip pre-fix. Usar `git rebase --onto <nuevo-parent-tip> <parent-tip-anterior>`. Nunca `-X ours`, `-X theirs`, `--skip`, `reset --hard`, `clean -fd` o `git push --force`.
+Para `STACK_FOUND`, `stack_plan` debe incluir únicamente branches autorizadas y `schema_version: 1`, más layers con `{pr,branch,old_head_oid,base_oid,parent_old_oid,new_parent_oid,paths,name-status,patch_fingerprint,tree_manifest}` y orden bottom-up. Manifest incompleto, OID faltante, repo/base incompatible o branch no demostrablemente autorizada produce `STACK_INCOMPLETE`; nunca completar campos por inferencia. Calcular `patch_fingerprint` con formato canónico estable (por ejemplo `git diff --binary --full-index --no-ext-diff --no-renames --no-textconv`) y comparar hunks/name-status, no hashes afectados por `core.abbrev` ni solo estadísticas. Backend debe hacer un clone, fetch agrupado de refs necesarias y validar `HEAD == expected_head_oid`, `expected_base_oid`, `implementation_branch` y `implementation_base` antes de editar; cualquier nombre es válido si coincide con metadata validada. Si depth-1 no contiene historia, profundizar solo rango necesario. Después de crear commit owner, sustituir `new_parent_oid` de cada descendant por ese SHA nuevo y revalidar antes de rebasear; nunca reutilizar tip pre-fix. Usar `git rebase --onto <nuevo-parent-tip> <parent-tip-anterior>`. Nunca `-X ours`, `-X theirs`, `--skip`, `reset --hard`, `clean -fd` o `git push --force`.
 
 Backups pertenecen a orchestrator: antes del handoff, inventariar `refs/heads/backup/*`, obtener refs/OIDs autorizados sin cambiar checkout, generar `run_id`, crear refs scoped condicionales fuera del clone y registrar `{ref,old_oid}`. Pasar `backup_manifest` y mantenerlo como `BACKUPS_PENDING_CLOSEOUT` hasta finalizar todos destinos. Backend nunca limpia refs. Orchestrator elimina únicamente al final con `git update-ref --stdin` y OID esperado, después de comprobar worktrees; ante cualquier fallo conserva refs y reporta `BACKUPS_PRESERVED_ON_FAILURE`. No publicar nombres de refs.
 
-Publicar owner primero y descendants después en orden bottom-up, solo branches `feature/*` del mismo repo. Antes de cada push releer head remoto/API y usar `--force-with-lease` con OID esperado; después verificar `git ls-remote` y API directa. Una discrepancia exige refresh y comparación: si el commit esperado sigue en la cadena autorizada, revalidar diff/manifest y continuar; si no, aplicar `TARGET_STALE` y detener la mutación actual. Un `NFF` o error de transporte/5xx transitorio es reintentable dentro del límite definido, con reread previo y sin duplicar publicación; auth, permisos, `src refspec` inválido o publicación aún no verificable tras los reintentos siguen siendo `HARD_STOP`.
+Publicar owner primero y descendants después en orden bottom-up, únicamente branches autorizadas por el target/handoff validado y del mismo repo; cualquier nombre de branch es válido y no existe una allowlist por prefijo. Antes de cada push releer head remoto/API y usar `--force-with-lease` con OID esperado; después verificar `git ls-remote` y API directa. Una discrepancia exige refresh y comparación: si el commit esperado sigue en la cadena autorizada, revalidar diff/manifest y continuar; si no, aplicar `TARGET_STALE` y detener la mutación actual. Un `NFF` o error de transporte/5xx transitorio es reintentable dentro del límite definido, con reread previo y sin duplicar publicación; auth, permisos, `src refspec` inválido o publicación aún no verificable tras los reintentos siguen siendo `HARD_STOP`.
 
 Backend puede reutilizar validaciones si refresh remoto no cambió; ante cambio relacionado, duda, conflicto, dependencia, configuración, setup de tests o superficie compartida debe revalidar. No correr en paralelo comandos que escriben el mismo checkout (por ejemplo lint con `--fix` y build). Resultado aceptable:
 
 ```text
 HANDOFF_RESULT: INLINE_THREAD_AUTOFIX
-implementation_pr: <PR>
+implementation_pr: <PR validado>
 execution_mode: <checkout_actual|worktree_hermano|clone_efimero>
-implementation_branch: <branch>
+implementation_branch: <branch validada, cualquier nombre>
+implementation_base: <base branch validada, cualquier nombre>
+handoff_id: <identificador local de correlación>
+delegation_id: <handle de herramienta o NOT_APPLICABLE si fue síncrono>
+executor_tool: <herramienta que produjo este resultado>
+executor_status: <completed|failed|...>
 commit_sha: <SHA completo>
 remote_head_sha: <SHA completo verificado>
 worktree_path: <NOT_APPLICABLE o path absoluto>
@@ -201,7 +234,7 @@ status: <success o código explícito>
 
 ## Closeout
 
-Leer [`closeout-template.md`](references/closeout-template.md). Antes de mutation, releer head remoto/API y verificar que SHA completo pertenece a PR implementación.
+Leer [`closeout-template.md`](references/closeout-template.md). Antes de mutation, releer head remoto/API y verificar que SHA completo pertenece a PR implementación. Si el modo es `clone_efimero`, exigir además `HANDOFF_RESULT` completo proveniente de una respuesta de herramienta, `executor_status: completed`, `delegation_id`/resultado síncrono trazable y branch/base coincidentes con el target validado. Sin esa evidencia, detener con el estado de delegación correspondiente; nunca completar closeout con un executor meramente anunciado o activo.
 
 ### Inline
 
@@ -225,7 +258,7 @@ Tras validar head y releer review inmediatamente antes de editar, agregar body o
 
 Consultar [`verification-matrix.md`](references/verification-matrix.md). Backend debe ejecutar diff check, typecheck, lint, tests focales/globales y build disponibles, sin debilitar assertions ni agregar mocks de plataforma sin justificación. Revalidar superficies integradas tras rebase/refresh relacionado.
 
-Detener antes de mutation si URL, target, repo, branch, issue, stack, ownership, anchor, OID, permisos, validación, reply, marker o estado final no son inequívocos/verificables, excepto en la variante `COMMENT_DELETED` descrita arriba. Un cambio de threads ajenos no basta para detener: primero ejecutar refresh, comparación y reconciliación según el protocolo anterior. Códigos principales: `ISSUE_REFERENCE_MISSING`, `ISSUE_REFERENCE_AMBIGUOUS`, `ISSUE_REFERENCE_INVALID`, `FINDING_ANCHOR_AMBIGUOUS`, `COMMENT_DELETED`, `TARGET_STALE`, `SNAPSHOT_STALE` (solo refresh o reconciliación no concluyente), `RESOLVED_UNVERIFIED`, `THREAD_TARGET_MISMATCH`, `STACK_INCOMPLETE`, `STACK_AMBIGUOUS`, `NEEDS_SCOPE_CONFIRMATION`, `IMPLEMENTATION_TARGET_AMBIGUOUS`, `REBASE_INCOMPLETE`, `GOLDEN_DIFF_MISMATCH`, `CONCURRENT_PUSH_RETRY_EXHAUSTED`, `PUBLICATION_UNVERIFIED`, `ISSUE_CLOSEOUT_UNVERIFIED`, `BACKUPS_NOT_APPLICABLE`, `BACKUPS_PENDING_CLOSEOUT`, `BACKUPS_PRESERVED_ON_FAILURE`, `BACKUP_CLEANUP_FAILED`, `CLONE_CLEANUP_FAILED`.
+Detener antes de mutation si URL, target, repo, branch, issue, stack, ownership, anchor, OID, permisos, validación, reply, marker o estado final no son inequívocos/verificables, excepto en la variante `COMMENT_DELETED` descrita arriba. Un cambio de threads ajenos no basta para detener: primero ejecutar refresh, comparación y reconciliación según el protocolo anterior. Códigos principales: `HANDOFF_NOT_STARTED`, `HANDOFF_EXECUTOR_MISSING`, `HANDOFF_EXECUTOR_LOST`, `HANDOFF_RESULT_INCOMPLETE`, `HANDOFF_RESULT_UNVERIFIED`, `ISSUE_REFERENCE_MISSING`, `ISSUE_REFERENCE_AMBIGUOUS`, `ISSUE_REFERENCE_INVALID`, `FINDING_ANCHOR_AMBIGUOUS`, `COMMENT_DELETED`, `TARGET_STALE`, `SNAPSHOT_STALE` (solo refresh o reconciliación no concluyente), `RESOLVED_UNVERIFIED`, `THREAD_TARGET_MISMATCH`, `STACK_INCOMPLETE`, `STACK_AMBIGUOUS`, `NEEDS_SCOPE_CONFIRMATION`, `IMPLEMENTATION_TARGET_AMBIGUOUS`, `REBASE_INCOMPLETE`, `GOLDEN_DIFF_MISMATCH`, `CONCURRENT_PUSH_RETRY_EXHAUSTED`, `PUBLICATION_UNVERIFIED`, `ISSUE_CLOSEOUT_UNVERIFIED`, `BACKUPS_NOT_APPLICABLE`, `BACKUPS_PENDING_CLOSEOUT`, `BACKUPS_PRESERVED_ON_FAILURE`, `BACKUP_CLEANUP_FAILED`, `CLONE_CLEANUP_FAILED`.
 
 Verificaciones finales independientes pueden ejecutarse en paralelo: refs remotas/API de cada PR, bases/heads del stack, reply por `in_reply_to`, GraphQL del thread exacto, markers/URLs de issue o PR destino, estado issue y árbol seguro. Cleanup de backups es último paso local y solo reporta `BACKUPS_CLEANED` tras comprobar refs propias ausentes y preexistentes intactas.
 
