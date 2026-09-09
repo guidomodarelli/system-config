@@ -1,0 +1,70 @@
+{
+  "skill_name": "async-operation-error-handling",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Un servicio TypeScript divide una mutación de 80 cuentas en lotes de 20. Dos lotes fueron aceptados y el tercero devuelve HTTP 422 con un mensaje que contiene 'timeout'; el cuarto no responde. Diseñá el contrato de errores y el flujo de recuperación para API, client y UI sin repetir lotes confirmados.",
+      "expected_output": "Clasificación estructurada que prioriza 422 sobre texto timeout, preserva lotes aceptados y trabajo indeterminado, proyecta DTO seguro y permite reconciliar/reanudar solo lo unresolved.",
+      "files": [],
+      "expectations": [
+        "Prioriza status/código estructurado sobre heurística de mensaje",
+        "Distingue accepted, rejected y estado indeterminado",
+        "Evita repetir mutaciones confirmadas",
+        "Separa dominio, transporte, diagnóstico y UI",
+        "Incluye tests de partial y sanitización"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Un frontend React inicia tres jobs de exportación y consulta su estado cada segundo. Uno termina con items fallidos, otro sigue procesando y el tercero devuelve un payload inválido. Al cambiar de pantalla se aborta el polling. Revisá el diseño y proponé estados, errores tipados, reanudación y feedback.",
+      "expected_output": "Polling con estados terminales explícitos, validación runtime, resultados completados y unresolved, deadline/cancelación con cleanup, reanudación sin crear jobs duplicados y UI diferenciada.",
+      "files": [],
+      "expectations": [
+        "Acepta terminal con fallas por item sin seguir esperando",
+        "Preserva jobs unresolved y permite resume",
+        "Trata payload inválido como error controlado",
+        "No muestra error visible por abort",
+        "Propone tests de cleanup y no duplicación"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Una API BFF envuelve errores de un proveedor externo. El código actual devuelve response.data completo y registra request/response, mientras la UI decide el mensaje usando error.message.includes(). Aplicá un diseño seguro que mantenga compatibilidad pública donde corresponda y soporte traducciones.",
+      "expected_output": "Normalización por boundary, DTO/log allowlisted sin secretos ni raw response, códigos estables para UI, mapping HTTP separado y copy i18n sin depender de mensajes upstream.",
+      "files": [],
+      "expectations": [
+        "Elimina exposición de response, headers, stack, cause y secretos",
+        "Define código estable independiente de copy",
+        "Separa mapping HTTP de semántica de dominio",
+        "Migra UI a mapper localizado",
+        "Agrega aserciones negativas de sanitización"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Un worker procesa mensajes en ventanas concurrentes. Promise.all aborta toda la ventana ante un fallo, y el retry vuelve a publicar todos los mensajes. Diseñá una migración incremental que conserve resultados por mensaje, limite concurrencia y reintente solo fallos seguros.",
+      "expected_output": "Uso de resultados settled o equivalente, identidad por mensaje, límites/backpressure, clasificación retryable, separación de fallos permanentes/transitorios y tests de idempotencia.",
+      "files": [],
+      "expectations": [
+        "Conserva éxitos aunque falle otro mensaje",
+        "Reintenta solo elementos elegibles",
+        "Mantiene límites de concurrencia y cleanup",
+        "No usa mensaje textual como contrato único",
+        "Incluye tests observables de idempotencia"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Una operación de asignación existente tiene preflight failures, runs asíncronos, timeout de polling y feedback en tres idiomas. Quiero reutilizar el patrón para otro flujo, sin copiar nombres de dominio ni editar catálogos generados manualmente. Indicá qué abstraer y cómo validar.",
+      "expected_output": "Extrae invariantes genéricas de códigos, partial results, terminalidad, resume, cancelación, mapping por boundary e i18n; distingue contrato reusable de nombres locales y valida catálogos fuente/generados correctamente.",
+      "files": [],
+      "expectations": [
+        "Generaliza el patrón sin depender de un dominio específico",
+        "Conserva preflight/partial/resume como conceptos separados",
+        "Distingue catálogos fuente de archivos generados",
+        "Propone contrato y tests aplicables al nuevo flujo",
+        "Evita abstraer detalles específicos sin consumer"
+      ]
+    }
+  ]
+}

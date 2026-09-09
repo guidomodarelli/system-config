@@ -1,6 +1,6 @@
 ---
 name: typed-errors-refactor
-description: Analiza, diseña y ejecuta refactors de errores tipados en repositorios generales, especialmente JavaScript y TypeScript. Usar siempre cuando el usuario mencione throws o catches genéricos, custom errors, códigos o status inconsistentes, normalización de errores API, filtración de upstream, cause, error boundaries, SSR, cancelación o tests de errores, aunque no pida explícitamente una jerarquía de clases. Preserva comportamiento observable, migra consumers por boundary y agrega tests de contrato sin imponer framework ni patrón de implementación.
+description: Analiza, diseña y ejecuta refactors de errores tipados en repositorios generales, especialmente JavaScript y TypeScript. Usar siempre cuando el usuario mencione throws o catches genéricos, custom errors, códigos o status inconsistentes, normalización de errores API, filtración de upstream, cause, error boundaries, SSR, cancelación o tests de errores, aunque no pida explícitamente una jerarquía de clases. Usar también ante operaciones async por batches/chunks, partial success, polling, retries, deadlines, jobs/runs terminales, reanudación, unresolved work o cancelación; en esos casos coordinar con `async-operation-error-handling`. Preserva comportamiento observable, migra consumers por boundary y agrega tests de contrato sin imponer framework ni patrón de implementación.
 ---
 
 # Typed Errors Refactor
@@ -20,6 +20,10 @@ Aplicar la skill de forma genérica. Detectar el lenguaje, runtime, arquitectura
 5. Inventariar throws, catches, rejected promises, status/codes, serializadores, logs, loaders, SSR, UI y cancelación.
 6. Construir matriz actual → objetivo antes de elegir clases, unions, factories o guards.
 7. Migrar por boundary, agregar tests de comportamiento y validar con tooling real del repositorio.
+
+### Handoff para operaciones async parciales
+
+Si el inventario encuentra batches/chunks, resultados parciales, polling, jobs/runs, deadline, reanudación, unresolved work o cancelación, leer y aplicar [`async-operation-error-handling`](../async-operation-error-handling/SKILL.md). Esa skill agrega invariantes de progreso, idempotencia, terminalidad y recovery; no reemplaza el contrato general de errores tipados. Si el flujo no tiene esas características, continuar únicamente con este workflow.
 
 ## Inventario mínimo
 
