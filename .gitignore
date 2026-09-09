@@ -8,6 +8,11 @@ __pycache__
 !.env.template
 .DS_Store
 node_modules/
+# Artefactos de workspaces generados; no ignorar una skill legítima con SKILL.md directo.
+**/*-workspace/iteration-*/
+**/*-workspace/skill-snapshot/
+**/*-workspace/manifest.json
+**/*-workspace/trigger-eval*.json
 package-lock.json
 
 .claude/settings.local.json

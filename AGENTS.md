@@ -29,6 +29,12 @@
 - Al escribir, actualizar o revisar specs, consultar y aplicar la guía visual de `configs/.agents/DESIGN.md`.
 - Si una spec no puede seguir esa guía por una restricción técnica o de formato, dejar explícita la razón en la respuesta final.
 
+## Workspaces Generados Por Skills
+
+- Una carpeta `*-workspace` con `SKILL.md` directamente en su primer nivel es una skill legítima y debe conservarse.
+- Una carpeta `*-workspace` sin `SKILL.md` de primer nivel es un workspace temporal generado por una skill y no debe guardarse en el repositorio.
+- Git no puede expresar directamente esa condición de existencia; `.gitignore` cubre artefactos generados conocidos y la validación final debe eliminar workspaces temporales antes de cerrar.
+
 ## Regla Específica Para `cx` Y `cxd` (Mandatorio)
 
 - Si una solicitud menciona `cx` o `cxd`, el agente debe verificar SIEMPRE ambos contextos antes de cerrar el trabajo:

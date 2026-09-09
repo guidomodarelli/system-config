@@ -70,17 +70,17 @@ Si contrato o invariantes no pueden reconstruirse, producir `BLOCKED` en vez de 
 
 ## Fase 2: snapshot y workspace
 
-Para skill existente, copiar target completo a un workspace hermano, o a un path explícitamente permitido dentro de un workspace temporal. Resolver `realpath` de target y workspace; exigir que workspace no sea target, no sea symlink inesperado y permanezca dentro de parent/temporary root permitido. En `audit`, cualquier escritura va solo a workspace; target permanece read-only.
+Para skill existente, copiar target completo a un workspace hermano fuera del repositorio versionado, o a un path explícitamente permitido dentro de un workspace temporal externo. Resolver `realpath` de target y workspace; exigir que workspace no sea target, no sea symlink inesperado y permanezca dentro de parent/temporary root permitido. En `audit`, cualquier escritura va solo a workspace; target permanece read-only.
 
 ```text
-<parent>/<skill-name>-workspace/
+<temporary-parent>/<skill-name>-workspace/
 ├── skill-snapshot/          # baseline inmutable
 ├── iteration-1/
 │   └── <eval-name>/...
 └── manifest.json
 ```
 
-No mezclar workspace con target. Crear path nuevo; no reutilizar resultados de otra ejecución. `manifest.json` debe registrar target, objetivo, modo, baseline fingerprint y archivos incluidos. No guardar secrets, tokens, env files ni cuerpos privados.
+No mezclar workspace con target ni dejarlo dentro del repositorio versionado. Crear path nuevo; no reutilizar resultados de otra ejecución. Si una restricción obliga a usar un path dentro del repositorio, debe estar cubierto por una regla exacta de `.gitignore`, no contener una skill publicable en su primer nivel y eliminarse antes del cierre. `manifest.json` debe registrar target, objetivo, modo, baseline fingerprint y archivos incluidos. No guardar secrets, tokens, env files ni cuerpos privados.
 
 Snapshot es baseline de comparación, no autorización para editarlo. Si target cambia durante ejecución, detener con `TARGET_CHANGED_DURING_RUN` (equivalente operativo de `TARGET_STALE`) y reconstruir snapshot.
 
