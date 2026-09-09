@@ -46,6 +46,10 @@ No activarla para un error síncrono local sin progreso parcial, polling, retry 
 
 No inventar una jerarquía de clases, `Result` ni retry automático. Reusar guards, factories, errores y barrels existentes cuando expresen el mismo boundary.
 
+### Handoff de observabilidad
+
+Si el cambio afecta Failure Studio/ErrorUX, logs estructurados para Grafana/Loki, métricas, traces, sampling, deduplicación o cardinalidad, coordinar con `error-observability-diagnostics`. Esta skill conserva propiedad sobre progreso, terminalidad, idempotencia, retry, resume y cancelación; la skill de observabilidad define proyecciones y políticas de sinks.
+
 ## Contrato estable
 
 Definir códigos de máquina allowlisted y no traducibles para cada semántica relevante. Como mínimo, evaluar:
@@ -73,7 +77,7 @@ Aplicar precedencia explícita, documentada y testeada:
 5. Heurística de mensaje, únicamente como último recurso.
 6. Fallback `dependency-unavailable`/`unexpected` seguro.
 
-Un status 4xx no debe convertirse en timeout porque su mensaje contiene `timeout`. Un 4xx upstream atribuible a validación o rechazo contractual debe clasificarse como rechazo (`upstream-rejected` o equivalente), nunca como `dependency-unavailable`/timeout ni como motivo para retry automático por recuperación del servicio. `401/403`, rate limit y rechazo de validación requieren semánticas distintas si el contrato las distingue. No usar status upstream como autorización local ni copiarlo automáticamente al público: el boundary final decide el status según reglas del repositorio.
+Un status 4xx no debe convertirse en timeout porque su mensaje contiene `timeout`. Un 4xx upstream atribuible a validación o rechazo contractual debe clasificarse según el código o razón estable definido por el adapter, nunca como `dependency-unavailable`/timeout ni como motivo para retry automático por recuperación del servicio. Cuando el contrato use las razones estables de asignación, aplicar mapping explícito: `400/422 → UPSTREAM_REJECTED`, `401/403 → UPSTREAM_AUTHORIZATION` y `429 → UPSTREAM_RATE_LIMITED`; este mapping documenta ese dominio y no es requisito universal para otros repositorios. No asumir una relación universal entre status HTTP y código de dominio fuera de ese contrato: documentar y testear el mapping específico del repositorio. Timeouts de transporte y dependencia unavailable deben conservar clasificaciones separadas. No usar status upstream como autorización local ni copiarlo automáticamente al público: el boundary final decide el status según reglas del repositorio.
 
 ## Escrituras parciales e idempotencia
 
