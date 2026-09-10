@@ -272,7 +272,18 @@
   "github.copilot.nextEditSuggestions.enabled": true,
   "github.copilot.chat.codesearch.enabled": true,
   "github.copilot.chat.commitMessageGeneration.instructions": [
-    { "text": "Generate commit messages in conventional commit style, but omit the type prefix. Example: instead of 'feat: add new feature', write 'add new feature'. Do not include issue numbers. Use imperative mood (e.g., 'add feature', 'fix bug', 'update docs'). When mentioning functions or variables, wrap their names in «». Example: 'update function «myFunction» to handle edge cases'. If a variable starts with $, escape it with a backslash. Example: 'fix issue with \\\\$var when it is null'. Replace backticks (`...`) with «...» formatting. Always include a detailed description after the commit title, separated by a blank line. The description should explain the reasoning behind the changes, any important implementation details, and potential impacts." }
+    {
+      "text": "Write commit messages in English using an imperative, concise title, preferably no longer than 72 characters. Follow Conventional Commits wording, but omit the type, scope, and prefix punctuation: write 'add user validation' instead of 'feat(auth): add user validation'. Do not include issue numbers or references. Start the title with a lowercase verb and do not end it with a period."
+    },
+    {
+      "text": "Wrap function, method, variable, class, and other code identifier names in «…». Never use backticks for code formatting. Prefix every literal dollar sign in an identifier with exactly one backslash in the generated message; for example: «\\$var»."
+    },
+    {
+      "text": "Always include a descriptive body after the title, separated by a blank line. Explain what changed and why, adding relevant implementation details and behavioral impacts when supported by the diff or provided context. Scale the detail to the complexity of the change. Do not merely repeat the title, list every modified file, or invent motivations, test results, or impacts. Use short paragraphs or bullets when they improve readability."
+    },
+    {
+      "text": "Return only the commit title and body, without introductory text, surrounding quotation marks, or Markdown code fences."
+    }
   ],
   "github.copilot.chat.reviewSelection.instructions": [
     { "file": "fileName" },
