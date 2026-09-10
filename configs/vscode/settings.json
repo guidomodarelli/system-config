@@ -240,7 +240,6 @@
   "git.replaceTagsWhenPull": true,
   "git.blame.editorDecoration.enabled": true,
   "git.blame.statusBarItem.enabled": true,
-  "scm.repositories.selectionMode": "single",
 
   /* ======================================================================== */
   /*                                   CHAT/AI                                 */
