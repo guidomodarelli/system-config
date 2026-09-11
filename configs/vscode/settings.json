@@ -117,6 +117,7 @@
   "terminal.integrated.suggest.enabled": false,
   "terminal.integrated.defaultProfile.linux": "zsh",
   "terminal.integrated.enableMultiLinePasteWarning": "never",
+  "terminal.integrated.shellIntegration.history": 10000,
   "powershell.promptToUpdatePowerShell": false,
 
   /* ======================================================================== */
