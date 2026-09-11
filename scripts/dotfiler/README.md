@@ -31,6 +31,14 @@ sistemas operativos como Darwin (macOS) y Linux.
       enlace simbólico. Solo admite archivos regulares; los directorios y los
       archivos ubicados en otro filesystem se rechazan durante la ejecución.
       Si se omite o vale `false`, se conserva el comportamiento de symlink.
+      - Un hard link no es una copia: todos sus nombres apuntan al mismo inode
+        y comparten el mismo contenido.
+      - Si un archivo tiene dos hard links y se elimina uno, el contenido sigue
+        disponible mediante el otro.
+      - El contenido se libera únicamente cuando se elimina el último hard link
+        y ningún proceso mantiene el archivo abierto.
+      - Por eso, eliminar la ruta original no elimina el contenido mientras
+        exista otro hard link.
     - `target` (opcional): El destino donde se creará el enlace. Si no
       se especifica, el destino por defecto es el directorio del usuario
       `$HOME`.
@@ -247,6 +255,28 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
   sin volver a solicitar permisos. `--dry-run` no solicita elevacion.
 - El lote elevado conserva los resultados individuales y no sobrescribe destinos
   que hayan aparecido mientras se esperaba la autorizacion.
+
+### Ciclo de vida del contenido de un hard link
+
+Un hard link agrega otro nombre de directorio para el mismo inode. No duplica el
+contenido ni mantiene una relación de "origen" y "copia": ambas rutas son
+referencias equivalentes al mismo archivo.
+
+```text
+configs/shared.json       ─┐
+~/.config/shared.json      ├─ mismo inode y mismo contenido
+~/.config/shared.backup    ─┘
+```
+
+Si se elimina una de esas rutas, las demás continúan permitiendo acceder al
+contenido. El sistema libera los bloques únicamente cuando se cumple todo esto:
+
+1. Ya no queda ningún hard link apuntando al inode.
+2. Ningún proceso mantiene abierto el archivo.
+
+En consecuencia, eliminar la ruta que se usó como `path` no elimina el archivo
+mientras exista otro hard link. La última ruta eliminada sí vuelve el contenido
+inaccesible y permite que el sistema recupere su espacio.
 
 4. **Ejemplo de Configuración YAML**
 
