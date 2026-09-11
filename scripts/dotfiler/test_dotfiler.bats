@@ -21,6 +21,61 @@ teardown() {
     "$REPO_DIR/configs/debug-source"
 }
 
+@test "hardLink true crea un hard link para archivos regulares" {
+  printf "hard-link-content" > "$REPO_DIR/configs/hard-source"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: hard-source
+    target: linked-files
+    hardLink: true
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_hard_link_points_to \
+    "$HOME_DIR/linked-files/hard-source" \
+    "$REPO_DIR/configs/hard-source"
+  [ "$(cat "$HOME_DIR/linked-files/hard-source")" = "hard-link-content" ]
+  [[ "$output" == *"hard link"* ]]
+}
+
+@test "hardLink dry-run no crea destinos" {
+  printf "hard-link-content" > "$REPO_DIR/configs/hard-source"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: hard-source
+    target: linked-files
+    hardLink: true
+YAML
+
+  run_dotfiler "false" "--dry-run" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_path_missing "$HOME_DIR/linked-files/hard-source"
+  [[ "$output" == *"Crearía hard link"* ]]
+}
+
+@test "hardLink rechaza directorios sin modificar destino" {
+  mkdir -p "$REPO_DIR/configs/hard-directory"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "previous-content" > "$HOME_DIR/linked-files/hard-directory"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: hard-directory
+    target: linked-files
+    hardLink: true
+YAML
+
+  run_dotfiler "false" "--quiet" "--no-color"
+
+  [ "$status" -eq 1 ]
+  [ -f "$HOME_DIR/linked-files/hard-directory" ]
+  [ "$(cat "$HOME_DIR/linked-files/hard-directory")" = "previous-content" ]
+  [ ! -e "$HOME_DIR/linked-files/hard-directory.bak" ]
+  [[ "$output" == *"Hard link requiere un archivo regular"* ]]
+}
+
 @test "darwin excludes entries even when excludeFor has multiple items" {
   install_fixture "darwin_exclude"
 

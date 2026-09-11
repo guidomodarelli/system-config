@@ -4,6 +4,11 @@ $script:ExitCodeSuccess = 0
 $script:ExitCodeRuntimeError = 1
 $script:ExitCodeInputError = 2
 
+$script:LinkTypeSymbolic = 'SymbolicLink'
+$script:LinkTypeHard = 'HardLink'
+$script:LinkLabelSymbolic = 'symlink'
+$script:LinkLabelHard = 'hard link'
+
 $script:DryRun = $false
 $script:UseColor = $true
 $script:UseIcons = $true
@@ -13,6 +18,7 @@ $script:CliArgs = @($args)
 $script:IsElevatedSymlinkMode = $false
 $script:ElevatedSymlinkSource = $null
 $script:ElevatedSymlinkTarget = $null
+$script:ElevatedSymlinkHardLink = $false
 $script:PendingElevatedSymlinks = [System.Collections.Generic.List[object]]::new()
 
 $script:RootDir = $null
@@ -329,6 +335,7 @@ function Parse-Args {
         $index += 1
         $script:ElevatedSymlinkTarget = $CliArgs[$index]
       }
+      '--internal-hard-link' { $script:ElevatedSymlinkHardLink = $true }
       '--help' {
         Write-HelpText
         exit $script:ExitCodeSuccess
@@ -449,18 +456,26 @@ function Get-ElevatedSymlinkProcessArguments {
   param(
     [Parameter(Mandatory = $true)][string]$ScriptPath,
     [Parameter(Mandatory = $true)][string]$SourcePath,
-    [Parameter(Mandatory = $true)][string]$TargetPath
+    [Parameter(Mandatory = $true)][string]$TargetPath,
+    [switch]$HardLink
   )
 
-  $processArguments = @(
-    '-NoLogo',
-    '-NoProfile',
-    '-ExecutionPolicy', 'Bypass',
-    '-File', $ScriptPath,
-    '--internal-create-link',
-    '--internal-source', $SourcePath,
-    '--internal-target', $TargetPath
-  )
+  $processArguments = [System.Collections.Generic.List[string]]::new()
+  $processArguments.Add('-NoLogo')
+  $processArguments.Add('-NoProfile')
+  $processArguments.Add('-ExecutionPolicy')
+  $processArguments.Add('Bypass')
+  $processArguments.Add('-File')
+  $processArguments.Add($ScriptPath)
+  $processArguments.Add('--internal-create-link')
+  $processArguments.Add('--internal-source')
+  $processArguments.Add($SourcePath)
+  $processArguments.Add('--internal-target')
+  $processArguments.Add($TargetPath)
+
+  if ($HardLink) {
+    $processArguments.Add('--internal-hard-link')
+  }
 
   $quotedProcessArguments = $processArguments | ForEach-Object {
     ConvertTo-WindowsProcessArgument -Value $_
@@ -530,15 +545,20 @@ function Test-ElevationTargetAllowed {
 function Invoke-ElevatedSymlinkCreation {
   param(
     [Parameter(Mandatory = $true)][string]$SourcePath,
-    [Parameter(Mandatory = $true)][string]$TargetPath
+    [Parameter(Mandatory = $true)][string]$TargetPath,
+    [switch]$HardLink
   )
 
   if (-not (Test-ElevationTargetAllowed -TargetPath $TargetPath)) {
     throw "Auto-elevacion bloqueada: el destino '$TargetPath' esta fuera de las rutas permitidas (HOME, repo, APPDATA, LOCALAPPDATA, USERPROFILE, ProgramData). Cree el symlink manualmente desde una sesion administrativa si realmente lo necesita."
   }
 
+  if ($HardLink -and -not (Test-Path -LiteralPath $SourcePath -PathType Leaf)) {
+    throw "No se puede crear hard link: el origen '$SourcePath' no es un archivo regular."
+  }
+
   $powerShellExecutable = Get-PowerShellExecutablePath
-  $quotedProcessArguments = Get-ElevatedSymlinkProcessArguments -ScriptPath $PSCommandPath -SourcePath $SourcePath -TargetPath $TargetPath
+  $quotedProcessArguments = Get-ElevatedSymlinkProcessArguments -ScriptPath $PSCommandPath -SourcePath $SourcePath -TargetPath $TargetPath -HardLink:$HardLink
 
   try {
     $elevatedProcess = Start-Process -FilePath $powerShellExecutable -ArgumentList $quotedProcessArguments -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
@@ -567,9 +587,15 @@ function Invoke-InternalElevatedSymlinkMode {
       New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
     }
 
-    New-Item -ItemType SymbolicLink -Path $script:ElevatedSymlinkTarget -Target $script:ElevatedSymlinkSource -Force | Out-Null
+    $itemType = if ($script:ElevatedSymlinkHardLink) { $script:LinkTypeHard } else { $script:LinkTypeSymbolic }
+    if ($script:ElevatedSymlinkHardLink -and -not (Test-Path -LiteralPath $script:ElevatedSymlinkSource -PathType Leaf)) {
+      throw "No se puede crear hard link: el origen '$($script:ElevatedSymlinkSource)' no es un archivo regular."
+    }
+
+    New-Item -ItemType $itemType -Path $script:ElevatedSymlinkTarget -Target $script:ElevatedSymlinkSource -Force | Out-Null
   } catch {
-    Write-ErrorLog "No se pudo crear symlink elevado $($script:ElevatedSymlinkTarget) -> $($script:ElevatedSymlinkSource)"
+    $linkLabel = if ($script:ElevatedSymlinkHardLink) { $script:LinkLabelHard } else { $script:LinkLabelSymbolic }
+    Write-ErrorLog "No se pudo crear $linkLabel elevado $($script:ElevatedSymlinkTarget) -> $($script:ElevatedSymlinkSource)"
     Write-ErrorLog $_.Exception.Message
     exit $script:ExitCodeRuntimeError
   }
@@ -609,19 +635,21 @@ function Complete-PendingElevatedSymlinks {
     for ($index = 0; $index -lt $operations.Count; $index += 1) {
       $operation = $operations[$index]
       $result = $results[$index]
+      $linkLabel = if ($operation.HardLink -eq $true) { $script:LinkLabelHard } else { $script:LinkLabelSymbolic }
       if ($result.Success -eq $true) {
-        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix 'Symlink creado con elevacion' -TargetPath $operation.Target -SourcePath $operation.Source
+        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix "$linkLabel creado con elevacion" -TargetPath $operation.Target -SourcePath $operation.Source
       } else {
         $script:CountErrors += 1
         Add-Diagnostic -Target $operation.Target -Reason $result.Error
-        Write-ErrorLog "No se pudo crear symlink $($operation.Target) -> $($operation.Source)"
+        Write-ErrorLog "No se pudo crear $linkLabel $($operation.Target) -> $($operation.Source)"
       }
     }
   } catch {
     foreach ($operation in $operations) {
       $script:CountErrors += 1
+      $linkLabel = if ($operation.HardLink -eq $true) { $script:LinkLabelHard } else { $script:LinkLabelSymbolic }
       Add-Diagnostic -Target $operation.Target -Reason "No se pudo completar el lote elevado: $($_.Exception.Message)"
-      Write-ErrorLog "No se pudo crear symlink $($operation.Target) -> $($operation.Source)"
+      Write-ErrorLog "No se pudo crear $linkLabel $($operation.Target) -> $($operation.Source)"
     }
   } finally {
     foreach ($temporaryPath in @($requestPath, $resultPath)) {
@@ -1411,12 +1439,19 @@ function Test-IsSymlink {
 function New-DotfileSymlink {
   param(
     [string]$SourcePath,
-    [string]$TargetPath
+    [string]$TargetPath,
+    [bool]$HardLink = $false
   )
 
   $startedAt = Get-Date
+  $linkItemType = if ($HardLink) { $script:LinkTypeHard } else { $script:LinkTypeSymbolic }
+  $linkLabel = if ($HardLink) { $script:LinkLabelHard } else { $script:LinkLabelSymbolic }
 
   try {
+    if ($HardLink -and -not (Test-Path -LiteralPath $SourcePath -PathType Leaf)) {
+      throw "No se puede crear hard link: el origen '$SourcePath' no es un archivo regular."
+    }
+
     if ($script:DryRun) {
       $script:CountSimulated += 1
     }
@@ -1453,15 +1488,15 @@ function New-DotfileSymlink {
     }
 
     if ($script:DryRun) {
-      Write-SymlinkLine -Label 'INFO' -LabelColor Blue -Prefix 'Crearia symlink' -TargetPath $TargetPath -SourcePath $SourcePath
+      Write-SymlinkLine -Label 'INFO' -LabelColor Blue -Prefix "Crearia $linkLabel" -TargetPath $TargetPath -SourcePath $SourcePath
     } else {
       if (-not (Test-Path -LiteralPath $parentDir)) {
         New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
       }
 
       try {
-        New-Item -ItemType SymbolicLink -Path $TargetPath -Target $SourcePath -Force | Out-Null
-        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix 'Symlink creado' -TargetPath $TargetPath -SourcePath $SourcePath
+        New-Item -ItemType $linkItemType -Path $TargetPath -Target $SourcePath -Force | Out-Null
+        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix "$linkLabel creado" -TargetPath $TargetPath -SourcePath $SourcePath
       } catch {
         if (-not (Test-IsPrivilegeElevationError -ErrorRecord $_) -or $script:IsElevatedSymlinkMode) {
           throw
@@ -1470,8 +1505,8 @@ function New-DotfileSymlink {
         if (-not (Test-ElevationTargetAllowed -TargetPath $TargetPath)) {
           throw "Auto-elevacion bloqueada: el destino '$TargetPath' esta fuera de las rutas permitidas."
         }
-        $script:PendingElevatedSymlinks.Add([PSCustomObject]@{ Source = $SourcePath; Target = $TargetPath })
-        Write-Info "Symlink pendiente de elevacion: $TargetPath"
+        $script:PendingElevatedSymlinks.Add([PSCustomObject]@{ Source = $SourcePath; Target = $TargetPath; HardLink = $HardLink })
+        Write-Info "$linkLabel pendiente de elevacion: $TargetPath"
       }
     }
 
@@ -1482,7 +1517,7 @@ function New-DotfileSymlink {
   } catch {
     $script:CountErrors += 1
     Add-Diagnostic -Target $TargetPath -Reason $_.Exception.Message
-    Write-ErrorLog "No se pudo crear symlink $TargetPath -> $SourcePath"
+    Write-ErrorLog "No se pudo crear $linkLabel $TargetPath -> $SourcePath"
   }
 }
 
@@ -1610,9 +1645,10 @@ function Resolve-Operations {
       }
 
       $operations.Add([PSCustomObject]@{
-          Group  = (Split-Path -Path $targetPath -Parent)
-          Source = $sourceItem.FullName
-          Target = $targetPath
+          Group    = (Split-Path -Path $targetPath -Parent)
+          Source   = $sourceItem.FullName
+          Target   = $targetPath
+          HardLink = ($entry.hardLink -eq $true)
         })
     }
   }
@@ -1703,7 +1739,7 @@ function Main {
       $lastGroup = $operation.Group
     }
 
-    New-DotfileSymlink -SourcePath $operation.Source -TargetPath $operation.Target
+    New-DotfileSymlink -SourcePath $operation.Source -TargetPath $operation.Target -HardLink ([bool]$operation.HardLink)
   }
 
   Complete-PendingElevatedSymlinks

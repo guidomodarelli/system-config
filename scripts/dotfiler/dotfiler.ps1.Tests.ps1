@@ -19,6 +19,7 @@
     $script:Quiet = $false
     $script:VerboseMode = $false
     $script:IsElevatedSymlinkMode = $false
+    $script:ElevatedSymlinkHardLink = $false
     $script:PendingElevatedSymlinks = [System.Collections.Generic.List[object]]::new()
     $script:PreferredCommandPaths = @{}
     $script:DocumentsDir = 'C:\Users\tester\Documents'
@@ -99,6 +100,41 @@
     $styledOutput | Should -Match 'C:\\destino'
     $styledOutput | Should -Match 'C:\\fuente'
     $styledOutput | Should -Match '→→'
+  }
+
+  It 'New-DotfileSymlink crea hard link usando el tipo correspondiente' {
+    Mock Test-IsSymlink { $false }
+    Mock Test-PathEntry { $false }
+    Mock Test-Path { $true }
+    Mock New-Item {} -ParameterFilter { $ItemType -eq 'HardLink' }
+    Mock Write-SymlinkLine {}
+
+    New-DotfileSymlink -SourcePath 'C:\fuente.txt' -TargetPath 'C:\destino.txt' -HardLink $true
+
+    Should -Invoke New-Item -Times 1 -Exactly -ParameterFilter {
+      $ItemType -eq 'HardLink' -and $Target -eq 'C:\fuente.txt'
+    }
+    $script:CountErrors | Should -Be 0
+  }
+
+  It 'New-DotfileSymlink rechaza directorios para hard links antes de mutar destino' {
+    Mock Test-IsSymlink { $false }
+    Mock Test-PathEntry { $false }
+    Mock Test-Path {
+      param([string]$LiteralPath, [string]$PathType)
+      if ($PathType -eq 'Leaf') {
+        return $false
+      }
+
+      return $true
+    }
+    Mock New-Item {}
+
+    New-DotfileSymlink -SourcePath 'C:\carpeta' -TargetPath 'C:\destino' -HardLink $true
+
+    $script:CountErrors | Should -Be 1
+    $script:Diagnostics[0].Reason | Should -Match 'hard link'
+    Should -Invoke New-Item -Times 0 -Exactly
   }
 
   It 'Write-Separator evita separadores consecutivos duplicados' {
@@ -524,6 +560,22 @@
       Should -Invoke New-Item -Times 2 -Exactly -ParameterFilter { $ItemType -eq 'SymbolicLink' -and -not $Force }
     }
 
+    It 'el worker crea HardLink cuando la operacion lo solicita' {
+      $requestPath = Join-Path $TestDrive 'hard-request.json'
+      $resultPath = Join-Path $TestDrive 'hard-result.json'
+      $sourcePath = Join-Path $TestDrive 'hard-source.txt'
+      $targetPath = Join-Path $TestDrive 'hard-target.txt'
+      Set-Content -LiteralPath $sourcePath -Value 'origen'
+      ConvertTo-Json -InputObject @(@{ Source = $sourcePath; Target = $targetPath; HardLink = $true }) | Set-Content -LiteralPath $requestPath
+      Mock New-Item {} -ParameterFilter { $ItemType -eq 'HardLink' }
+
+      & (Join-Path $PSScriptRoot 'create-symlinks-elevated.ps1') -RequestPath $requestPath -ResultPath $resultPath
+
+      $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+      $result.Success | Should -BeTrue
+      Should -Invoke New-Item -Times 1 -Exactly -ParameterFilter { $ItemType -eq 'HardLink' -and -not $Force }
+    }
+
     It 'el worker preserva un archivo que aparecio en el destino' {
       $requestPath = Join-Path $TestDrive 'request.json'
       $resultPath = Join-Path $TestDrive 'result.json'
@@ -561,6 +613,16 @@
       '--internal-target',
       '"C:\Users\guido\AppData\Roaming\My Folder\profile.ps1"'
     )
+  }
+
+  It 'incluye el flag interno de hard link al solicitar elevacion' {
+    $processArguments = Get-ElevatedSymlinkProcessArguments `
+      -ScriptPath 'C:\dotfiler.ps1' `
+      -SourcePath 'C:\source.txt' `
+      -TargetPath 'C:\target.txt' `
+      -HardLink
+
+    $processArguments | Should -Contain '--internal-hard-link'
   }
 
   It 'arma una cadena de argumentos compatible con Windows PowerShell 5.1' {
@@ -678,6 +740,29 @@
     $operations[0].Group | Should -Be (Join-Path -Path $script:HomeDir -ChildPath '.agents/.codex/skills')
 
     Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
+  }
+
+  It 'propaga hardLink al resolver de operaciones' {
+    $script:HomeDir = 'C:\Users\tester'
+    $script:ConfigsDir = 'C:\repo\configs'
+
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'hard-source.txt'
+          target = 'linked-files'
+          hardLink = $true
+        }
+      )
+    }
+    Mock Get-ResolvedSources {
+      @([PSCustomObject]@{ Name = 'hard-source.txt'; FullName = 'C:\repo\configs\hard-source.txt' })
+    }
+
+    $operations = @(Resolve-Operations)
+
+    $operations.Count | Should -Be 1
+    $operations[0].HardLink | Should -BeTrue
   }
 
   It 'rechaza exactTarget con wildcard y registra diagnostico' {
@@ -841,7 +926,8 @@
       '--quiet',
       '--internal-create-link',
       '--internal-source', 'C:\source',
-      '--internal-target', 'C:\target'
+      '--internal-target', 'C:\target',
+      '--internal-hard-link'
     )
 
     $script:DryRun | Should -Be $true
@@ -852,6 +938,7 @@
     $script:IsElevatedSymlinkMode | Should -Be $true
     $script:ElevatedSymlinkSource | Should -Be 'C:\source'
     $script:ElevatedSymlinkTarget | Should -Be 'C:\target'
+    $script:ElevatedSymlinkHardLink | Should -BeTrue
   }
 
   It 'el modo interno elevado devuelve false cuando no fue solicitado' {

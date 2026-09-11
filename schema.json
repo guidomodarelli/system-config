@@ -110,7 +110,12 @@
         "properties": {
           "path": {
             "type": "string",
-            "description": "Source path for the symlink"
+            "description": "Source path for the link"
+          },
+          "hardLink": {
+            "type": "boolean",
+            "default": false,
+            "description": "Creates a hard link instead of a symbolic link; only regular files are supported"
           },
           "target": {
             "$ref": "#/$defs/targetPath"

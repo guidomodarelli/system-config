@@ -76,6 +76,26 @@ assert_symlink_points_to() {
   [ "$actual_target" = "$expected_target" ]
 }
 
+assert_hard_link_points_to() {
+  local hard_link_path="$1"
+  local expected_source="$2"
+  local source_inode
+  local hard_link_inode
+
+  [ -f "$hard_link_path" ]
+  [ ! -L "$hard_link_path" ]
+
+  if stat -c '%i' "$expected_source" >/dev/null 2>&1; then
+    source_inode="$(stat -c '%i' "$expected_source")"
+    hard_link_inode="$(stat -c '%i' "$hard_link_path")"
+  else
+    source_inode="$(stat -f '%i' "$expected_source")"
+    hard_link_inode="$(stat -f '%i' "$hard_link_path")"
+  fi
+
+  [ "$hard_link_inode" = "$source_inode" ]
+}
+
 assert_path_missing() {
   local path_to_check="$1"
 

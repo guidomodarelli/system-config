@@ -27,7 +27,11 @@ sistemas operativos como Darwin (macOS) y Linux.
   - Utiliza un esquema JSON (`schema.json`) para validar la estructura.
   - Cada entrada en `paths` contiene:
     - `path`: La ruta del archivo o directorio de origen.
-    - `target` (opcional): El destino donde se creará el enlace simbólico. Si no
+    - `hardLink` (opcional): Si vale `true`, crea un hard link en lugar de un
+      enlace simbólico. Solo admite archivos regulares; los directorios y los
+      archivos ubicados en otro filesystem se rechazan durante la ejecución.
+      Si se omite o vale `false`, se conserva el comportamiento de symlink.
+    - `target` (opcional): El destino donde se creará el enlace. Si no
       se especifica, el destino por defecto es el directorio del usuario
       `$HOME`.
       - Soporta variables de entorno como `$USER` o `$HOME` que serán expandidas
@@ -222,14 +226,18 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
   grupos `(...)` y alternancia `|`. Evitar lookaheads/lookbehinds (`(?=...)`,
   `(?!...)`) y backreferences.
 
-3. **Creación de Enlaces Simbólicos**
+3. **Creación de Enlaces**
 
 - Para cada destino, verifica su estado actual:
-  - Si ya existe como enlace simbólico, lo elimina para reemplazarlo.
+  - Si ya existe como enlace, lo elimina para reemplazarlo.
   - Si existe como archivo o directorio regular, crea una copia de respaldo
     antes de proceder.
   - Elimina cualquier respaldo anterior que sea un enlace simbólico.
-- Crea el enlace simbólico que apunta del origen al destino especificado.
+- Crea un symlink por defecto. Cuando la entrada tiene `hardLink: true`, crea
+  un hard link con el mismo contenido/inode; el origen debe ser un archivo
+  regular y origen y destino deben pertenecer al mismo filesystem.
+- Los hard links no admiten directorios. El script informa el error antes de
+  crear respaldos o modificar el destino.
 - Comprueba los permisos del directorio destino y, si no es escribible o no
   pertenece al usuario actual, utiliza `sudo` para ejecutar la operación.
 - Notifica al usuario cuando se emplean permisos elevados.
@@ -246,6 +254,9 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
   paths:
     - path: .zshrc
       target: $HOME
+    - path: shared/editor-settings.json
+      target: .config/editor
+      hardLink: true
     - path: .config/espanso
       target: .config
     - path: .config/Code/User/*

@@ -59,6 +59,11 @@ ICON_SKIP=${ICON_SKIP:-"⊘"}
 ICON_DONE=${ICON_DONE:-"✔"}
 ICON_GROUP=${ICON_GROUP:-"▸"}
 
+LINK_TYPE_SYMLINK="symlink"
+LINK_TYPE_HARD="hard link"
+POWERSHELL_LINK_TYPE_SYMLINK="SymbolicLink"
+POWERSHELL_LINK_TYPE_HARD="HardLink"
+
 START_TIME_SECONDS=$(date +%s)
 START_TIME_ISO_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 COUNT_CREATED=0
@@ -496,8 +501,21 @@ needs_elevated_permissions() {
 make_symlink() {
   local path="$1"
   local target="$2"
+  local hard_link="${3:-false}"
+  local link_type="$LINK_TYPE_SYMLINK"
+  local powershell_link_type="$POWERSHELL_LINK_TYPE_SYMLINK"
   local started_at_seconds
   started_at_seconds=$(date +%s)
+
+  if [ "$hard_link" = "true" ]; then
+    link_type="$LINK_TYPE_HARD"
+    powershell_link_type="$POWERSHELL_LINK_TYPE_HARD"
+    if [[ ! "$path" =~ "\\\\wsl\$" ]] && [ ! -f "$path" ]; then
+      log_error_action "No se puede crear hard link: el origen no es un archivo regular $(print_path "$path")"
+      record_failed_target "$target" "Hard link requiere un archivo regular"
+      return 1
+    fi
+  fi
 
   local -a command_prefix=()
   local target_dir
@@ -542,32 +560,37 @@ make_symlink() {
   fi
 
   if [[ $path =~ "\\\\wsl\$" ]]; then
-    log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") Preparando destino WSL del symlink $(print_path "${path//\\/\\\\}")"
+    log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") Preparando destino WSL del $link_type $(print_path "${path//\\/\\\\}")"
 
     if [ "$DRY_RUN" = "true" ]; then
       COUNT_WINDOWS_QUEUED=$((COUNT_WINDOWS_QUEUED + 1))
-      log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Encolaría comando de symlink para Windows"
+      log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Encolaría comando de $link_type para Windows"
     else
       local win_target ps_target ps_source
       win_target=$(wslpath -w "$target" 2>/dev/null)
       ps_target="${win_target//\'/\'\'}"
       ps_source="${path//\'/\'\'}"
-      echo "New-Item -ItemType SymbolicLink -Path '$ps_target' -Target '$ps_source' -Force" >> "$TMP_SCRIPT"
+      echo "New-Item -ItemType $powershell_link_type -Path '$ps_target' -Target '$ps_source' -Force" >> "$TMP_SCRIPT"
       COUNT_WINDOWS_QUEUED=$((COUNT_WINDOWS_QUEUED + 1))
     fi
   else
     if [ "$DRY_RUN" = "true" ]; then
-      log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Crearía symlink"
+      log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") Crearía $link_type"
     else
-      if ! "${command_prefix[@]}" ln -s "$path" "$target"; then
-        log_error_action "No se pudo crear symlink $(print_path "$target") -> $(print_path "${path//\\/\\\\}")"
-        record_failed_target "$target" "Fallo al crear symlink"
+      local -a link_arguments=()
+      if [ "$hard_link" != "true" ]; then
+        link_arguments=(-s)
+      fi
+
+      if ! "${command_prefix[@]}" ln "${link_arguments[@]}" "$path" "$target"; then
+        log_error_action "No se pudo crear $link_type $(print_path "$target") -> $(print_path "${path//\\/\\\\}")"
+        record_failed_target "$target" "Fallo al crear $link_type"
         return 1
       fi
     fi
   fi
 
-  log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") $(print_path "$target") $(print_magenta -b -- "${POINTER}${POINTER}") $(print_path "${path//\\/\\\\}")"
+  log_info_action "$(print_blue -b "$(build_icon "$ICON_LINK")") $link_type $(print_path "$target") $(print_magenta -b -- "${POINTER}${POINTER}") $(print_path "${path//\\/\\\\}")"
   print_operation_duration "$started_at_seconds"
 
   return 0
@@ -584,8 +607,8 @@ run_elevated_powershell_script() {
 
   print_link_block_separator
 
-  if ! grep -q 'SymbolicLink' "$tmp_script"; then
-    log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") No hay operaciones de symlink para Windows encoladas; se omite PowerShell elevado."
+  if ! grep -Eq 'SymbolicLink|HardLink' "$tmp_script"; then
+    log_info_action "$(print_blue -b "$(build_icon "$ICON_SKIP")") No hay operaciones de enlace para Windows encoladas; se omite PowerShell elevado."
     print_operation_duration "$started_at_seconds"
     return 0
   fi
@@ -629,9 +652,14 @@ get_windows_username() {
 build_path_obj() {
   local path="$1"
   local target="$2"
+  local hard_link="${3:-false}"
   local json
 
-  json=$(jq -n --arg path "$path" --arg target "$target" '{path: $path, target: $target}')
+  json=$(jq -n \
+    --arg path "$path" \
+    --arg target "$target" \
+    --argjson hardLink "$hard_link" \
+    '{path: $path, target: $target, hardLink: $hardLink}')
   echo "$json"
 }
 
@@ -686,6 +714,7 @@ add_path_to_output() {
   local target="$2"
   local output="$3"
   local uses_exact_target="$4"
+  local hard_link="${5:-false}"
   local original_path="$1"
   local selected_target="$target"
 
@@ -697,6 +726,13 @@ add_path_to_output() {
   if [ -z "$path" ]; then
     log_warn_action "Ruta de origen inválida o inexistente: $original_path"
     record_failed_target "$selected_target" "Ruta de origen inexistente"
+    echo "$output"
+    return 1
+  fi
+
+  if [ "$hard_link" = "true" ] && [ ! -f "$path" ]; then
+    log_warn_action "No se puede crear hard link: el origen no es un archivo regular $original_path"
+    record_failed_target "$selected_target" "Hard link requiere un archivo regular"
     echo "$output"
     return 1
   fi
@@ -713,7 +749,7 @@ add_path_to_output() {
   fi
 
   local path_obj
-  path_obj=$(build_path_obj "$path" "$selected_target")
+  path_obj=$(build_path_obj "$path" "$selected_target" "$hard_link")
   echo "$output" | jq -c ". + [$path_obj]"
 }
 
@@ -856,6 +892,8 @@ process_path_entry() {
   selected_override=$(echo "$line" | jq -c "first(.overrides[]? | select($selector_override)) // empty")
   local target
   local uses_exact_target="false"
+  local hard_link
+  hard_link=$(echo "$line" | jq -r 'if .hardLink == true then "true" else "false" end')
 
   if [ -n "$selected_override" ]; then
     if json_has_key "$selected_override" "exactTarget"; then
@@ -933,7 +971,7 @@ process_path_entry() {
   add_with_collision_check() {
     local item="$1"
     if [ "$uses_exact_target" = "true" ]; then
-      output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target")
+      output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target" "$hard_link")
       return
     fi
     local base
@@ -944,7 +982,7 @@ process_path_entry() {
       return
     fi
     seen_basenames+="$base"$'\n'
-    output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target")
+    output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target" "$hard_link")
   }
 
   if [[ "$path" == *"*" ]]; then
@@ -989,7 +1027,7 @@ process_path_entry() {
       done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1 | LC_ALL=C sort)
     fi
   else
-    output=$(add_path_to_output "$path" "$target" "$output" "$uses_exact_target")
+    output=$(add_path_to_output "$path" "$target" "$output" "$uses_exact_target" "$hard_link")
   fi
 
   unset -f add_with_collision_check
@@ -1203,6 +1241,8 @@ main() {
     path=$(echo "$line" | jq -r '.path')
     local target
     target=$(echo "$line" | jq -r '.target')
+    local hard_link
+    hard_link=$(echo "$line" | jq -r 'if .hardLink == true then "true" else "false" end')
 
     local current_group
     current_group=$(dirname "$target")
@@ -1216,7 +1256,7 @@ main() {
       last_group="$current_group"
     fi
 
-    if ! make_symlink "$path" "$target"; then
+    if ! make_symlink "$path" "$target" "$hard_link"; then
       COUNT_ERRORS=$((COUNT_ERRORS + 1))
       log_error_action "La operación falló para el destino $(print_path "$target")"
     fi

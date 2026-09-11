@@ -65,6 +65,7 @@ paths:
     target: .agents/skills
   - path: .codex/AGENTS.md
     target: .codex/
+    hardLink: true
   - path: .codex/AGENTS.md
     exactTarget: .claude/CLAUDE.md
   - path: .codex/AGENTS.work.md
