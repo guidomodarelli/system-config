@@ -1,24 +1,41 @@
 # === Async PR cache (URL + state) ===
+typeset -ga _MURILASSO_BASE_BRANCHES=(main master develop)
 typeset -g _MURILASSO_PR_URL=""
 typeset -g _MURILASSO_PR_STATE=""
 typeset -g _MURILASSO_PR_BRANCH=""
 typeset -g _MURILASSO_PR_REPO=""
 typeset -g _MURILASSO_PR_LAST_FETCH=-999
 
+_murilasso_is_base_branch() {
+  (( ${_MURILASSO_BASE_BRANCHES[(Ie)$1]} ))
+}
+
 _murilasso_read_pr_cache() {
   local cache_file="$1"
+  local branch="$2"
   { IFS= read -r _MURILASSO_PR_URL; IFS= read -r _MURILASSO_PR_STATE; } < "$cache_file"
+
+  if _murilasso_is_base_branch "$branch" && [[ "$_MURILASSO_PR_STATE" != "OPEN" ]]; then
+    _MURILASSO_PR_URL=""
+    _MURILASSO_PR_STATE=""
+  fi
 }
 
 _murilasso_fetch_pr() {
   local branch="$1"
   local cache_file="$2"
   local pr_data
+  local pr_view_query='.url + "\n" + .state'
 
   pr_data=$(gh pr list --head "$branch" --state open --limit 1 --json url,state --jq '
     if length > 0 then .[0] | .url + "\n" + .state else empty end
   ' 2>/dev/null)
-  [[ -z "$pr_data" ]] && pr_data=$(gh pr view --json url,state -q '.url + "\n" + .state' 2>/dev/null)
+
+  if [[ -z "$pr_data" ]]; then
+    _murilasso_is_base_branch "$branch" && \
+      pr_view_query='select(.state == "OPEN") | .url + "\n" + .state'
+    pr_data=$(gh pr view --json url,state -q "$pr_view_query" 2>/dev/null)
+  fi
 
   print -r -- "$pr_data" > "$cache_file"
 }
@@ -46,12 +63,12 @@ _murilasso_refresh_pr() {
     _MURILASSO_PR_STATE=""
     _MURILASSO_PR_LAST_FETCH=$SECONDS
     # Muestra cache inmediatamente si existe, y siempre lanza fetch en bg para actualizar
-    [[ -f "$cache_file" ]] && _murilasso_read_pr_cache "$cache_file"
+    [[ -f "$cache_file" ]] && _murilasso_read_pr_cache "$cache_file" "$branch"
     (_murilasso_fetch_pr "$branch" "$cache_file") &!
   elif [[ -f "$cache_file" ]]; then
     # Re-leer cache en cada precmd (~1ms), incluso si PR anterior estaba cerrado.
     # Misma branch puede recibir un PR abierto nuevo posteriormente.
-    _murilasso_read_pr_cache "$cache_file"
+    _murilasso_read_pr_cache "$cache_file" "$branch"
     # Re-fetchear en background cada 30 segundos para detectar PRs nuevos.
     if (( SECONDS - _MURILASSO_PR_LAST_FETCH > 30 )); then
       _MURILASSO_PR_LAST_FETCH=$SECONDS
