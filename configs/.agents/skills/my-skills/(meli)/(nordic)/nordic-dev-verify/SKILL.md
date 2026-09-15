@@ -30,9 +30,13 @@ Antes de cualquier probe remoto, navegación o interacción con browser:
 3. Si no hay proceso escuchando en `8443`, o server no responde:
    - detener workflow antes de cualquier otro probe, navegación, snapshot, click o lectura de requests;
    - informar estado observado sin clasificarlo como fallo de producto;
-   - pedir al usuario que levante server en `8443` y avise cuando esté `up`;
+   - pedir al usuario que levante app/server en `8443` y avise cuando esté `up`;
    - después de confirmación del usuario, repetir listener y health check desde cero; no continuar basándose únicamente en mensaje del usuario.
-4. Continuar solo cuando proceso y server estén confirmados como disponibles. Si el usuario no confirma o checks siguen fallando, clasificar verificación como `BLOCKED`.
+4. Cuando el listener no exista y el probe TCP a `dev.adminml.com:8443` devuelva `REFUSED/CLOSED`, informar literalmente:
+   `Preflight runtime sigue BLOCKED: no listener en 8443, TCP dev.adminml.com:8443 cerrado; no abriré browser ni haré probes contra sandbox. Stack ya permite aislar código: revisaré canDeleteRole, props de RoleDomainCardRow y reducers para encontrar shape inválido durante SSR.`
+   Luego pedir explícitamente: `Levantá la app en 8443 y avisame cuando esté up.` No abrir browser ni ejecutar probes adicionales contra sandbox mientras siga ese bloqueo.
+5. Si el runtime queda bloqueado por ese caso, continuar solo con inspección estática de código y pruebas disponibles para aislar la regresión SSR; revisar `canDeleteRole`, props de `RoleDomainCardRow` y reducers para detectar shapes inválidos. No presentar esa inspección como verificación runtime.
+6. Continuar con browser y flujo runtime solo cuando proceso y server estén confirmados como disponibles. Si el usuario no confirma o checks siguen fallando, clasificar verificación como `BLOCKED`.
 
 ## Preparar verificación
 
