@@ -28,15 +28,16 @@ Antes de cualquier probe remoto, navegación o interacción con browser:
    - no inferir que server está levantado únicamente porque una URL fue configurada.
 2. Confirmar que server responde en `https://<adminml-host>:8443` usando host permitido seleccionado y timeout corto; usar `http://<adminml-host>:8443` solo si scheme del proyecto lo exige. Un listener sin respuesta de aplicación no cuenta como server levantado. Nunca sustituir `<adminml-host>` por `localhost`, `127.0.0.1` o IP directa.
 3. Si no hay proceso escuchando en `8443`, o server no responde:
-   - detener workflow antes de cualquier otro probe, navegación, snapshot, click o lectura de requests;
+   - detener workflow completo antes de cualquier otro probe, navegación, snapshot, click, lectura de requests, inspección estática o prueba unitaria;
    - informar estado observado sin clasificarlo como fallo de producto;
-   - pedir al usuario que levante app/server en `8443` y avise cuando esté `up`;
-   - después de confirmación del usuario, repetir listener y health check desde cero; no continuar basándose únicamente en mensaje del usuario.
-4. Cuando el listener no exista y el probe TCP a `dev.adminml.com:8443` devuelva `REFUSED/CLOSED`, informar literalmente:
-   `Preflight runtime sigue BLOCKED: no listener en 8443, TCP dev.adminml.com:8443 cerrado; no abriré browser ni haré probes contra sandbox. Stack ya permite aislar código: revisaré canDeleteRole, props de RoleDomainCardRow y reducers para encontrar shape inválido durante SSR.`
-   Luego pedir explícitamente: `Levantá la app en 8443 y avisame cuando esté up.` No abrir browser ni ejecutar probes adicionales contra sandbox mientras siga ese bloqueo.
-5. Si el runtime queda bloqueado por ese caso, continuar solo con inspección estática de código y pruebas disponibles para aislar la regresión SSR; revisar `canDeleteRole`, props de `RoleDomainCardRow` y reducers para detectar shapes inválidos. No presentar esa inspección como verificación runtime.
-6. Continuar con browser y flujo runtime solo cuando proceso y server estén confirmados como disponibles. Si el usuario no confirma o checks siguen fallando, clasificar verificación como `BLOCKED`.
+   - no continuar con ningún fallback mientras el runtime siga bloqueado;
+   - ejecutar inmediatamente `AskUserQuestion` y esperar su respuesta antes de cualquier otra acción.
+4. La pregunta interactiva es obligatoria para este bloqueo. Usar `AskUserQuestion` con `multiSelect: false`, header `Runtime`, y una pregunta equivalente a `Levantá la app/server en 8443. ¿Está listo para reintentar el preflight?`. Ofrecer como mínimo estas opciones:
+   - **Listo** — `Levanté la app/server en 8443; repetir listener y health check desde cero.`
+   - **Todavía no** — `Mantener verificación BLOCKED y finalizar sin inspección estática ni pruebas.`
+   No reemplazar la llamada por una pregunta abierta, una instrucción textual ni asumir que el usuario ya levantó el server.
+5. Si el usuario elige **Listo**, repetir listener y health check desde cero; no continuar basándose únicamente en esa selección. Si el usuario elige **Todavía no**, o si los checks siguen fallando, finalizar como `BLOCKED` sin abrir browser, ejecutar probes adicionales, inspeccionar código o correr pruebas.
+6. Continuar con browser y flujo runtime solo cuando proceso y server estén confirmados como disponibles. La ausencia de runtime nunca habilita inspección estática o pruebas como sustituto dentro de esta skill.
 
 ## Preparar verificación
 
