@@ -232,6 +232,25 @@ YAML
   assert_path_missing "$HOME_DIR/AGENTS.md"
 }
 
+@test "exactTarget enlaza un directorio en la ruta exacta sin repetir basename" {
+  mkdir -p "$REPO_DIR/configs/.agents/rules"
+  printf "payload-rules" > "$REPO_DIR/configs/.agents/rules/payload-validation-boundaries.md"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: .agents/rules
+    exactTarget: .agents/rules
+YAML
+
+  run_dotfiler "false"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to \
+    "$HOME_DIR/.agents/rules" \
+    "$REPO_DIR/configs/.agents/rules"
+  assert_path_missing "$HOME_DIR/.agents/rules/rules"
+  [ "$(cat "$HOME_DIR/.agents/rules/payload-validation-boundaries.md")" = "payload-rules" ]
+}
+
 @test "un archivo de configuración en raíz se enlaza directamente en HOME" {
   printf "set -g allow-passthrough on\\n" > "$REPO_DIR/configs/.tmux.conf"
   cat > "$REPO_DIR/symlinks.yml" <<'YAML'

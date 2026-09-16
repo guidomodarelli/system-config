@@ -50,7 +50,7 @@ paths:
   - path: .agents/skills/my-skills
     target: .agents/skills
   - path: .agents/rules
-    target: .agents/rules
+    exactTarget: .agents/rules
   - path: .agents/skills/my-skills/*
     target: .claude/skills
     descendInto: /^\(.*\)$/
