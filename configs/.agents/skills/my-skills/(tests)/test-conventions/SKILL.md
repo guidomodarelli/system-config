@@ -17,6 +17,20 @@ description: Enforces test naming, structure, coverage expectations, mock placem
 - When adding, modifying, or removing functionality, add or update the corresponding tests in the same change.
 - If tests cannot be executed in the current environment, explicitly state what could not be validated and why.
 
+## ErrorUX and CustomErrorUXSnackbar contracts
+
+When a flow uses ErrorUX/Failure Studio or `CustomErrorUXSnackbar`, test the complete observable contract rather than only the visible copy:
+
+- An actionable or unexpected failure with a real `ErrorUxContext` renders `CustomErrorUXSnackbar` and preserves the safe public message.
+- Loading, expected domain states, empty results, validation feedback, and successful outcomes do not render `CustomErrorUXSnackbar`.
+- Missing ErrorUX context uses a safe fallback message and never fabricates context.
+- Changing the selected resource, closing/reopening a modal, starting a new attempt, or retrying clears stale `errorMessage` and `ErrorUxContext` before the next request.
+- A degraded `202` response with `EXTERNAL_REQUIREMENT_PENDING` and no explainable requirements preserves the public status and carries safe ErrorUX context when the product contract requires support tracking.
+- ErrorUX detail assertions must verify allowlisted diagnostic fields and absence of raw conditions, upstream payloads, request/response objects, headers, cookies, tokens, secrets, and full PII.
+- Retry assertions must verify that the callback is safe and does not create duplicate mutations.
+
+Prefer route/service contract tests for response `error_context` and component tests for rendering, cleanup, retry, and fallback behavior. Do not assert implementation-only logger calls unless logging is the explicit contract; assert the sanitized public/diagnostic projection instead.
+
 ## Resources
 
 - See [rule.md](references/rule.md) for full conventions and output requirements.
