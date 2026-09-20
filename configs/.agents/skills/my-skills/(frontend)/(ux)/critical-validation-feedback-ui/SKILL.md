@@ -1,6 +1,6 @@
 ---
 name: critical-validation-feedback-ui
-description: Ensure critical UI interactions have pre-action validation and clear, visible feedback (errors or helper text), including stale-error cleanup and ErrorUX/CustomErrorUXSnackbar integration. Use when adding or updating forms, searches, navigations, edits, modals, selectors, or async actions to avoid silent failures, misleading previous errors, or incorrect Failure Studio feedback.
+description: Ensure critical UI interactions have pre-action validation and clear, visible feedback (errors or helper text), including stale-feedback cleanup. Use when adding or updating forms, searches, navigations, edits, modals, selectors, or async actions to avoid silent failures or misleading previous errors.
 ---
 
 # Critical Validation and Feedback
@@ -16,15 +16,13 @@ Before executing any critical action, validate inputs and state, then show a cle
 5. Ensure loading and empty states are explicit and not silent.
 6. Reset feedback when the user corrects the issue.
 
-## Async error and ErrorUX feedback
+## Async error feedback
 
-Keep validation, operation error, and ErrorUX context as separate state values. When the user changes the selected resource, facility, filter, or operation, clears a modal, starts a new attempt, or retries, clear the previous error message and `ErrorUxContext` before the new request begins. Never leave an error from resource A visible while resource B is loading or ready.
+Keep validation state, operation error state, and user-facing feedback state separate. When the user changes the selected resource, facility, filter, or operation, clears a modal, starts a new attempt, or retries, clear the previous error message before the new request begins. Never leave an error from resource A visible while resource B is loading or ready.
 
-Use `CustomErrorUXSnackbar` only when a real `ErrorUxContext` exists and the failure is actionable or unexpected enough to require Failure Studio/support tracking. Use ordinary `Message`/`Snackbar` for loading, expected domain states, warnings, empty results, and validation feedback. If ErrorUX context is absent, use a safe fallback and do not fabricate context.
+Use the project's standard error presentation for actionable failures and a safe fallback when no structured error context is available. Keep technical diagnostics separate from public copy, and ensure retry callbacks are safe and do not duplicate a mutation.
 
-ErrorUX detail may contain rich, searchable, sanitized diagnostics and correlation IDs, but never raw conditions, upstream payloads, request/response objects, credentials, tokens, or full PII. Retry callbacks must be safe and must not duplicate a mutation.
-
-Tests must cover: clearing stale errors after changing selection; replacing/clearing context on retry; actionable errors with ErrorUX; unexpected errors without retry; and expected states that never render `CustomErrorUXSnackbar`.
+Tests must cover clearing stale errors after changing selection, replacing or clearing feedback on retry, actionable errors, unexpected errors without retry, and expected states that should not render an error message.
 
 ## Guidelines
 - **Visibility**: Place feedback adjacent to the field or action; avoid only console logs or toasts for form errors.
