@@ -152,6 +152,33 @@ export enum PaymentStatus {
 }
 ```
 
+### Simple behavioral comment with items
+
+```ts
+/**
+ * Extracts a safe request identifier from request metadata.
+ *
+ * The helper:
+ * 1. Verifies that the header is a string.
+ * 2. Trims outer whitespace with `trim()`.
+ * 3. Rejects empty values and control characters.
+ * 4. Returns `undefined` when the value is unsafe.
+ *
+ * Example:
+ * `'  trace-123  '` → `'trace-123'`
+ * `'   '` → `undefined`
+ * `'trace\\n123'` → `undefined`
+ *
+ * @param request - Request containing optional correlation metadata.
+ * @returns A safe identifier or undefined when unavailable.
+ */
+export const getRequestCorrelationId = (request: Request): string | undefined => {
+  // ...
+};
+```
+
+Use this style for non-obvious behavior with several user- or system-visible rules. Keep one-line comments for obvious constants and simple functions.
+
 ## Notes
 
 ### JSDoc (.js)
