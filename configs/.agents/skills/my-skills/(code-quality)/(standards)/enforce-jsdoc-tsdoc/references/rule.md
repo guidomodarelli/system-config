@@ -40,6 +40,29 @@ When creating or modifying **any** JavaScript or TypeScript function or method (
 - **Keep in sync**: If the signature or behavior changes, update the JSDoc in the same change.
  - **Add extra JSDoc when helpful**: Prefer adding JSDoc to complex objects, configuration literals, and non-obvious domain logic to reduce reader guesswork.
 
+### Simple comment format
+
+When a comment explains several behavior rules, prefer a short summary followed by numbered items and a compact example:
+
+```ts
+/**
+ * Extracts a safe request identifier from request metadata.
+ *
+ * The helper:
+ * 1. Trims outer whitespace.
+ * 2. Rejects empty values.
+ * 3. Rejects control characters.
+ * 4. Returns undefined when the value is unsafe.
+ *
+ * Example: `'  trace-123  '` becomes `'trace-123'`; `'trace\\n123'` becomes `undefined`.
+ *
+ * @param request - Request containing optional correlation metadata.
+ * @returns A safe identifier or undefined when unavailable.
+ */
+```
+
+Prefer this format when it improves scanability. Keep comments short, explain behavior rather than implementation, and omit the list when the behavior is obvious from the code. Use English for implementation comments unless the repository explicitly requires another language.
+
 ### Preferred template (JSDoc)
 
 ```js

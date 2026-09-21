@@ -9,3 +9,4 @@ description: Enforces writing and updating full JSDoc blocks for JavaScript (.js
 - Read [rule.md](references/rule.md) for required coverage, placement, fields, and English-only documentation.
 - Use [examples.md](references/examples.md) for templates (async, void-return, classes, constants, file headers).
 - Document when the language, complexity, or intent of the code makes it relevant; prioritize non-obvious constructs, public APIs, and domain logic.
+- Prefer simple documentation when possible: use a short summary followed by a numbered list for multiple behavioral rules and a small example for input/output transformations. Avoid verbose narrative and comments that restate obvious code.
