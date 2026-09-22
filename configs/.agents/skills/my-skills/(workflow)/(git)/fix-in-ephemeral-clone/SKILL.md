@@ -13,6 +13,12 @@ Siempre crear clone nuevo en directorio temporal; nunca reutilizar path, descart
 
 El backend nunca hace GitHub closeout: no publica replies, reviews, reactions, issue comments, cambios de estado ni resolución de threads. Si el handoff falla, conserva clone y reporta backups externos sin limpiarlos.
 
+## Ejecución del handoff
+
+Una llamada `Skill(fix-in-ephemeral-clone)` es carga síncrona de estas instrucciones; no crea agente, task handle, clone ni proceso background automáticamente. Cuando el handoff llega por `Skill`, ejecutar el workflow en contexto actual (`executor_mode: in_context`) y devolver `HANDOFF_RESULT` solo después de crear clone, validar, commitear, pushear y verificar. No anunciar executor iniciado ni esperar notificaciones.
+
+Modo `background` solo existe cuando `Agent`/job devuelve handle real. Sin handle y sin capacidad de continuar in-context, devolver `HANDOFF_EXECUTOR_MISSING` inmediatamente; nunca inventar path, branch, HEAD, commit o progreso.
+
 ## Modos y routing
 
 Usar exactamente un modo:
@@ -50,6 +56,9 @@ implementation_pr: <PR validado>
 implementation_branch: <branch validada, cualquier nombre>
 implementation_base: <base branch validada, cualquier nombre>
 handoff_id: <identificador local de correlación>
+executor_mode: <in_context|background>
+executor_tool: <herramienta que produjo este resultado o in_context>
+executor_status: <completed|failed|...>
 drift_classification: <REMOTE_DRIFT_INDEPENDENT|REMOTE_DRIFT_RELATED|NOT_APPLICABLE>
 validation_reused: <commands/fingerprints reused or none>
 validation_executed: <commands run after refresh or rebase>

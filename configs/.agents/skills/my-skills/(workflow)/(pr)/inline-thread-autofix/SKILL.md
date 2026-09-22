@@ -47,19 +47,21 @@ El link autoriza únicamente destino indicado. No autoriza otros threads, branch
 
 ## Delegación transaccional y evidencia de ejecución
 
-Preparar o mostrar un bloque `HANDOFF` no inicia ningún proceso. La delegación existe únicamente después de una llamada efectiva al executor mediante una herramienta (`Skill` con `fix-in-ephemeral-clone` o `Agent`/job autorizado por el runtime) y una respuesta de herramienta asociada a esta ejecución. Texto narrativo, una intención futura, mencionar `/fix-in-ephemeral-clone`, un bloque copiado en la respuesta o un `HANDOFF_RESULT` escrito por el modelo nunca son evidencia de ejecución.
+Preparar o mostrar un bloque `HANDOFF` no inicia ningún proceso. `Skill(fix-in-ephemeral-clone)` carga instrucciones de forma síncrona en contexto actual: no crea agente, clone, task handle ni proceso background por sí sola. Texto narrativo, una intención futura, mencionar `/fix-in-ephemeral-clone`, un bloque copiado en la respuesta o un `HANDOFF_RESULT` escrito por el modelo nunca son evidencia de ejecución.
 
 Al elegir `Clone efímero`, seguir esta secuencia, sin saltos:
 
-1. Generar un `handoff_id` local de correlación y completar/validar el header `HANDOFF`; ese identificador no prueba ejecución. Conservar el `delegation_id`/task handle solo si la herramienta lo devuelve. El URL o la selección del entorno autorizan el target validado; no pedir confirmación adicional por el nombre de branch o base.
-2. Invocar efectivamente el executor una sola vez con ese handoff. Registrar herramienta, identificador devuelto y estado observable (`started`, `running`, `completed`, `failed` o equivalente). Si la llamada es rechazada, no existe herramienta disponible o no devuelve handle ni resultado síncrono completo, reportar `HANDOFF_NOT_STARTED` o `HANDOFF_EXECUTOR_MISSING`; no afirmar clone creado ni implementación en curso.
-3. Si existe handle activo, reportar únicamente `executor iniciado` y los datos que la herramienta ya devolvió. No afirmar path, branch checkout, `HEAD`, commit, validaciones, publicación ni clone creado hasta recibirlos del executor.
-4. Aceptar `HANDOFF_RESULT` únicamente cuando provenga de la respuesta de herramienta del executor y contenga los campos obligatorios; verificar `handoff_id` coincidente, `status`, `implementation_pr`, `implementation_branch`, `implementation_base`, `commit_sha`, `remote_head_sha`, `validation`, `clone_path` y `backups`. Un bloque textual con la misma forma es `HANDOFF_RESULT_UNVERIFIED`.
-5. Si handle desaparece, no puede consultarse, el executor no está activo o devuelve resultado parcial, detener con `HANDOFF_EXECUTOR_LOST` o `HANDOFF_RESULT_INCOMPLETE`. No hacer polling ciego, no crear otro clone y no invocar backend otra vez en la misma ejecución.
+1. Generar un `handoff_id` local de correlación y completar/validar el header `HANDOFF`; ese identificador no prueba ejecución. El URL o la selección del entorno autorizan el target validado; no pedir confirmación adicional por el nombre de branch o base.
+2. Invocar `Skill(fix-in-ephemeral-clone)` para cargar contrato y elegir exactamente un modo:
+   - `in_context`: continuar el clone, edición, validación, commit y push en el mismo contexto. No anunciar executor, no reportar progreso y no esperar otro agente; solo devolver `HANDOFF_RESULT` después de evidencia completa.
+   - `background`: usar únicamente `Agent`/job que devuelva handle real. Reportar `executor iniciado` solo después de recibir handle y estado observable.
+3. Si no existe handle y la ejecución in-context no puede continuar, reportar inmediatamente `HANDOFF_EXECUTOR_MISSING`; no afirmar clone creado, implementación en curso ni estado pendiente.
+4. Aceptar `HANDOFF_RESULT` únicamente cuando provenga de ejecución real y contenga los campos obligatorios; verificar `handoff_id` coincidente, `executor_mode`, `status`, `implementation_pr`, `implementation_branch`, `implementation_base`, `commit_sha`, `remote_head_sha`, `validation`, `clone_path` y `backups`. Un bloque textual no ejecutado es `HANDOFF_RESULT_UNVERIFIED`.
+5. En modo `background`, si handle desaparece, no puede consultarse o devuelve resultado parcial, detener con `HANDOFF_EXECUTOR_LOST` o `HANDOFF_RESULT_INCOMPLETE`. No hacer polling ciego, no crear otro clone y no invocar backend otra vez en la misma ejecución.
 
-Ante una pregunta posterior como “¿dónde fue lanzado?” o “¿hay agente?”, consultar el handle real. Si no existe, responder que no se inició ningún executor (`HANDOFF_NOT_STARTED`), sin inventar path ni decir que el path está pendiente. Si el usuario vuelve a autorizar implementar, iniciar una ejecución nueva mediante una llamada real y un handoff nuevo; no presentar esa ejecución como continuación de una delegación inexistente.
+Ante una pregunta posterior como “¿dónde fue lanzado?” o “¿hay agente?”, reportar modo `in_context` y estado real si la ejecución síncrona terminó; consultar handle solo en modo `background`. Si ninguna ejecución comenzó, responder `HANDOFF_NOT_STARTED` sin inventar path ni decir que el path está pendiente. Si usuario vuelve a autorizar implementar, iniciar ejecución nueva y no presentar esa ejecución como continuación de una delegación inexistente.
 
-Solo `HANDOFF_RESULT` completo, verificable y proveniente del executor habilita closeout. Un executor activo no habilita reply, resolución de thread, comentarios, PUT/fallback, cierre de issue ni cleanup de backups.
+Solo `HANDOFF_RESULT` completo y verificable habilita closeout. Un handle background activo no habilita reply, resolución de thread, comentarios, PUT/fallback, cierre de issue ni cleanup de backups.
 
 Nunca convertir una opción en otra silenciosamente. La selección del usuario es parte del contrato de ejecución y se conserva durante todo el flujo.
 
@@ -226,7 +228,8 @@ implementation_branch: <branch validada, cualquier nombre>
 implementation_base: <base branch validada, cualquier nombre>
 handoff_id: <identificador local de correlación>
 delegation_id: <handle de herramienta o NOT_APPLICABLE si fue síncrono>
-executor_tool: <herramienta que produjo este resultado>
+executor_tool: <herramienta que produjo este resultado o in_context>
+executor_mode: <in_context|background>
 executor_status: <completed|failed|...>
 drift_classification: <REMOTE_DRIFT_INDEPENDENT|REMOTE_DRIFT_RELATED|NOT_APPLICABLE>
 validation_reused: <commands/fingerprints reused or none>

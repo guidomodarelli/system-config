@@ -653,6 +653,30 @@
         "Distingue validación reutilizada de validación ejecutada",
         "No publica éxito con resultados obsoletos"
       ]
+    },
+    {
+      "id": 51,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456825\nElegí Clone efímero. La llamada Skill(fix-in-ephemeral-clone) solo carga instrucciones y no devuelve task handle. Continuá el fix sin inventar un agente.",
+      "expected_output": "Clasifica ejecución como in_context, continúa el workflow síncronamente y no afirma executor iniciado ni espera una notificación background.",
+      "files": [],
+      "expectations": [
+        "Distingue Skill síncrona de Agent/job background",
+        "Usa executor_mode in_context cuando continúa en el mismo contexto",
+        "No afirma clone, commit, push o progreso antes de evidencia real",
+        "Devuelve HANDOFF_RESULT solo después de validación y publicación verificables"
+      ]
+    },
+    {
+      "id": 52,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456826\nElegí Clone efímero, pero no existe herramienta executor, no hay handle y el contexto no puede continuar la implementación. Indicá estado sin esperar.",
+      "expected_output": "Reporta HANDOFF_EXECUTOR_MISSING o HANDOFF_NOT_STARTED inmediatamente; no dice que hay agente corriendo ni deja estado pendiente.",
+      "files": [],
+      "expectations": [
+        "Reporta ausencia real de executor",
+        "No inventa path, branch, HEAD, commit ni clone",
+        "No hace polling ni closeout GitHub",
+        "Exige nueva ejecución autorizada para reintentar"
+      ]
     }
   ]
 }

@@ -125,6 +125,30 @@
         "Revalida tests y superficies integradas requeridas",
         "No publica éxito con validación incompleta"
       ]
+    },
+    {
+      "id": 11,
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-in-context-1\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nfinding_anchor: src/service.js:42\nfinding_summary: Corregir contrato\nacceptance_criteria: Test focal verde\nvalidation_plan: tests/service.spec.js\nstack_plan: none\nbackup_manifest: none\nissue: none\nSe cargaron instrucciones mediante Skill, no existe task handle. Ejecutá el handoff en contexto actual.",
+      "expected_output": "Ejecuta modo in_context de forma síncrona, no espera agente y devuelve HANDOFF_RESULT solo tras clone, validación, commit, push y verificación reales.",
+      "files": [],
+      "expectations": [
+        "Distingue carga Skill síncrona de executor background",
+        "Usa executor_mode in_context y executor_tool in_context",
+        "No anuncia executor iniciado ni deja trabajo pendiente",
+        "Devuelve resultado completo solo después de evidencia real"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-no-executor-1\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nfinding_anchor: src/service.js:42\nfinding_summary: Corregir contrato\nacceptance_criteria: Test focal verde\nvalidation_plan: tests/service.spec.js\nstack_plan: none\nbackup_manifest: none\nissue: none\nNo existe herramienta Agent/job, no hay handle y contexto no puede continuar.",
+      "expected_output": "Devuelve HANDOFF_EXECUTOR_MISSING inmediatamente; no inventa clone, commit, push, progreso ni espera background.",
+      "files": [],
+      "expectations": [
+        "Reporta ausencia real de executor",
+        "No inventa path, branch, HEAD ni resultado",
+        "No hace polling ni closeout GitHub",
+        "Requiere nueva ejecución autorizada"
+      ]
     }
   ]
 }
