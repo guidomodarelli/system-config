@@ -5,7 +5,7 @@ ccd() {
 }
 
 # Claude Code wrapper using the local GPT proxy configuration.
-ccdg() {
+ccg() {
   local -x ANTHROPIC_AUTH_TOKEN="dummy"
   local -x ANTHROPIC_BASE_URL="http://localhost:4141"
   local -x ANTHROPIC_DEFAULT_OPUS_MODEL="gpt-5.6-luna[1m]"
