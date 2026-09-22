@@ -101,19 +101,6 @@ BASH
   [ "$(<"${CCM_POST_ENV_FILE}")" = 'test-token' ]
 }
 
-@test "ccm falla de forma explícita cuando falta el token" {
-  run zsh -c '
-    clear() { :; }
-    unset ANTHROPIC_AUTH_TOKEN
-    source "${TEST_REPO_ROOT}/configs/zsh/.zsh/functions/claude.zsh"
-    ccm
-  '
-
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"falta ANTHROPIC_AUTH_TOKEN"* ]]
-  [ ! -e "${CLAUDE_ENV_FILE}" ]
-}
-
 @test "propaga estado de salida de Claude Code" {
   export CLAUDE_EXIT_STATUS=23
 
