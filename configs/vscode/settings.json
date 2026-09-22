@@ -2,13 +2,13 @@
   /* ======================================================================== */
   /*                                APARIENCIA                                */
   /* ======================================================================== */
-  "workbench.colorTheme": "One Dark Pro Mix",
+  "workbench.colorTheme": "One Dark Pro Night Flat",
   "workbench.iconTheme": "catppuccin-perfect-ayu",
   "workbench.productIconTheme": "fluent-icons",
   "workbench.colorCustomizations": {
     // // Texto insertado/eliminado (nivel carácter)
-    "diffEditor.insertedTextBackground": "#00C84640",
-    "diffEditor.removedTextBackground":  "#FF003C40"
+    "diffEditor.insertedTextBackground": "#0903",
+    "diffEditor.removedTextBackground":  "#f004"
   },
   "oneDarkPro.editorTheme": "One Dark Pro Darker",
   "oneDarkPro.bold": true,
