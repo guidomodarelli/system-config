@@ -316,6 +316,7 @@
   "diffEditor.experimental.showMoves": true,
   "diffEditor.hideUnchangedRegions.enabled": true,
   "diffEditor.renderSideBySide": true,
+  "diffEditor.useInlineViewWhenSpaceIsLimited": true,
   "debug.console.wordWrap": false,
   "debug.console.fontSize": 13,
 
