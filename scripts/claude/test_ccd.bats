@@ -5,8 +5,6 @@ setup() {
   export FAKE_BIN_DIR="${BATS_TEST_TMPDIR}/bin"
   export CLAUDE_ARGS_FILE="${BATS_TEST_TMPDIR}/claude-args"
   export CLAUDE_ENV_FILE="${BATS_TEST_TMPDIR}/claude-env"
-  export CCDG_POST_ENV_FILE="${BATS_TEST_TMPDIR}/ccdg-post-env"
-  export CCM_POST_ENV_FILE="${BATS_TEST_TMPDIR}/ccm-post-env"
 
   mkdir -p "${FAKE_BIN_DIR}"
 
@@ -48,14 +46,13 @@ BASH
   [ "${claude_args[4]}" = 'prompt con espacios' ]
 }
 
-@test "ccdg fija envs del proxy, reenvía argumentos y no contamina el shell" {
+@test "ccg fija envs del proxy, reenvía argumentos y no contamina el shell" {
   run zsh -c '
     clear() { :; }
     unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL ANTHROPIC_DEFAULT_OPUS_MODEL ANTHROPIC_MODEL
     unset CLAUDE_CODE_SUBAGENT_MODEL CLAUDE_CODE_ATTRIBUTION_HEADER CLAUDE_CODE_AUTO_COMPACT_WINDOW
     source "${TEST_REPO_ROOT}/configs/zsh/.zsh/functions/claude.zsh"
-    ccdg --model opus "prompt con espacios"
-    printf "%s\\n" "${ANTHROPIC_AUTH_TOKEN-unset}" > "${CCDG_POST_ENV_FILE}"
+    ccg --model opus "prompt con espacios"
   '
 
   [ "$status" -eq 0 ]
@@ -66,8 +63,6 @@ BASH
   grep -Fx 'CLAUDE_CODE_SUBAGENT_MODEL=gpt-5.6-luna[1m]' "${CLAUDE_ENV_FILE}"
   grep -Fx 'CLAUDE_CODE_ATTRIBUTION_HEADER=0' "${CLAUDE_ENV_FILE}"
   grep -Fx 'CLAUDE_CODE_AUTO_COMPACT_WINDOW=850000' "${CLAUDE_ENV_FILE}"
-  [ "$(<"${CCDG_POST_ENV_FILE}")" = 'unset' ]
-
   claude_args=()
   while IFS= read -r claude_arg; do
     claude_args+=("$claude_arg")
@@ -79,26 +74,22 @@ BASH
   [ "${claude_args[4]}" = 'prompt con espacios' ]
 }
 
-@test "ccm fija envs del proxy y conserva el token provisto por el entorno" {
-  export ANTHROPIC_AUTH_TOKEN='test-token'
-
+@test "ccm fija envs del proxy y selecciona GLM" {
   run zsh -c '
     clear() { :; }
-    unset ANTHROPIC_BASE_URL ANTHROPIC_MODEL CLAUDE_CODE_SUBAGENT_MODEL
+    unset ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL ANTHROPIC_MODEL CLAUDE_CODE_SUBAGENT_MODEL
     unset ANTHROPIC_DEFAULT_OPUS_MODEL CLAUDE_CODE_AUTO_COMPACT_WINDOW
     source "${TEST_REPO_ROOT}/configs/zsh/.zsh/functions/claude.zsh"
     ccm --model opus "prompt con espacios"
-    printf "%s\\n" "${ANTHROPIC_AUTH_TOKEN-unset}" > "${CCM_POST_ENV_FILE}"
   '
 
   [ "$status" -eq 0 ]
-  grep -Fx 'ANTHROPIC_AUTH_TOKEN=test-token' "${CLAUDE_ENV_FILE}"
+  grep -q '^ANTHROPIC_AUTH_TOKEN=.' "${CLAUDE_ENV_FILE}"
   grep -Fx 'ANTHROPIC_BASE_URL=http://127.0.0.1:22630' "${CLAUDE_ENV_FILE}"
   grep -Fx 'ANTHROPIC_MODEL=opus' "${CLAUDE_ENV_FILE}"
   grep -Fx 'CLAUDE_CODE_SUBAGENT_MODEL=anthropic/open-source/glm-5.3-flash[1m]' "${CLAUDE_ENV_FILE}"
   grep -Fx 'ANTHROPIC_DEFAULT_OPUS_MODEL=anthropic/open-source/glm-5.3-flash[1m]' "${CLAUDE_ENV_FILE}"
   grep -Fx 'CLAUDE_CODE_AUTO_COMPACT_WINDOW=850000' "${CLAUDE_ENV_FILE}"
-  [ "$(<"${CCM_POST_ENV_FILE}")" = 'test-token' ]
 }
 
 @test "propaga estado de salida de Claude Code" {
