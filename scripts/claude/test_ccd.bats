@@ -58,9 +58,9 @@ BASH
   [ "$status" -eq 0 ]
   grep -Fx 'ANTHROPIC_AUTH_TOKEN=dummy' "${CLAUDE_ENV_FILE}"
   grep -Fx 'ANTHROPIC_BASE_URL=http://localhost:4141' "${CLAUDE_ENV_FILE}"
-  grep -Fx 'ANTHROPIC_DEFAULT_OPUS_MODEL=gpt-5.6-luna[1m]' "${CLAUDE_ENV_FILE}"
+  grep -Fx 'ANTHROPIC_DEFAULT_OPUS_MODEL=gpt-6-luna[1m]' "${CLAUDE_ENV_FILE}"
   grep -Fx 'ANTHROPIC_MODEL=opus' "${CLAUDE_ENV_FILE}"
-  grep -Fx 'CLAUDE_CODE_SUBAGENT_MODEL=gpt-5.6-luna[1m]' "${CLAUDE_ENV_FILE}"
+  grep -Fx 'CLAUDE_CODE_SUBAGENT_MODEL=gpt-6-luna[1m]' "${CLAUDE_ENV_FILE}"
   grep -Fx 'CLAUDE_CODE_ATTRIBUTION_HEADER=0' "${CLAUDE_ENV_FILE}"
   grep -Fx 'CLAUDE_CODE_AUTO_COMPACT_WINDOW=850000' "${CLAUDE_ENV_FILE}"
   claude_args=()

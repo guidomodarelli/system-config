@@ -137,7 +137,7 @@ Read [provider adapters](references/provider-adapters.md) before manually invoki
 
 ### Claude review profiles
 
-`claude-copilot` is first. Helper exports endpoint, dummy token, Terra model mappings, provider flags and MCP timeout explicitly. It never inherits Copilot API variables from user settings. It also sets `CLAUDE_CODE_SUBAGENT_MODEL=gpt-5.6-terra[1m]` so every subagent uses Terra.
+`claude-copilot` is first. Helper exports endpoint, dummy token, Terra model mappings, provider flags and MCP timeout explicitly. It never inherits Copilot API variables from user settings. It also sets `CLAUDE_CODE_SUBAGENT_MODEL=gpt-6-luna[1m]` so every subagent uses Terra.
 
 `claude` is direct-only. It clears Copilot API Anthropic variables and loads only project/local settings. It never inherits Terra/Copilot profile from `claude-copilot`.
 

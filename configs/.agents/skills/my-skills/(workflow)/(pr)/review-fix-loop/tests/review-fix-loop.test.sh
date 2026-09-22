@@ -127,12 +127,12 @@ test_claude_copilot_uses_configured_profile() {
   setup_fixture
   trap teardown_fixture EXIT
   run_helper -p claude-copilot
-  assert_contains "$CALL_LOG.args" 'ANTHROPIC_MODEL=gpt-5.6-terra[1m]'
-  assert_contains "$CALL_LOG.args" 'CLAUDE_CODE_SUBAGENT_MODEL=gpt-5.6-terra[1m]'
+  assert_contains "$CALL_LOG.args" 'ANTHROPIC_MODEL=gpt-6-luna[1m]'
+  assert_contains "$CALL_LOG.args" 'CLAUDE_CODE_SUBAGENT_MODEL=gpt-6-luna[1m]'
   assert_contains "$CALL_LOG.args" 'ANTHROPIC_BASE_URL=http://localhost:4141'
   assert_contains "$CALL_LOG.args" 'ANTHROPIC_AUTH_TOKEN_SET=1'
-  assert_contains "$CALL_LOG.args" 'ANTHROPIC_DEFAULT_OPUS_MODEL=gpt-5.6-terra[1m]'
-  assert_contains "$CALL_LOG.args" 'ANTHROPIC_DEFAULT_SONNET_MODEL=gpt-5.6-terra[1m]'
+  assert_contains "$CALL_LOG.args" 'ANTHROPIC_DEFAULT_OPUS_MODEL=gpt-6-luna[1m]'
+  assert_contains "$CALL_LOG.args" 'ANTHROPIC_DEFAULT_SONNET_MODEL=gpt-6-luna[1m]'
   assert_contains "$CALL_LOG.args" 'CLAUDE_CODE_USE_VERTEX=0'
   assert_contains "$CALL_LOG.args" 'CLAUDE_CODE_USE_BEDROCK=0'
   assert_contains "$CALL_LOG.args" 'MCP_CONNECT_TIMEOUT_MS=20000'
