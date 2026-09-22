@@ -255,10 +255,7 @@
   "chat.useAgentSkills": true,
   "chat.viewSessions.orientation": "stacked",
   "chat.permissions.default": "autoApprove",
-  "chat.agentSkillsLocations": {
-    "~/.codex/skills": true
-  },
-  "inlineChat.affordance": "gutter",
+  "inlineChat.affordance": "editor",
 
   /* ------------------------------- Copilot/PR -------------------------------- */
   "github.copilot.chat.githubMcpServer.enabled": true,
