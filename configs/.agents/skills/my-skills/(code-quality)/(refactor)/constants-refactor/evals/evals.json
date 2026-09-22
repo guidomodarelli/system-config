@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "Revisá este PR de un repositorio de software y analizá qué constantes podrían moverse a constants/. Hay límites repetidos entre schema, API y cliente, códigos de error compartidos, regex de validación y algunos timeouts de UI. No hagas cambios todavía.",
-      "expected_output": "Informe con alcance del PR, tabla de candidatos, clasificación mover/mantener local, riesgos de cambiar validación y comandos de verificación. Debe evitar mover mensajes de localización, mocks, UI-only, HTTP statuses y timeouts con distinta semántica.",
+      "expected_output": "Informe con alcance del PR, tabla de candidatos, clasificación mover a constants/mantener como variable runtime y comandos de verificación. Debe mover toda constante estática, incluso con un solo consumidor, incluyendo mensajes, mocks, UI-only, HTTP statuses y timeouts; solo deja fuera cálculos, estado mutable y resultados runtime.",
       "files": []
     },
     {
@@ -16,13 +16,19 @@
     {
       "id": 3,
       "prompt": "En un repo TypeScript, mové códigos de error, estados de polling, límites de entrada y runtime constants que hoy viven en interfaces/ a fuentes canónicas. Conservá unions TypeScript, evitá ciclos, no edites catálogos generados y explicá qué valores deben quedarse locales.",
-      "expected_output": "Objetos as const con tipos derivados, interfaces sin duplicar runtime constants, límites separados por semántica, imports y tests actualizados, validación de typecheck/lint/build y lista de exclusiones.",
+      "expected_output": "Objetos as const con tipos derivados, interfaces sin duplicar constantes estáticas, límites separados por semántica, imports y tests actualizados, validación de typecheck/lint/build y lista de únicas exclusiones: variables calculadas, estado mutable y resultados runtime.",
       "files": []
     },
     {
       "id": 4,
       "prompt": "Mové constantes de scan a constants/process-contingency/scan.ts. El index interno usa export *, pero constants/index.ts enumera exports manualmente. Algunas constantes son copy de UI y otras son límites de contrato.",
-      "expected_output": "Usa archivo de dominio existente, actualiza cada barrel necesario, mantiene copy UI local salvo excepción explícita, evita ciclos con app/ y ejecuta typecheck antes de cerrar.",
+      "expected_output": "Usa archivo de dominio existente, mueve también copy UI y límites estáticos aunque tengan un solo consumidor, actualiza cada barrel necesario, evita ciclos con app/ y ejecuta typecheck antes de cerrar.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "En un módulo TypeScript hay una constante estática usada una sola vez: const MAX_VISIBLE_ITEMS = 20. Refactorizá el módulo según la skill y explicá si debe permanecer local.",
+      "expected_output": "Mueve MAX_VISIBLE_ITEMS a un archivo cohesivo dentro de constants/ aunque tenga un solo uso, actualiza el import y explica que cantidad de consumidores no decide ubicación. Solo dejaría local una variable calculada o estado mutable.",
       "files": []
     }
   ]

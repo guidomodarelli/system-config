@@ -1,13 +1,13 @@
 ---
 name: constants-refactor
-description: Analiza y refactoriza constantes, literales funcionales y contratos cross-layer en cualquier repositorio de código. Invocar siempre que se cree, modifique, elimine, mueva o revise una constante, aunque el cambio parezca puntual; también usar cuando usuario pida revisar constantes, mover valores a constants/, limpiar hardcodes, responder comentarios de PR sobre constantes, centralizar límites/códigos/rutas/regex o reducir duplicación entre capas, aunque no mencione explícitamente una carpeta constants. Clasifica qué mover y qué mantener local, preserva comportamiento y aplica cambios seguros con validación completa.
+description: Analiza y refactoriza constantes, literales funcionales y contratos cross-layer en cualquier repositorio de código. Invocar siempre que se cree, modifique, elimine, mueva o revise una constante, aunque el cambio parezca puntual; también usar cuando usuario pida revisar constantes, mover valores a constants/, limpiar hardcodes, responder comentarios de PR sobre constantes, centralizar límites/códigos/rutas/regex o reducir duplicación entre capas, aunque no mencione explícitamente una carpeta constants. Mueve siempre cada constante estática a constants/, incluso si hoy tiene un solo consumidor; no uses la cantidad de referencias para decidir su ubicación. Solo distingue variables calculadas, estado mutable y resultados runtime, que no son constantes. Preserva comportamiento y aplica cambios seguros con validación completa.
 ---
 
 # Constants Refactor
 
 ## Objetivo
 
-Centralizar valores con significado funcional cuando exista contrato compartido, duplicación real o riesgo de drift. Evitar `constants/` como depósito genérico: valores privados de módulo deben permanecer cerca de su responsabilidad.
+Centralizar en `constants/` toda constante estática, aunque exista un solo consumidor actual. La cantidad de usos no decide la ubicación: cada valor debe tener una fuente canónica fuera del módulo consumidor. No confundir constantes con variables calculadas en runtime, estado mutable o resultados de llamadas, que no deben extraerse como constantes.
 
 Aplicar workflow completo cuando usuario pida implementar. Entregar solo análisis cuando usuario pida review o informe sin cambios.
 
@@ -17,7 +17,7 @@ Aplicar workflow completo cuando usuario pida implementar. Entregar solo anális
 2. Separar `git diff BASE...HEAD` de cambios no commiteados.
 3. Inventariar declaraciones `const`, atoms escalares `as const`, objetos/arrays `as const`, enums/union literals, regex, límites, códigos, paths, timeouts y strings repetidos.
 4. Comparar inventario con `constants/`, `config/`, `permissions/`, `utils/`, tipos/interfaces, schemas y módulos de dominio existentes.
-5. Clasificar cada candidato: `mover`, `centralizar`, `extraer local`, `mantener local`, `no tocar`.
+5. Clasificar cada candidato: `mover a constants/`, `mantener como variable runtime` o `no tocar`.
 6. Implementar fuentes canónicas, migrar consumers y tests.
 7. Ejecutar validaciones y reportar bloqueos reales sin ocultarlos.
 
@@ -44,7 +44,7 @@ Aplicar estas reglas:
 - Conservar shims legacy como archivos que solo reexportan la ubicación canónica cuando el path profundo no colisiona con una carpeta nueva. Mantener imports públicos existentes cuando la resolución siga siendo válida y migrarlos por boundary cuando no lo sea.
 - Representar rutas relacionadas como un objeto `...ROUTES` con propiedades semánticas y `as const`; evitar constantes escalares sueltas para fragments del mismo boundary. Derivar rutas compuestas desde ese objeto y preservar separación entre mount paths y BFF paths.
 - Preservar el alias soportado por runtime y evitar cambiar imports masivamente solo por uniformidad. Verificar TypeScript, Jest, bundler y server por separado cuando sus resolvers difieran.
-- No colocar en `constants/` valores dependientes de entorno, secretos, credenciales, configuración operativa o endpoints que deban tunearse por deployment; usar `config/` o runtime config.
+- No colocar en `constants/` expresiones cuyo valor se obtiene o cambia durante runtime; esas expresiones son variables runtime, no constantes estáticas.
 - Revisar el boundary de cada constante: no exportar al cliente valores server-only, detalles internos de upstream o metadata sensible. Las constantes compartidas deben ser seguras para el bundle donde se consumen.
 - Mantener constantes puras y sin side effects. Evitar que los barrels importen servicios u otros módulos que introduzcan ciclos; los módulos de dominio pueden depender de constantes compartidas, no al revés.
 - Tras mover constantes, validar valores, referencias, tipos, identidad de objetos cuando importe y resolución de barrels/shims mediante tests de comportamiento o typecheck; no testear strings del archivo fuente.
@@ -54,8 +54,8 @@ Aplicar estas reglas:
 Cuando usuario pida mover constantes de módulo o feature hacia `constants/`:
 
 1. Buscar primero archivo de dominio existente, por ejemplo `constants/<domain>/<feature>.ts`; no crear `constants.ts` genérico.
-2. Mover constantes puras de contrato, límites reutilizados, estados o configuración estable del dominio.
-3. Mantener locales copy visible, msgids, estilos, paginación y delays de una sola vista. Si usuario exige incluirlos, registrar excepción explícita y preservar textos exactos e i18n.
+2. Mover toda constante estática a `constants/`, incluyendo límites, estados, regex, rutas, códigos, configuración, copy, msgids, estilos, paginación, delays, mapas y valores usados una sola vez. Un único consumidor nunca es motivo para mantenerla local.
+3. Mantener fuera de `constants/` únicamente variables calculadas en runtime, estado mutable y resultados de llamadas, porque no son constantes. No crear excepciones basadas en cantidad de usos, visibilidad o tipo de literal.
 4. Separar tipos runtime de UI: constants no deben importar valores desde `app/`, componentes o tipos que dependan de constants.
 5. Mantener specifiers públicos existentes solo cuando el barrel los soporte; no introducir un alias nuevo por uniformidad.
 
@@ -65,14 +65,14 @@ Antes de migrar consumers, recorrer destino y todos sus barrels ascendentes. Si 
 
 ### Atoms escalares y agregados
 
-- Cuando un literal tenga significado unitario, estable y reutilizado dentro de un mismo contrato, definirlo una sola vez como atom escalar: `const SEMANTIC_ATOM = 'value' as const`.
+- Cuando un literal tenga significado unitario y estable, definirlo una sola vez como atom escalar en `constants/`, aunque hoy tenga un solo consumidor: `const SEMANTIC_ATOM = 'value' as const`.
 - Construir arrays y agregados contractuales desde atoms: `const CONTRACT_VALUES = [SEMANTIC_ATOM, OTHER_ATOM] as const`.
 - Nombrar atoms por rol semántico y dominio (`LABOUR_SHARE_SOURCE_SCANNER`), no por valor genérico (`VALUE`, `ITEM`, `TYPE`).
 - Derivar unions desde el array contractual correspondiente, no desde un array de otro dominio. Mantener arrays distintos cuando tengan semánticas distintas aunque compartan atoms (`mixed` no pertenece a una lista de valores individuales).
-- Compartir atom solo después de comprobar equivalencia de significado, boundary, serialización y consumers. Coincidencia textual aislada no justifica compartirlo.
-- Mantener atoms puros, sin configuración de entorno, secretos, credenciales, servicios, permisos, imports server-only ni side effects.
+- Compartir atom después de comprobar equivalencia de significado, boundary, serialización y consumers. La coincidencia textual aislada no justifica reutilizar un atom existente, pero tampoco justifica mantenerlo en el consumidor.
+- Mantener atoms puros, sin servicios, permisos, imports server-only ni side effects; los valores estáticos se declaran en `constants/` y no se calculan al importar.
 - Preservar orden, identidad y forma observable. No reemplazar referencias canónicas por `Array.from`, spread, `Object.freeze` o composición dinámica cuando eso cambie identidad, mutabilidad o serialización requerida por consumers.
-- No atomizar por estética valores únicos, labels/copy, fixtures externos, mapas contractuales ya cohesivos o literales triviales sin reutilización real.
+- No atomizar variables calculadas, estado mutable, resultados de llamadas ni datos derivados de input. Mover declaraciones constantes estáticas completas —incluidos fixtures, mapas contractuales y literales triviales— aunque tengan un solo consumidor; no fragmentarlas solo por estética.
 - Un refactor de constants debe limitarse a extracción, composición y migración de referencias; no agregar condicionales, guards, normalización ni cambios de validación salvo pedido explícito separado.
 - Priorizar composición simple y legible. Mantener regex literales cuando derivarlas dinámicamente agregue helpers, escapes o complejidad sin reducir un drift comprobado; en ese caso cubrir sincronización con tests.
 - Si patrón canónico ya existe como variable (por ejemplo, string compartido entre schemas legacy), reutilizarlo mediante `new RegExp(CANONICAL_PATTERN)` cuando consumidor requiera `RegExp`; no duplicar equivalente literal solo para evitar una advertencia de lint.
@@ -123,35 +123,27 @@ Para PR:
 
 ### Mover a `constants/`
 
-Recomendar/aplicar cuando exista una o más condiciones:
+Mover siempre toda declaración que represente un valor estático, sin exigir reutilización previa:
 
-- mismo valor y misma semántica en dos o más capas;
-- límite de contrato usado por schema, servicio y UI;
-- código de error serializado y consumido por backend y cliente;
-- estados de protocolo usados por validadores, serializadores y polling;
-- allowlist de dominio compartida;
-- métrica o atributo de contexto repetido entre routers, hooks o handlers;
-- regex de input usada en varios boundaries;
-- clave pública estable de error, separada de copy traducible;
-- runtime constant ubicada dentro de `interfaces/` o `types/` que debe alimentar varios módulos.
-- literal unitario reutilizado dentro de un mismo contrato, apto para atom escalar y composición en arrays/agregados `as const`.
-- elementos repetidos en más de un array del mismo dominio cuando comparten semántica, sin fusionar arrays contractualmente distintos.
+- constantes de contrato, aunque tengan un solo consumidor;
+- límites, estados, códigos, rutas, regex, allowlists, atributos y claves públicas;
+- configuración, secretos, credenciales, tokens y metadata representados como valores constantes;
+- runtime constants ubicadas dentro de `interfaces/` o `types/`;
+- literales unitarios y elementos de arrays contractuales, aunque hoy no estén repetidos;
+- copy, labels, msgids, estilos, paths privados, statuses HTTP, timeouts, paginación, delays y mapas estáticos.
 
-### Mantener local
+La decisión de mover no depende de cantidad de referencias, visibilidad ni categoría del literal. Crear o ampliar el archivo de dominio correspondiente aunque el valor aparezca una sola vez.
 
-No promover automáticamente:
+### Mantener fuera de `constants/`
 
-- constante con un solo consumidor y semántica privada de adapter;
-- datos de mocks, fixtures o catálogos locales;
-- labels o mensajes visibles de UI;
-- llamadas de localización y msgids;
-- tamaños de página, delays o límites exclusivos de una vista;
-- paths upstream privados de un cliente;
-- statuses HTTP genéricos (`400`, `404`, `500`, `502`, `503`);
-- timeouts con responsabilidades distintas, aunque compartan valor;
-- mapas de un solo consumidor;
-- constantes matemáticas/triviales sin significado de negocio.
-- literales únicos o elementos de arrays sin reutilización real; no crear atoms solo por uniformidad visual.
+Solo dejar fuera valores que no sean constantes:
+
+- variables calculadas en runtime;
+- estado mutable;
+- resultados de llamadas, respuestas o datos derivados de input;
+- expresiones cuyo valor cambie durante la ejecución.
+
+Si un valor puede declararse y permanecer fijo durante la ejecución, tratarlo como constante y moverlo a `constants/`.
 
 ### Separar destinos
 
@@ -211,14 +203,13 @@ Al componer arrays desde atoms, preservar orden, referencia e identidad cuando f
 ## Implementación
 
 1. Crear o ampliar archivo de dominio cohesivo en `constants/`.
-2. Identificar atoms escalares reutilizados y definirlos antes de arrays/agregados contractuales.
+2. Identificar todos los valores estáticos y definirlos allí; crear atoms antes de arrays/agregados contractuales cuando corresponda, aunque cada atom tenga un solo consumidor.
 3. Construir arrays/agregados y tipos derivados desde atoms, conservando contratos separados.
 4. Mantener nombre semántico; no usar nombres genéricos como `VALUE`, `LIMIT`, `DATA`.
 5. Mover valores sin cambiar strings, orden, default, serialización o respuesta.
-6. Actualizar barrels, imports de producción y tests.
-7. Mantener fixtures literales cuando su finalidad sea validar contrato externo; no reemplazarlos todos por la misma constante.
-8. Revisar diff por dominio excluido antes de continuar.
-9. No mezclar refactor de constantes con cambios funcionales no solicitados.
+6. Actualizar barrels, imports de producción, tests y fixtures constantes.
+7. Revisar diff por dominio excluido antes de continuar.
+8. No mezclar refactor de constantes con cambios funcionales no solicitados.
 
 ## Verificación
 
@@ -256,8 +247,8 @@ Usar este formato salvo que usuario pida otro:
 ## Candidatos movidos
 | Archivo/línea | Valor | Destino | Motivo |
 
-## Candidatos mantenidos locales
-| Archivo/línea | Valor | Motivo |
+## Valores fuera de `constants/`
+| Archivo/línea | Valor | Motivo: no es constante estática |
 
 ## Cambios aplicados
 - Fuentes canónicas.
