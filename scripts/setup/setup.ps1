@@ -591,6 +591,37 @@ function Install-Python {
   Install-WingetPackage 9PNRBTZXMB4Z
 }
 
+function Resolve-PythonExecutable {
+  foreach ($pythonCommandName in @('py', 'python', 'python3')) {
+    $pythonCommand = Get-Command $pythonCommandName -ErrorAction SilentlyContinue
+    if ($null -ne $pythonCommand) {
+      return $pythonCommand.Source
+    }
+  }
+
+  return $null
+}
+
+function Install-McpRemoteProxy {
+  # Índice PyPI privado que publica mcp-remote-proxy (el mismo que usa setup.sh).
+  $mcpRemoteProxyPackageIndexUrl = 'https://pypi.artifacts.furycloud.io/simple/'
+  $pythonExecutable = Resolve-PythonExecutable
+  if ([string]::IsNullOrWhiteSpace($pythonExecutable)) {
+    throw "Python no está disponible en PATH; instalá el ítem 'Python' antes de 'mcp-remote-proxy'."
+  }
+
+  & $pythonExecutable -m pip install --user --upgrade --index-url $mcpRemoteProxyPackageIndexUrl mcp-remote-proxy
+  if ($LASTEXITCODE -ne 0) {
+    throw "pip no pudo instalar 'mcp-remote-proxy' desde $mcpRemoteProxyPackageIndexUrl. Código: $LASTEXITCODE."
+  }
+}
+
+function Install-Ghostty {
+  # Ghostty todavía no publica un instalador oficial para Windows; el README documenta este aviso.
+  $ghosttyDownloadUrl = 'https://ghostty.org/download'
+  LogWarning "Ghostty aún no tiene instalador oficial para Windows. Seguí su estado en $ghosttyDownloadUrl."
+}
+
 function Install-WhatsApp {
   Install-WingetPackage 9NKSQGP7F2NH
 }
@@ -658,35 +689,35 @@ function Install-PowerShell {
 }
 
 function Install-Pester {
-  $minimumSupportedPesterVersion = [Version]'5.0.0'
+  # Los tests del repo corren con la última Pester estable (6.x) y siguen siendo compatibles con 5.x.
   $installedPesterModule = Get-InstalledModule -Name Pester -ErrorAction SilentlyContinue |
     Sort-Object Version -Descending |
     Select-Object -First 1
 
-  if ($null -ne $installedPesterModule -and $installedPesterModule.Version.Major -eq 5 -and $installedPesterModule.Version -ge $minimumSupportedPesterVersion) {
-    LogInfo "Pester ya está instalado en versión $($installedPesterModule.Version). Actualizando a la última estable de la rama 5.x..."
-  } elseif ($null -ne $installedPesterModule) {
-    LogInfo "Pester está en versión $($installedPesterModule.Version). Actualizando a la rama 5.x..."
+  if ($null -ne $installedPesterModule) {
+    LogInfo "Pester está en versión $($installedPesterModule.Version). Actualizando a la última versión estable oficial..."
   } else {
-    LogInfo 'Instalando Pester 5.x desde PSGallery...'
+    LogInfo 'Instalando la última versión estable oficial de Pester desde PSGallery...'
   }
 
   try {
-    $latestPesterFiveModule = Find-Module -Name Pester -AllVersions -ErrorAction Stop |
-      Where-Object { $_.Version.Major -eq 5 -and $_.Version -ge $minimumSupportedPesterVersion } |
+    # Find-Module excluye prereleases, así que devuelve la última estable.
+    $latestPesterModule = Find-Module -Name Pester -Repository PSGallery -ErrorAction Stop |
       Sort-Object Version -Descending |
       Select-Object -First 1
 
-    if ($null -eq $latestPesterFiveModule) {
-      throw 'No se encontró una versión estable disponible de Pester 5.x en PSGallery.'
+    if ($null -eq $latestPesterModule) {
+      throw 'No se encontró una versión estable de Pester en PSGallery.'
     }
 
-    Install-Module -Name Pester -RequiredVersion $latestPesterFiveModule.Version -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+    # SkipPublisherCheck: Windows PowerShell trae Pester 3.4.0 firmado por Microsoft y,
+    # sin este flag, Install-Module rechaza reemplazarlo por el paquete de PSGallery.
+    Install-Module -Name Pester -RequiredVersion $latestPesterModule.Version -Repository PSGallery -Scope CurrentUser -Force -AllowClobber -SkipPublisherCheck -ErrorAction Stop
   } catch {
-    throw "No se pudo instalar/actualizar Pester 5.x: $($_.Exception.Message)"
+    throw "No se pudo instalar/actualizar Pester: $($_.Exception.Message)"
   }
 
-  LogSuccess 'Pester 5.x quedó instalado/actualizado correctamente.'
+  LogSuccess "Pester $($latestPesterModule.Version) quedó instalado/actualizado correctamente."
 }
 
 function Install-Zoxide {

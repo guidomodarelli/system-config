@@ -216,6 +216,8 @@ bash scripts/setup/setup.sh.spec.sh
 ```
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup\setup.ps1.spec.ps1
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup\setup.ps1.spec.ps1
+Invoke-Pester -Path .\scripts\setup\setup.ps1.Tests.ps1
 ```
+
+Los tests de PowerShell usan Pester (última versión estable, compatible con 5.x);
+ver "Tests De PowerShell Con Pester" en el `AGENTS.md` raíz.

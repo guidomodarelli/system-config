@@ -109,7 +109,8 @@ rm -rf /tmp/omp /tmp/ompbin /tmp/lad /tmp/pwsh-portable /tmp/pwsh.tar.gz
 
 ## Tests De PowerShell Con Pester
 
-- Los tests `*.Tests.ps1` (por ejemplo, `scripts/dotfiler/dotfiler.ps1.Tests.ps1`) se ejecutan con la última versión de Pester (6.x) y siguen siendo compatibles con Pester 5.
+- Todos los tests de PowerShell son Pester y se nombran `*.Tests.ps1`: `scripts/dotfiler/dotfiler.ps1.Tests.ps1`, `scripts/setup/setup.ps1.Tests.ps1` y `configs/PowerShell/Microsoft.PowerShell_profile.Tests.ps1`. Se ejecutan con la última versión de Pester (6.x) y siguen siendo compatibles con Pester 5. No agregar scripts de test con asserts propios.
+- Los scripts que ejecutan lógica al cargarse (`setup.ps1`, el profile) no se dot-sourcean completos: el `BeforeAll` del test extrae sus funciones con el AST y las dot-sourcea en el scope del test. Los CLIs externos (`winget`, `scoop`, `ghq`, etc.) se declaran como funciones vacías para poder mockearlos aunque no estén instalados.
 - En tests nuevos o modificados, verificar mocks con `Should -Invoke`. No usar `Assert-MockCalled` ni `Assert-VerifiableMock`, que Pester 6 eliminó.
 - Si no hay `pwsh`, bajarlo portable a `/tmp` siguiendo "Validación de PowerShell y Oh My Posh sin instalación".
 - Pester se descarga desde PowerShell Gallery (`https://www.powershellgallery.com/packages/Pester`) con `Save-Module` a una carpeta temporal. No usar `Install-Module`, que lo instala en el perfil del usuario.
@@ -122,7 +123,7 @@ PSModulePath=/tmp/psmodules /tmp/pwsh-portable/pwsh -NoProfile -c '
 Import-Module Pester
 "Pester $((Get-Module Pester).Version)"
 $config = New-PesterConfiguration
-$config.Run.Path = "scripts/dotfiler/dotfiler.ps1.Tests.ps1"
+$config.Run.Path = @("scripts/dotfiler/dotfiler.ps1.Tests.ps1", "scripts/setup/setup.ps1.Tests.ps1", "configs/PowerShell/Microsoft.PowerShell_profile.Tests.ps1")
 $config.Run.PassThru = $true
 $config.Output.Verbosity = "None"
 $result = Invoke-Pester -Configuration $config
