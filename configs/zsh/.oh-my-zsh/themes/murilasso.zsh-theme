@@ -151,7 +151,53 @@ _murilasso_refresh_ci() {
 
 (( ${precmd_functions[(Ie)_murilasso_refresh_ci]} )) || precmd_functions+=(_murilasso_refresh_ci)
 
-# === Node.js version (RPS1) ===
+# === Last command status and duration ===
+# Captured by the first precmd hook: later hooks overwrite $? with their own status.
+typeset -g _MURILASSO_LAST_STATUS=0
+typeset -g _MURILASSO_CMD_START=""
+typeset -g _MURILASSO_DURATION_SEG=""
+typeset -gi _MURILASSO_DURATION_THRESHOLD_SECONDS=3
+typeset -gi _MURILASSO_SIGNAL_STATUS_OFFSET=128
+
+zmodload -F zsh/datetime p:EPOCHREALTIME 2>/dev/null
+
+_murilasso_capture_status() {
+  _MURILASSO_LAST_STATUS=$?
+}
+
+_murilasso_start_timer() {
+  _MURILASSO_CMD_START=$EPOCHREALTIME
+}
+
+# Sets REPLY to a compact duration: 4.2s, 3m07s, 1h02m.
+_murilasso_format_duration() {
+  local -F elapsed_seconds=$1
+  local -i whole_seconds=$(( elapsed_seconds ))
+  if (( whole_seconds < 60 )); then
+    printf -v REPLY '%.1fs' "$elapsed_seconds"
+  elif (( whole_seconds < 3600 )); then
+    printf -v REPLY '%dm%02ds' $(( whole_seconds / 60 )) $(( whole_seconds % 60 ))
+  else
+    printf -v REPLY '%dh%02dm' $(( whole_seconds / 3600 )) $(( whole_seconds % 3600 / 60 ))
+  fi
+}
+
+_murilasso_refresh_duration() {
+  _MURILASSO_DURATION_SEG=""
+  # Empty Enter does not run preexec, so there is no start mark to measure.
+  [[ -z "$_MURILASSO_CMD_START" || -z "$EPOCHREALTIME" ]] && return
+  local -F elapsed_seconds=$(( EPOCHREALTIME - _MURILASSO_CMD_START ))
+  _MURILASSO_CMD_START=""
+  (( elapsed_seconds < _MURILASSO_DURATION_THRESHOLD_SECONDS )) && return
+  _murilasso_format_duration "$elapsed_seconds"
+  _MURILASSO_DURATION_SEG="%F{yellow}⏱ ${REPLY}%f"
+}
+
+precmd_functions=(_murilasso_capture_status ${precmd_functions:#_murilasso_capture_status})
+(( ${preexec_functions[(Ie)_murilasso_start_timer]} )) || preexec_functions+=(_murilasso_start_timer)
+(( ${precmd_functions[(Ie)_murilasso_refresh_duration]} )) || precmd_functions+=(_murilasso_refresh_duration)
+
+# === Node.js version (right prompt) ===
 typeset -g _MURILASSO_NODE_BIN=""
 typeset -g _MURILASSO_NODE_VERSION=""
 typeset -g _MURILASSO_NODE_SEG=""
@@ -215,8 +261,7 @@ _murilasso_refresh_node() {
     fi
   fi
 
-  _MURILASSO_NODE_SEG="${version_seg}  "
-  RPS1="${_MURILASSO_NODE_SEG}%(?..%F{red}%? ↵%f)"
+  _MURILASSO_NODE_SEG="${version_seg}"
 }
 
 (( ${precmd_functions[(Ie)_murilasso_refresh_node]} )) || precmd_functions+=(_murilasso_refresh_node)
@@ -276,6 +321,170 @@ _murilasso_git_segment() {
   print -P " — %{${branch_color}%}${display_branch}%{$reset_color%} ${dirty_marker}${pr_seg}"
 }
 
+# === Git info segment ===
+typeset -g _MURILASSO_GIT_SEG=""
+
+# Sets REPLY to the per-worktree git dir without spawning git (worktrees and
+# submodules use a `.git` file that points to the real directory).
+_murilasso_resolve_git_dir() {
+  REPLY=""
+  if [[ -n "$GIT_DIR" ]]; then
+    REPLY="${GIT_DIR:A}"
+    return
+  fi
+  local dot_git="$_MURILASSO_GIT_REPO/.git"
+  if [[ -d "$dot_git" ]]; then
+    REPLY="$dot_git"
+  elif [[ -f "$dot_git" ]]; then
+    local gitdir_line
+    IFS= read -r gitdir_line < "$dot_git"
+    REPLY="${gitdir_line#gitdir: }"
+    [[ "$REPLY" != /* ]] && REPLY="$_MURILASSO_GIT_REPO/$REPLY"
+  fi
+}
+
+# Sets REPLY to the in-progress operation (rebase with step, merge, ...) or "".
+_murilasso_git_operation() {
+  local git_dir="$1"
+  REPLY=""
+  [[ -z "$git_dir" ]] && return
+  if [[ -d "$git_dir/rebase-merge" || -d "$git_dir/rebase-apply" ]]; then
+    local step_dir="$git_dir/rebase-merge" step_file="msgnum" total_file="end"
+    [[ -d "$step_dir" ]] || { step_dir="$git_dir/rebase-apply"; step_file="next"; total_file="last"; }
+    REPLY="REBASE"
+    if [[ -f "$step_dir/$step_file" && -f "$step_dir/$total_file" ]]; then
+      REPLY+=" $(<"$step_dir/$step_file")/$(<"$step_dir/$total_file")"
+    fi
+  elif [[ -f "$git_dir/MERGE_HEAD" ]]; then
+    REPLY="MERGE"
+  elif [[ -f "$git_dir/CHERRY_PICK_HEAD" ]]; then
+    REPLY="CHERRY-PICK"
+  elif [[ -f "$git_dir/REVERT_HEAD" ]]; then
+    REPLY="REVERT"
+  elif [[ -f "$git_dir/BISECT_LOG" ]]; then
+    REPLY="BISECT"
+  fi
+}
+
+# Sets REPLY to the stash entry count, read from the reflog (no git process).
+_murilasso_git_stash_count() {
+  local git_dir="$1"
+  REPLY=0
+  [[ -z "$git_dir" ]] && return
+  local common_dir="$git_dir"
+  if [[ -f "$git_dir/commondir" ]]; then
+    common_dir="$(<"$git_dir/commondir")"
+    [[ "$common_dir" != /* ]] && common_dir="$git_dir/$common_dir"
+  fi
+  local stash_log="$common_dir/logs/refs/stash"
+  [[ -s "$stash_log" ]] || return
+  local -a stash_entries=("${(@f)$(<"$stash_log")}")
+  REPLY=${#stash_entries}
+}
+
+_murilasso_pr_segment() {
+  REPLY=""
+  [[ -z "$_MURILASSO_PR_URL" ]] && return
+
+  local pr_number="${_MURILASSO_PR_URL##*/}"
+  local osc8_open=$'\e]8;;'"${_MURILASSO_PR_URL}"$'\a'
+  local osc8_close=$'\e]8;;\a'
+  local pr_icon pr_color
+  case "$_MURILASSO_PR_STATE" in
+    OPEN)   pr_icon="○"  pr_color="green" ;;
+    MERGED) pr_icon="⊕"  pr_color="magenta" ;;
+    CLOSED) pr_icon="⊗"  pr_color="red" ;;
+    *)      pr_icon="⎇"  pr_color="yellow" ;;
+  esac
+
+  local ci_marker
+  case "$_MURILASSO_PR_CI" in
+    SUCCESS) ci_marker="%F{green}✔%f" ;;
+    FAILURE) ci_marker="%F{red}✗%f" ;;
+    PENDING) ci_marker="%F{yellow}●%f" ;;
+    *)       ci_marker="%F{white}◦%f" ;;
+  esac
+
+  REPLY=" %F{242}—%f %{${osc8_open}%}%F{${pr_color}}${pr_icon} #${pr_number}%f%{${osc8_close}%} ${ci_marker}"
+}
+
+_murilasso_refresh_git_segment() {
+  _MURILASSO_GIT_SEG=""
+  local branch="$_MURILASSO_GIT_BRANCH"
+  [[ -z "$branch" ]] && return
+
+  # One call for dirty state, counters, upstream and HEAD sha: with --branch,
+  # porcelain v2 prints "# branch.upstream" without "# branch.ab" when the
+  # upstream branch is gone.
+  local status_output
+  status_output=$(git status --porcelain=v2 --branch 2>/dev/null)
+  local -a status_lines=("${(@f)status_output}")
+
+  local head_oid="" upstream_name="" has_ahead_behind=0
+  local -i ahead=0 behind=0 staged=0 modified=0 untracked=0 conflicted=0
+  local status_line entry_state
+  for status_line in "${status_lines[@]}"; do
+    case "$status_line" in
+      "# branch.oid "*)      head_oid="${status_line#\# branch.oid }" ;;
+      "# branch.upstream "*) upstream_name="${status_line#\# branch.upstream }" ;;
+      "# branch.ab "*)
+        has_ahead_behind=1
+        local -a ahead_behind=(${=${status_line#\# branch.ab }})
+        ahead=${ahead_behind[1]#+}
+        behind=${ahead_behind[2]#-}
+        ;;
+      [12]" "*)
+        entry_state="${status_line[3,4]}"
+        [[ "${entry_state[1]}" != "." ]] && (( staged++ ))
+        [[ "${entry_state[2]}" != "." ]] && (( modified++ ))
+        ;;
+      "u "*) (( conflicted++ )) ;;
+      "? "*) (( untracked++ )) ;;
+    esac
+  done
+
+  local branch_label
+  if [[ "$branch" == "HEAD" ]]; then
+    branch_label="%B%F{yellow}➦ ${head_oid[1,7]}%f%b"
+  else
+    local display_branch="$branch"
+    (( ${#branch} > 40 )) && display_branch="${branch[1,39]}…"
+    display_branch="${display_branch//\%/%%}"
+    local branch_color="blue"
+    [[ -n "$upstream_name" ]] && (( ! has_ahead_behind )) && branch_color="red"
+    branch_label="%B%F{${branch_color}}${display_branch}%f%b"
+  fi
+
+  local git_dir
+  _murilasso_resolve_git_dir
+  git_dir="$REPLY"
+
+  local operation_seg=""
+  _murilasso_git_operation "$git_dir"
+  [[ -n "$REPLY" ]] && operation_seg=" %B%F{magenta}${REPLY}%f%b"
+
+  local sync_seg=""
+  (( ahead )) && sync_seg+="%F{cyan}⇡${ahead}%f"
+  (( behind )) && sync_seg+="%F{cyan}⇣${behind}%f"
+  [[ -n "$sync_seg" ]] && sync_seg=" ${sync_seg}"
+
+  local changes_seg=""
+  (( conflicted )) && changes_seg+=" %B%F{red}=${conflicted}%f%b"
+  (( staged )) && changes_seg+=" %F{green}+${staged}%f"
+  (( modified )) && changes_seg+=" %F{yellow}!${modified}%f"
+  (( untracked )) && changes_seg+=" %F{244}?${untracked}%f"
+  [[ -z "$changes_seg" ]] && changes_seg=" %F{green}✔%f"
+
+  _murilasso_git_stash_count "$git_dir"
+  local stash_seg=""
+  (( REPLY )) && stash_seg=" %F{cyan}≡${REPLY}%f"
+
+  _murilasso_pr_segment
+  _MURILASSO_GIT_SEG=" %F{242}—%f ${branch_label}${operation_seg}${sync_seg}${changes_seg}${stash_seg}${REPLY}"
+}
+
+(( ${precmd_functions[(Ie)_murilasso_refresh_git_segment]} )) || precmd_functions+=(_murilasso_refresh_git_segment)
+
 # === Short path: always shows ~/last2 when under $HOME, or last2 otherwise ===
 typeset -g _MURILASSO_DIR=""
 
@@ -307,10 +516,50 @@ _murilasso_refresh_dir() {
 
 (( ${precmd_functions[(Ie)_murilasso_refresh_dir]} )) || precmd_functions+=(_murilasso_refresh_dir)
 
+# === Session context: SSH host, Python venv, read-only dir ===
+typeset -g _MURILASSO_CONTEXT_SEG=""
+# The theme renders the venv itself; avoid the duplicated "(venv)" prefix.
+export VIRTUAL_ENV_DISABLE_PROMPT=1
+
+_murilasso_refresh_context() {
+  local host_seg="" venv_seg="" readonly_seg=""
+  [[ -n "$SSH_CONNECTION$SSH_TTY" ]] && host_seg="%F{242}@%f%F{magenta}%m%f"
+  [[ -n "$VIRTUAL_ENV" ]] && venv_seg="%F{yellow}(${${VIRTUAL_ENV:t}//\%/%%})%f "
+  [[ -w "$PWD" ]] || readonly_seg=" %F{red}⊘%f"
+  _MURILASSO_CONTEXT_SEG="${venv_seg}%B%F{green}%n%f%b${host_seg}:%F{blue}${_MURILASSO_DIR//\%/%%}%f${readonly_seg}"
+}
+
+# === Right prompt: duration, node version, clock and exit status ===
+_murilasso_compose_rprompt() {
+  local -a right_segments=()
+  [[ -n "$_MURILASSO_DURATION_SEG" ]] && right_segments+=("$_MURILASSO_DURATION_SEG")
+  [[ -n "$_MURILASSO_NODE_SEG" ]] && right_segments+=("$_MURILASSO_NODE_SEG")
+
+  local -i last_status=$_MURILASSO_LAST_STATUS
+  if (( last_status )); then
+    local status_seg="%F{red}✘ ${last_status}"
+    local -i signal_number=$(( last_status - _MURILASSO_SIGNAL_STATUS_OFFSET ))
+    (( signal_number > 0 && signal_number < ${#signals} )) && \
+      status_seg+=" SIG${signals[signal_number + 1]}"
+    right_segments+=("${status_seg}%f")
+  fi
+
+  right_segments+=("%F{242}%D{%H:%M:%S}%f")
+  RPS1="${(j:  :)right_segments}"
+}
+
+# Order matters: the dir, context and prompt composition read state that
+# previous hooks refreshed in this same precmd cycle.
+(( ${precmd_functions[(Ie)_murilasso_refresh_context]} )) || precmd_functions+=(_murilasso_refresh_context)
+(( ${precmd_functions[(Ie)_murilasso_compose_rprompt]} )) || precmd_functions+=(_murilasso_compose_rprompt)
+
 # === Prompt ===
-PROMPT='%{$terminfo[bold]$fg[green]%}%n%{$reset_color%}:%{$fg[blue]%}${_MURILASSO_DIR}%{$reset_color%}$(_murilasso_git_segment)
-%B$%b '
-RPS1="%(?..%F{red}%? ↵%f)"
+# ╭─ (venv) user@host:~/../dir — branch ⇡1 +2 !1 ?3 ≡1 — ○ #123 ✔
+# ╰─ ✦1 ❯
+PROMPT='%F{242}╭─%f ${_MURILASSO_CONTEXT_SEG}${_MURILASSO_GIT_SEG}
+%F{242}╰─%f %(1j.%F{yellow}✦%j%f .)%(?.%F{green}.%F{red})%(!.#.❯)%f '
+PS2='%F{242}   %_ ›%f '
+RPS1=""
 
 ZSH_THEME_GIT_PROMPT_DIRTY=" %{$fg[red]%}✗%{$reset_color%}"
 ZSH_THEME_GIT_PROMPT_CLEAN=" %{$fg[green]%}✔%{$reset_color%}"

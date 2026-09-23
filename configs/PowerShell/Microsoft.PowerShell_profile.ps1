@@ -2495,7 +2495,7 @@ if ($psConsoleReadLineType) {
 # --- Prompt murilasso para Oh My Posh ----------------------------------------
 # Port del theme configs/zsh/.oh-my-zsh/themes/murilasso.zsh-theme. El render
 # vive en murilasso.omp.json; aca solo se replica el cacheo async de PR/CI via
-# `gh`, que Oh My Posh consume por env vars dentro de Set-PoshContext.
+# `gh` y el conteo de jobs del usuario, que Oh My Posh consume por env vars.
 
 # Intervalos de refresco en background (mismos valores que el theme zsh).
 $MURILASSO_PR_REFRESH_SECONDS = 30
@@ -2615,6 +2615,17 @@ function Update-MurilassoCiContext {
     }
 }
 
+# Jobs activos del usuario para el indicador ✦N. No se usa `.Jobs` de OMP
+# porque cuenta tambien los fetch internos `murilasso_fetch` de PR/CI.
+$MURILASSO_ACTIVE_JOB_STATES = @('NotStarted', 'Running', 'Suspended', 'Blocked', 'AtBreakpoint')
+
+function Update-MurilassoJobContext {
+    $userJobs = @(Get-Job -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -ne 'murilasso_fetch' -and $_.State -in $MURILASSO_ACTIVE_JOB_STATES
+        })
+    $env:MURILASSO_JOB_COUNT = [string]$userJobs.Count
+}
+
 # Mantiene actualizadas las env vars de PR/CI que consume murilasso.omp.json.
 function Update-MurilassoPromptContext {
     # Un solo spawn de git por render: rev-parse acepta ambos flags y devuelve
@@ -2723,12 +2734,24 @@ if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
         # de modo que las env vars ya esten seteadas cuando OMP renderiza.
         $global:MurilassoOmpPrompt = (Get-Command prompt).ScriptBlock
         function global:prompt {
+            # OMP lee `$?` y `$LASTEXITCODE` al entrar a su `prompt`, o sea
+            # despues del `git` del updater (que fuera de un repo deja 128). Se
+            # capturan antes y se devuelven: `$LASTEXITCODE` se restaura y `$?`
+            # viaja por NVS_ORIGINAL_LASTEXECUTIONSTATUS, el hook que OMP
+            # prioriza sobre `$?` cuando es bool.
+            $lastExecutionStatus = $?
+            $lastNativeExitCode = $global:LASTEXITCODE
+
             # El updater corre `git`/`gh`/`Start-Job` en cada render. Si una de
             # esas llamadas nativas lanza un error terminante (p.ej. queda un stop
             # pendiente tras un Ctrl+C), la excepcion escaparia de `prompt` y
             # PowerShell caeria a su prompt de fallback (`PS>`), perdiendo el theme.
             # Aislar el updater garantiza que siempre se delegue al render de OMP.
             try { Update-MurilassoPromptContext } catch { }
+            try { Update-MurilassoJobContext } catch { }
+
+            $global:NVS_ORIGINAL_LASTEXECUTIONSTATUS = $lastExecutionStatus
+            $global:LASTEXITCODE = $lastNativeExitCode
             & $global:MurilassoOmpPrompt
         }
     }
