@@ -363,39 +363,44 @@ inaccesible y permite que el sistema recupere su espacio.
 
 ## Salida en consola
 
-La salida agrupa las operaciones por carpeta destino y muestra una línea por
-enlace con un emoji, la acción, el nombre y el origen relativo a `configs/`.
+La salida usa solo ASCII (ver `scripts/AGENTS.md`), así funciona en cualquier
+terminal y fuente. Agrupa las operaciones por carpeta destino y muestra una
+línea por enlace con un ícono, la acción, el nombre y el origen relativo a
+`configs/`.
 
 ```text
-📁 ~/.claude/skills
-│ ✨ creado       new-skill                  → .agents/skills/my-skills/(meli)/new-skill
-│ 🔄 reemplazado  simplify                   → .agents/skills/my-skills/(code-quality)/(refactor)/simplify
-│ 🧹 eliminado    constants-refactor         (excluido por ~/.fury)
-╰─ 3 cambios · ✅ 38 sin cambios
+> ~/.claude/skills
+| + creado       new-skill                  -> .agents/skills/my-skills/(meli)/new-skill
+| ~ reemplazado  simplify                   -> .agents/skills/my-skills/(code-quality)/(refactor)/simplify
+| x eliminado    constants-refactor         (excluido por ~/.fury)
++- 3 cambios - = 38 sin cambios
 
-╭─ 📊 Resumen ───────────────────────────────────────────────────
-│ ✨ creados           1     🔄 reemplazados      1
-│ ✅ sin cambios      38     🧹 eliminados        1
-│ 💾 respaldos         0     ❌ errores           0
-├────────────────────────────────────────────────────────────────
-│ 🚀 aplicación real · ⌛ 12s · 🎉 Sin errores.
-╰────────────────────────────────────────────────────────────────
++- Resumen -----------------------------------------------------
+| + creados           1     ~ reemplazados      1
+| = sin cambios      38     x eliminados        1
+| < respaldos         0     x errores           0
++----------------------------------------------------------------
+| > aplicación real - 12s - = Sin errores.
++----------------------------------------------------------------
 ```
 
 - Los enlaces que ya apuntan al origen correcto no se recrean: se cuentan como
   `sin cambios`. Los grupos sin cambios se ocultan y, si nada cambió, se muestra
   `Todos los enlaces están al día`. En PowerShell, los hard links se recrean
   siempre porque Windows no permite comparar inodes a bajo costo.
+- En el resumen, cada contador mayor a cero se muestra en su color (creados
+  verde, reemplazados azul, sin cambios cian, eliminados magenta, respaldos
+  amarillo, errores rojo) y los ceros en gris.
 - `--verbose` lista también cada enlace sin cambios y el tiempo por operación.
 - `--quiet` oculta banner y grupos; deja resumen, avisos y errores.
-- `--plain` quita emojis y colores, pero conserva cajas y etiquetas.
-- Las cajas quedan abiertas a la derecha a propósito: el ancho de los emojis
-  varía entre terminales y un borde derecho quedaría desalineado.
-- Los errores se detallan al final en una caja `🩺 Diagnóstico` con destino y causa.
-- Mientras resuelve rutas (la fase más lenta) muestra un loader animado con
-  mensajes rotativos, barra `▰▰▱▱`, entrada actual y segundos; al enlazar
-  muestra `🔗 Enlazando N/total · nombre`. En PowerShell usa `Write-Progress`.
-  Solo aparece en terminales interactivas y sin `--quiet`; se controla con
+- `--plain` quita íconos y colores, pero conserva cajas y etiquetas.
+- Las cajas quedan abiertas a la derecha a propósito, para que cada fila pueda
+  tener cualquier ancho.
+- Los errores se detallan al final en una caja `Diagnóstico` con destino y causa.
+- Mientras resuelve rutas muestra un loader con spinner `| / - \`, mensajes
+  rotativos, barra `###...`, entrada actual y segundos; al enlazar muestra
+  `> Enlazando N/total - nombre`. En PowerShell usa `Write-Progress`. Solo
+  aparece en terminales interactivas y sin `--quiet`; se controla con
   `DOTFILER_PROGRESS=auto|always|never`.
 
 ## Reglas de validación del esquema
