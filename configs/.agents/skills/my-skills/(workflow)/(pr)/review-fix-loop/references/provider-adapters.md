@@ -11,9 +11,9 @@ Incluir target exacto, modo read-only, prohibición de editar/commit/push, prohi
 ```bash
 env ANTHROPIC_BASE_URL="http://localhost:4141" \
   ANTHROPIC_AUTH_TOKEN="dummy" \
-  ANTHROPIC_MODEL="gpt-6-luna[1m]" \
-  ANTHROPIC_DEFAULT_OPUS_MODEL="gpt-6-luna[1m]" \
-  ANTHROPIC_DEFAULT_SONNET_MODEL="gpt-6-luna[1m]" \
+  ANTHROPIC_MODEL="gpt-5.6-luna[1m]" \
+  ANTHROPIC_DEFAULT_OPUS_MODEL="gpt-5.6-luna[1m]" \
+  ANTHROPIC_DEFAULT_SONNET_MODEL="gpt-5.6-luna[1m]" \
   CLAUDE_CODE_USE_VERTEX=0 \
   CLAUDE_CODE_USE_BEDROCK=0 \
   DISABLE_NON_ESSENTIAL_MODEL_CALLS=1 \
@@ -23,7 +23,7 @@ env ANTHROPIC_BASE_URL="http://localhost:4141" \
   CLAUDE_CODE_ENABLE_AWAY_SUMMARY=0 \
   CLAUDE_CODE_TOTAL_TOKENS_REMINDER=off \
   MCP_CONNECT_TIMEOUT_MS=20000 \
-  CLAUDE_CODE_SUBAGENT_MODEL="gpt-6-luna[1m]" \
+  CLAUDE_CODE_SUBAGENT_MODEL="gpt-5.6-luna[1m]" \
   claude \
   --permission-mode plan \
   --tools Read,Grep,Glob,Bash \
