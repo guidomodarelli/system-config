@@ -4,6 +4,21 @@ autoload -U add-zsh-hook
 typeset -g _LOAD_NVMRC_LAST_DIR=""
 typeset -g _LOAD_NVMRC_LAST_VERSION=""
 
+# Versión de node activa sin lanzar `node -v` en cada cd: con NVM activo sale del
+# path del binario; si no, reusa la resolución cacheada del tema murilasso.
+_load_nvmrc_running_version() {
+  local node_bin="${NVM_BIN:+${NVM_BIN}/node}"
+  [[ -z "$node_bin" ]] && node_bin="${commands[node]}"
+  REPLY=""
+  [[ -n "$node_bin" ]] || return 0
+
+  if (( $+functions[_murilasso_resolve_node_version] )); then
+    _murilasso_resolve_node_version "$node_bin"
+  else
+    REPLY=$("$node_bin" -v 2>/dev/null)
+  fi
+}
+
 load_nvmrc() {
   [[ -f .nvmrc ]] || return 0
 
@@ -18,8 +33,8 @@ load_nvmrc() {
   _LOAD_NVMRC_LAST_VERSION="$required"
 
   local running
-  running=$(node -v 2>/dev/null)
-  running="${running#v}"
+  _load_nvmrc_running_version
+  running="${REPLY#v}"
 
   # Si la versión activa ya satisface lo que pide .nvmrc, no hacer nada
   [[ "$running" == "$required"* ]] && return 0
