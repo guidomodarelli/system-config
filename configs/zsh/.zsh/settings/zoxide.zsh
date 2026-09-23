@@ -5,7 +5,7 @@
 # Trade-off: al actualizar zoxide, el primer startup regenera el cache (~53ms) antes de
 # sourcing. Las sesiones siguientes vuelven a ser rápidas. No se pierden funcionalidades
 # nuevas: el cache siempre refleja la versión activa del binario.
-_ZOXIDE_BIN=$(command -v zoxide 2>/dev/null)
+_ZOXIDE_BIN="${commands[zoxide]}"
 
 if [[ -n "$_ZOXIDE_BIN" ]]; then
   _ZOXIDE_INIT_CACHE="${ZSH_CACHE_DIR:-$HOME/.cache/oh-my-zsh}/.zoxide_init.zsh"

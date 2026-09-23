@@ -28,6 +28,10 @@ paths:
     target: .oh-my-zsh/themes
     excludeFor:
       - platform: win32
+  - path: zsh/.oh-my-zsh/custom/plugins/fzf
+    target: .oh-my-zsh/custom/plugins
+    excludeFor:
+      - platform: win32
   - path: espanso
     target: .config
     excludeFor:

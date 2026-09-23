@@ -1,4 +1,9 @@
-CURRENT_OS=$(/usr/bin/uname)
+# $OSTYPE y $TTY los provee zsh: evitan lanzar uname y tty en cada arranque.
+case "$OSTYPE" in
+darwin*) CURRENT_OS="Darwin" ;;
+linux*) CURRENT_OS="Linux" ;;
+*) CURRENT_OS=$(/usr/bin/uname) ;;
+esac
 # Ensure PATH entries are unique (automatically removes duplicates).
 # -g is required because this file is sourced inside an anonymous function
 # in .zshrc — without it, the unique constraint stays local to that scope
@@ -17,7 +22,7 @@ export GOPATH="$HOME/go"
 export GOBIN="$GOPATH/bin"
 
 ### GPG
-export GPG_TTY=$(/usr/bin/tty)
+export GPG_TTY="${TTY:-$(/usr/bin/tty)}"
 
 ### pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"

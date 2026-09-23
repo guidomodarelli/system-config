@@ -1,3 +1,40 @@
+# === Git state shared by the prompt segments ===
+# One git call per prompt: branch and repository root, reused by the PR cache,
+# the git segment and the branch-change hook (hooks/git_branch_change.zsh).
+typeset -g _MURILASSO_GIT_BRANCH=""
+typeset -g _MURILASSO_GIT_REPO=""
+
+# Walks up from $PWD looking for a `.git` entry so non-repo dirs skip spawning git.
+_murilasso_inside_git_worktree() {
+  [[ -n "$GIT_DIR" ]] && return 0
+  local directory="$PWD"
+  while true; do
+    [[ -e "$directory/.git" ]] && return 0
+    [[ -z "$directory" || "$directory" == "/" ]] && return 1
+    directory="${directory%/*}"
+  done
+}
+
+_murilasso_refresh_git() {
+  local git_info
+  if ! _murilasso_inside_git_worktree; then
+    _MURILASSO_GIT_BRANCH=""
+    _MURILASSO_GIT_REPO=""
+    return
+  fi
+  git_info=$(git rev-parse --abbrev-ref HEAD --show-toplevel 2>/dev/null)
+  if [[ "$git_info" != *$'\n'* ]]; then
+    _MURILASSO_GIT_BRANCH=""
+    _MURILASSO_GIT_REPO=""
+    return
+  fi
+  _MURILASSO_GIT_BRANCH="${git_info%%$'\n'*}"
+  _MURILASSO_GIT_REPO="${git_info#*$'\n'}"
+}
+
+# Must run before every other prompt hook that reads the shared git state.
+precmd_functions=(_murilasso_refresh_git ${precmd_functions:#_murilasso_refresh_git})
+
 # === Async PR cache (URL + state) ===
 typeset -ga _MURILASSO_BASE_BRANCHES=(main master develop)
 typeset -g _MURILASSO_PR_URL=""
@@ -41,9 +78,8 @@ _murilasso_fetch_pr() {
 }
 
 _murilasso_refresh_pr() {
-  local branch repo
-  branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-  repo=$(git rev-parse --show-toplevel 2>/dev/null)
+  local branch="$_MURILASSO_GIT_BRANCH"
+  local repo="$_MURILASSO_GIT_REPO"
 
   if [[ -z "$branch" || "$branch" == "HEAD" || -z "$repo" ]]; then
     _MURILASSO_PR_URL=""
@@ -120,6 +156,27 @@ typeset -g _MURILASSO_NODE_BIN=""
 typeset -g _MURILASSO_NODE_VERSION=""
 typeset -g _MURILASSO_NODE_SEG=""
 
+# Sets REPLY to the version of a node binary without starting node when
+# possible (starting node takes ~100ms): nvm paths already contain the
+# version; other installs cache `node -v` per binary until it changes.
+_murilasso_resolve_node_version() {
+  local node_bin="$1"
+  if [[ "$node_bin" == */versions/node/v*/bin/node ]]; then
+    REPLY="${${node_bin%/bin/node}##*/}"
+    return
+  fi
+
+  local resolved_bin="${node_bin:A}"
+  local cache_file="${ZSH_CACHE_DIR:-$HOME/.cache/oh-my-zsh}/.murilasso_node_version_${resolved_bin//\//_}"
+  if [[ -f "$cache_file" && "$cache_file" -nt "$resolved_bin" ]]; then
+    REPLY="$(<"$cache_file")"
+    return
+  fi
+
+  REPLY=$("$node_bin" -v 2>/dev/null)
+  [[ -n "$REPLY" ]] && print -r -- "$REPLY" >| "$cache_file" 2>/dev/null
+}
+
 _murilasso_refresh_node() {
   # NVM_BIN cambia inmediatamente con `nvm use`; fallback a whence para setups sin NVM
   local node_bin="${NVM_BIN:+${NVM_BIN}/node}"
@@ -132,10 +189,11 @@ _murilasso_refresh_node() {
     return
   fi
 
-  # Solo llama node -v cuando cambia el binario (ej. nvm use)
+  # Solo resuelve la versión cuando cambia el binario (ej. nvm use)
   if [[ "$node_bin" != "$_MURILASSO_NODE_BIN" ]]; then
     _MURILASSO_NODE_BIN="$node_bin"
-    _MURILASSO_NODE_VERSION=$(node -v 2>/dev/null)
+    _murilasso_resolve_node_version "$node_bin"
+    _MURILASSO_NODE_VERSION="$REPLY"
   fi
 
   # Busca .nvmrc subiendo desde PWD
@@ -165,12 +223,19 @@ _murilasso_refresh_node() {
 
 # === Git info segment ===
 _murilasso_git_segment() {
-  local branch
-  branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  local branch="$_MURILASSO_GIT_BRANCH"
   [[ -z "$branch" || "$branch" == "HEAD" ]] && return
 
+  # One call for both the dirty state and the upstream: with --branch,
+  # porcelain v2 prints "# branch.upstream" without "# branch.ab" when the
+  # upstream branch is gone.
+  local status_output
+  status_output=$(git status --porcelain=v2 --branch 2>/dev/null)
+  local -a status_lines=("${(@f)status_output}")
+  local -a changed_lines=(${status_lines:#\#*})
+
   local dirty_marker
-  if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+  if (( ${#changed_lines} )); then
     dirty_marker="%{$fg[red]%}✗%{$reset_color%}"
   else
     dirty_marker="%{$fg[green]%}✔%{$reset_color%}"
@@ -180,9 +245,9 @@ _murilasso_git_segment() {
   (( ${#branch} > 40 )) && display_branch="${branch[1,39]}…"
 
   local branch_color="$terminfo[bold]$fg[blue]"
-  local upstream_track
-  upstream_track=$(git for-each-ref --format='%(upstream:track)' "refs/heads/${branch}" 2>/dev/null)
-  [[ "$upstream_track" == *"gone"* ]] && branch_color="$terminfo[bold]$fg[red]"
+  if (( ${status_lines[(I)\# branch.upstream *]} )) && ! (( ${status_lines[(I)\# branch.ab *]} )); then
+    branch_color="$terminfo[bold]$fg[red]"
+  fi
 
   local pr_seg=""
   if [[ -n "$_MURILASSO_PR_URL" ]]; then

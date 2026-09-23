@@ -64,16 +64,24 @@ generate_completions() {
 #   - el cache no existe (primera vez)
 #   - se agrega un archivo _* nuevo (mtime del archivo > mtime del cache)
 #   - se modifica un archivo _* existente (idem, modificar cambia el mtime)
-# find -newer sale al primer match → ~1ms cuando no hay cambios.
+# Sin cambios, find -newer igual recorre todo el árbol (~40ms), así que el chequeo
+# se limita a una vez cada COMPLETIONS_DIRS_CHECK_INTERVAL_MINUTES: un stamp
+# registra el último chequeo limpio. Archivos _* nuevos se detectan en el próximo
+# chequeo (o al instante con zsh_reload_completions).
 # Para forzar regeneración manual: rm "$_COMPLETIONS_DIRS_CACHE"
 _COMPLETIONS_DIRS_CACHE="${ZSH_CACHE_DIR:-$HOME/.cache/oh-my-zsh}/.custom_completion_dirs"
+_COMPLETIONS_DIRS_CHECK_STAMP="${_COMPLETIONS_DIRS_CACHE}.checked"
+COMPLETIONS_DIRS_CHECK_INTERVAL_MINUTES=60
 
 _completion_dirs_cache_stale() {
   [[ ! -f "$_COMPLETIONS_DIRS_CACHE" ]] && return 0
+  local -a recent_check_stamp=("$_COMPLETIONS_DIRS_CHECK_STAMP"(Nmm-$COMPLETIONS_DIRS_CHECK_INTERVAL_MINUTES))
+  (( ${#recent_check_stamp} )) && return 1
   local root
   for root in "${(@s/:/)ZSH_COMPLETION_SEARCH_ROOTS}"; do
     [[ -n "$(find -L "$root" -name '_*' -newer "$_COMPLETIONS_DIRS_CACHE" -print -quit 2>/dev/null)" ]] && return 0
   done
+  : >| "$_COMPLETIONS_DIRS_CHECK_STAMP"
   return 1
 }
 
@@ -91,7 +99,7 @@ fpath=(/usr/local/share/zsh-completions "$HOME/system-config/third-party/zsh-com
 # (~400ms extra) porque _comps ya estaba seteado cuando este archivo se sourceable.
 # Para recargar completions manualmente en una sesión activa usar: zsh_reload_completions
 zsh_reload_completions() {
-  rm -f "$_COMPLETIONS_DIRS_CACHE"
+  rm -f "$_COMPLETIONS_DIRS_CACHE" "$_COMPLETIONS_DIRS_CHECK_STAMP"
   autoload -Uz compinit
   compinit -i -d "${ZSH_COMPDUMP:-${ZSH_CACHE_DIR:-$HOME/.cache/oh-my-zsh}/zcompdump-$HOST-$ZSH_VERSION}" >/dev/null 2>&1
   echo "Completions reloaded."
