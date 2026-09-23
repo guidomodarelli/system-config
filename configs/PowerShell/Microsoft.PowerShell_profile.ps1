@@ -17,34 +17,55 @@
 # disco y lo regeneran solo cuando cambia el fingerprint (primera línea del
 # archivo). Definidos antes de cualquier init (zoxide, codex, oh-my-posh).
 
-# Path estable del ejecutable de un comando: si su directorio es un link (p.ej.
-# los multishell dirs por sesión de fnm), se resuelve al directorio real para
-# que el fingerprint no cambie entre sesiones.
-function Get-StableExecutablePath {
+# Ejecutable real detrás de un comando. Los shims de scoop son un .exe genérico
+# con un `<nombre>.shim` al lado (`path = "..."`); sin seguirlo, un
+# `scoop update` no cambiaría el fingerprint. Usa APIs .NET porque Get-Item
+# y Get-Content cuestan ~10 ms en su primer uso durante el arranque.
+function Get-ExecutableTargetInfo {
     param([Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo)
 
-    $executableItem = Get-Item -LiteralPath $CommandInfo.Source -ErrorAction SilentlyContinue
-    if (-not $executableItem) {
-        return $CommandInfo.Source
-    }
-
-    $executableDirectoryItem = $executableItem.Directory
-    if ($executableDirectoryItem -and $executableDirectoryItem.LinkType) {
-        $resolvedDirectory = $executableDirectoryItem.ResolveLinkTarget($true)
-        if ($resolvedDirectory) {
-            return (Join-Path $resolvedDirectory.FullName $executableItem.Name)
+    $executableInfo = [System.IO.FileInfo]::new($CommandInfo.Source)
+    $shimFilePath = [System.IO.Path]::ChangeExtension($executableInfo.FullName, '.shim')
+    if ([System.IO.File]::Exists($shimFilePath)) {
+        foreach ($shimLine in [System.IO.File]::ReadAllLines($shimFilePath)) {
+            if ($shimLine -match '^\s*path\s*=\s*"?([^"]+)"?\s*$') {
+                $shimTargetInfo = [System.IO.FileInfo]::new($Matches[1])
+                if ($shimTargetInfo.Exists) { return $shimTargetInfo }
+            }
         }
     }
 
-    return $executableItem.FullName
+    return $executableInfo
+}
+
+# Path estable del ejecutable de un comando: si su directorio es un link (p.ej.
+# los multishell dirs por sesión de fnm o `current` de scoop), se resuelve al
+# directorio real para que el fingerprint no cambie entre sesiones.
+function Get-StableExecutablePath {
+    param([Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo)
+
+    $executableInfo = Get-ExecutableTargetInfo -CommandInfo $CommandInfo
+    if (-not $executableInfo.Exists) {
+        return $CommandInfo.Source
+    }
+
+    $executableDirectoryInfo = $executableInfo.Directory
+    if ($executableDirectoryInfo -and $executableDirectoryInfo.LinkTarget) {
+        $resolvedDirectory = $executableDirectoryInfo.ResolveLinkTarget($true)
+        if ($resolvedDirectory) {
+            return [System.IO.Path]::Combine($resolvedDirectory.FullName, $executableInfo.Name)
+        }
+    }
+
+    return $executableInfo.FullName
 }
 
 # Fingerprint "path estable|mtime ticks" del ejecutable de un comando.
 function Get-ExecutableFingerprint {
     param([Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo)
 
-    $executableItem = Get-Item -LiteralPath $CommandInfo.Source -ErrorAction SilentlyContinue
-    $executableTicks = if ($executableItem) { $executableItem.LastWriteTimeUtc.Ticks } else { 0 }
+    $executableInfo = Get-ExecutableTargetInfo -CommandInfo $CommandInfo
+    $executableTicks = if ($executableInfo.Exists) { $executableInfo.LastWriteTimeUtc.Ticks } else { 0 }
     return '{0}|{1}' -f (Get-StableExecutablePath -CommandInfo $CommandInfo), $executableTicks
 }
 
@@ -60,8 +81,15 @@ function Get-CachedInitScriptPath {
     )
 
     $fingerprintLine = "# init-script-fingerprint $Fingerprint"
-    $cacheIsFresh = (Test-Path -LiteralPath $CachePath) -and
-        ((Get-Content -LiteralPath $CachePath -TotalCount 1) -eq $fingerprintLine)
+    $cacheIsFresh = $false
+    if ([System.IO.File]::Exists($CachePath)) {
+        $cacheReader = [System.IO.StreamReader]::new($CachePath)
+        try {
+            $cacheIsFresh = $cacheReader.ReadLine() -eq $fingerprintLine
+        } finally {
+            $cacheReader.Dispose()
+        }
+    }
 
     if (-not $cacheIsFresh) {
         $scriptText = (& $GenerateScriptText)
@@ -1978,8 +2006,10 @@ function Set-PSReadLineAcceptSuggestionKeyHandler {
 #  ██████  ██   ██  ██████
 #                      ▀▀
 
+# La huella de Get-GhqRootFingerprint invalida la lista al clonar o borrar repos,
+# así que el TTL solo acota cambios que la huella no detecta (por ejemplo, git init anidado).
 if (-not $script:GhqSelectionCacheTtlSeconds) {
-    $script:GhqSelectionCacheTtlSeconds = 10
+    $script:GhqSelectionCacheTtlSeconds = 300
 }
 
 $script:GhqCommandInfoCache = $null
@@ -2057,21 +2087,6 @@ function Get-GhqRepositoryScanExcludedDirectoryNames {
     return @($excludedDirectoryNames)
 }
 
-function Test-ShouldSkipGhqScanDirectory {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$DirectoryName
-    )
-
-    foreach ($excludedName in $script:GhqRepositoryScanExcludedDirectoryNames) {
-        if ($DirectoryName -ieq $excludedName) {
-            return $true
-        }
-    }
-
-    return $false
-}
-
 function Test-IsReparsePointDirectory {
     param(
         [Parameter(Mandatory = $true)]
@@ -2091,21 +2106,10 @@ function Test-IsBareGitRepositoryDirectory {
         [string]$DirectoryPath
     )
 
-    $headFilePath = Join-Path $DirectoryPath 'HEAD'
-    $objectsDirectoryPath = Join-Path $DirectoryPath 'objects'
-    $refsDirectoryPath = Join-Path $DirectoryPath 'refs'
-
-    if (-not (Test-Path -LiteralPath $headFilePath -PathType Leaf)) {
-        return $false
-    }
-    if (-not (Test-Path -LiteralPath $objectsDirectoryPath -PathType Container)) {
-        return $false
-    }
-    if (-not (Test-Path -LiteralPath $refsDirectoryPath -PathType Container)) {
-        return $false
-    }
-
-    return $true
+    # APIs .NET directas: Test-Path/Join-Path pesan demasiado cuando se llaman por cada directorio escaneado.
+    return [System.IO.File]::Exists([System.IO.Path]::Combine($DirectoryPath, 'HEAD')) -and
+        [System.IO.Directory]::Exists([System.IO.Path]::Combine($DirectoryPath, 'objects')) -and
+        [System.IO.Directory]::Exists([System.IO.Path]::Combine($DirectoryPath, 'refs'))
 }
 
 function Test-IsGitRepositoryDirectory {
@@ -2114,32 +2118,26 @@ function Test-IsGitRepositoryDirectory {
         [string]$DirectoryPath
     )
 
-    if (Test-Path -LiteralPath (Join-Path $DirectoryPath '.git')) {
+    $gitEntryPath = [System.IO.Path]::Combine($DirectoryPath, '.git')
+    if ([System.IO.Directory]::Exists($gitEntryPath) -or [System.IO.File]::Exists($gitEntryPath)) {
         return $true
     }
 
     return (Test-IsBareGitRepositoryDirectory -DirectoryPath $DirectoryPath)
 }
 
-function Get-RelativePathCompat {
+function Get-ChildDirectoryInfos {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$BasePath,
-        [Parameter(Mandatory = $true)]
-        [string]$TargetPath
+        [System.IO.DirectoryInfo]$DirectoryInfo
     )
 
-    if ([System.IO.Path].GetMethod('GetRelativePath', [type[]]@([string], [string]))) {
-        return [System.IO.Path]::GetRelativePath($BasePath, $TargetPath)
+    # Equivalente rápido de Get-ChildItem -Directory -ErrorAction SilentlyContinue.
+    try {
+        return @($DirectoryInfo.GetDirectories())
+    } catch {
+        return @()
     }
-
-    $resolvedBasePath = (Resolve-Path -LiteralPath $BasePath).Path.TrimEnd('\', '/')
-    $resolvedTargetPath = (Resolve-Path -LiteralPath $TargetPath).Path
-
-    $baseUri = New-Object System.Uri(($resolvedBasePath -replace '\\', '/') + '/')
-    $targetUri = New-Object System.Uri(($resolvedTargetPath -replace '\\', '/'))
-    $relativeUri = $baseUri.MakeRelativeUri($targetUri).ToString()
-    return [System.Uri]::UnescapeDataString($relativeUri) -replace '/', '\'
 }
 
 function Get-GhqRootFingerprint {
@@ -2147,13 +2145,13 @@ function Get-GhqRootFingerprint {
         [string]$RootPath
     )
 
-    if ([string]::IsNullOrWhiteSpace($RootPath) -or -not (Test-Path -LiteralPath $RootPath)) {
+    if ([string]::IsNullOrWhiteSpace($RootPath) -or -not [System.IO.Directory]::Exists($RootPath)) {
         return $null
     }
 
     try {
-        $rootDirectoryItem = Get-Item -LiteralPath $RootPath -ErrorAction Stop
-        $topLevelDirectories = @(Get-ChildItem -LiteralPath $RootPath -Directory -ErrorAction SilentlyContinue)
+        $rootDirectoryItem = [System.IO.DirectoryInfo]::new($RootPath)
+        $topLevelDirectories = @(Get-ChildDirectoryInfos -DirectoryInfo $rootDirectoryItem)
         $topLevelDirectoryCount = $topLevelDirectories.Count
         $secondLevelDirectoryCount = 0
         $maxObservedTicks = $rootDirectoryItem.LastWriteTimeUtc.Ticks
@@ -2163,7 +2161,7 @@ function Get-GhqRootFingerprint {
                 $maxObservedTicks = $directoryTicks
             }
 
-            $secondLevelDirectories = @(Get-ChildItem -LiteralPath $directory.FullName -Directory -ErrorAction SilentlyContinue)
+            $secondLevelDirectories = @(Get-ChildDirectoryInfos -DirectoryInfo $directory)
             $secondLevelDirectoryCount += $secondLevelDirectories.Count
             foreach ($secondLevelDirectory in $secondLevelDirectories) {
                 $secondLevelDirectoryTicks = $secondLevelDirectory.LastWriteTimeUtc.Ticks
@@ -2195,32 +2193,33 @@ function Get-CachedGhqRepositoryList {
     $script:GhqRepositoryScanExcludedDirectoryNames = Get-GhqRepositoryScanExcludedDirectoryNames
     $repoItems = [System.Collections.Generic.List[string]]::new()
     $repoItemSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    if (-not [string]::IsNullOrWhiteSpace($ghqRootPath) -and (Test-Path -LiteralPath $ghqRootPath)) {
+    if (-not [string]::IsNullOrWhiteSpace($ghqRootPath) -and [System.IO.Directory]::Exists($ghqRootPath)) {
         try {
-            $pendingDirectories = [System.Collections.Generic.Stack[string]]::new()
-            foreach ($directory in (Get-ChildItem -LiteralPath $ghqRootPath -Directory -ErrorAction SilentlyContinue)) {
-                if (Test-ShouldSkipGhqScanDirectory -DirectoryName $directory.Name) { continue }
-                if (Test-IsReparsePointDirectory -DirectoryInfo $directory) { continue }
-                $pendingDirectories.Push($directory.FullName)
-            }
+            $excludedDirectoryNameSet = [System.Collections.Generic.HashSet[string]]::new(
+                [string[]]$script:GhqRepositoryScanExcludedDirectoryNames,
+                [System.StringComparer]::OrdinalIgnoreCase
+            )
+            $rootDirectoryInfo = [System.IO.DirectoryInfo]::new($ghqRootPath)
+            # Todas las rutas escaneadas cuelgan del root, así que la relativa sale de recortar su prefijo.
+            $rootPrefixLength = $rootDirectoryInfo.FullName.TrimEnd('\', '/').Length + 1
+            $pendingDirectories = [System.Collections.Generic.Stack[System.IO.DirectoryInfo]]::new()
+            $pendingDirectories.Push($rootDirectoryInfo)
 
             while ($pendingDirectories.Count -gt 0) {
-                $currentDirectoryPath = $pendingDirectories.Pop()
-                if (Test-IsGitRepositoryDirectory -DirectoryPath $currentDirectoryPath) {
-                    $relativePath = Get-RelativePathCompat -BasePath $ghqRootPath -TargetPath $currentDirectoryPath
-                    if (-not [string]::IsNullOrWhiteSpace($relativePath) -and $relativePath -ne '.') {
-                        $normalizedRelativePath = ($relativePath -replace '\\', '/')
-                        if ($repoItemSet.Add($normalizedRelativePath)) {
-                            $repoItems.Add($normalizedRelativePath)
-                        }
+                $currentDirectory = $pendingDirectories.Pop()
+                $isRootDirectory = [object]::ReferenceEquals($currentDirectory, $rootDirectoryInfo)
+                if (-not $isRootDirectory -and (Test-IsGitRepositoryDirectory -DirectoryPath $currentDirectory.FullName)) {
+                    $normalizedRelativePath = $currentDirectory.FullName.Substring($rootPrefixLength).Replace('\', '/')
+                    if ($repoItemSet.Add($normalizedRelativePath)) {
+                        $repoItems.Add($normalizedRelativePath)
                     }
                     continue
                 }
 
-                foreach ($childDirectory in (Get-ChildItem -LiteralPath $currentDirectoryPath -Directory -ErrorAction SilentlyContinue)) {
-                    if (Test-ShouldSkipGhqScanDirectory -DirectoryName $childDirectory.Name) { continue }
+                foreach ($childDirectory in @(Get-ChildDirectoryInfos -DirectoryInfo $currentDirectory)) {
+                    if ($excludedDirectoryNameSet.Contains($childDirectory.Name)) { continue }
                     if (Test-IsReparsePointDirectory -DirectoryInfo $childDirectory) { continue }
-                    $pendingDirectories.Push($childDirectory.FullName)
+                    $pendingDirectories.Push($childDirectory)
                 }
             }
         } catch {
@@ -2259,6 +2258,18 @@ function Get-CachedGhqRootPath {
     $isFresh = Test-CacheEntryIsFresh -Timestamp $script:GhqRootCacheTimestamp -TtlSeconds $script:GhqSelectionCacheTtlSeconds
     if ($isFresh -and -not [string]::IsNullOrWhiteSpace($script:GhqRootCache)) {
         return $script:GhqRootCache
+    }
+
+    # Con GHQ_ROOT definido, `ghq root` devuelve su primera entrada; leerla evita lanzar el proceso.
+    # Las rutas relativas o con `~` quedan para ghq, que sabe expandirlas.
+    $environmentGhqRoot = [Environment]::GetEnvironmentVariable('GHQ_ROOT')
+    if (-not [string]::IsNullOrWhiteSpace($environmentGhqRoot)) {
+        $primaryEnvironmentRoot = ($environmentGhqRoot -split [regex]::Escape([System.IO.Path]::PathSeparator))[0].Trim()
+        if ([System.IO.Path]::IsPathRooted($primaryEnvironmentRoot)) {
+            $script:GhqRootCache = $primaryEnvironmentRoot
+            $script:GhqRootCacheTimestamp = [datetime]::UtcNow
+            return $script:GhqRootCache
+        }
     }
 
     $ghqCommand = Get-CachedGhqCommandInfo
@@ -2501,6 +2512,8 @@ if ($psConsoleReadLineType) {
 # Intervalos de refresco en background (mismos valores que el theme zsh).
 $MURILASSO_PR_REFRESH_SECONDS = 30
 $MURILASSO_CI_REFRESH_SECONDS = 120
+# Tiempo máximo de un fetch de `gh` antes de matarlo y permitir reintentos.
+$MURILASSO_GH_FETCH_TIMEOUT_SECONDS = 60
 
 # Estado in-memory para evitar lanzar fetches en cada render del prompt.
 $global:MurilassoPromptState = @{
@@ -2518,10 +2531,15 @@ function Get-MurilassoCachePath {
     return Join-Path ([System.IO.Path]::GetTempPath()) (".murilasso_{0}_{1}" -f $Kind, $safeKey)
 }
 
-# Lanza `gh` en un background job (proceso hijo aislado; no bloquea el prompt)
-# y vuelca el resultado al archivo de cache. Se usa Start-Job en vez de
-# Start-ThreadJob porque `gh` no resuelve bien su contexto (auth/repo) desde un
-# hilo secundario del mismo proceso. Limpia jobs ya terminados para no acumular.
+# Fetches de `gh` en curso. Cada entrada guarda el proceso, sus lecturas async
+# de stdout/stderr y a qué archivo de cache volcar el resultado.
+$global:MurilassoPendingGhFetches = [System.Collections.Generic.List[hashtable]]::new()
+
+# Lanza `gh` como proceso hijo sin esperarlo (~5 ms). Start-Job bloqueaba el
+# prompt ~200 ms por llamada porque arranca un pwsh completo. WorkingDirectory
+# da a `gh` el contexto del repo, que no resolvía bien desde un hilo del mismo
+# proceso (por eso no se usa Start-ThreadJob). El resultado se recoge en
+# Complete-MurilassoGhFetches durante un render posterior.
 function Start-MurilassoGhFetch {
     param(
         [string]$Repo,
@@ -2530,23 +2548,73 @@ function Start-MurilassoGhFetch {
         [string[]]$FallbackGhArgs = @()
     )
 
-    Get-Job -Name 'murilasso_fetch' -ErrorAction SilentlyContinue |
-        Where-Object { $_.State -in 'Completed', 'Failed', 'Stopped' } |
-        Remove-Job -Force -ErrorAction SilentlyContinue
+    foreach ($pendingFetch in $global:MurilassoPendingGhFetches) {
+        if ($pendingFetch.CachePath -eq $CachePath) { return }
+    }
 
-    $null = Start-Job -Name 'murilasso_fetch' -ScriptBlock {
-        param($repoPath, $cachePath, $ghArgs, $fallbackGhArgs)
+    if (-not $global:MurilassoGhExecutablePath) {
+        $ghCommand = Get-Command gh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $ghCommand) { return }
+        $global:MurilassoGhExecutablePath = $ghCommand.Source
+    }
 
-        Set-Location -LiteralPath $repoPath
-        $output = & gh @ghArgs 2>$null
-        if ($fallbackGhArgs.Count -gt 0 -and [string]::IsNullOrWhiteSpace(($output -join "`n"))) {
-            $output = & gh @fallbackGhArgs 2>$null
+    $processStartInfo = [System.Diagnostics.ProcessStartInfo]::new($global:MurilassoGhExecutablePath)
+    foreach ($ghArgument in $GhArgs) { $processStartInfo.ArgumentList.Add($ghArgument) }
+    $processStartInfo.WorkingDirectory = $Repo
+    $processStartInfo.UseShellExecute = $false
+    $processStartInfo.CreateNoWindow = $true
+    $processStartInfo.RedirectStandardOutput = $true
+    # stderr se redirige para que los errores de `gh` no se escriban sobre la consola.
+    $processStartInfo.RedirectStandardError = $true
+    $processStartInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+
+    try {
+        $ghProcess = [System.Diagnostics.Process]::Start($processStartInfo)
+    } catch {
+        return
+    }
+
+    $global:MurilassoPendingGhFetches.Add(@{
+            Process        = $ghProcess
+            OutputTask     = $ghProcess.StandardOutput.ReadToEndAsync()
+            ErrorTask      = $ghProcess.StandardError.ReadToEndAsync()
+            Repo           = $Repo
+            CachePath      = $CachePath
+            FallbackGhArgs = $FallbackGhArgs
+        })
+}
+
+# Recoge los fetches terminados: vuelca su salida al cache o, si vino vacía y
+# hay argumentos de fallback, lanza el fetch de fallback. No bloquea.
+function Complete-MurilassoGhFetches {
+    $pendingFetches = $global:MurilassoPendingGhFetches
+    for ($fetchIndex = $pendingFetches.Count - 1; $fetchIndex -ge 0; $fetchIndex--) {
+        $pendingFetch = $pendingFetches[$fetchIndex]
+        if (-not ($pendingFetch.Process.HasExited -and $pendingFetch.OutputTask.IsCompleted)) {
+            # Un `gh` colgado bloquearía para siempre nuevos fetches del mismo cache.
+            $fetchAgeSeconds = ([datetime]::Now - $pendingFetch.Process.StartTime).TotalSeconds
+            if ($fetchAgeSeconds -gt $MURILASSO_GH_FETCH_TIMEOUT_SECONDS) {
+                try { $pendingFetch.Process.Kill() } catch { }
+                $pendingFetch.Process.Dispose()
+                $pendingFetches.RemoveAt($fetchIndex)
+            }
+            continue
         }
 
-        if ($LASTEXITCODE -eq 0 -and $null -ne $output) {
-            Set-Content -LiteralPath $cachePath -Value ($output -join "`n") -Encoding utf8 -NoNewline
+        $pendingFetches.RemoveAt($fetchIndex)
+        $output = $pendingFetch.OutputTask.Result.TrimEnd("`r", "`n")
+        $exitCode = $pendingFetch.Process.ExitCode
+        $pendingFetch.Process.Dispose()
+
+        if ($pendingFetch.FallbackGhArgs.Count -gt 0 -and [string]::IsNullOrWhiteSpace($output)) {
+            Start-MurilassoGhFetch -Repo $pendingFetch.Repo -CachePath $pendingFetch.CachePath -GhArgs $pendingFetch.FallbackGhArgs
+            continue
         }
-    } -ArgumentList $Repo, $CachePath, $GhArgs, $FallbackGhArgs
+
+        if ($exitCode -eq 0 -and -not [string]::IsNullOrEmpty($output)) {
+            Set-Content -LiteralPath $pendingFetch.CachePath -Value $output -Encoding utf8 -NoNewline -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 function Start-MurilassoPrFetch {
@@ -2616,19 +2684,22 @@ function Update-MurilassoCiContext {
     }
 }
 
-# Jobs activos del usuario para el indicador ✦N. No se usa `.Jobs` de OMP
-# porque cuenta tambien los fetch internos `murilasso_fetch` de PR/CI.
+# Jobs activos del usuario para el indicador ✦N. Se cuentan solo estados activos,
+# no todos los jobs de la sesión.
 $MURILASSO_ACTIVE_JOB_STATES = @('NotStarted', 'Running', 'Suspended', 'Blocked', 'AtBreakpoint')
 
 function Update-MurilassoJobContext {
     $userJobs = @(Get-Job -ErrorAction SilentlyContinue | Where-Object {
-            $_.Name -ne 'murilasso_fetch' -and $_.State -in $MURILASSO_ACTIVE_JOB_STATES
+            $_.State -in $MURILASSO_ACTIVE_JOB_STATES
         })
     $env:MURILASSO_JOB_COUNT = [string]$userJobs.Count
 }
 
 # Mantiene actualizadas las env vars de PR/CI que consume murilasso.omp.json.
 function Update-MurilassoPromptContext {
+    # Primero se vuelcan los fetches terminados para que este render ya lea su cache.
+    Complete-MurilassoGhFetches
+
     # Un solo spawn de git por render: rev-parse acepta ambos flags y devuelve
     # una línea por flag (branch primero, toplevel después).
     $gitPromptInfo = @(& git rev-parse --abbrev-ref HEAD --show-toplevel 2>$null)
@@ -2686,9 +2757,11 @@ if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
     $murilassoOmpInitCachePath = Join-Path $env:LOCALAPPDATA 'PowerShell\oh-my-posh-init-cache.ps1'
     $murilassoOmpInitialized = $false
     try {
-        # 'inline-config-v1' versiona el generador de abajo: cambiar su lógica
-        # debe bumpear el sufijo para invalidar caches ya generados.
-        $murilassoOmpFingerprint = '{0}|{1}|inline-config-v1' -f (Get-ExecutableFingerprint -CommandInfo $ohMyPoshCommand), $murilassoThemePath
+        # 'inline-config-v2' versiona el generador de abajo: cambiar su lógica
+        # debe bumpear el sufijo para invalidar caches ya generados. El mtime
+        # del theme entra porque el prompt secundario se pre-renderiza.
+        $murilassoThemeTicks = [System.IO.File]::GetLastWriteTimeUtc($murilassoThemePath).Ticks
+        $murilassoOmpFingerprint = '{0}|{1}|{2}|inline-config-v2' -f (Get-ExecutableFingerprint -CommandInfo $ohMyPoshCommand), $murilassoThemePath, $murilassoThemeTicks
         . (Get-CachedInitScriptPath `
             -CachePath $murilassoOmpInitCachePath `
             -Fingerprint $murilassoOmpFingerprint `
@@ -2706,7 +2779,18 @@ if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
                 if (-not $ompInitScript.Contains($shellFlagToken)) {
                     throw "oh-my-posh --print output no longer contains the expected token $shellFlagToken; review the --config injection"
                 }
-                $ompInitScript.Replace($shellFlagToken, "'--config=$murilassoThemePath', $shellFlagToken")
+                $ompInitScript = $ompInitScript.Replace($shellFlagToken, "'--config=$murilassoThemePath', $shellFlagToken")
+
+                # El init renderiza el prompt secundario spawneando omp en cada
+                # arranque (~130 ms). Solo depende del theme, así que se
+                # pre-renderiza acá; si OMP cambia esa línea, queda el render en vivo.
+                $secondaryPromptPattern = 'Set-PSReadLineOption -ContinuationPrompt \(\(Invoke-Utf8Posh @\("print", "secondary"[^\r\n]*'
+                $secondaryPromptText = (& $ohMyPoshCommand.Source print secondary "--config=$murilassoThemePath" '--shell=pwsh') -join "`n"
+                if ($LASTEXITCODE -eq 0 -and $ompInitScript -match $secondaryPromptPattern) {
+                    $escapedSecondaryPrompt = $secondaryPromptText.Replace("'", "''")
+                    $ompInitScript = $ompInitScript.Replace($Matches[0], "Set-PSReadLineOption -ContinuationPrompt '$escapedSecondaryPrompt'")
+                }
+                $ompInitScript
             })
 
         # El script cacheado embebe el POSH_SESSION_ID de cuando se generó.

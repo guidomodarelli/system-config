@@ -83,7 +83,7 @@ El profile completo depende de Windows. Probar solo la sección `# --- Prompt mu
 - Poner OMP en `PATH` con el nombre `oh-my-posh` (`mkdir -p /tmp/ompbin && cp /tmp/omp /tmp/ompbin/oh-my-posh`).
 - Definir `LOCALAPPDATA=/tmp/lad` (el cache de init lo usa) y `$script:ProfileScriptDirectory` con la ruta de `configs/PowerShell`.
 - Dot-sourcear las líneas de esa sección. El init cacheado falla porque `Get-ExecutableFingerprint` no está definido, y cae al init en vivo de OMP. Es lo esperado.
-- Llamar `prompt` y verificar efectos. Ejemplo: `$global:LASTEXITCODE = 7; prompt; $LASTEXITCODE` debe devolver `7`, y los jobs `murilasso_fetch` no deben contarse en `MURILASSO_JOB_COUNT`.
+- Llamar `prompt` y verificar efectos. Ejemplo: `$global:LASTEXITCODE = 7; prompt; $LASTEXITCODE` debe devolver `7`. Los fetches de PR/CI corren como procesos `gh` (no jobs), así que `MURILASSO_JOB_COUNT` debe quedar en `0` sin jobs del usuario.
 
 ```bash
 PATH=/tmp/ompbin:$PATH LOCALAPPDATA=/tmp/lad /tmp/pwsh-portable/pwsh -NoProfile -c '

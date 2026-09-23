@@ -96,11 +96,10 @@ $profilePath = Join-Path $PSScriptRoot 'Microsoft.PowerShell_profile.ps1'
 Import-ProfileFunctions -ScriptPath $profilePath -FunctionNames @(
     'Test-CacheEntryIsFresh',
     'Get-GhqRepositoryScanExcludedDirectoryNames',
-    'Test-ShouldSkipGhqScanDirectory',
     'Test-IsReparsePointDirectory',
     'Test-IsBareGitRepositoryDirectory',
     'Test-IsGitRepositoryDirectory',
-    'Get-RelativePathCompat',
+    'Get-ChildDirectoryInfos',
     'Get-GhqRootFingerprint',
     'Get-CachedGhqRepositoryList'
 )
@@ -144,6 +143,7 @@ function global:ghq {
 
 $testRootPath = Join-Path ([System.IO.Path]::GetTempPath()) ("profile-ghq-spec-" + [System.Guid]::NewGuid().ToString())
 New-Item -Path $testRootPath -ItemType Directory | Out-Null
+$originalGhqRoot = [Environment]::GetEnvironmentVariable('GHQ_ROOT')
 
 try {
     [Environment]::SetEnvironmentVariable('GHQ_SCAN_EXCLUDES', 'tmp-cache,custom_large_dir')
@@ -199,6 +199,12 @@ try {
     Assert-Contains -Items $cacheAfterChange -ExpectedItem 'github.com/new-owner/delta-new' -Message 'Cache should be invalidated when ghq root metadata changes.'
     Assert-Equal -Expected 4 -Actual $cacheAfterChange.Count -Message 'Scanner should include repositories created after cache warm-up.'
 
+    $script:FakeGhqRootPath = $testRootPath + [System.IO.Path]::DirectorySeparatorChar
+    $script:GhqRepositoryListCache = $null
+    $trailingSeparatorRepositories = @(Get-CachedGhqRepositoryList)
+    Assert-Contains -Items $trailingSeparatorRepositories -ExpectedItem 'github.com/acme/alpha' -Message 'Scanner should build relative paths when the root ends with a separator.'
+    Assert-Equal -Expected 4 -Actual $trailingSeparatorRepositories.Count -Message 'Root trailing separator should not change detected repositories.'
+
     $script:FakeGhqRootPath = Join-Path $testRootPath 'missing-root'
     $script:FakeGhqListResult = @('github.com/acme/from-ghq-list')
     $script:GhqRepositoryListCache = $null
@@ -208,8 +214,21 @@ try {
     $fallbackRepositories = @(Get-CachedGhqRepositoryList)
     Assert-Equal -Expected 1 -Actual $fallbackRepositories.Count -Message 'Fallback should return repositories from ghq list when filesystem scan is unavailable.'
     Assert-Equal -Expected 'github.com/acme/from-ghq-list' -Actual $fallbackRepositories[0] -Message 'Fallback should preserve ghq list entries.'
+
+    Import-ProfileFunctions -ScriptPath $profilePath -FunctionNames @('Get-CachedGhqRootPath')
+    $secondaryRootPath = Join-Path $testRootPath 'secondary-root'
+    [Environment]::SetEnvironmentVariable('GHQ_ROOT', $testRootPath + [System.IO.Path]::PathSeparator + $secondaryRootPath)
+    $script:GhqRootCache = $null
+    $script:GhqRootCacheTimestamp = $null
+    Assert-Equal -Expected $testRootPath -Actual (Get-CachedGhqRootPath) -Message 'Root should resolve to the first GHQ_ROOT entry without running ghq.'
+
+    [Environment]::SetEnvironmentVariable('GHQ_ROOT', 'relative-root')
+    $script:GhqRootCache = $null
+    $script:GhqRootCacheTimestamp = $null
+    Assert-True -Condition ($null -eq (Get-CachedGhqRootPath)) -Message 'Relative GHQ_ROOT should defer to ghq root instead of being used verbatim.'
 } finally {
     [Environment]::SetEnvironmentVariable('GHQ_SCAN_EXCLUDES', $null)
+    [Environment]::SetEnvironmentVariable('GHQ_ROOT', $originalGhqRoot)
     if (Test-Path -LiteralPath $testRootPath) {
         Remove-Item -LiteralPath $testRootPath -Recurse -Force
     }
