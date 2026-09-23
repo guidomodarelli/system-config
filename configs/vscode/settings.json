@@ -409,5 +409,6 @@
   },
   "[yaml]": {
     "editor.defaultFormatter": "redhat.vscode-yaml"
-  }
+  },
+  "scm.repositories.selectionMode": "single"
 }
