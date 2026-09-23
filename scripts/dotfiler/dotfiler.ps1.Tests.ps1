@@ -56,15 +56,15 @@
 
     $summaryOutput = Print-Summary | Out-String
 
-    $summaryOutput | Should -Match '╭─ 📊 Resumen ─'
-    $summaryOutput | Should -Match '│ ✨ creados\s+2'
-    $summaryOutput | Should -Match '🔄 reemplazados\s+1'
-    $summaryOutput | Should -Match '✅ sin cambios\s+7'
-    $summaryOutput | Should -Match '💾 respaldos\s+1'
-    $summaryOutput | Should -Match '❌ errores\s+0'
-    $summaryOutput | Should -Match '🚀 aplicacion real'
-    $summaryOutput | Should -Match '🎉 Sin errores\.'
-    $summaryOutput | Should -Match '╰─{10}'
+    $summaryOutput | Should -Match '\+- Resumen -'
+    $summaryOutput | Should -Match '\| \+ creados\s+2'
+    $summaryOutput | Should -Match '~ reemplazados\s+1'
+    $summaryOutput | Should -Match '= sin cambios\s+7'
+    $summaryOutput | Should -Match '< respaldos\s+1'
+    $summaryOutput | Should -Match 'x errores\s+0'
+    $summaryOutput | Should -Match '> aplicacion real'
+    $summaryOutput | Should -Match '= Sin errores\.'
+    $summaryOutput | Should -Match '\+-{10}'
   }
 
   It 'Print-Summary usa contadores planificados y aviso de simulacion en dry-run' {
@@ -82,7 +82,7 @@
     $summaryOutput | Should -Match 'reemplazados\s+2'
     $summaryOutput | Should -Match 'respaldos\s+1'
     $summaryOutput | Should -Match 'eliminados\s+4'
-    $summaryOutput | Should -Match '🧪 simulacion, no se escribieron cambios'
+    $summaryOutput | Should -Match '~ simulacion, no se escribieron cambios'
   }
 
   It 'Print-Summary informa errores con cierre de fallo' {
@@ -93,7 +93,7 @@
     $summaryOutput = Print-Summary | Out-String
 
     $summaryOutput | Should -Match 'errores\s+2'
-    $summaryOutput | Should -Match '💥 Finalizado con 2 error\(es\)\.'
+    $summaryOutput | Should -Match 'x Finalizado con 2 error\(es\)\.'
   }
 
   It 'Print-Summary sin iconos conserva etiquetas alineadas' {
@@ -103,9 +103,9 @@
 
     $summaryOutput = Print-Summary | Out-String
 
-    $summaryOutput | Should -Match '╭─ Resumen ─'
-    $summaryOutput | Should -Match '│ creados\s+0\s+reemplazados\s+0'
-    $summaryOutput | Should -Not -Match '📊'
+    $summaryOutput | Should -Match '\+- Resumen -'
+    $summaryOutput | Should -Match '\| creados\s+0\s+reemplazados\s+0'
+    $summaryOutput | Should -Not -Match '[=~<x] (creados|sin cambios)'
   }
 
   It 'Print-Diagnostics imprime caja de diagnostico con errores enumerados' {
@@ -117,9 +117,9 @@
 
     $diagnosticsOutput = Print-Diagnostics | Out-String
 
-    $diagnosticsOutput | Should -Match '╭─ 🩺 Diagnostico ─'
-    $diagnosticsOutput | Should -Match '│ 1\. C:\\destino'
-    $diagnosticsOutput | Should -Match '│    → Fallo controlado'
+    $diagnosticsOutput | Should -Match '\+- Diagnostico -'
+    $diagnosticsOutput | Should -Match '\| 1\. C:\\destino'
+    $diagnosticsOutput | Should -Match '\|    -> Fallo controlado'
   }
 
   It 'Write-ItemLine imprime icono, accion, nombre y detalle dentro del grupo pendiente' {
@@ -127,13 +127,13 @@
     Set-GroupHeader -GroupPath '~/.claude/skills'
 
     $itemOutput = & {
-      Write-ItemLine -Icon $script:Icons.Created -Label 'creado' -Color Green -Name 'simplify' -Detail '→ my-skills/simplify'
+      Write-ItemLine -Icon $script:Icons.Created -Label 'creado' -Color Green -Name 'simplify' -Detail '-> my-skills/simplify'
       Close-Group
     } | Out-String
 
-    $itemOutput | Should -Match '📁 ~/.claude/skills'
-    $itemOutput | Should -Match '│ ✨ creado\s+simplify\s+→ my-skills/simplify'
-    $itemOutput | Should -Match '╰─ 1 cambio'
+    $itemOutput | Should -Match '> ~/.claude/skills'
+    $itemOutput | Should -Match '\| \+ creado\s+simplify\s+-> my-skills/simplify'
+    $itemOutput | Should -Match '\+- 1 cambio'
   }
 
   It 'Close-Group no imprime grupos sin cambios visibles' {
@@ -195,8 +195,8 @@
     $firstStatus = Get-ResolveProgressStatus -Current 3 -Total 12 -Detail '.agents/skills/my-skills/*' -ElapsedSeconds 0
     $laterStatus = Get-ResolveProgressStatus -Current 3 -Total 12 -Detail '.agents/skills/my-skills/*' -ElapsedSeconds 2
 
-    $firstStatus | Should -Be '🧭 Resolviendo rutas ▰▰▰▱▱▱▱▱▱▱▱▱ 3/12 · .agents/skills/my-skills/* · ⌛ 0s'
-    $laterStatus | Should -Match '^🧩 Recorriendo agrupadores'
+    $firstStatus | Should -Be 'Resolviendo rutas ###......... 3/12 - .agents/skills/my-skills/* - 0s'
+    $laterStatus | Should -Match '^Recorriendo agrupadores'
   }
 
   It 'Test-ProgressEnabled respeta DOTFILER_PROGRESS y --quiet' {
@@ -1453,6 +1453,30 @@
       New-Item -ItemType Directory -Path $script:LinkedDirectory -Force | Out-Null
       { Initialize-TargetDirectory -DirectoryPath $script:LinkedDirectory } | Should -Not -Throw
       Test-Path -LiteralPath $script:LinkedDirectory -PathType Container | Should -BeTrue
+    }
+  }
+
+  Context 'Salida ASCII y colores del resumen' {
+    It 'toda la decoracion es ASCII' {
+      $script:UseColor = $false
+      $script:StartTime = Get-Date
+      $output = & { Write-Banner; Print-Summary } | Out-String
+      ($output -replace '[áéíóúñÁÉÍÓÚÑ]', '') | Should -Not -Match '[^\x00-\x7F]'
+      (Format-ProgressBar -Current 6 -Total 12) | Should -Be '######......'
+      (Format-LinkDetail -SourcePath 'C:\fuente') | Should -Be '-> C:\fuente'
+    }
+
+    It 'colorea solo los contadores mayores a cero' {
+      $script:UseColor = $true
+      $script:CountCreated = 3
+      $escape = [char]27
+      (Format-SummaryCell -Icon '+' -Label 'creados' -Value 3 -Color Green) | Should -Match ([regex]::Escape("$escape[1;32m+ creados"))
+      (Format-SummaryCell -Icon '~' -Label 'reemplazados' -Value 0 -Color Blue) | Should -Match ([regex]::Escape("$escape[90m~ reemplazados"))
+    }
+
+    It 'la ayuda ya no ofrece --ascii ni --unicode' {
+      $helpText = Write-HelpText | Out-String
+      $helpText | Should -Not -Match '--unicode|--ascii'
     }
   }
 }

@@ -141,7 +141,7 @@ BASH
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Resumen"* ]]
-  [[ "$output" != *"📁"* ]]
+  [[ "$output" != *"> ~/"* ]]
   [[ "$output" != *"dotfiler ·"* ]]
   ! assert_item_line "$output" "creado" "debug-source"
 }
@@ -180,9 +180,9 @@ YAML
   run_dotfiler "false"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"📁 ~/target-a"* ]]
-  [[ "$output" == *"📁 ~/target-b"* ]]
-  [[ "$output" == *"╰─ 1 cambio"$'\n\n'"📁 ~/target-b"* ]]
+  [[ "$output" == *"> ~/target-a"* ]]
+  [[ "$output" == *"> ~/target-b"* ]]
+  [[ "$output" == *"+- 1 cambio"$'\n\n'"> ~/target-b"* ]]
 }
 
 @test "display path is normalized to avoid double slash in output" {
@@ -197,7 +197,7 @@ YAML
 
   [ "$status" -eq 0 ]
   [[ "$output" != *".codex//"* ]]
-  [[ "$output" == *"📁 ~/.codex"$'\n'* ]]
+  [[ "$output" == *"> ~/.codex"$'\n'* ]]
   assert_item_line "$output" "creado" "debug-source"
 }
 
@@ -286,7 +286,7 @@ YAML
   run_dotfiler "false" "--dry-run" "--quiet" "--no-color"
 
   [ "$status" -eq 0 ]
-  assert_output_contains_line "$output" "╭─ 📊 Resumen ─"
+  assert_output_contains_line "$output" "+- Resumen -"
   assert_summary_value "$output" "creados" 1
   assert_summary_value "$output" "reemplazados" 0
   assert_summary_value "$output" "sin cambios" 0
@@ -294,7 +294,7 @@ YAML
   assert_summary_value "$output" "respaldos" 0
   assert_summary_value "$output" "errores" 0
   assert_output_contains_line "$output" "simulación, no se escribieron cambios"
-  assert_output_contains_line "$output" "🎉 Sin errores."
+  assert_output_contains_line "$output" "= Sin errores."
   [[ "$output" != *"Windows (PS)"* ]]
 }
 
@@ -309,7 +309,7 @@ BASH
   run_dotfiler "false" "--quiet" "--no-color"
 
   [ "$status" -eq 1 ]
-  assert_output_contains_line "$output" "🩺 Diagnóstico"
+  assert_output_contains_line "$output" "+- Diagnóstico -"
   assert_output_contains_line "$output" "Fallo al crear symlink"
 }
 
@@ -332,7 +332,7 @@ YAML
   run_dotfiler "false" "--quiet" "--no-color"
 
   [ "$status" -eq 1 ]
-  assert_output_contains_line "$output" "🩺 Diagnóstico"
+  assert_output_contains_line "$output" "+- Diagnóstico -"
   assert_output_contains_line "$output" "Ruta de origen inexistente"
   assert_path_missing "$HOME_DIR/linked-files/nonexistent-source"
 }
@@ -1021,10 +1021,10 @@ YAML
 
   [ "$status" -eq 0 ]
   [ "$(ls -di "$HOME_DIR/linked-files/debug-source" | awk '{print $1}')" = "$inode_before" ]
-  assert_output_contains_line "$output" "✅ Todos los enlaces están al día (1)."
+  assert_output_contains_line "$output" "= Todos los enlaces están al día (1)."
   assert_summary_value "$output" "sin cambios" 1
   assert_summary_value "$output" "creados" 0
-  [[ "$output" != *"📁"* ]]
+  [[ "$output" != *"> ~/"* ]]
 }
 
 @test "--verbose lista cada enlace sin cambios dentro de su grupo" {
@@ -1034,9 +1034,9 @@ YAML
   run_dotfiler "false" "--no-color" "--verbose"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"📁 ~/linked-files"* ]]
+  [[ "$output" == *"> ~/linked-files"* ]]
   assert_item_line "$output" "sin cambios" "debug-source"
-  [[ "$output" == *"╰─ ✅ 1 sin cambios"* ]]
+  [[ "$output" == *"+- = 1 sin cambios"* ]]
 }
 
 @test "grupos con cambios cierran con conteo de cambios y sin cambios" {
@@ -1060,7 +1060,7 @@ YAML
 
   [ "$status" -eq 0 ]
   assert_item_line "$output" "creado" "second-file"
-  [[ "$output" == *"╰─ 1 cambio · ✅ 1 sin cambios"* ]]
+  [[ "$output" == *"+- 1 cambio - = 1 sin cambios"* ]]
 }
 
 @test "entradas no consecutivas con el mismo destino se agrupan bajo un unico header" {
@@ -1080,21 +1080,20 @@ YAML
   run_dotfiler "false" "--no-color"
 
   [ "$status" -eq 0 ]
-  [ "$(printf "%s\n" "$output" | grep -c "📁 ~/shared")" -eq 1 ]
-  [[ "$output" == *"📁 ~/shared"$'\n'*"first-file"*"second-file"* ]]
+  [ "$(printf "%s\n" "$output" | grep -c "> ~/shared")" -eq 1 ]
+  [[ "$output" == *"> ~/shared"$'\n'*"first-file"*"second-file"* ]]
 }
 
-@test "--plain oculta emojis y mantiene cajas y etiquetas" {
+@test "--plain oculta iconos y mantiene cajas y etiquetas" {
   install_fixture "debug_flow"
 
   run_dotfiler "false" "--plain"
 
   [ "$status" -eq 0 ]
-  [[ "$output" != *"📁"* ]]
-  [[ "$output" != *"✨"* ]]
-  [[ "$output" != *"🎉"* ]]
-  [[ "$output" == *"│ creado       debug-source"* ]]
-  [[ "$output" == *"╭─ Resumen ─"* ]]
+  [[ "$output" != *"> ~/"* ]]
+  [[ "$output" != *$'\e['* ]]
+  [[ "$output" == *"| creado       debug-source"* ]]
+  [[ "$output" == *"+- Resumen -"* ]]
   [[ "$output" == *"Sin errores."* ]]
 }
 
@@ -1108,10 +1107,10 @@ YAML
   run_dotfiler "false" "--no-color"
 
   [ "$status" -eq 1 ]
-  [[ "$output" == *"╭─ 🩺 Diagnóstico ─"* ]]
-  [[ "$output" == *"│ 1. ~/linked-files/nonexistent-source"* ]]
-  [[ "$output" == *"│    "*"Ruta de origen inexistente"* ]]
-  [[ "$output" == *"💥 Finalizado con 1 error(es)."* ]]
+  [[ "$output" == *"+- Diagnóstico -"* ]]
+  [[ "$output" == *"| 1. ~/linked-files/nonexistent-source"* ]]
+  [[ "$output" == *"|    "*"Ruta de origen inexistente"* ]]
+  [[ "$output" == *"x Finalizado con 1 error(es)."* ]]
 }
 
 @test "DOTFILER_PROGRESS=always muestra loader de resolucion y progreso de enlaces" {
@@ -1145,63 +1144,48 @@ assert_ascii_decorations() {
   ! printf "%s" "$without_spanish_letters" | LC_ALL=C grep -q '[^ -~[:cntrl:]]'
 }
 
-@test "--ascii usa solo ASCII en decoraciones" {
+@test "la salida usa solo ASCII en iconos, cajas y flechas" {
   install_fixture "debug_flow"
 
-  run_dotfiler "false" "--ascii" "--no-color"
+  run_dotfiler "false" "--no-color"
 
   [ "$status" -eq 0 ]
   assert_ascii_decorations "$output"
   [[ "$output" == *"+- Resumen -"* ]]
   [[ "$output" == *"> ~/linked-files"* ]]
   [[ "$output" == *"| + creado"*"-> debug-source"* ]]
-  [[ "$output" == *"+----"* ]]
 }
 
-@test "--unicode usa cajas Unicode sin emojis" {
+@test "el loader usa spinner y barra ASCII sin errores de styleText" {
   install_fixture "debug_flow"
 
-  run_dotfiler "false" "--unicode" "--no-color"
+  DOTFILER_PROGRESS=always run_dotfiler_with_env
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"╭─ Resumen ─"* ]]
-  [[ "$output" == *"▸ ~/linked-files"* ]]
-  [[ "$output" == *"│ + creado"* ]]
-  [[ "$output" == *"✓ Sin errores."* ]]
-  [[ "$output" != *"📁"* ]]
-  [[ "$output" != *"✨"* ]]
-  [[ "$output" != *"🎉"* ]]
-  [[ "$output" != *"📊"* ]]
+  assert_ascii_decorations "$output"
+  [[ "$output" == *"Enlazando "*"############"*"1/1"* ]]
+  [[ "$output" != *"Error log written"* ]]
 }
 
-@test "--ascii con DOTFILER_PROGRESS=always usa spinner y barra ASCII" {
+@test "--ascii y --unicode ya no existen como opciones" {
   install_fixture "debug_flow"
 
-  DOTFILER_PROGRESS=always run_dotfiler_with_env "--ascii" "--no-color"
-
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Enlazando "*"1/1"* ]]
-  [[ "$output" == *"############"* ]]
-  [[ "$output" != *"▰"* ]]
-  [[ "$output" != *"⠋"* ]]
-}
-
-@test "--ascii y --unicode juntas fallan como error de uso" {
-  install_fixture "debug_flow"
-
-  run_dotfiler "false" "--ascii" "--unicode"
+  run_dotfiler "false" "--unicode"
 
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--ascii y --unicode son excluyentes"* ]]
-  assert_path_missing "$HOME_DIR/linked-files/debug-source"
+  [[ "$output" == *"Opción desconocida: --unicode"* ]]
 }
 
-@test "sin flags de modo se mantienen los emojis" {
+@test "el resumen colorea solo los contadores mayores a cero" {
   install_fixture "debug_flow"
+  # The fixture stubs styleText without colors; use the real one here.
+  cp "$SCRIPT_DIR/../../configs/zsh/.zsh/functions/styleText.zsh" \
+    "$REPO_DIR/configs/zsh/.zsh/functions/styleText.zsh"
 
-  run_dotfiler "false" "--no-color"
+  run_dotfiler "false"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"📁 ~/linked-files"* ]]
-  [[ "$output" == *"╭─ 📊 Resumen ─"* ]]
+  [[ "$output" == *$'\e[;32;1m+ creados'* ]]
+  [[ "$output" == *$'\e[;90m~ reemplazados'* ]]
+  [[ "$output" == *$'\e[;90mx errores'* ]]
 }

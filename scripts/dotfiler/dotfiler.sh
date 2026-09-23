@@ -56,63 +56,58 @@ EXIT_CODE_SUCCESS=0
 EXIT_CODE_RUNTIME_ERROR=1
 EXIT_CODE_INPUT_ERROR=2
 
-# Emojis without variation selectors: each one is a single character that
-# terminals render two columns wide, which keeps columns aligned.
-ICON_APP=${ICON_APP:-"🔗"}
-ICON_REAL_RUN=${ICON_REAL_RUN:-"🚀"}
-ICON_DRY_RUN=${ICON_DRY_RUN:-"🧪"}
-ICON_SOURCE=${ICON_SOURCE:-"📦"}
-ICON_HOME=${ICON_HOME:-"🏠"}
-ICON_GROUP=${ICON_GROUP:-"📁"}
-ICON_CREATED=${ICON_CREATED:-"✨"}
-ICON_REPLACED=${ICON_REPLACED:-"🔄"}
-ICON_UNCHANGED=${ICON_UNCHANGED:-"✅"}
-ICON_DELETE=${ICON_DELETE:-"🧹"}
-ICON_BACKUP=${ICON_BACKUP:-"💾"}
-ICON_DIRECTORY=${ICON_DIRECTORY:-"📂"}
-ICON_SUDO=${ICON_SUDO:-"🔐"}
-ICON_QUEUED=${ICON_QUEUED:-"🪟"}
-ICON_WARN=${ICON_WARN:-"🚨"}
-ICON_ERROR=${ICON_ERROR:-"❌"}
-ICON_TIME=${ICON_TIME:-"⌛"}
-ICON_SUMMARY=${ICON_SUMMARY:-"📊"}
-ICON_DIAGNOSTIC=${ICON_DIAGNOSTIC:-"🩺"}
-ICON_DONE=${ICON_DONE:-"🎉"}
-ICON_FAILED=${ICON_FAILED:-"💥"}
+# ASCII-only decorations so the output works in any terminal and font.
+ICON_APP=${ICON_APP:-""}
+ICON_REAL_RUN=${ICON_REAL_RUN:-">"}
+ICON_DRY_RUN=${ICON_DRY_RUN:-"~"}
+ICON_SOURCE=${ICON_SOURCE:-""}
+ICON_HOME=${ICON_HOME:-""}
+ICON_GROUP=${ICON_GROUP:-">"}
+ICON_CREATED=${ICON_CREATED:-"+"}
+ICON_REPLACED=${ICON_REPLACED:-"~"}
+ICON_UNCHANGED=${ICON_UNCHANGED:-"="}
+ICON_DELETE=${ICON_DELETE:-"x"}
+ICON_BACKUP=${ICON_BACKUP:-"<"}
+ICON_DIRECTORY=${ICON_DIRECTORY:-"#"}
+ICON_SUDO=${ICON_SUDO:-"!"}
+ICON_QUEUED=${ICON_QUEUED:-">"}
+ICON_WARN=${ICON_WARN:-"!"}
+ICON_ERROR=${ICON_ERROR:-"x"}
+ICON_TIME=${ICON_TIME:-""}
+ICON_SUMMARY=${ICON_SUMMARY:-""}
+ICON_DIAGNOSTIC=${ICON_DIAGNOSTIC:-""}
+ICON_DONE=${ICON_DONE:-"="}
+ICON_FAILED=${ICON_FAILED:-"x"}
 
-BOX_TOP_LEFT="╭"
-BOX_BOTTOM_LEFT="╰"
-BOX_VERTICAL="│"
-BOX_TEE="├"
-BOX_HORIZONTAL="─"
+BOX_TOP_LEFT="+"
+BOX_BOTTOM_LEFT="+"
+BOX_VERTICAL="|"
+BOX_TEE="+"
+BOX_HORIZONTAL="-"
 BOX_RULE_WIDTH=64
 
 # Progress feedback: auto (only on an interactive terminal), always or never.
 DOTFILER_PROGRESS=${DOTFILER_PROGRESS:-auto}
-SPINNER_FRAMES=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+SPINNER_FRAMES=("|" "/" "-" "\\")
 SPINNER_TICK_SECONDS=0.1
 SPINNER_TICKS_PER_MESSAGE=20
 PROGRESS_BAR_WIDTH=12
-PROGRESS_BAR_FILLED="▰"
-PROGRESS_BAR_EMPTY="▱"
+PROGRESS_BAR_FILLED="#"
+PROGRESS_BAR_EMPTY="."
 PROGRESS_DETAIL_MAX_LENGTH=36
-RESOLVE_MESSAGE_ICONS=("🧭" "🧩" "🔎" "🧹" "☕")
+RESOLVE_MESSAGE_ICONS=("" "" "" "" "")
 RESOLVE_MESSAGE_TEXTS=("Resolviendo rutas" "Recorriendo agrupadores" "Aplicando filtros" "Buscando enlaces obsoletos" "Ya casi")
-ICON_LINKING=${ICON_LINKING:-"🔗"}
-# Decoration mode: emoji (default), unicode (--unicode, no emojis) or ascii
-# (--ascii). Chosen only by flags; the flags are mutually exclusive.
-ICON_MODE="emoji"
-DISPLAY_SEPARATOR="·"
-DISPLAY_ELLIPSIS="…"
+ICON_LINKING=${ICON_LINKING:-">"}
+DISPLAY_SEPARATOR="-"
+DISPLAY_ELLIPSIS="..."
+# The shared styleText constants use a Unicode arrow; keep output ASCII.
+POINTER="->"
 SPINNER_PID=""
 STATUS_LINE_ACTIVE="false"
 
 ACTION_LABEL_WIDTH=12
 MIN_ITEM_NAME_WIDTH=16
 MAX_ITEM_NAME_WIDTH=40
-# Groups operations by destination folder (stable, so config order is kept
-# inside each group) to print each folder header once.
-SORT_BY_TARGET_GROUP_FILTER='sort_by(.target | gsub("/+"; "/") | gsub("/\\./"; "/") | sub("/[^/]*$"; "")) | .[]'
 ITEM_NAME_WIDTH=$MIN_ITEM_NAME_WIDTH
 
 LINK_TYPE_SYMLINK="symlink"
@@ -167,12 +162,23 @@ last_argument() {
   printf "%s" "${@: -1}"
 }
 
+# Calls a styleText formatter with the given options and text. The text always
+# goes after "--" so values such as "-" (ASCII spinner and separators) are not
+# parsed as options.
 format_with_style() {
   local formatter="$1"
   shift
 
   if [ "$USE_COLOR" = "true" ] && command -v "$formatter" >/dev/null 2>&1; then
-    "$formatter" "$@"
+    local text="${@: -1}"
+    local -a options=()
+    local option_index=1
+    while [ "$option_index" -lt "$#" ]; do
+      local option="${!option_index}"
+      [ "$option" != "--" ] && options+=("$option")
+      option_index=$((option_index + 1))
+    done
+    "$formatter" ${options[@]+"${options[@]}"} -- "$text"
   else
     last_argument "$@"
   fi
@@ -196,6 +202,10 @@ print_blue() {
 
 print_magenta() {
   format_with_style "logMagenta" "$@"
+}
+
+print_cyan() {
+  format_with_style "logCyan" "$@"
 }
 
 print_gray() {
@@ -610,42 +620,7 @@ print_operation_duration() {
   fi
 }
 
-# Replaces emoji decorations with narrow Unicode symbols (--unicode) or plain
-# ASCII (--ascii) for terminals without emoji or Unicode fonts. Texts keep
-# their Spanish accents: only decorations change.
-apply_icon_mode() {
-  case "$ICON_MODE" in
-  unicode)
-    ICON_APP="" ICON_REAL_RUN="▶" ICON_DRY_RUN="◇" ICON_SOURCE="" ICON_HOME=""
-    ICON_GROUP="▸" ICON_CREATED="+" ICON_REPLACED="↻" ICON_UNCHANGED="✓"
-    ICON_DELETE="✗" ICON_BACKUP="↺" ICON_DIRECTORY="▪" ICON_SUDO="!"
-    ICON_QUEUED="⇢" ICON_WARN="▲" ICON_ERROR="✗" ICON_TIME="" ICON_SUMMARY=""
-    ICON_DIAGNOSTIC="" ICON_DONE="✓" ICON_FAILED="✗" ICON_LINKING="⇢"
-    RESOLVE_MESSAGE_ICONS=("" "" "" "" "")
-    ;;
-  ascii)
-    ICON_APP="" ICON_REAL_RUN=">" ICON_DRY_RUN="~" ICON_SOURCE="" ICON_HOME=""
-    ICON_GROUP=">" ICON_CREATED="+" ICON_REPLACED="~" ICON_UNCHANGED="="
-    ICON_DELETE="x" ICON_BACKUP="<" ICON_DIRECTORY="#" ICON_SUDO="!"
-    ICON_QUEUED=">" ICON_WARN="!" ICON_ERROR="x" ICON_TIME="" ICON_SUMMARY=""
-    ICON_DIAGNOSTIC="" ICON_DONE="=" ICON_FAILED="x" ICON_LINKING=">"
-    RESOLVE_MESSAGE_ICONS=("" "" "" "" "")
-    BOX_TOP_LEFT="+" BOX_BOTTOM_LEFT="+" BOX_VERTICAL="|" BOX_TEE="+" BOX_HORIZONTAL="-"
-    SPINNER_FRAMES=("|" "/" "-" "\\")
-    PROGRESS_BAR_FILLED="#" PROGRESS_BAR_EMPTY="."
-    POINTER="->" DISPLAY_SEPARATOR="-" DISPLAY_ELLIPSIS="..."
-    ;;
-  esac
-}
 
-set_icon_mode() {
-  local requested_mode="$1"
-  if [ "$ICON_MODE" != "emoji" ] && [ "$ICON_MODE" != "$requested_mode" ]; then
-    log_error_action "Las opciones --ascii y --unicode son excluyentes: usá solo una."
-    exit "$EXIT_CODE_INPUT_ERROR"
-  fi
-  ICON_MODE="$requested_mode"
-}
 
 print_help() {
   cat <<'USAGE'
@@ -655,13 +630,9 @@ Opciones:
   --dry-run   Muestra los cambios planificados sin escribir archivos
   --no-color  Desactiva los estilos ANSI
   --plain     Desactiva estilos, íconos y énfasis de rutas
-  --unicode   Usa símbolos Unicode sin emojis (terminales sin fuente de emojis)
-  --ascii     Usa solo ASCII en íconos, cajas y loader (terminales sin Unicode)
   --verbose   Lista también los enlaces sin cambios y el tiempo por operación
   --quiet     Oculta logs por ítem y muestra solo resumen/errores
   --help      Muestra esta ayuda
-
---unicode y --ascii son excluyentes.
 
 Variables:
   DOTFILER_PROGRESS=auto|always|never  Loader animado (auto: solo en terminal interactiva)
@@ -682,12 +653,6 @@ parse_args() {
       USE_COLOR=false
       USE_ICONS=false
       USE_PATH_STYLE=false
-      ;;
-    --unicode)
-      set_icon_mode "unicode"
-      ;;
-    --ascii)
-      set_icon_mode "ascii"
       ;;
     --verbose)
       VERBOSE=true
@@ -896,11 +861,12 @@ needs_elevated_permissions() {
 path_is_inside_configs_dir() {
   local path="$1"
   local resolved_path
-  local resolved_configs_dir
 
   resolved_path=$(realpath "$path" 2>/dev/null) || return 1
-  resolved_configs_dir=$(realpath "$ROOT_CONFIGS_DIR" 2>/dev/null) || return 1
-  [ "$resolved_path" = "$resolved_configs_dir" ] || [[ "$resolved_path" == "$resolved_configs_dir/"* ]]
+  if [ -z "${RESOLVED_ROOT_CONFIGS_DIR:-}" ]; then
+    RESOLVED_ROOT_CONFIGS_DIR=$(realpath "$ROOT_CONFIGS_DIR" 2>/dev/null) || return 1
+  fi
+  [ "$resolved_path" = "$RESOLVED_ROOT_CONFIGS_DIR" ] || [[ "$resolved_path" == "$RESOLVED_ROOT_CONFIGS_DIR/"* ]]
 }
 
 is_directory_replacement_planned() {
@@ -915,6 +881,12 @@ prepare_target_directory() {
   local target_dir="$1"
   shift
   local -a command_prefix=("$@")
+
+  # Operations are grouped by folder: skip the checks for the folder that was
+  # just verified.
+  if [ "$target_dir" = "${LAST_PREPARED_TARGET_DIR:-}" ]; then
+    return 0
+  fi
 
   if [ -L "$target_dir" ] && path_is_inside_configs_dir "$target_dir"; then
     local replacement_detail
@@ -948,6 +920,7 @@ prepare_target_directory() {
     record_failed_target "$target_dir" "Directorio destino dentro del repositorio"
     return 1
   fi
+  LAST_PREPARED_TARGET_DIR="$target_dir"
 }
 
 # This function creates a symbolic link from the source path to the target location
@@ -958,10 +931,9 @@ make_symlink() {
   local hard_link="${3:-false}"
   local link_type="$LINK_TYPE_SYMLINK"
   local powershell_link_type="$POWERSHELL_LINK_TYPE_SYMLINK"
-  local item_name
-  item_name=$(basename "$target")
-  local started_at_seconds
-  started_at_seconds=$(date +%s)
+  local item_name="${target##*/}"
+  local started_at_seconds=0
+  [ "$VERBOSE" = "true" ] && started_at_seconds=$(date +%s)
 
   if [ "$hard_link" = "true" ]; then
     link_type="$LINK_TYPE_HARD"
@@ -974,8 +946,7 @@ make_symlink() {
   fi
 
   local -a command_prefix=()
-  local target_dir
-  target_dir=$(dirname "$target")
+  local target_dir="${target%/*}"
 
   if needs_elevated_permissions "$target" "$target_dir"; then
     command_prefix=(sudo)
@@ -1032,7 +1003,7 @@ make_symlink() {
   fi
 
   if [ "$DRY_RUN" != "true" ]; then
-    if ! "${command_prefix[@]}" mkdir -p "$(dirname "$target")"; then
+    if ! "${command_prefix[@]}" mkdir -p "$target_dir"; then
       log_error_action "No se pudo crear directorio padre para $(print_path "$target")"
       record_failed_target "$target" "Fallo al crear directorio padre"
       return 1
@@ -1083,8 +1054,7 @@ remove_stale_symlink() {
   local target="$2"
   local reason="${3:-}"
   local -a command_prefix=()
-  local item_name
-  item_name=$(basename "$target")
+  local item_name="${target##*/}"
   local removal_detail="(excluido por condición)"
   if [ -n "$reason" ]; then
     removal_detail="(excluido por $reason)"
@@ -1094,7 +1064,7 @@ remove_stale_symlink() {
     return 0
   fi
 
-  if needs_elevated_permissions "$target" "$(dirname "$target")"; then
+  if needs_elevated_permissions "$target" "${target%/*}"; then
     command_prefix=(sudo)
     COUNT_SUDO_OPERATIONS=$((COUNT_SUDO_OPERATIONS + 1))
     print_item_line print_yellow "$ICON_SUDO" "sudo" "$item_name" "(permisos elevados)"
@@ -1131,9 +1101,14 @@ link_is_already_correct() {
 
 # Width of the item name column: longest destination basename, clamped.
 resolve_item_name_width() {
-  local paths_json="$1"
-  local longest_name_length
-  longest_name_length=$(echo "$paths_json" | jq '[.[].target | split("/") | last | length] | max // 0')
+  local paths_lines="$1"
+  local longest_name_length=0
+  local group path target rest name
+  while IFS=$'\t' read -r group path target rest; do
+    [ -z "$target" ] && continue
+    name="${target##*/}"
+    [ "${#name}" -gt "$longest_name_length" ] && longest_name_length=${#name}
+  done <<< "$paths_lines"
 
   if [ "$longest_name_length" -lt "$MIN_ITEM_NAME_WIDTH" ]; then
     longest_name_length=$MIN_ITEM_NAME_WIDTH
@@ -1192,18 +1167,24 @@ get_windows_username() {
   fi
 }
 
-build_path_obj() {
+# Operations travel as tab-separated lines instead of JSON so the main loop can
+# read them without forking jq: group, source, target, hard link, remove, reason.
+# The group (normalized destination folder) is the sort key.
+build_operation_line() {
   local path="$1"
   local target="$2"
-  local hard_link="${3:-false}"
-  local json
-
-  json=$(jq -n \
-    --arg path "$path" \
-    --arg target "$target" \
-    --argjson hardLink "$hard_link" \
-    '{path: $path, target: $target, hardLink: $hardLink}')
-  echo "$json"
+  local hard_link="$3"
+  local remove_link="$4"
+  local reason="$5"
+  local group="${target%/*}"
+  group="${group//\/.\//\/}"
+  while [[ "$group" == *//* ]]; do
+    group="${group//\/\//\/}"
+  done
+  while [[ "$group" == */ && "$group" != "/" ]]; do
+    group="${group%/}"
+  done
+  printf "%s\t%s\t%s\t%s\t%s\t%s\n" "$group" "$path" "$target" "$hard_link" "$remove_link" "$reason"
 }
 
 json_has_key() {
@@ -1252,31 +1233,29 @@ expand_env_vars() {
   echo "$path"
 }
 
+# Appends an operation line to the caller's `output` variable.
 add_path_to_output() {
   local path="$1"
   local target="$2"
-  local output="$3"
-  local uses_exact_target="$4"
-  local hard_link="${5:-false}"
+  local uses_exact_target="$3"
+  local hard_link="${4:-false}"
   local original_path="$1"
   local selected_target="$target"
 
   if [ "$uses_exact_target" != "true" ]; then
-    selected_target="$target"/"$(basename "$path")"
+    selected_target="$target/${path##*/}"
   fi
 
   path=$(get_abs_path "$path")
   if [ -z "$path" ]; then
     log_warn_action "Ruta de origen inválida o inexistente: $original_path"
     record_failed_target "$selected_target" "Ruta de origen inexistente"
-    echo "$output"
     return 1
   fi
 
   if [ "$hard_link" = "true" ] && [ ! -f "$path" ]; then
     log_warn_action "No se puede crear hard link: el origen no es un archivo regular $original_path"
     record_failed_target "$selected_target" "Hard link requiere un archivo regular"
-    echo "$output"
     return 1
   fi
 
@@ -1286,14 +1265,11 @@ add_path_to_output() {
     selected_target=$(expand_env_vars "$selected_target")
     if ! path=$(format_wsl_windows_path "$path"); then
       record_failed_target "$selected_target" "Nombre de distribución WSL inválido"
-      echo "$output"
       return 1
     fi
   fi
 
-  local path_obj
-  path_obj=$(build_path_obj "$path" "$selected_target" "$hard_link")
-  echo "$output" | jq -c ". + [$path_obj]"
+  output+="$(build_operation_line "$path" "$selected_target" "$hard_link" "false" "")"$'\n'
 }
 
 strip_regex_slashes() {
@@ -1487,8 +1463,7 @@ walk_emissions_recursive() {
 
     local child
     for child in "${children[@]}"; do
-      local name
-      name=$(basename "$child")
+      local name="${child##*/}"
       if folder_is_excluded "$name" "$exclude_pat"; then
         continue
       fi
@@ -1526,8 +1501,7 @@ list_glob_sources() {
 
   local item
   while IFS= read -r item; do
-    local name
-    name=$(basename "$item")
+    local name="${item##*/}"
     if folder_is_excluded "$name" "$exclude_pat"; then
       continue
     fi
@@ -1621,7 +1595,6 @@ process_path_entry() {
   fi
 
   if [ "$filter_parse_failed" = "true" ]; then
-    echo "[]"
     return 0
   fi
 
@@ -1654,24 +1627,23 @@ process_path_entry() {
     echo "-----------" >&2
   fi
 
-  local output="[]"
+  local output=""
   local seen_basenames=$'\n'
 
   add_with_collision_check() {
     local item="$1"
     if [ "$uses_exact_target" = "true" ]; then
-      output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target" "$hard_link")
+      add_path_to_output "$item" "$target" "$uses_exact_target" "$hard_link"
       return
     fi
-    local base
-    base=$(basename "$item")
+    local base="${item##*/}"
     if [[ "$seen_basenames" == *$'\n'"$base"$'\n'* ]]; then
       log_warn_action "Colision de basename '$base' para $path (primero gana, descartando $item)"
       record_failed_target "$target/$base" "Colision de basename: $item"
       return
     fi
     seen_basenames+="$base"$'\n'
-    output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target" "$hard_link")
+    add_path_to_output "$item" "$target" "$uses_exact_target" "$hard_link"
   }
 
   # Emits a removal operation for a previously created symlink whose source
@@ -1690,10 +1662,7 @@ process_path_entry() {
     fi
     local removal_reason
     removal_reason=$(find_conditional_exclude_reason "$active_conditional_rules" "$abs_dir_path" "$item")
-    local removal_obj
-    removal_obj=$(jq -n --arg path "$item" --arg target "$link_path" --arg reason "$removal_reason" \
-      '{path: $path, target: $target, hardLink: false, remove: true, reason: $reason}')
-    output=$(echo "$output" | jq -c ". + [$removal_obj]")
+    output+="$(build_operation_line "$item" "$link_path" "false" "true" "$removal_reason")"$'\n'
   }
 
   if [[ "$path" == *"*" ]]; then
@@ -1703,7 +1672,6 @@ process_path_entry() {
 
     if [ ! -d "$abs_dir_path" ]; then
       log_warn_action "Directorio no encontrado: $abs_dir_path"
-      echo "$output"
       return 0
     fi
 
@@ -1730,18 +1698,18 @@ process_path_entry() {
       done < <(list_glob_sources "$abs_dir_path" "$descend_into_pat" "$exclude_pat" "$marker_file")
     fi
   else
-    output=$(add_path_to_output "$path" "$target" "$output" "$uses_exact_target" "$hard_link")
+    add_path_to_output "$path" "$target" "$uses_exact_target" "$hard_link"
   fi
 
   unset -f add_stale_symlink_removal
   unset -f add_with_collision_check
-  echo "$output"
+  printf "%s" "$output"
 }
 
 get_paths() {
   local selector="$1"
   local selector_override="$2"
-  local output="[]"
+  local output=""
   local entries
   entries=$(yq eval -o=json ".paths[] | select($selector)" "$CONFIG_PATHS_FILE" | jq -c '.')
   local total_entries
@@ -1752,10 +1720,11 @@ get_paths() {
     [ -z "$line" ] && continue
     entry_index=$((entry_index + 1))
     printf "%s/%s %s\n" "$entry_index" "$total_entries" "$(echo "$line" | jq -r '.path')" > "$RESOLVE_PROGRESS_FILE"
-    output=$(echo "$output" | jq -c ". + $(process_path_entry "$line" "$selector_override")")
+    output+="$(process_path_entry "$line" "$selector_override")"
+    [ -n "$output" ] && [[ "$output" != *$'\n' ]] && output+=$'\n'
   done <<< "$entries"
 
-  echo "$output"
+  printf "%s" "$output"
 }
 
 retrieve_linux_paths() {
@@ -1827,11 +1796,21 @@ retrieve_paths_for_platform() {
 }
 
 
+# Summary cell: icon, label and right-aligned value. Values above zero use
+# their semantic color in bold; zeros are dimmed so what changed stands out.
 print_summary_cell() {
   local icon="$1"
   local label="$2"
   local value="$3"
-  printf "%s%s %4s" "$(icon_prefix "$icon")" "$(pad_text "$label" 14)" "$value"
+  local color_function="${4:-}"
+  local cell
+  cell="$(printf "%s%s %4s" "$(icon_prefix "$icon")" "$(pad_text "$label" 14)" "$value")"
+
+  if [ -n "$color_function" ] && [ "$value" -gt 0 ]; then
+    "$color_function" -b "$cell"
+  else
+    print_gray "$cell"
+  fi
 }
 
 print_summary() {
@@ -1844,12 +1823,6 @@ print_summary() {
     mode_text="$(icon_prefix "$ICON_DRY_RUN")simulación, no se escribieron cambios"
   fi
 
-  local errors_cell
-  errors_cell=$(print_summary_cell "$ICON_ERROR" "errores" "$COUNT_ERRORS")
-  if [ "$COUNT_ERRORS" -gt 0 ]; then
-    errors_cell=$(print_red -b "$errors_cell")
-  fi
-
   local status_text
   if [ "$COUNT_ERRORS" -eq 0 ]; then
     status_text=$(print_green -b "$(icon_prefix "$ICON_DONE")Sin errores.")
@@ -1859,14 +1832,14 @@ print_summary() {
 
   print_block_gap
   print_box_top "$(icon_prefix "$ICON_SUMMARY")Resumen"
-  print_box_row "$(print_green -b "$(print_summary_cell "$ICON_CREATED" "creados" "$COUNT_CREATED")")$column_gap$(print_blue -b "$(print_summary_cell "$ICON_REPLACED" "reemplazados" "$COUNT_REPLACED")")"
-  print_box_row "$(print_summary_cell "$ICON_UNCHANGED" "sin cambios" "$COUNT_UNCHANGED")$column_gap$(print_summary_cell "$ICON_DELETE" "eliminados" "$COUNT_REMOVED")"
-  print_box_row "$(print_summary_cell "$ICON_BACKUP" "respaldos" "$COUNT_BACKUPS")$column_gap$errors_cell"
+  print_box_row "$(print_summary_cell "$ICON_CREATED" "creados" "$COUNT_CREATED" print_green)$column_gap$(print_summary_cell "$ICON_REPLACED" "reemplazados" "$COUNT_REPLACED" print_blue)"
+  print_box_row "$(print_summary_cell "$ICON_UNCHANGED" "sin cambios" "$COUNT_UNCHANGED" print_cyan)$column_gap$(print_summary_cell "$ICON_DELETE" "eliminados" "$COUNT_REMOVED" print_magenta)"
+  print_box_row "$(print_summary_cell "$ICON_BACKUP" "respaldos" "$COUNT_BACKUPS" print_yellow)$column_gap$(print_summary_cell "$ICON_ERROR" "errores" "$COUNT_ERRORS" print_red)"
   if [ "$COUNT_SUDO_OPERATIONS" -gt 0 ] || [ "$COUNT_WINDOWS_QUEUED" -gt 0 ]; then
-    print_box_row "$(print_summary_cell "$ICON_SUDO" "con sudo" "$COUNT_SUDO_OPERATIONS")$column_gap$(print_summary_cell "$ICON_QUEUED" "Windows (PS)" "$COUNT_WINDOWS_QUEUED")"
+    print_box_row "$(print_summary_cell "$ICON_SUDO" "con sudo" "$COUNT_SUDO_OPERATIONS" print_yellow)$column_gap$(print_summary_cell "$ICON_QUEUED" "Windows (PS)" "$COUNT_WINDOWS_QUEUED" print_blue)"
   fi
   print_box_divider
-  print_box_row "$mode_text $(print_gray -b "$DISPLAY_SEPARATOR") $(icon_prefix "$ICON_TIME")${total_elapsed_seconds}s $(print_gray -b "$DISPLAY_SEPARATOR") $status_text"
+  print_box_row "$(print_gray "$mode_text $DISPLAY_SEPARATOR $(icon_prefix "$ICON_TIME")${total_elapsed_seconds}s $DISPLAY_SEPARATOR") $status_text"
   print_box_bottom
   LAST_OUTPUT_WAS_BLANK=false
 }
@@ -1907,7 +1880,6 @@ print_banner() {
 
 main() {
   parse_args "$@"
-  apply_icon_mode
 
   check_commands yq jq
   if ! validate_paths_config; then
@@ -1925,38 +1897,26 @@ main() {
   stop_spinner
   local last_group=""
   ITEM_NAME_WIDTH=$(resolve_item_name_width "$paths")
-  local total_operations
-  total_operations=$(echo "$paths" | jq 'length')
+  local total_operations=0
+  local operation_line
+  while IFS= read -r operation_line; do
+    [ -n "$operation_line" ] && total_operations=$((total_operations + 1))
+  done <<< "$paths"
   local operation_index=0
   if progress_is_enabled; then
     printf "\033[?25l" >&2
   fi
 
-  while read -r line; do
-    if [ -z "$line" ]; then
-      continue
-    fi
-
-    local path
-    path=$(echo "$line" | jq -r '.path')
-    local target
-    target=$(echo "$line" | jq -r '.target')
-    local hard_link
-    hard_link=$(echo "$line" | jq -r 'if .hardLink == true then "true" else "false" end')
-    local remove_link
-    remove_link=$(echo "$line" | jq -r 'if .remove == true then "true" else "false" end')
-    local removal_reason
-    removal_reason=$(echo "$line" | jq -r '.reason // empty')
+  local group path target hard_link remove_link removal_reason
+  while IFS=$'\t' read -r group path target hard_link remove_link removal_reason; do
+    [ -z "$target" ] && continue
     operation_index=$((operation_index + 1))
-    render_linking_progress "$operation_index" "$total_operations" "$(basename "$target")"
+    render_linking_progress "$operation_index" "$total_operations" "${target##*/}"
 
-    local current_group
-    current_group=$(display_target_path "$(dirname "$target")")
-
-    if [ "$current_group" != "$last_group" ]; then
+    if [ "$group" != "$last_group" ]; then
       flush_group_unchanged_count
-      print_group_header "$current_group"
-      last_group="$current_group"
+      print_group_header "$(display_target_path "$group")"
+      last_group="$group"
     fi
 
     if [ "$remove_link" = "true" ]; then
@@ -1966,7 +1926,7 @@ main() {
     elif ! make_symlink "$path" "$target" "$hard_link"; then
       COUNT_ERRORS=$((COUNT_ERRORS + 1))
     fi
-  done < <(echo "$paths" | jq -c "$SORT_BY_TARGET_GROUP_FILTER")
+  done < <(printf "%s" "$paths" | LC_ALL=C sort -s -t "$(printf '\t')" -k1,1)
 
   flush_group_unchanged_count
   stop_spinner

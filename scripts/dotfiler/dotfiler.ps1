@@ -48,28 +48,40 @@ $script:GroupOpen = $false
 $script:GroupChangeCount = 0
 $script:GroupUnchangedCount = 0
 
-# Emojis without variation selectors so columns stay aligned.
+# ASCII-only decorations so the output works in any terminal and font.
 $script:Icons = @{
-  App        = '🔗'
-  RealRun    = '🚀'
-  DryRun     = '🧪'
-  Source     = '📦'
-  Home       = '🏠'
-  Group      = '📁'
-  Created    = '✨'
-  Replaced   = '🔄'
-  Unchanged  = '✅'
-  Delete     = '🧹'
-  Backup     = '💾'
-  Directory  = '📂'
-  Elevated   = '🔐'
-  Warn       = '🚨'
-  Error      = '❌'
-  Time       = '⌛'
-  Summary    = '📊'
-  Diagnostic = '🩺'
-  Done       = '🎉'
-  Failed     = '💥'
+  App        = ''
+  RealRun    = '>'
+  DryRun     = '~'
+  Source     = ''
+  Home       = ''
+  Group      = '>'
+  Created    = '+'
+  Replaced   = '~'
+  Unchanged  = '='
+  Delete     = 'x'
+  Backup     = '<'
+  Directory  = '#'
+  Elevated   = '!'
+  Warn       = '!'
+  Error      = 'x'
+  Time       = ''
+  Summary    = ''
+  Diagnostic = ''
+  Done       = '='
+  Failed     = 'x'
+  Linking    = '>'
+}
+$script:Glyphs = @{
+  BoxTopLeft    = '+'
+  BoxBottomLeft = '+'
+  BoxVertical   = '|'
+  BoxTee        = '+'
+  BoxHorizontal = '-'
+  Arrow         = '->'
+  Separator     = '-'
+  BarFilled     = '#'
+  BarEmpty      = '.'
 }
 $script:BoxRuleWidth = 64
 $script:ActionLabelWidth = 12
@@ -78,14 +90,14 @@ $script:MinItemNameWidth = 16
 $script:MaxItemNameWidth = 40
 $script:ItemNameWidth = $script:MinItemNameWidth
 $script:ProgressMode = if ([string]::IsNullOrWhiteSpace($env:DOTFILER_PROGRESS)) { 'auto' } else { $env:DOTFILER_PROGRESS }
-$script:ProgressActivity = '🔗 dotfiler'
+$script:ProgressActivity = 'dotfiler'
 $script:ProgressBarWidth = 12
 $script:ResolveMessages = @(
-  @{ Icon = '🧭'; Text = 'Resolviendo rutas' },
-  @{ Icon = '🧩'; Text = 'Recorriendo agrupadores' },
-  @{ Icon = '🔎'; Text = 'Aplicando filtros' },
-  @{ Icon = '🧹'; Text = 'Buscando enlaces obsoletos' },
-  @{ Icon = '☕'; Text = 'Ya casi' }
+  @{ Icon = ''; Text = 'Resolviendo rutas' },
+  @{ Icon = ''; Text = 'Recorriendo agrupadores' },
+  @{ Icon = ''; Text = 'Aplicando filtros' },
+  @{ Icon = ''; Text = 'Buscando enlaces obsoletos' },
+  @{ Icon = ''; Text = 'Ya casi' }
 )
 $script:ResolveMessageSeconds = 2
 $script:PlannedDirectoryReplacements = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -100,6 +112,7 @@ function Get-AnsiColorCode {
     ([ConsoleColor]::Blue) { return '34' }
     ([ConsoleColor]::Green) { return '32' }
     ([ConsoleColor]::Magenta) { return '35' }
+    ([ConsoleColor]::Cyan) { return '36' }
     ([ConsoleColor]::DarkGray) { return '90' }
     default { return '37' }
   }
@@ -200,7 +213,7 @@ function Format-ProgressBar {
   )
 
   $filled = if ($Total -gt 0) { [int][Math]::Floor($Current * $script:ProgressBarWidth / $Total) } else { 0 }
-  return ('▰' * $filled) + ('▱' * ($script:ProgressBarWidth - $filled))
+  return ($script:Glyphs.BarFilled * $filled) + ($script:Glyphs.BarEmpty * ($script:ProgressBarWidth - $filled))
 }
 
 # Rotating status text for the resolve phase, chosen from elapsed seconds.
@@ -213,7 +226,7 @@ function Get-ResolveProgressStatus {
   )
 
   $message = $script:ResolveMessages[[int][Math]::Floor($ElapsedSeconds / $script:ResolveMessageSeconds) % $script:ResolveMessages.Count]
-  return "$(Get-IconPrefix $message.Icon)$($message.Text) $(Format-ProgressBar -Current $Current -Total $Total) $Current/$Total · $Detail · $(Get-IconPrefix $script:Icons.Time)${ElapsedSeconds}s"
+  return "$(Get-IconPrefix $message.Icon)$($message.Text) $(Format-ProgressBar -Current $Current -Total $Total) $Current/$Total $($script:Glyphs.Separator) $Detail $($script:Glyphs.Separator) $(Get-IconPrefix $script:Icons.Time)${ElapsedSeconds}s"
 }
 
 function Write-DotfilerProgress {
@@ -292,7 +305,7 @@ function Format-LinkDetail {
     [bool]$HardLink = $false
   )
 
-  $detail = "→ $(Format-DisplaySource -Path $SourcePath)"
+  $detail = "$($script:Glyphs.Arrow) $(Format-DisplaySource -Path $SourcePath)"
   if ($HardLink) {
     $detail = "$detail ($($script:LinkLabelHard))"
   }
@@ -305,30 +318,30 @@ function Write-BoxTop {
   param([string]$Title = '')
 
   if ([string]::IsNullOrEmpty($Title)) {
-    Write-FormattedLine -Segments @((Format-AnsiSegment -Text ('╭' + ('─' * $script:BoxRuleWidth)) -Color DarkGray -Bold))
+    Write-FormattedLine -Segments @((Format-AnsiSegment -Text ($script:Glyphs.BoxTopLeft + ($script:Glyphs.BoxHorizontal * $script:BoxRuleWidth)) -Color DarkGray -Bold))
     return
   }
 
   $ruleLength = [Math]::Max(1, $script:BoxRuleWidth - $Title.Length - 4)
   Write-FormattedLine -Segments @(
-    (Format-AnsiSegment -Text '╭─' -Color DarkGray -Bold), ' ',
+    (Format-AnsiSegment -Text ($script:Glyphs.BoxTopLeft + $script:Glyphs.BoxHorizontal) -Color DarkGray -Bold), ' ',
     (Format-AnsiSegment -Text $Title -Color Blue -Bold), ' ',
-    (Format-AnsiSegment -Text ('─' * $ruleLength) -Color DarkGray -Bold)
+    (Format-AnsiSegment -Text ($script:Glyphs.BoxHorizontal * $ruleLength) -Color DarkGray -Bold)
   )
 }
 
 function Write-BoxRow {
   param([string]$Content)
 
-  Write-FormattedLine -Segments @((Format-AnsiSegment -Text '│' -Color DarkGray -Bold), ' ', $Content)
+  Write-FormattedLine -Segments @((Format-AnsiSegment -Text $script:Glyphs.BoxVertical -Color DarkGray -Bold), ' ', $Content)
 }
 
 function Write-BoxDivider {
-  Write-FormattedLine -Segments @((Format-AnsiSegment -Text ('├' + ('─' * $script:BoxRuleWidth)) -Color DarkGray -Bold))
+  Write-FormattedLine -Segments @((Format-AnsiSegment -Text ($script:Glyphs.BoxTee + ($script:Glyphs.BoxHorizontal * $script:BoxRuleWidth)) -Color DarkGray -Bold))
 }
 
 function Write-BoxBottom {
-  Write-FormattedLine -Segments @((Format-AnsiSegment -Text ('╰' + ('─' * $script:BoxRuleWidth)) -Color DarkGray -Bold))
+  Write-FormattedLine -Segments @((Format-AnsiSegment -Text ($script:Glyphs.BoxBottomLeft + ($script:Glyphs.BoxHorizontal * $script:BoxRuleWidth)) -Color DarkGray -Bold))
 }
 
 function Write-BlockGap {
@@ -350,8 +363,8 @@ function Write-Banner {
   }
 
   Write-BoxTop
-  Write-BoxRow -Content ("$(Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.App)dotfiler" -Color Magenta -Bold) · $modeText")
-  Write-BoxRow -Content (Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Source)$(Format-DisplayTarget -Path $script:ConfigsDir)  →  $(Get-IconPrefix $script:Icons.Home)~" -Color DarkGray)
+  Write-BoxRow -Content ("$(Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.App)dotfiler" -Color Magenta -Bold) $($script:Glyphs.Separator) $modeText")
+  Write-BoxRow -Content (Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Source)$(Format-DisplayTarget -Path $script:ConfigsDir)  $($script:Glyphs.Arrow)  $(Get-IconPrefix $script:Icons.Home)~" -Color DarkGray)
   Write-BoxBottom
 }
 
@@ -392,10 +405,10 @@ function Close-Group {
     }
 
     $closingSegments = [System.Collections.Generic.List[string]]::new()
-    $closingSegments.Add((Format-AnsiSegment -Text '╰─' -Color DarkGray -Bold))
+    $closingSegments.Add((Format-AnsiSegment -Text ($script:Glyphs.BoxBottomLeft + $script:Glyphs.BoxHorizontal) -Color DarkGray -Bold))
     if ($closingParts.Count -gt 0) {
       $closingSegments.Add(' ')
-      $closingSegments.Add((Format-AnsiSegment -Text ([string]::Join(' · ', $closingParts)) -Color DarkGray))
+      $closingSegments.Add((Format-AnsiSegment -Text ([string]::Join(" $($script:Glyphs.Separator) ", $closingParts)) -Color DarkGray))
     }
     Write-FormattedLine -Segments $closingSegments.ToArray()
   }
@@ -470,6 +483,7 @@ Opciones:
   --help      Muestra esta ayuda
 '@ | Write-Output
 }
+
 
 function Parse-Args {
   param([string[]]$CliArgs)
@@ -1673,7 +1687,7 @@ function Move-ToBackup {
     $script:CountBackups += 1
   }
 
-  Write-ItemLine -Icon $script:Icons.Backup -Label 'respaldo' -Color Yellow -Name (Split-Path -Path $Path -Leaf) -Detail "→ $(Split-Path -Path $backupPath -Leaf)"
+  Write-ItemLine -Icon $script:Icons.Backup -Label 'respaldo' -Color Yellow -Name (Split-Path -Path $Path -Leaf) -Detail "$($script:Glyphs.Arrow) $(Split-Path -Path $backupPath -Leaf)"
   return $backupPath
 }
 
@@ -2134,10 +2148,16 @@ function Format-SummaryCell {
   param(
     [string]$Icon,
     [string]$Label,
-    [int]$Value
+    [int]$Value,
+    [AllowNull()][object]$Color = $null
   )
 
-  return ('{0}{1} {2,4}' -f (Get-IconPrefix $Icon), $Label.PadRight($script:SummaryLabelWidth), $Value)
+  $cell = '{0}{1} {2,4}' -f (Get-IconPrefix $Icon), $Label.PadRight($script:SummaryLabelWidth), $Value
+  if ($null -ne $Color -and $Value -gt 0) {
+    return (Format-AnsiSegment -Text $cell -Color ([ConsoleColor]$Color) -Bold)
+  }
+
+  return (Format-AnsiSegment -Text $cell -Color DarkGray)
 }
 
 function Print-Summary {
@@ -2152,10 +2172,6 @@ function Print-Summary {
   } else {
     "$(Get-IconPrefix $script:Icons.RealRun)aplicacion real"
   }
-  $errorsCell = Format-SummaryCell -Icon $script:Icons.Error -Label 'errores' -Value $script:CountErrors
-  if ($script:CountErrors -gt 0) {
-    $errorsCell = Format-AnsiSegment -Text $errorsCell -Color Red -Bold
-  }
   $statusText = if ($script:CountErrors -eq 0) {
     Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Done)Sin errores." -Color Green -Bold
   } else {
@@ -2164,11 +2180,11 @@ function Print-Summary {
 
   Write-BlockGap
   Write-BoxTop -Title "$(Get-IconPrefix $script:Icons.Summary)Resumen"
-  Write-BoxRow -Content ((Format-AnsiSegment -Text (Format-SummaryCell -Icon $script:Icons.Created -Label 'creados' -Value $created) -Color Green -Bold) + $columnGap + (Format-AnsiSegment -Text (Format-SummaryCell -Icon $script:Icons.Replaced -Label 'reemplazados' -Value $replaced) -Color Blue -Bold))
-  Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Unchanged -Label 'sin cambios' -Value $script:CountUnchanged) + $columnGap + (Format-SummaryCell -Icon $script:Icons.Delete -Label 'eliminados' -Value $removed))
-  Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Backup -Label 'respaldos' -Value $backups) + $columnGap + $errorsCell)
+  Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Created -Label 'creados' -Value $created -Color Green) + $columnGap + (Format-SummaryCell -Icon $script:Icons.Replaced -Label 'reemplazados' -Value $replaced -Color Blue))
+  Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Unchanged -Label 'sin cambios' -Value $script:CountUnchanged -Color Cyan) + $columnGap + (Format-SummaryCell -Icon $script:Icons.Delete -Label 'eliminados' -Value $removed -Color Magenta))
+  Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Backup -Label 'respaldos' -Value $backups -Color Yellow) + $columnGap + (Format-SummaryCell -Icon $script:Icons.Error -Label 'errores' -Value $script:CountErrors -Color Red))
   Write-BoxDivider
-  Write-BoxRow -Content "$modeText · $(Get-IconPrefix $script:Icons.Time)${elapsed}s · $statusText"
+  Write-BoxRow -Content ((Format-AnsiSegment -Text "$modeText $($script:Glyphs.Separator) $(Get-IconPrefix $script:Icons.Time)${elapsed}s $($script:Glyphs.Separator)" -Color DarkGray) + " $statusText")
   Write-BoxBottom
 }
 
@@ -2183,7 +2199,7 @@ function Print-Diagnostics {
   $index = 1
   foreach ($item in $script:Diagnostics) {
     Write-BoxRow -Content ("$(Format-AnsiSegment -Text "$index." -Color Red -Bold) $(Format-DisplayTarget -Path $item.Target)")
-    Write-BoxRow -Content ("   " + (Format-AnsiSegment -Text "→ $($item.Reason)" -Color DarkGray))
+    Write-BoxRow -Content ("   " + (Format-AnsiSegment -Text "$($script:Glyphs.Arrow) $($item.Reason)" -Color DarkGray))
     $index += 1
   }
 
@@ -2234,7 +2250,7 @@ function Main {
   $operationIndex = 0
   foreach ($operation in $operations) {
     $operationIndex += 1
-    Write-DotfilerProgress -Id 2 -Current $operationIndex -Total $operations.Count -Status "$(Get-IconPrefix '🔗')Enlazando $(Format-ProgressBar -Current $operationIndex -Total $operations.Count) $operationIndex/$($operations.Count) · $(Split-Path -Path $operation.Target -Leaf)"
+    Write-DotfilerProgress -Id 2 -Current $operationIndex -Total $operations.Count -Status "$(Get-IconPrefix $script:Icons.Linking)Enlazando $(Format-ProgressBar -Current $operationIndex -Total $operations.Count) $operationIndex/$($operations.Count) $($script:Glyphs.Separator) $(Split-Path -Path $operation.Target -Leaf)"
 
     if ($operation.Group -ne $lastGroup) {
       Close-Group

@@ -123,13 +123,13 @@ assert_no_double_blank_line() {
   [[ "$output_text" != *$'\n\n\n'* ]]
 }
 
-# Matches an operation row "│ <emoji> <action> <name>" regardless of padding.
+# Matches an operation row "| <icon> <action> <name>" regardless of padding.
 assert_item_line() {
   local output_text="$1"
   local action="$2"
   local item_name="$3"
 
-  printf "%s\n" "$output_text" | grep -E "^│ .*$action +$item_name( |$)" >/dev/null
+  printf "%s\n" "$output_text" | grep -E "^\\| .*$action +$item_name( |$)" >/dev/null
 }
 
 # Matches a summary cell "<label> <value>" regardless of padding.
@@ -138,7 +138,7 @@ assert_summary_value() {
   local label="$2"
   local expected_value="$3"
 
-  printf "%s\n" "$output_text" | grep -E "^│ .*$label +$expected_value( |$)" >/dev/null
+  printf "%s\n" "$output_text" | grep -E "^\\| .*$label +$expected_value( |$)" >/dev/null
 }
 
 assert_output_contains_line() {
