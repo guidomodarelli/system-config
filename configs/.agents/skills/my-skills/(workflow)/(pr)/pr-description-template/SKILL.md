@@ -46,7 +46,7 @@ Use for new PRs or when the user explicitly asks to fill or restructure the comp
 Use when another skill updates an existing PR only to add or normalize traceability metadata.
 
 - Do not regenerate the template or edit the PR title.
-- Do not add or recompute the initial `<sub>` file-count metadata.
+- Do not add or recompute the initial file-count metadata line.
 - Do not modify **Tipo de Cambio**, **Pruebas Manuales**, **Cambios en la API**, optional sections, reviewer notes, or unrelated ticket links.
 - A canonical Jira backlink may be inserted as the first content under `## 📝 Descripción`; this is not the removed top-level **Referencia** metadata block.
 - Delegate position, legacy cleanup, deduplication, concurrency, and byte-preservation rules to [pr-traceability.md](../kraken-jira-ticket/references/pr-traceability.md).
@@ -90,14 +90,22 @@ awk '
 '
 ```
 
-When the PR already exists, `gh pr view <number> --json files --jq '.files[].path'` yields the same path list for this filter.
+For an existing PR, resolve `number` and `baseRefName` with `gh pr view --json number,baseRefName`, then fetch the base branch and the PR head ref into a named ref. The `refs/pull/<number>/head` ref also covers PRs opened from forks and reflects only pushed commits. Do not diff against `FETCH_HEAD`: with two refspecs it points to the first one (the base), so the range comes out empty.
 
-Place exactly one line, `<sub>📄 Archivos de código modificados: N</sub>`, as the first body content, followed by one blank line and `## 📝 Descripción`. Replace `N` with computed integer; never leave placeholder text. Do not add this line in `traceability-only`.
+```bash
+git fetch origin "<baseRefName>" "+refs/pull/<number>/head:refs/remotes/origin/pr/<number>"
+git diff --name-only "origin/<baseRefName>...origin/pr/<number>"
+git update-ref -d "refs/remotes/origin/pr/<number>"
+```
+
+If the fetch fails, stop and report the concrete blocker. Do not use `gh pr view --json files`: it returns at most 100 files, so larger PRs are undercounted.
+
+Place exactly one line, `<div align="right"><sup>📄 Archivos de código modificados: N</sup></div>`, as the first body content, followed by one blank line and `## 📝 Descripción`. Replace `N` with computed integer; never leave placeholder text. Do not add this line in `traceability-only`.
 
 ## Full-composition rules
 
 - Fill every section from the actual diff — never leave the `*italic placeholders*`. Delete sections that genuinely do not apply (e.g. **Decisiones técnicas relevantes**, **Cambios en la API**, or **Notas para el Revisor**).
-- Start the body with the generated `<sub>` file-count line, then one blank line and **Descripción**. The PR title already carries the change summary, so do not repeat it as a body heading.
+- Start the body with the generated file-count line, then one blank line and **Descripción**. The PR title already carries the change summary, so do not repeat it as a body heading.
 - Do not add a compact **Tipo** metadata block above **Descripción**. In **Tipo de Cambio**, mark exactly one primary category with `[x]` and leave every other category unmarked with `[ ]`.
 - Include ordinary ticket or issue links naturally in **Descripción** or **Notas para el Revisor**; do not create a fixed metadata block.
 - When fully composing an existing PR, preserve every canonical `🎫 Jira: [...]` backlink already present. Extract backlinks before replacing body and reinsert each once as first content under `## 📝 Descripción`; never drop established traceability.

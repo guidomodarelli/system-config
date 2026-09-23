@@ -4,22 +4,22 @@
     {
       "id": 1,
       "prompt": "Componé un body nuevo de PR en full composition. El diff tiene `src/App.tsx`, `src/utils/date.ts`, `src/App.test.tsx`, `tests/helpers.ts`, `__mocks__/client.ts`, `assets/logo.svg` y `styles/theme.scss`. Agregá metadata inicial y completá el template sin placeholders.",
-      "expected_output": "El body comienza con una única línea `<sub>📄 Archivos de código modificados: 2</sub>`, seguida por `## 📝 Descripción`; cuenta solo `src/App.tsx` y `src/utils/date.ts`, excluye tests, mocks, imagen y SCSS, y completa el resto del template aplicable."
+      "expected_output": "El body comienza con una única línea `<div align=\"right\"><sup>📄 Archivos de código modificados: 2</sup></div>`, seguida por `## 📝 Descripción`; cuenta solo `src/App.tsx` y `src/utils/date.ts`, excluye tests, mocks, imagen y SCSS, y completa el resto del template aplicable."
     },
     {
       "id": 2,
       "prompt": "Componé un body de PR en full composition para un diff que solo contiene `src/Button.spec.tsx`, `__tests__/setup.ts`, `mocks/api.ts`, `public/icon.png` y `styles/layout.scss`. No hay archivos de código elegibles.",
-      "expected_output": "El body conserva metadata inicial y muestra `<sub>📄 Archivos de código modificados: 0</sub>` antes de `## 📝 Descripción`; no omite la línea ni cuenta archivos excluidos."
+      "expected_output": "El body conserva metadata inicial y muestra `<div align=\"right\"><sup>📄 Archivos de código modificados: 0</sup></div>` antes de `## 📝 Descripción`; no omite la línea ni cuenta archivos excluidos."
     },
     {
       "id": 4,
       "prompt": "Componé un body nuevo de PR en full composition. El diff tiene `app/nordic-pages/home/index.tsx`, `api/services/users.ts`, `src/constants/config.ts`, `.agents/hooks/sync.js`, `.claude/skills/review/helper.ts`, `.eslintrc.js`, `storybook/.storybook/test-runner.js`, `config/default.js`, `jest.config.js`, `eslint-import-core-modules.js`, `mocks/op-assignment.js`, `tests/unit/home.spec.tsx`, `src/Button.stories.tsx`, `src/types.d.ts` y `app/translations/en/messages.json`.",
-      "expected_output": "El body comienza con `<sub>📄 Archivos de código modificados: 3</sub>`; cuenta solo `app/nordic-pages/home/index.tsx`, `api/services/users.ts` y `src/constants/config.ts`, y excluye dot directories, dotfiles, `config/` de raíz, configuración de tooling, mocks, tests, stories, declaraciones `.d.ts` y catálogos JSON."
+      "expected_output": "El body comienza con `<div align=\"right\"><sup>📄 Archivos de código modificados: 3</sup></div>`; cuenta solo `app/nordic-pages/home/index.tsx`, `api/services/users.ts` y `src/constants/config.ts`, y excluye dot directories, dotfiles, `config/` de raíz, configuración de tooling, mocks, tests, stories, declaraciones `.d.ts` y catálogos JSON."
     },
     {
       "id": 3,
       "prompt": "Aplicá traceability-only sobre un PR existente para agregar o normalizar backlink Jira. El body actual ya tiene sus secciones y no debe retemplarse.",
-      "expected_output": "No agrega ni recalcula metadata `<sub>`; modifica únicamente backlink Jira permitido, preserva título y contenido protegido, y verifica el body resultante."
+      "expected_output": "No agrega ni recalcula la línea de metadata de archivos; modifica únicamente backlink Jira permitido, preserva título y contenido protegido, y verifica el body resultante."
     }
   ]
 }
