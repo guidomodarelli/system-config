@@ -1136,3 +1136,72 @@ YAML
   [[ "$output" != *"Enlazando"* ]]
   [[ "$output" != *$'\e[?25l'* ]]
 }
+
+# Fails when the text has non-ASCII bytes other than Spanish letters.
+assert_ascii_decorations() {
+  local output_text="$1"
+  local without_spanish_letters
+  without_spanish_letters="$(printf "%s" "$output_text" | LC_ALL=C sed -e 's/á//g; s/é//g; s/í//g; s/ó//g; s/ú//g; s/ñ//g; s/Á//g; s/É//g; s/Í//g; s/Ó//g; s/Ú//g; s/Ñ//g')"
+  ! printf "%s" "$without_spanish_letters" | LC_ALL=C grep -q '[^ -~[:cntrl:]]'
+}
+
+@test "--ascii usa solo ASCII en decoraciones" {
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--ascii" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_ascii_decorations "$output"
+  [[ "$output" == *"+- Resumen -"* ]]
+  [[ "$output" == *"> ~/linked-files"* ]]
+  [[ "$output" == *"| + creado"*"-> debug-source"* ]]
+  [[ "$output" == *"+----"* ]]
+}
+
+@test "--unicode usa cajas Unicode sin emojis" {
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--unicode" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"╭─ Resumen ─"* ]]
+  [[ "$output" == *"▸ ~/linked-files"* ]]
+  [[ "$output" == *"│ + creado"* ]]
+  [[ "$output" == *"✓ Sin errores."* ]]
+  [[ "$output" != *"📁"* ]]
+  [[ "$output" != *"✨"* ]]
+  [[ "$output" != *"🎉"* ]]
+  [[ "$output" != *"📊"* ]]
+}
+
+@test "--ascii con DOTFILER_PROGRESS=always usa spinner y barra ASCII" {
+  install_fixture "debug_flow"
+
+  DOTFILER_PROGRESS=always run_dotfiler_with_env "--ascii" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Enlazando "*"1/1"* ]]
+  [[ "$output" == *"############"* ]]
+  [[ "$output" != *"▰"* ]]
+  [[ "$output" != *"⠋"* ]]
+}
+
+@test "--ascii y --unicode juntas fallan como error de uso" {
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--ascii" "--unicode"
+
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--ascii y --unicode son excluyentes"* ]]
+  assert_path_missing "$HOME_DIR/linked-files/debug-source"
+}
+
+@test "sin flags de modo se mantienen los emojis" {
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"📁 ~/linked-files"* ]]
+  [[ "$output" == *"╭─ 📊 Resumen ─"* ]]
+}

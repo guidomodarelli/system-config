@@ -99,6 +99,11 @@ PROGRESS_DETAIL_MAX_LENGTH=36
 RESOLVE_MESSAGE_ICONS=("🧭" "🧩" "🔎" "🧹" "☕")
 RESOLVE_MESSAGE_TEXTS=("Resolviendo rutas" "Recorriendo agrupadores" "Aplicando filtros" "Buscando enlaces obsoletos" "Ya casi")
 ICON_LINKING=${ICON_LINKING:-"🔗"}
+# Decoration mode: emoji (default), unicode (--unicode, no emojis) or ascii
+# (--ascii). Chosen only by flags; the flags are mutually exclusive.
+ICON_MODE="emoji"
+DISPLAY_SEPARATOR="·"
+DISPLAY_ELLIPSIS="…"
 SPINNER_PID=""
 STATUS_LINE_ACTIVE="false"
 
@@ -354,7 +359,7 @@ truncate_text() {
     printf "%s" "$text"
     return 0
   fi
-  printf "%s…" "${text:0:$((max_length - 1))}"
+  printf "%s%s" "${text:0:$((max_length - ${#DISPLAY_ELLIPSIS}))}" "$DISPLAY_ELLIPSIS"
 }
 
 build_progress_bar() {
@@ -384,7 +389,7 @@ render_status_line() {
   fi
   local detail_text=""
   if [ -n "$detail" ]; then
-    detail_text=" $(print_gray -b "· $(truncate_text "$detail" "$PROGRESS_DETAIL_MAX_LENGTH")")"
+    detail_text=" $(print_gray -b "$DISPLAY_SEPARATOR $(truncate_text "$detail" "$PROGRESS_DETAIL_MAX_LENGTH")")"
   fi
   local elapsed_text=""
   if [ -n "$elapsed_seconds" ]; then
@@ -571,7 +576,7 @@ flush_group_unchanged_count() {
       if [ -z "$closing_text" ]; then
         closing_text="$closing_part"
       else
-        closing_text="$closing_text · $closing_part"
+        closing_text="$closing_text $DISPLAY_SEPARATOR $closing_part"
       fi
     done
     clear_status_line
@@ -605,6 +610,43 @@ print_operation_duration() {
   fi
 }
 
+# Replaces emoji decorations with narrow Unicode symbols (--unicode) or plain
+# ASCII (--ascii) for terminals without emoji or Unicode fonts. Texts keep
+# their Spanish accents: only decorations change.
+apply_icon_mode() {
+  case "$ICON_MODE" in
+  unicode)
+    ICON_APP="" ICON_REAL_RUN="▶" ICON_DRY_RUN="◇" ICON_SOURCE="" ICON_HOME=""
+    ICON_GROUP="▸" ICON_CREATED="+" ICON_REPLACED="↻" ICON_UNCHANGED="✓"
+    ICON_DELETE="✗" ICON_BACKUP="↺" ICON_DIRECTORY="▪" ICON_SUDO="!"
+    ICON_QUEUED="⇢" ICON_WARN="▲" ICON_ERROR="✗" ICON_TIME="" ICON_SUMMARY=""
+    ICON_DIAGNOSTIC="" ICON_DONE="✓" ICON_FAILED="✗" ICON_LINKING="⇢"
+    RESOLVE_MESSAGE_ICONS=("" "" "" "" "")
+    ;;
+  ascii)
+    ICON_APP="" ICON_REAL_RUN=">" ICON_DRY_RUN="~" ICON_SOURCE="" ICON_HOME=""
+    ICON_GROUP=">" ICON_CREATED="+" ICON_REPLACED="~" ICON_UNCHANGED="="
+    ICON_DELETE="x" ICON_BACKUP="<" ICON_DIRECTORY="#" ICON_SUDO="!"
+    ICON_QUEUED=">" ICON_WARN="!" ICON_ERROR="x" ICON_TIME="" ICON_SUMMARY=""
+    ICON_DIAGNOSTIC="" ICON_DONE="=" ICON_FAILED="x" ICON_LINKING=">"
+    RESOLVE_MESSAGE_ICONS=("" "" "" "" "")
+    BOX_TOP_LEFT="+" BOX_BOTTOM_LEFT="+" BOX_VERTICAL="|" BOX_TEE="+" BOX_HORIZONTAL="-"
+    SPINNER_FRAMES=("|" "/" "-" "\\")
+    PROGRESS_BAR_FILLED="#" PROGRESS_BAR_EMPTY="."
+    POINTER="->" DISPLAY_SEPARATOR="-" DISPLAY_ELLIPSIS="..."
+    ;;
+  esac
+}
+
+set_icon_mode() {
+  local requested_mode="$1"
+  if [ "$ICON_MODE" != "emoji" ] && [ "$ICON_MODE" != "$requested_mode" ]; then
+    log_error_action "Las opciones --ascii y --unicode son excluyentes: usá solo una."
+    exit "$EXIT_CODE_INPUT_ERROR"
+  fi
+  ICON_MODE="$requested_mode"
+}
+
 print_help() {
   cat <<'USAGE'
 Uso: ./scripts/dotfiler/dotfiler.sh [opciones]
@@ -613,12 +655,16 @@ Opciones:
   --dry-run   Muestra los cambios planificados sin escribir archivos
   --no-color  Desactiva los estilos ANSI
   --plain     Desactiva estilos, íconos y énfasis de rutas
+  --unicode   Usa símbolos Unicode sin emojis (terminales sin fuente de emojis)
+  --ascii     Usa solo ASCII en íconos, cajas y loader (terminales sin Unicode)
   --verbose   Lista también los enlaces sin cambios y el tiempo por operación
   --quiet     Oculta logs por ítem y muestra solo resumen/errores
+  --help      Muestra esta ayuda
+
+--unicode y --ascii son excluyentes.
 
 Variables:
   DOTFILER_PROGRESS=auto|always|never  Loader animado (auto: solo en terminal interactiva)
-  --help      Muestra esta ayuda
 USAGE
 }
 
@@ -636,6 +682,12 @@ parse_args() {
       USE_COLOR=false
       USE_ICONS=false
       USE_PATH_STYLE=false
+      ;;
+    --unicode)
+      set_icon_mode "unicode"
+      ;;
+    --ascii)
+      set_icon_mode "ascii"
       ;;
     --verbose)
       VERBOSE=true
@@ -1814,7 +1866,7 @@ print_summary() {
     print_box_row "$(print_summary_cell "$ICON_SUDO" "con sudo" "$COUNT_SUDO_OPERATIONS")$column_gap$(print_summary_cell "$ICON_QUEUED" "Windows (PS)" "$COUNT_WINDOWS_QUEUED")"
   fi
   print_box_divider
-  print_box_row "$mode_text $(print_gray -b "·") $(icon_prefix "$ICON_TIME")${total_elapsed_seconds}s $(print_gray -b "·") $status_text"
+  print_box_row "$mode_text $(print_gray -b "$DISPLAY_SEPARATOR") $(icon_prefix "$ICON_TIME")${total_elapsed_seconds}s $(print_gray -b "$DISPLAY_SEPARATOR") $status_text"
   print_box_bottom
   LAST_OUTPUT_WAS_BLANK=false
 }
@@ -1847,7 +1899,7 @@ print_banner() {
   fi
 
   print_box_top ""
-  print_box_row "$(print_magenta -b "$(icon_prefix "$ICON_APP")dotfiler") $(print_gray -b "·") $mode_text"
+  print_box_row "$(print_magenta -b "$(icon_prefix "$ICON_APP")dotfiler") $(print_gray -b "$DISPLAY_SEPARATOR") $mode_text"
   print_box_row "$(print_gray -b "$(icon_prefix "$ICON_SOURCE")$(display_target_path "$ROOT_CONFIGS_DIR")  $POINTER  $(icon_prefix "$ICON_HOME")~")"
   print_box_bottom
   LAST_OUTPUT_WAS_BLANK=false
@@ -1855,6 +1907,7 @@ print_banner() {
 
 main() {
   parse_args "$@"
+  apply_icon_mode
 
   check_commands yq jq
   if ! validate_paths_config; then
