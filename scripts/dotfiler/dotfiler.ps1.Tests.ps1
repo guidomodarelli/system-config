@@ -31,6 +31,9 @@
     $script:CountPlannedCreated = 0
     $script:CountPlannedReplaced = 0
     $script:CountPlannedBackups = 0
+    $script:CountRemoved = 0
+    $script:CountPlannedRemoved = 0
+    $script:PlannedDirectoryReplacements = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     $script:LastOutputWasSeparator = $false
     $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
     $script:ConfigPathsFile = ''
@@ -1186,6 +1189,168 @@
     It 'Get-MarkerFileName retorna el nombre cuando esta presente' {
       $entry = [PSCustomObject]@{ markerFile = 'SKILL.md' }
       Get-MarkerFileName -Entry $entry | Should -Be 'SKILL.md'
+    }
+  }
+
+  Context 'conditionalExcludes' {
+    BeforeEach {
+      $script:ConditionalRoot = Join-Path -Path $TestDrive -ChildPath ("conditional-{0}" -f ([guid]::NewGuid().ToString('N')))
+      $script:OriginalHomeDir = $script:HomeDir
+      $script:OriginalConfigsDir = $script:ConfigsDir
+      $script:HomeDir = Join-Path -Path $script:ConditionalRoot -ChildPath 'home'
+      $script:ConfigsDir = Join-Path -Path $script:ConditionalRoot -ChildPath 'configs'
+      New-Item -ItemType Directory -Path $script:HomeDir -Force | Out-Null
+
+      foreach ($leafRelativePath in @('skills-tree/leaf-a', 'skills-tree/(group1)/inner-leaf')) {
+        $leafPath = Join-Path -Path $script:ConfigsDir -ChildPath $leafRelativePath
+        New-Item -ItemType Directory -Path $leafPath -Force | Out-Null
+        New-Item -ItemType File -Path (Join-Path -Path $leafPath -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+      }
+
+      $script:InnerLeafSource = (Get-Item -LiteralPath (Join-Path -Path $script:ConfigsDir -ChildPath 'skills-tree/(group1)/inner-leaf')).FullName
+      $script:LinkedFilesDir = Join-Path -Path $script:HomeDir -ChildPath 'linked-files'
+      $script:InnerLeafTarget = Join-Path -Path $script:LinkedFilesDir -ChildPath 'inner-leaf'
+
+      Mock Get-ConfigEntries {
+        @(
+          [PSCustomObject]@{
+            path = 'skills-tree/*'
+            target = 'linked-files'
+            descendInto = '/^\(.*\)$/'
+            markerFile = 'SKILL.md'
+            conditionalExcludes = @(
+              [PSCustomObject]@{ pattern = '/^inner-leaf$/'; whenPathExists = '~/.work-marker' }
+            )
+          }
+        )
+      }
+    }
+
+    AfterEach {
+      $script:HomeDir = $script:OriginalHomeDir
+      $script:ConfigsDir = $script:OriginalConfigsDir
+    }
+
+    It 'Join-RegexPatterns combina patrones ignorando nulos' {
+      $combined = Join-RegexPatterns -Patterns @([regex]::new('^a$'), $null, [regex]::new('^b$'))
+      $combined.IsMatch('a') | Should -BeTrue
+      $combined.IsMatch('b') | Should -BeTrue
+      $combined.IsMatch('c') | Should -BeFalse
+      Join-RegexPatterns -Patterns @($null) | Should -BeNullOrEmpty
+    }
+
+    It 'Get-ConditionalExcludeRegex falla con regex invalido' {
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:HomeDir -ChildPath '.work-marker') -Force | Out-Null
+      $entry = [PSCustomObject]@{
+        conditionalExcludes = @([PSCustomObject]@{ pattern = '/^(unclosed$/'; whenPathExists = '~/.work-marker' })
+      }
+      { Get-ConditionalExcludeRegex -Entry $entry } | Should -Throw
+    }
+
+    It 'no excluye cuando la ruta condicional no existe' {
+      $operations = @(Resolve-Operations)
+      $targets = @($operations | ForEach-Object { $_.Target })
+      $targets | Should -Contain $script:InnerLeafTarget
+      @($operations | Where-Object { $_.Remove }).Count | Should -Be 0
+    }
+
+    It 'excluye cuando la ruta condicional existe' {
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:HomeDir -ChildPath '.work-marker') -Force | Out-Null
+      $operations = @(Resolve-Operations)
+      $targets = @($operations | ForEach-Object { $_.Target })
+      $targets | Should -Not -Contain $script:InnerLeafTarget
+      $targets | Should -Contain (Join-Path -Path $script:LinkedFilesDir -ChildPath 'leaf-a')
+    }
+
+    It 'genera y ejecuta eliminacion del symlink previo que queda excluido' {
+      New-Item -ItemType Directory -Path $script:LinkedFilesDir -Force | Out-Null
+      try {
+        New-Item -ItemType SymbolicLink -Path $script:InnerLeafTarget -Target $script:InnerLeafSource -ErrorAction Stop | Out-Null
+      } catch {
+        Set-ItResult -Skipped -Because 'el entorno no permite crear symlinks reales'
+        return
+      }
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:HomeDir -ChildPath '.work-marker') -Force | Out-Null
+
+      $removals = @(Resolve-Operations | Where-Object { $_.Remove })
+      $removals.Count | Should -Be 1
+      $removals[0].Target | Should -Be $script:InnerLeafTarget
+
+      $script:DryRun = $true
+      Remove-StaleSymlink -SourcePath $removals[0].Source -TargetPath $removals[0].Target
+      Test-IsSymlink -Path $script:InnerLeafTarget | Should -BeTrue
+      $script:CountPlannedRemoved | Should -Be 1
+
+      $script:DryRun = $false
+      Remove-StaleSymlink -SourcePath $removals[0].Source -TargetPath $removals[0].Target
+      Test-PathEntry -Path $script:InnerLeafTarget | Should -BeFalse
+      $script:CountRemoved | Should -Be 1
+      $script:CountErrors | Should -Be 0
+    }
+
+    It 'no elimina archivos reales en el destino excluido' {
+      New-Item -ItemType Directory -Path $script:LinkedFilesDir -Force | Out-Null
+      New-Item -ItemType File -Path $script:InnerLeafTarget -Value 'real' -Force | Out-Null
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:HomeDir -ChildPath '.work-marker') -Force | Out-Null
+
+      @(Resolve-Operations | Where-Object { $_.Remove }).Count | Should -Be 0
+      Remove-StaleSymlink -SourcePath $script:InnerLeafSource -TargetPath $script:InnerLeafTarget
+      Get-Content -LiteralPath $script:InnerLeafTarget | Should -Be 'real'
+    }
+  }
+
+  Context 'Initialize-TargetDirectory' {
+    BeforeEach {
+      $script:MigrationRoot = Join-Path -Path $TestDrive -ChildPath ("migration-{0}" -f ([guid]::NewGuid().ToString('N')))
+      $script:OriginalConfigsDir = $script:ConfigsDir
+      $script:ConfigsDir = Join-Path -Path $script:MigrationRoot -ChildPath 'configs'
+      $script:RepoSkillsDir = Join-Path -Path $script:ConfigsDir -ChildPath 'skills-tree'
+      $script:MigrationHome = Join-Path -Path $script:MigrationRoot -ChildPath 'home'
+      New-Item -ItemType File -Path (Join-Path -Path $script:RepoSkillsDir -ChildPath 'leaf-a/SKILL.md') -Value 'x' -Force | Out-Null
+      New-Item -ItemType Directory -Path $script:MigrationHome -Force | Out-Null
+      $script:LinkedDirectory = Join-Path -Path $script:MigrationHome -ChildPath 'linked-files'
+    }
+
+    AfterEach {
+      $script:ConfigsDir = $script:OriginalConfigsDir
+    }
+
+    It 'Test-PathInsideConfigsDir distingue rutas dentro y fuera del repo' {
+      Test-PathInsideConfigsDir -Path $script:RepoSkillsDir | Should -BeTrue
+      Test-PathInsideConfigsDir -Path $script:ConfigsDir | Should -BeTrue
+      Test-PathInsideConfigsDir -Path "$($script:ConfigsDir)-other" | Should -BeFalse
+      Test-PathInsideConfigsDir -Path $script:MigrationHome | Should -BeFalse
+    }
+
+    It 'reemplaza symlink de directorio hacia el repo sin borrar contenido' {
+      try {
+        New-Item -ItemType SymbolicLink -Path $script:LinkedDirectory -Target $script:RepoSkillsDir -ErrorAction Stop | Out-Null
+      } catch {
+        Set-ItResult -Skipped -Because 'el entorno no permite crear symlinks reales'
+        return
+      }
+
+      $script:DryRun = $true
+      Initialize-TargetDirectory -DirectoryPath $script:LinkedDirectory
+      Initialize-TargetDirectory -DirectoryPath $script:LinkedDirectory
+      Test-IsSymlink -Path $script:LinkedDirectory | Should -BeTrue
+      $script:CountPlannedRemoved | Should -Be 1
+
+      $script:DryRun = $false
+      Initialize-TargetDirectory -DirectoryPath $script:LinkedDirectory
+      Test-PathEntry -Path $script:LinkedDirectory | Should -BeFalse
+      Test-Path -LiteralPath (Join-Path -Path $script:RepoSkillsDir -ChildPath 'leaf-a/SKILL.md') | Should -BeTrue
+      $script:CountRemoved | Should -Be 1
+    }
+
+    It 'rechaza un destino real dentro del repo' {
+      { Initialize-TargetDirectory -DirectoryPath $script:RepoSkillsDir } | Should -Throw '*dentro del repositorio*'
+    }
+
+    It 'no hace nada con directorios reales fuera del repo' {
+      New-Item -ItemType Directory -Path $script:LinkedDirectory -Force | Out-Null
+      { Initialize-TargetDirectory -DirectoryPath $script:LinkedDirectory } | Should -Not -Throw
+      Test-Path -LiteralPath $script:LinkedDirectory -PathType Container | Should -BeTrue
     }
   }
 }

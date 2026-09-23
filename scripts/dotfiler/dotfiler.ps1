@@ -32,15 +32,18 @@ $script:StartTime = Get-Date
 $script:CountCreated = 0
 $script:CountReplaced = 0
 $script:CountBackups = 0
+$script:CountRemoved = 0
 $script:CountSimulated = 0
 $script:CountErrors = 0
 $script:CountPlannedCreated = 0
 $script:CountPlannedReplaced = 0
 $script:CountPlannedBackups = 0
+$script:CountPlannedRemoved = 0
 
 $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
 $script:PreferredCommandPaths = @{}
 $script:LastOutputWasSeparator = $false
+$script:PlannedDirectoryReplacements = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
 function Write-ColorLine {
   param(
@@ -1248,6 +1251,66 @@ function Get-ExcludeRegex {
   return (ConvertTo-StrippedRegexPattern -Pattern $value)
 }
 
+function Resolve-ConditionPath {
+  param([string]$Path)
+
+  $expanded = Expand-UserPath -Path $Path
+  if ([System.IO.Path]::IsPathRooted($expanded)) {
+    return $expanded
+  }
+
+  return (Join-Path -Path $script:HomeDir -ChildPath $expanded)
+}
+
+function Test-ConditionPathExists {
+  param([string]$Path)
+
+  $resolvedPath = Resolve-ConditionPath -Path $Path
+  return (Test-PathEntry -Path $resolvedPath)
+}
+
+function Join-RegexPatterns {
+  param([AllowNull()][regex[]]$Patterns)
+
+  $combined = $null
+  foreach ($pattern in @($Patterns)) {
+    if ($null -eq $pattern) {
+      continue
+    }
+    if ($null -eq $combined) {
+      $combined = $pattern.ToString()
+    } else {
+      $combined = "($combined)|($($pattern.ToString()))"
+    }
+  }
+
+  if ($null -eq $combined) {
+    return $null
+  }
+
+  return [regex]::new($combined)
+}
+
+function Get-ConditionalExcludeRegex {
+  param([object]$Entry)
+
+  $activePatterns = [System.Collections.Generic.List[regex]]::new()
+  foreach ($rule in @(Get-PropertyArray -Object $Entry -Name 'conditionalExcludes')) {
+    $patternText = Get-TextPropertyValue -Object $rule -Name 'pattern'
+    $conditionPath = Get-TextPropertyValue -Object $rule -Name 'whenPathExists'
+    if ([string]::IsNullOrEmpty($patternText) -or [string]::IsNullOrEmpty($conditionPath)) {
+      continue
+    }
+
+    $pattern = ConvertTo-StrippedRegexPattern -Pattern $patternText
+    if (Test-ConditionPathExists -Path $conditionPath) {
+      $activePatterns.Add($pattern) | Out-Null
+    }
+  }
+
+  return (Join-RegexPatterns -Patterns $activePatterns.ToArray())
+}
+
 function Test-FolderShouldDescend {
   param(
     [string]$Name,
@@ -1425,6 +1488,114 @@ function Test-PathEntry {
   return $null -ne (Get-PathEntry -Path $Path)
 }
 
+function Test-SymlinkPointsToSource {
+  param(
+    [string]$LinkPath,
+    [string]$SourcePath
+  )
+
+  $resolvedLinkTarget = Get-SymlinkResolvedTarget -LinkPath $LinkPath
+  if ($null -eq $resolvedLinkTarget) {
+    return $false
+  }
+
+  $resolvedSource = [System.IO.Path]::GetFullPath($SourcePath)
+  return [string]::Equals($resolvedLinkTarget.TrimEnd('\', '/'), $resolvedSource.TrimEnd('\', '/'), [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-SymlinkResolvedTarget {
+  param([string]$LinkPath)
+
+  if (-not (Test-IsSymlink -Path $LinkPath)) {
+    return $null
+  }
+
+  $linkTarget = @((Get-PathEntry -Path $LinkPath).Target) | Select-Object -First 1
+  if ([string]::IsNullOrWhiteSpace($linkTarget)) {
+    return $null
+  }
+
+  $linkDirectory = Split-Path -Path $LinkPath -Parent
+  return [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($linkDirectory, $linkTarget))
+}
+
+function Test-PathInsideConfigsDir {
+  param([AllowNull()][string]$Path)
+
+  if ([string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($script:ConfigsDir)) {
+    return $false
+  }
+
+  $resolvedPath = [System.IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
+  $resolvedConfigsDir = [System.IO.Path]::GetFullPath($script:ConfigsDir).TrimEnd('\', '/')
+  return [string]::Equals($resolvedPath, $resolvedConfigsDir, [System.StringComparison]::OrdinalIgnoreCase) -or
+    $resolvedPath.StartsWith($resolvedConfigsDir + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+# Replaces a directory symlink left by a previous run (pointing inside the
+# repository configs) with a real directory, and refuses to create links in a
+# destination that still resolves inside the repository.
+function Initialize-TargetDirectory {
+  param([string]$DirectoryPath)
+
+  $resolvedLinkTarget = Get-SymlinkResolvedTarget -LinkPath $DirectoryPath
+  if ($null -ne $resolvedLinkTarget -and (Test-PathInsideConfigsDir -Path $resolvedLinkTarget)) {
+    if ($script:DryRun) {
+      if ($script:PlannedDirectoryReplacements.Add($DirectoryPath)) {
+        $script:CountPlannedRemoved += 1
+        Write-Info "Reemplazaria symlink de directorio por carpeta real $DirectoryPath"
+      }
+      return
+    }
+
+    # Directory.Delete on a link removes only the link, never the linked content.
+    [System.IO.Directory]::Delete($DirectoryPath)
+    $script:CountRemoved += 1
+    Write-Info "Symlink de directorio reemplazado por carpeta real $DirectoryPath"
+    return
+  }
+
+  if ($script:DryRun -and $script:PlannedDirectoryReplacements.Contains($DirectoryPath)) {
+    return
+  }
+
+  $existingDirectory = Get-PathEntry -Path $DirectoryPath
+  if ($null -ne $existingDirectory) {
+    $resolvedDirectory = if ($null -ne $resolvedLinkTarget) { $resolvedLinkTarget } else { $existingDirectory.FullName }
+    if (Test-PathInsideConfigsDir -Path $resolvedDirectory) {
+      throw "El directorio destino resuelve dentro del repositorio: $DirectoryPath"
+    }
+  }
+}
+
+function Remove-StaleSymlink {
+  param(
+    [string]$SourcePath,
+    [string]$TargetPath
+  )
+
+  try {
+    if (-not (Test-SymlinkPointsToSource -LinkPath $TargetPath -SourcePath $SourcePath)) {
+      return
+    }
+
+    if ($script:DryRun) {
+      $script:CountSimulated += 1
+      $script:CountPlannedRemoved += 1
+      Write-Info "Eliminaria symlink excluido por condicion $TargetPath"
+      return
+    }
+
+    Remove-Item -LiteralPath $TargetPath -Force
+    $script:CountRemoved += 1
+    Write-Info "Symlink excluido por condicion eliminado $TargetPath"
+  } catch {
+    $script:CountErrors += 1
+    Add-Diagnostic -Target $TargetPath -Reason "Fallo al eliminar symlink excluido por condicion: $($_.Exception.Message)"
+    Write-ErrorLog "No se pudo eliminar symlink excluido por condicion $TargetPath"
+  }
+}
+
 function Test-IsSymlink {
   param([string]$Path)
 
@@ -1461,11 +1632,18 @@ function New-DotfileSymlink {
       $parentDir = '.'
     }
 
-    if (Test-IsSymlink -Path "$TargetPath.bak") {
+    Initialize-TargetDirectory -DirectoryPath $parentDir
+    # In dry-run the directory symlink is still in place, so existing entries
+    # would be read through it; the replaced directory will start empty.
+    $targetDirectoryPendingReplacement = $script:DryRun -and $script:PlannedDirectoryReplacements.Contains($parentDir)
+
+    if (-not $targetDirectoryPendingReplacement -and (Test-IsSymlink -Path "$TargetPath.bak")) {
       Remove-ExistingSymlink -Path "$TargetPath.bak"
     }
 
-    if (Test-IsSymlink -Path $TargetPath) {
+    if ($targetDirectoryPendingReplacement) {
+      $script:CountPlannedCreated += 1
+    } elseif (Test-IsSymlink -Path $TargetPath) {
       Remove-ExistingSymlink -Path $TargetPath
       if ($script:DryRun) {
         $script:CountPlannedReplaced += 1
@@ -1549,6 +1727,49 @@ function Test-PathEndsWithGlobStar {
   return $Path.EndsWith('/*') -or $Path.EndsWith('\*')
 }
 
+# Builds removal operations for symlinks left by previous runs whose sources are
+# now excluded by an active `conditionalExcludes` rule. Only symlinks pointing
+# to that exact source are removed; regular files are never touched.
+function Get-StaleSymlinkRemovals {
+  param(
+    [string]$EntryPath,
+    [string]$TargetBase,
+    [object[]]$LinkedSources,
+    [System.Collections.Generic.HashSet[string]]$SeenBasenames,
+    [AllowNull()][regex]$DescendIntoRegex,
+    [AllowNull()][regex]$ExcludeRegex,
+    [AllowNull()][string]$MarkerFile
+  )
+
+  $linkedPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($linkedSource in @($LinkedSources)) {
+    [void]$linkedPaths.Add($linkedSource.FullName)
+  }
+
+  $removals = [System.Collections.Generic.List[object]]::new()
+  $candidates = @(Get-ResolvedSources -OriginalPath $EntryPath -DescendIntoRegex $DescendIntoRegex -ExcludeRegex $ExcludeRegex -MarkerFile $MarkerFile)
+  foreach ($candidate in $candidates) {
+    if ($linkedPaths.Contains($candidate.FullName) -or $SeenBasenames.Contains($candidate.Name)) {
+      continue
+    }
+
+    $targetPath = Join-Path -Path $TargetBase -ChildPath $candidate.Name
+    if (-not (Test-SymlinkPointsToSource -LinkPath $targetPath -SourcePath $candidate.FullName)) {
+      continue
+    }
+
+    $removals.Add([PSCustomObject]@{
+        Group    = (Split-Path -Path $targetPath -Parent)
+        Source   = $candidate.FullName
+        Target   = $targetPath
+        HardLink = $false
+        Remove   = $true
+      })
+  }
+
+  return $removals.ToArray()
+}
+
 function Resolve-Operations {
   $operations = [System.Collections.Generic.List[object]]::new()
 
@@ -1583,14 +1804,17 @@ function Resolve-Operations {
     $entryPath = [string]$entry.path
     $descendIntoRegex = $null
     $excludeRegex = $null
+    $conditionalExcludeRegex = $null
     $markerFile = $null
     $hasFilters = $false
 
     try {
       $descendIntoRegex = Get-DescendIntoRegex -Entry $entry
       $excludeRegex = Get-ExcludeRegex -Entry $entry
+      $conditionalExcludeRegex = Get-ConditionalExcludeRegex -Entry $entry
       $markerFile = Get-MarkerFileName -Entry $entry
-      $hasFilters = ($null -ne $descendIntoRegex) -or ($null -ne $excludeRegex) -or (-not [string]::IsNullOrEmpty($markerFile))
+      $hasFilters = ($null -ne $descendIntoRegex) -or ($null -ne $excludeRegex) -or (-not [string]::IsNullOrEmpty($markerFile)) -or
+        (Test-PropertyPresent -Object $entry -Name 'conditionalExcludes')
     } catch {
       $script:CountErrors += 1
       Add-Diagnostic -Target $entryPath -Reason $_.Exception.Message
@@ -1599,15 +1823,21 @@ function Resolve-Operations {
     }
 
     if ($hasFilters -and -not (Test-PathEndsWithGlobStar -Path $entryPath)) {
-      Write-Warn "descendInto/markerFile/exclude solo aplican con path terminado en '/*'. Ignorando filtros para: $entryPath"
+      Write-Warn "descendInto/markerFile/exclude/conditionalExcludes solo aplican con path terminado en '/*'. Ignorando filtros para: $entryPath"
       $descendIntoRegex = $null
       $excludeRegex = $null
+      $conditionalExcludeRegex = $null
       $markerFile = $null
     }
 
+    if ($selectedTargetDefinition.UsesExactTarget) {
+      $conditionalExcludeRegex = $null
+    }
+
+    $effectiveExcludeRegex = Join-RegexPatterns -Patterns @($excludeRegex, $conditionalExcludeRegex)
     $targetBase = Resolve-TargetBase -Target $selectedTarget
 
-    $sources = @(Get-ResolvedSources -OriginalPath $entryPath -DescendIntoRegex $descendIntoRegex -ExcludeRegex $excludeRegex -MarkerFile $markerFile)
+    $sources = @(Get-ResolvedSources -OriginalPath $entryPath -DescendIntoRegex $descendIntoRegex -ExcludeRegex $effectiveExcludeRegex -MarkerFile $markerFile)
     if ($sources.Count -eq 0) {
       if (Test-GlobPattern -Path $entryPath) {
         Write-Warn "El patron no produjo resultados: $entryPath"
@@ -1649,7 +1879,14 @@ function Resolve-Operations {
           Source   = $sourceItem.FullName
           Target   = $targetPath
           HardLink = ($entry.hardLink -eq $true)
+          Remove   = $false
         })
+    }
+
+    if ($null -ne $conditionalExcludeRegex) {
+      foreach ($removal in @(Get-StaleSymlinkRemovals -EntryPath $entryPath -TargetBase $targetBase -LinkedSources $sources -SeenBasenames $seenBasenames -DescendIntoRegex $descendIntoRegex -ExcludeRegex $excludeRegex -MarkerFile $markerFile)) {
+        $operations.Add($removal)
+      }
     }
   }
 
@@ -1670,10 +1907,12 @@ function Print-Summary {
   $created = if ($script:DryRun) { $script:CountPlannedCreated } else { $script:CountCreated }
   $replaced = if ($script:DryRun) { $script:CountPlannedReplaced } else { $script:CountReplaced }
   $backups = if ($script:DryRun) { $script:CountPlannedBackups } else { $script:CountBackups }
+  $removed = if ($script:DryRun) { $script:CountPlannedRemoved } else { $script:CountRemoved }
   $status = if ($script:CountErrors -eq 0) { '[OK] Sin errores' } else { '[X] Con errores' }
   $createdLabel = if ($script:DryRun) { 'Creados (plan)' } else { 'Creados' }
   $replacedLabel = if ($script:DryRun) { 'Reemplazados (plan)' } else { 'Reemplazados' }
   $backupsLabel = if ($script:DryRun) { 'Respaldos (plan)' } else { 'Respaldos' }
+  $removedLabel = if ($script:DryRun) { 'Eliminados (plan)' } else { 'Eliminados' }
 
   Write-Separator
   Write-PlainLine -Message 'RESUMEN' -Color Blue
@@ -1687,6 +1926,7 @@ function Print-Summary {
   Write-TableRow -Metric $createdLabel -Value ([string]$created)
   Write-TableRow -Metric $replacedLabel -Value ([string]$replaced)
   Write-TableRow -Metric $backupsLabel -Value ([string]$backups)
+  Write-TableRow -Metric $removedLabel -Value ([string]$removed)
   Write-TableRow -Metric 'Omitidos' -Value ([string]$script:CountSimulated)
   Write-TableRow -Metric 'Errores' -Value ([string]$script:CountErrors)
   Write-TableRow -Metric 'Estado' -Value $status
@@ -1737,6 +1977,11 @@ function Main {
       Write-Separator
       Write-Group -GroupPath $operation.Group
       $lastGroup = $operation.Group
+    }
+
+    if ($operation.Remove -eq $true) {
+      Remove-StaleSymlink -SourcePath $operation.Source -TargetPath $operation.Target
+      continue
     }
 
     New-DotfileSymlink -SourcePath $operation.Source -TargetPath $operation.Target -HardLink ([bool]$operation.HardLink)

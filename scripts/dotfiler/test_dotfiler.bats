@@ -828,3 +828,171 @@ YAML
   assert_path_missing "$HOME_DIR/linked-files/dist"
   assert_path_missing "$HOME_DIR/linked-files/anything"
 }
+
+write_conditional_excludes_config() {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+    exclude: /^dist$/
+    conditionalExcludes:
+      - pattern: /^inner-leaf$/
+        whenPathExists: ~/.work-marker
+YAML
+}
+
+@test "conditionalExcludes no excluye cuando la ruta condicional no existe" {
+  seed_filter_tree
+  write_conditional_excludes_config
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+}
+
+@test "conditionalExcludes excluye cuando la ruta condicional existe y conserva exclude base" {
+  seed_filter_tree
+  write_conditional_excludes_config
+  mkdir -p "$HOME_DIR/.work-marker"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_path_missing "$HOME_DIR/linked-files/inner-leaf"
+  assert_path_missing "$HOME_DIR/linked-files/dist"
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/very-deep" "$REPO_DIR/configs/skills-tree/(group1)/(deep)/very-deep"
+}
+
+@test "conditionalExcludes elimina symlink previo que ahora queda excluido" {
+  seed_filter_tree
+  write_conditional_excludes_config
+  run_dotfiler "false" "--no-color"
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
+
+  mkdir -p "$HOME_DIR/.work-marker"
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_path_missing "$HOME_DIR/linked-files/inner-leaf"
+  [[ "$output" == *"Symlink excluido por condición eliminado"* ]]
+  assert_output_contains_line "$output" "Eliminados"
+}
+
+@test "conditionalExcludes en dry-run informa eliminacion sin borrar el symlink" {
+  seed_filter_tree
+  write_conditional_excludes_config
+  run_dotfiler "false" "--no-color"
+  [ "$status" -eq 0 ]
+
+  mkdir -p "$HOME_DIR/.work-marker"
+  run_dotfiler "false" "--dry-run" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
+  [[ "$output" == *"Eliminaría symlink excluido por condición"* ]]
+}
+
+@test "conditionalExcludes no elimina archivos reales ni symlinks hacia otro origen" {
+  seed_filter_tree
+  write_conditional_excludes_config
+  mkdir -p "$HOME_DIR/.work-marker" "$HOME_DIR/linked-files"
+  printf "otro" > "$HOME_DIR/other-source"
+  ln -s "$HOME_DIR/other-source" "$HOME_DIR/linked-files/inner-leaf"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$HOME_DIR/other-source"
+
+  rm "$HOME_DIR/linked-files/inner-leaf"
+  printf "real" > "$HOME_DIR/linked-files/inner-leaf"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ -f "$HOME_DIR/linked-files/inner-leaf" ] && [ ! -L "$HOME_DIR/linked-files/inner-leaf" ]
+  [ "$(cat "$HOME_DIR/linked-files/inner-leaf")" = "real" ]
+}
+
+@test "conditionalExcludes con regex invalido falla con diagnostico" {
+  seed_filter_tree
+  mkdir -p "$HOME_DIR/.work-marker"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    conditionalExcludes:
+      - pattern: /^(unclosed$/
+        whenPathExists: ~/.work-marker
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Patron regex invalido en conditionalExcludes"* ]]
+  assert_path_missing "$HOME_DIR/linked-files/leaf-a"
+}
+
+write_directory_migration_config() {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-files
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+YAML
+}
+
+@test "reemplaza symlink de directorio hacia el repo por carpeta real sin escribir en el repo" {
+  seed_filter_tree
+  write_directory_migration_config
+  ln -s "$REPO_DIR/configs/skills-tree" "$HOME_DIR/linked-files"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ -d "$HOME_DIR/linked-files" ] && [ ! -L "$HOME_DIR/linked-files" ]
+  assert_symlink_points_to "$HOME_DIR/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
+  [ -z "$(find "$REPO_DIR/configs/skills-tree" -type l)" ]
+  [ -f "$REPO_DIR/configs/skills-tree/leaf-a/SKILL.md" ]
+  [[ "$output" == *"Symlink de directorio reemplazado por carpeta real"* ]]
+}
+
+@test "dry-run informa reemplazo de symlink de directorio sin modificar nada" {
+  seed_filter_tree
+  write_directory_migration_config
+  ln -s "$REPO_DIR/configs/skills-tree" "$HOME_DIR/linked-files"
+
+  run_dotfiler "false" "--dry-run" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ -L "$HOME_DIR/linked-files" ]
+  [ -z "$(find "$REPO_DIR/configs/skills-tree" -type l)" ]
+  [[ "$output" == *"Reemplazaría symlink de directorio por carpeta real"* ]]
+}
+
+@test "rechaza crear links cuando el destino resuelve dentro del repo por un ancestro" {
+  seed_filter_tree
+  ln -s "$REPO_DIR/configs" "$HOME_DIR/linked-configs"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: linked-configs/skills-tree
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -ne 0 ]
+  [ -L "$HOME_DIR/linked-configs" ]
+  [ -z "$(find "$REPO_DIR/configs/skills-tree" -type l)" ]
+  [[ "$output" == *"Directorio destino dentro del repositorio"* ]]
+}

@@ -68,11 +68,13 @@ START_TIME_SECONDS=$(date +%s)
 START_TIME_ISO_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 COUNT_CREATED=0
 COUNT_REPLACED=0
+COUNT_REMOVED=0
 COUNT_BACKUPS=0
 COUNT_SKIPPED=0
 COUNT_ERRORS=0
 COUNT_WINDOWS_QUEUED=0
 COUNT_SUDO_OPERATIONS=0
+PLANNED_DIRECTORY_REPLACEMENTS=$'\n'
 LAST_OUTPUT_WAS_SEPARATOR=false
 
 is_debug() {
@@ -496,6 +498,60 @@ needs_elevated_permissions() {
   [ ! -w "$existing_parent_dir" ]
 }
 
+path_is_inside_configs_dir() {
+  local path="$1"
+  local resolved_path
+  local resolved_configs_dir
+
+  resolved_path=$(realpath "$path" 2>/dev/null) || return 1
+  resolved_configs_dir=$(realpath "$ROOT_CONFIGS_DIR" 2>/dev/null) || return 1
+  [ "$resolved_path" = "$resolved_configs_dir" ] || [[ "$resolved_path" == "$resolved_configs_dir/"* ]]
+}
+
+is_directory_replacement_planned() {
+  local target_dir="$1"
+  [[ "$PLANNED_DIRECTORY_REPLACEMENTS" == *$'\n'"$target_dir"$'\n'* ]]
+}
+
+# Replaces a directory symlink left by a previous run (pointing inside the
+# repository configs) with a real directory, and refuses to create links in a
+# destination that still resolves inside the repository.
+prepare_target_directory() {
+  local target_dir="$1"
+  shift
+  local -a command_prefix=("$@")
+
+  if [ -L "$target_dir" ] && path_is_inside_configs_dir "$target_dir"; then
+    if [ "$DRY_RUN" = "true" ]; then
+      if ! is_directory_replacement_planned "$target_dir"; then
+        PLANNED_DIRECTORY_REPLACEMENTS+="$target_dir"$'\n'
+        COUNT_REMOVED=$((COUNT_REMOVED + 1))
+        log_delete_action "Reemplazaría symlink de directorio por carpeta real $(print_path "$target_dir")"
+      fi
+      return 0
+    fi
+
+    if ! "${command_prefix[@]}" rm "$target_dir"; then
+      log_error_action "No se pudo eliminar symlink de directorio $(print_path "$target_dir")"
+      record_failed_target "$target_dir" "Fallo al reemplazar symlink de directorio por carpeta real"
+      return 1
+    fi
+    COUNT_REMOVED=$((COUNT_REMOVED + 1))
+    log_delete_action "Symlink de directorio reemplazado por carpeta real $(print_path "$target_dir")"
+    return 0
+  fi
+
+  if [ "$DRY_RUN" = "true" ] && is_directory_replacement_planned "$target_dir"; then
+    return 0
+  fi
+
+  if [ -e "$target_dir" ] && path_is_inside_configs_dir "$target_dir"; then
+    log_error_action "El directorio destino resuelve dentro del repositorio: $(print_path "$target_dir")"
+    record_failed_target "$target_dir" "Directorio destino dentro del repositorio"
+    return 1
+  fi
+}
+
 # This function creates a symbolic link from the source path to the target location
 # It handles existing files by creating backups and removes old symlinks if they exist
 make_symlink() {
@@ -531,13 +587,26 @@ make_symlink() {
     log_note_action "Usando permisos elevados para $(print_path "$target")"
   fi
 
-  if [ -L "${target}.bak" ]; then
+  if ! prepare_target_directory "$target_dir" "${command_prefix[@]}"; then
+    return 1
+  fi
+
+  # In dry-run the directory symlink is still in place, so existing entries
+  # would be read through it; the replaced directory will start empty.
+  local target_dir_pending_replacement="false"
+  if [ "$DRY_RUN" = "true" ] && is_directory_replacement_planned "$target_dir"; then
+    target_dir_pending_replacement="true"
+  fi
+
+  if [ "$target_dir_pending_replacement" != "true" ] && [ -L "${target}.bak" ]; then
     if ! remove_old_symlink "${target}.bak" "${command_prefix[@]}"; then
       return 1
     fi
   fi
 
-  if [ -L "$target" ]; then
+  if [ "$target_dir_pending_replacement" = "true" ]; then
+    COUNT_CREATED=$((COUNT_CREATED + 1))
+  elif [ -L "$target" ]; then
     if ! remove_old_symlink "$target" "${command_prefix[@]}"; then
       return 1
     fi
@@ -594,6 +663,40 @@ make_symlink() {
   print_operation_duration "$started_at_seconds"
 
   return 0
+}
+
+# Removes a symlink left by a previous run whose source is now excluded by an
+# active `conditionalExcludes` rule.
+remove_stale_symlink() {
+  local path="$1"
+  local target="$2"
+  local -a command_prefix=()
+
+  if ! symlink_points_to_source "$target" "$path"; then
+    return 0
+  fi
+
+  if needs_elevated_permissions "$target" "$(dirname "$target")"; then
+    command_prefix=(sudo)
+    COUNT_SUDO_OPERATIONS=$((COUNT_SUDO_OPERATIONS + 1))
+    log_note_action "Usando permisos elevados para $(print_path "$target")"
+  fi
+
+  if [ "$DRY_RUN" = "true" ]; then
+    COUNT_SKIPPED=$((COUNT_SKIPPED + 1))
+    COUNT_REMOVED=$((COUNT_REMOVED + 1))
+    log_delete_action "Eliminaría symlink excluido por condición $(print_path "$target")"
+    return 0
+  fi
+
+  if ! "${command_prefix[@]}" rm "$target"; then
+    log_error_action "No se pudo eliminar symlink excluido por condición $(print_path "$target")"
+    record_failed_target "$target" "Fallo al eliminar symlink excluido por condición"
+    return 1
+  fi
+
+  COUNT_REMOVED=$((COUNT_REMOVED + 1))
+  log_delete_action "Symlink excluido por condición eliminado $(print_path "$target")"
 }
 
 first_letter() {
@@ -797,6 +900,60 @@ read_exclude_pattern() {
   printf '%s' "$raw"
 }
 
+# Resolves a `whenPathExists` value: expands env vars and treats relative
+# paths as relative to $HOME, consistent with how `target` is resolved.
+resolve_condition_path() {
+  local condition_path="$1"
+  condition_path=$(expand_env_vars "$condition_path")
+  if [ "$(first_letter "$condition_path")" != "/" ]; then
+    condition_path="$HOME/$condition_path"
+  fi
+  printf '%s' "$condition_path"
+}
+
+condition_path_exists() {
+  local condition_path
+  condition_path=$(resolve_condition_path "$1")
+  [ -e "$condition_path" ] || [ -L "$condition_path" ]
+}
+
+# Joins non-empty regex patterns into a single ERE alternation.
+combine_regex_patterns() {
+  local combined=""
+  local pattern
+  for pattern in "$@"; do
+    [ -z "$pattern" ] && continue
+    if [ -z "$combined" ]; then
+      combined="$pattern"
+    else
+      combined="($combined)|($pattern)"
+    fi
+  done
+  printf '%s' "$combined"
+}
+
+# Prints the combined pattern of every `conditionalExcludes` rule whose
+# `whenPathExists` path exists on this machine. Returns 1 on invalid regex.
+read_conditional_exclude_pattern() {
+  local entry_json="$1"
+  local active_patterns=()
+  local pattern
+  local condition_path
+
+  while IFS= read -r pattern && IFS= read -r condition_path; do
+    [ -z "$pattern" ] || [ -z "$condition_path" ] && continue
+    pattern=$(strip_regex_slashes "$pattern")
+    if ! validate_regex "$pattern"; then
+      return 1
+    fi
+    if condition_path_exists "$condition_path"; then
+      active_patterns+=("$pattern")
+    fi
+  done < <(echo "$entry_json" | jq -r '.conditionalExcludes[]? | (.pattern // ""), (.whenPathExists // "")')
+
+  combine_regex_patterns "${active_patterns[@]}"
+}
+
 folder_should_descend() {
   local name="$1"
   local pat="$2"
@@ -877,6 +1034,42 @@ walk_emissions_recursive() {
   fi
 }
 
+# Lists the sources a glob entry resolves to, applying descendInto,
+# exclude and markerFile filters.
+list_glob_sources() {
+  local abs_dir_path="$1"
+  local descend_pat="$2"
+  local exclude_pat="$3"
+  local marker="$4"
+
+  if [ -n "$descend_pat" ]; then
+    walk_emissions_recursive "$abs_dir_path" "$descend_pat" "$exclude_pat" "$marker"
+    return 0
+  fi
+
+  local item
+  while IFS= read -r item; do
+    local name
+    name=$(basename "$item")
+    if folder_is_excluded "$name" "$exclude_pat"; then
+      continue
+    fi
+    if [ -d "$item" ] && [ ! -L "$item" ] && ! leaf_has_marker_file "$item" "$marker"; then
+      continue
+    fi
+    printf '%s\n' "$item"
+  done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1 | LC_ALL=C sort)
+}
+
+symlink_points_to_source() {
+  local link_path="$1"
+  local source_path="$2"
+
+  [ -L "$link_path" ] || return 1
+  [ "$(readlink "$link_path")" = "$source_path" ] && return 0
+  [ "$(realpath "$link_path" 2>/dev/null)" = "$(realpath "$source_path" 2>/dev/null)" ]
+}
+
 path_ends_with_glob_star() {
   local p="$1"
   [[ "$p" == *"/*" ]]
@@ -921,6 +1114,7 @@ process_path_entry() {
 
   local descend_into_pat=""
   local exclude_pat=""
+  local conditional_exclude_pat=""
   local marker_file=""
   local filter_parse_failed="false"
 
@@ -940,6 +1134,14 @@ process_path_entry() {
     filter_parse_failed="true"
   fi
 
+  if conditional_exclude_pat=$(read_conditional_exclude_pattern "$line"); then
+    :
+  else
+    log_warn_action "Patron regex invalido en conditionalExcludes para $path"
+    record_failed_target "$path" "Patron regex invalido en conditionalExcludes"
+    filter_parse_failed="true"
+  fi
+
   if [ "$filter_parse_failed" = "true" ]; then
     echo "[]"
     return 0
@@ -948,16 +1150,25 @@ process_path_entry() {
   marker_file=$(read_marker_file "$line")
 
   local has_filters="false"
-  if [ -n "$descend_into_pat" ] || [ -n "$exclude_pat" ] || [ -n "$marker_file" ]; then
+  if [ -n "$descend_into_pat" ] || [ -n "$exclude_pat" ] || [ -n "$marker_file" ] ||
+    json_has_key "$line" "conditionalExcludes"; then
     has_filters="true"
   fi
 
   if [ "$has_filters" = "true" ] && ! path_ends_with_glob_star "$path"; then
-    log_warn_action "descendInto/markerFile/exclude solo aplican con path terminado en '/*'. Ignorando filtros para: $path"
+    log_warn_action "descendInto/markerFile/exclude/conditionalExcludes solo aplican con path terminado en '/*'. Ignorando filtros para: $path"
     descend_into_pat=""
     exclude_pat=""
+    conditional_exclude_pat=""
     marker_file=""
   fi
+
+  if [ "$uses_exact_target" = "true" ]; then
+    conditional_exclude_pat=""
+  fi
+
+  local effective_exclude_pat
+  effective_exclude_pat=$(combine_regex_patterns "$exclude_pat" "$conditional_exclude_pat")
 
   if is_debug; then
     echo "Path: $(print_path "${path//\\/\\\\}")" >&2
@@ -985,6 +1196,26 @@ process_path_entry() {
     output=$(add_path_to_output "$item" "$target" "$output" "$uses_exact_target" "$hard_link")
   }
 
+  # Emits a removal operation for a previously created symlink whose source
+  # is now excluded by an active `conditionalExcludes` rule. Only symlinks
+  # pointing to that exact source are touched; regular files are never removed.
+  add_stale_symlink_removal() {
+    local item="$1"
+    local base
+    base=$(basename "$item")
+    if [[ "$seen_basenames" == *$'\n'"$base"$'\n'* ]]; then
+      return
+    fi
+    local link_path="$target/$base"
+    if ! symlink_points_to_source "$link_path" "$item"; then
+      return
+    fi
+    local removal_obj
+    removal_obj=$(jq -n --arg path "$item" --arg target "$link_path" \
+      '{path: $path, target: $target, hardLink: false, remove: true}')
+    output=$(echo "$output" | jq -c ". + [$removal_obj]")
+  }
+
   if [[ "$path" == *"*" ]]; then
     local dir_path="${path%/*}"
     local abs_dir_path
@@ -996,40 +1227,33 @@ process_path_entry() {
       return 0
     fi
 
-    if [ -n "$descend_into_pat" ]; then
-      local item
+    local linked_items=$'\n'
+    local item
+    while IFS= read -r item; do
+      [ -z "$item" ] && continue
+      if is_debug; then
+        echo "Item: $(print_path "${item//\\/\\\\}")" >&2
+        echo "Target: $(print_path "$target")" >&2
+        echo "-----------" >&2
+      fi
+      linked_items+="$item"$'\n'
+      add_with_collision_check "$item"
+    done < <(list_glob_sources "$abs_dir_path" "$descend_into_pat" "$effective_exclude_pat" "$marker_file")
+
+    if [ -n "$conditional_exclude_pat" ]; then
       while IFS= read -r item; do
         [ -z "$item" ] && continue
-        if is_debug; then
-          echo "Item: $(print_path "${item//\\/\\\\}")" >&2
-          echo "Target: $(print_path "$target")" >&2
-          echo "-----------" >&2
-        fi
-        add_with_collision_check "$item"
-      done < <(walk_emissions_recursive "$abs_dir_path" "$descend_into_pat" "$exclude_pat" "$marker_file")
-    else
-      local item
-      while IFS= read -r item; do
-        local name
-        name=$(basename "$item")
-        if folder_is_excluded "$name" "$exclude_pat"; then
+        if [[ "$linked_items" == *$'\n'"$item"$'\n'* ]]; then
           continue
         fi
-        if [ -d "$item" ] && [ ! -L "$item" ] && ! leaf_has_marker_file "$item" "$marker_file"; then
-          continue
-        fi
-        if is_debug; then
-          echo "Item: $(print_path "${item//\\/\\\\}")" >&2
-          echo "Target: $(print_path "$target")" >&2
-          echo "-----------" >&2
-        fi
-        add_with_collision_check "$item"
-      done < <(find "$abs_dir_path" -maxdepth 1 -mindepth 1 | LC_ALL=C sort)
+        add_stale_symlink_removal "$item"
+      done < <(list_glob_sources "$abs_dir_path" "$descend_into_pat" "$exclude_pat" "$marker_file")
     fi
   else
     output=$(add_path_to_output "$path" "$target" "$output" "$uses_exact_target" "$hard_link")
   fi
 
+  unset -f add_stale_symlink_removal
   unset -f add_with_collision_check
   echo "$output"
 }
@@ -1170,6 +1394,7 @@ print_summary() {
   printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Creados") ║ $(_print_summary_format_value_cell "$COUNT_CREATED") ║")"
   printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Reemplazados") ║ $(_print_summary_format_value_cell "$COUNT_REPLACED") ║")"
   printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Respaldos") ║ $(_print_summary_format_value_cell "$COUNT_BACKUPS") ║")"
+  printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Eliminados") ║ $(_print_summary_format_value_cell "$COUNT_REMOVED") ║")"
   printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Omitidos") ║ $(_print_summary_format_value_cell "$COUNT_SKIPPED") ║")"
   printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Ops. con sudo") ║ $(_print_summary_format_value_cell "$COUNT_SUDO_OPERATIONS") ║")"
   printf "%s\n" "$(print_gray -b "║ $(_print_summary_format_metric_cell "Ops. Windows en cola (PS)") ║ $(_print_summary_format_value_cell "$COUNT_WINDOWS_QUEUED") ║")"
@@ -1243,6 +1468,8 @@ main() {
     target=$(echo "$line" | jq -r '.target')
     local hard_link
     hard_link=$(echo "$line" | jq -r 'if .hardLink == true then "true" else "false" end')
+    local remove_link
+    remove_link=$(echo "$line" | jq -r 'if .remove == true then "true" else "false" end')
 
     local current_group
     current_group=$(dirname "$target")
@@ -1256,7 +1483,12 @@ main() {
       last_group="$current_group"
     fi
 
-    if ! make_symlink "$path" "$target" "$hard_link"; then
+    if [ "$remove_link" = "true" ]; then
+      if ! remove_stale_symlink "$path" "$target"; then
+        COUNT_ERRORS=$((COUNT_ERRORS + 1))
+        log_error_action "La operación falló para el destino $(print_path "$target")"
+      fi
+    elif ! make_symlink "$path" "$target" "$hard_link"; then
       COUNT_ERRORS=$((COUNT_ERRORS + 1))
       log_error_action "La operación falló para el destino $(print_path "$target")"
     fi

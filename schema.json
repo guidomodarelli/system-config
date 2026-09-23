@@ -144,6 +144,25 @@
             "type": "string",
             "description": "Regex pattern (optional surrounding slashes /pattern/) matching folder OR file basenames to discard. Folders matched are skipped entirely (no descent). Only applies when path ends with /*."
           },
+          "conditionalExcludes": {
+            "type": "array",
+            "description": "Machine-dependent exclude rules. Each pattern is added to exclude only when whenPathExists exists on the current machine; previously created symlinks to newly excluded sources are removed. Only applies when path ends with /*.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pattern", "whenPathExists"],
+              "properties": {
+                "pattern": {
+                  "type": "string",
+                  "description": "Regex pattern (optional surrounding slashes /pattern/) matching folder OR file basenames to discard, with the same semantics as exclude."
+                },
+                "whenPathExists": {
+                  "type": "string",
+                  "description": "File or directory whose existence activates the rule. Supports ~, $HOME and $USER; relative paths are resolved from $HOME."
+                }
+              }
+            }
+          },
           "overrides": {
             "type": "array",
             "description": "Platform-specific overrides for this path configuration",

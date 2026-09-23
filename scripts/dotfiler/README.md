@@ -228,6 +228,51 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
   - Si dos hojas terminan con el mismo basename al aplanar el destino, gana la primera (orden alfabético por path absoluto); la segunda se descarta con advertencia y se cuenta como error.
   - `exactTarget` no acepta patrones wildcard, por lo que tampoco acepta estos filtros.
 
+  ### Exclusiones dependientes de la máquina con `conditionalExcludes`
+
+  `conditionalExcludes` agrega patrones a `exclude` solo cuando existe una ruta
+  en la máquina actual. Sirve para omitir enlaces según el entorno, por ejemplo
+  en la máquina de trabajo.
+
+  | Campo | Tipo | Significado |
+  | --- | --- | --- |
+  | `pattern` | string (regex con `/.../` opcional) | Misma semántica que `exclude`: aplica a basenames de carpetas y archivos. |
+  | `whenPathExists` | string | Archivo o carpeta cuya existencia activa la regla. Admite `~`, `$HOME` y `$USER`; las rutas relativas se resuelven desde `$HOME`. |
+
+  ```yaml
+  - path: .agents/skills/my-skills/*
+    target: .claude/skills
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+    exclude: /^(dist|\.dist)$/
+    conditionalExcludes:
+      - pattern: /^constants-refactor$/
+        whenPathExists: ~/.fury   # solo en la máquina de trabajo
+  ```
+
+  **Reglas**:
+
+  - Requiere `path` con `/*` final, igual que `exclude`. No aplica con `exactTarget`.
+  - Si la regla está activa y en el destino quedó un symlink de una ejecución
+    anterior que apunta exactamente a la fuente ahora excluida, se elimina.
+    Con `--dry-run` solo se informa. Se cuenta en la fila `Eliminados` del resumen.
+  - Nunca se eliminan archivos o carpetas reales, ni symlinks que apunten a otro origen.
+  - Un regex inválido en `pattern` se reporta como error y omite la entrada completa.
+
+  ### Migración de un symlink de carpeta a enlaces individuales
+
+  Al pasar de enlazar una carpeta completa (`path: carpeta`) a enlazar sus hijos
+  (`path: carpeta/*`) hacia el mismo destino, el destino suele seguir siendo el
+  symlink viejo que apunta al repositorio. Crear enlaces "dentro" escribiría en
+  el repositorio, por eso:
+
+  - Si el directorio destino es un symlink que resuelve dentro de `configs/`, se
+    elimina solo el symlink (nunca su contenido) y se crea una carpeta real.
+    Con `--dry-run` solo se informa. Se cuenta en `Eliminados`.
+  - Si el directorio destino sigue resolviendo dentro de `configs/` (por ejemplo,
+    por un ancestro que es symlink al repositorio), la operación falla con error
+    sin escribir nada.
+
   **Portabilidad regex (PowerShell .NET ↔ bash ERE)**: usar el subconjunto seguro
   para que ambos motores produzcan el mismo resultado: anclas (`^`, `$`),
   clases de caracteres (`[...]`), cuantificadores (`*`, `+`, `?`, `{}`),
