@@ -109,16 +109,18 @@ rm -rf /tmp/omp /tmp/ompbin /tmp/lad /tmp/pwsh-portable /tmp/pwsh.tar.gz
 
 ## Tests De PowerShell Con Pester
 
-- Los tests `*.Tests.ps1` (por ejemplo, `scripts/dotfiler/dotfiler.ps1.Tests.ps1`) usan Pester 5. Pester 6 eliminó `Assert-MockCalled` y rompe 4 tests: usar `5.7.1`.
+- Los tests `*.Tests.ps1` (por ejemplo, `scripts/dotfiler/dotfiler.ps1.Tests.ps1`) se ejecutan con la última versión de Pester (6.x) y siguen siendo compatibles con Pester 5.
+- En tests nuevos o modificados, verificar mocks con `Should -Invoke`. No usar `Assert-MockCalled` ni `Assert-VerifiableMock`, que Pester 6 eliminó.
 - Si no hay `pwsh`, bajarlo portable a `/tmp` siguiendo "Validación de PowerShell y Oh My Posh sin instalación".
 - Pester se descarga desde PowerShell Gallery (`https://www.powershellgallery.com/packages/Pester`) con `Save-Module` a una carpeta temporal. No usar `Install-Module`, que lo instala en el perfil del usuario.
 
 ```bash
-mkdir -p /tmp/psmodules5
-/tmp/pwsh-portable/pwsh -NoProfile -c 'Save-Module -Name Pester -RequiredVersion 5.7.1 -Path /tmp/psmodules5 -Repository PSGallery -Force'
+mkdir -p /tmp/psmodules
+/tmp/pwsh-portable/pwsh -NoProfile -c 'Save-Module -Name Pester -Path /tmp/psmodules -Repository PSGallery -Force'
 
-PSModulePath=/tmp/psmodules5 /tmp/pwsh-portable/pwsh -NoProfile -c '
-Import-Module Pester -RequiredVersion 5.7.1
+PSModulePath=/tmp/psmodules /tmp/pwsh-portable/pwsh -NoProfile -c '
+Import-Module Pester
+"Pester $((Get-Module Pester).Version)"
 $config = New-PesterConfiguration
 $config.Run.Path = "scripts/dotfiler/dotfiler.ps1.Tests.ps1"
 $config.Run.PassThru = $true
@@ -130,7 +132,7 @@ $result.Failed | ForEach-Object { $_.ExpandedName + " :: " + (($_.ErrorRecord | 
 
 - **Distinguir regresiones de fallos previos:** correr los mismos tests sobre `HEAD` en un worktree temporal, sin tocar el checkout ni el trabajo sin commitear: `git worktree add --detach /tmp/sc-head HEAD`, ejecutar Pester con `Run.Path` apuntando a `/tmp/sc-head/...`, y después `git worktree remove --force /tmp/sc-head`. No copiar solo el `.ps1` a `/tmp`, porque los tests dependen de archivos cercanos a `$PSScriptRoot`.
 - **Fallos conocidos en macOS** (también en `HEAD`, no son regresiones): 5 tests usan rutas `C:\` (`Cannot find drive ... 'C'`) y 2 de `conditionalExcludes` fallan por la plataforma. Reportarlos como no validables fuera de Windows.
-- **Limpieza:** `rm -rf /tmp/psmodules5`, además de la limpieza de `pwsh` de la sección anterior.
+- **Limpieza:** `rm -rf /tmp/psmodules`, además de la limpieza de `pwsh` de la sección anterior.
 
 ## Workspaces Generados Por Skills
 
