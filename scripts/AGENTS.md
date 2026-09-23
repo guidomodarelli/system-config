@@ -35,3 +35,12 @@ Estas validaciones aplican únicamente a archivos Bash o scripts invocados media
   - `Verificado bash 3.2: <sí/no + evidencia>`
 
 Los archivos PowerShell, Batch, Python y otros runtimes deben validarse con sus herramientas nativas cuando corresponda.
+
+## Salida Solo ASCII En `setup` Y `dotfiler` (Mandatorio)
+
+- `scripts/setup/` (`setup.sh`, `setup.ps1`) y `scripts/dotfiler/` (`dotfiler.sh`, `dotfiler.ps1`) DEBEN usar siempre y únicamente caracteres ASCII en toda su decoración: íconos, cajas, bordes, barras de progreso, spinners, flechas, separadores, marcas de selección y puntos suspensivos.
+- No usar emojis ni símbolos Unicode decorativos (por ejemplo `✅`, `📁`, `╭─│`, `▰`, `⠋`, `→`, `·`, `…`, `★`), aunque la terminal los soporte. No agregar modos, flags ni variables para activarlos.
+- Equivalencias de referencia: cajas `+ - |`, flecha `->`, separador `-`, puntos suspensivos `...`, barra `#` y `.`, spinner `| / - \`, selección `[x]` / `[ ]`, cursor `>`, recomendado `*`.
+- Los textos visibles en español conservan sus tildes y eñes: la regla aplica a la decoración, no al contenido.
+- Los colores ANSI están permitidos: no son glifos.
+- Todo cambio en estos scripts debe mantener tests que verifiquen que la salida decorativa es ASCII.
