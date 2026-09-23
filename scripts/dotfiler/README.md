@@ -361,6 +361,43 @@ inaccesible y permite que el sistema recupere su espacio.
   precisión qué archivos se enlazan y dónde, facilitando configuraciones
   específicas por plataforma.
 
+## Salida en consola
+
+La salida agrupa las operaciones por carpeta destino y muestra una línea por
+enlace con un emoji, la acción, el nombre y el origen relativo a `configs/`.
+
+```text
+📁 ~/.claude/skills
+│ ✨ creado       new-skill                  → .agents/skills/my-skills/(meli)/new-skill
+│ 🔄 reemplazado  simplify                   → .agents/skills/my-skills/(code-quality)/(refactor)/simplify
+│ 🧹 eliminado    constants-refactor         (excluido por ~/.fury)
+╰─ 3 cambios · ✅ 38 sin cambios
+
+╭─ 📊 Resumen ───────────────────────────────────────────────────
+│ ✨ creados           1     🔄 reemplazados      1
+│ ✅ sin cambios      38     🧹 eliminados        1
+│ 💾 respaldos         0     ❌ errores           0
+├────────────────────────────────────────────────────────────────
+│ 🚀 aplicación real · ⌛ 12s · 🎉 Sin errores.
+╰────────────────────────────────────────────────────────────────
+```
+
+- Los enlaces que ya apuntan al origen correcto no se recrean: se cuentan como
+  `sin cambios`. Los grupos sin cambios se ocultan y, si nada cambió, se muestra
+  `Todos los enlaces están al día`. En PowerShell, los hard links se recrean
+  siempre porque Windows no permite comparar inodes a bajo costo.
+- `--verbose` lista también cada enlace sin cambios y el tiempo por operación.
+- `--quiet` oculta banner y grupos; deja resumen, avisos y errores.
+- `--plain` quita emojis y colores, pero conserva cajas y etiquetas.
+- Las cajas quedan abiertas a la derecha a propósito: el ancho de los emojis
+  varía entre terminales y un borde derecho quedaría desalineado.
+- Los errores se detallan al final en una caja `🩺 Diagnóstico` con destino y causa.
+- Mientras resuelve rutas (la fase más lenta) muestra un loader animado con
+  mensajes rotativos, barra `▰▰▱▱`, entrada actual y segundos; al enlazar
+  muestra `🔗 Enlazando N/total · nombre`. En PowerShell usa `Write-Progress`.
+  Solo aparece en terminales interactivas y sin `--quiet`; se controla con
+  `DOTFILER_PROGRESS=auto|always|never`.
+
 ## Reglas de validación del esquema
 
 El archivo `schema.json` define las siguientes reglas importantes para la configuración:

@@ -62,6 +62,20 @@ run_dotfiler() {
     "$REPO_DIR/scripts/dotfiler" "$@"
 }
 
+# Same as run_dotfiler but forwards DOTFILER_PROGRESS from the caller.
+run_dotfiler_with_env() {
+  run env -i \
+    HOME="$HOME_DIR" \
+    USER="test-user" \
+    DEBUG="false" \
+    DOTFILER_PROGRESS="${DOTFILER_PROGRESS:-auto}" \
+    PATH="$FAKE_BIN_DIR:$PATH" \
+    LANG="${LANG:-C.UTF-8}" \
+    LC_ALL="${LC_ALL:-C.UTF-8}" \
+    bash -c 'cd "$0" && bash ./dotfiler.sh "$@" 2>&1' \
+    "$REPO_DIR/scripts/dotfiler" "$@"
+}
+
 assert_symlink_points_to() {
   local symlink_path="$1"
   local expected_target="$2"
@@ -103,12 +117,28 @@ assert_path_missing() {
   [ ! -L "$path_to_check" ]
 }
 
-assert_no_double_separator() {
+assert_no_double_blank_line() {
   local output_text="$1"
-  local separator_line="────────────────────────────────────────────────────────"
-  local duplicated_separator=$separator_line$'\n'$separator_line
 
-  [[ "$output_text" != *"$duplicated_separator"* ]]
+  [[ "$output_text" != *$'\n\n\n'* ]]
+}
+
+# Matches an operation row "│ <emoji> <action> <name>" regardless of padding.
+assert_item_line() {
+  local output_text="$1"
+  local action="$2"
+  local item_name="$3"
+
+  printf "%s\n" "$output_text" | grep -E "^│ .*$action +$item_name( |$)" >/dev/null
+}
+
+# Matches a summary cell "<label> <value>" regardless of padding.
+assert_summary_value() {
+  local output_text="$1"
+  local label="$2"
+  local expected_value="$3"
+
+  printf "%s\n" "$output_text" | grep -E "^│ .*$label +$expected_value( |$)" >/dev/null
 }
 
 assert_output_contains_line() {

@@ -53,7 +53,8 @@ YAML
 
   [ "$status" -eq 0 ]
   assert_path_missing "$HOME_DIR/linked-files/hard-source"
-  [[ "$output" == *"Crearía hard link"* ]]
+  [[ "$output" == *"(hard link)"* ]]
+  [[ "$output" == *"simulación: no se escriben cambios"* ]]
 }
 
 @test "hardLink rechaza directorios sin modificar destino" {
@@ -128,9 +129,9 @@ BASH
 
   [ "$status" -eq 0 ]
   assert_path_missing "$HOME_DIR/linked-files/debug-source"
-  [[ "$output" == *"Modo simulación activo"* ]]
-  [[ "$output" == *"Omitidos"* ]]
-  [[ "$output" == *"║ 1"* ]]
+  [[ "$output" == *"simulación, no se escribieron cambios"* ]]
+  assert_summary_value "$output" "creados" 1
+  assert_summary_value "$output" "reemplazados" 0
 }
 
 @test "--quiet hides per-item logs but prints summary" {
@@ -139,9 +140,10 @@ BASH
   run_dotfiler "false" "--quiet"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"RESUMEN"* ]]
-  [[ "$output" != *"GRUPO"* ]]
-  [[ "$output" != *"INFO"* ]]
+  [[ "$output" == *"Resumen"* ]]
+  [[ "$output" != *"📁"* ]]
+  [[ "$output" != *"dotfiler ·"* ]]
+  ! assert_item_line "$output" "creado" "debug-source"
 }
 
 @test "--help prints available options" {
@@ -178,8 +180,9 @@ YAML
   run_dotfiler "false"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"GRUPO"* ]]
-  [[ "$output" == *"────────────────────────────────────────────────────────"* ]]
+  [[ "$output" == *"📁 ~/target-a"* ]]
+  [[ "$output" == *"📁 ~/target-b"* ]]
+  [[ "$output" == *"╰─ 1 cambio"$'\n\n'"📁 ~/target-b"* ]]
 }
 
 @test "display path is normalized to avoid double slash in output" {
@@ -193,8 +196,9 @@ YAML
   run_dotfiler "false"
 
   [ "$status" -eq 0 ]
-  [[ "$output" != *".codex//debug-source"* ]]
-  [[ "$output" == *".codex/debug-source"* ]]
+  [[ "$output" != *".codex//"* ]]
+  [[ "$output" == *"📁 ~/.codex"$'\n'* ]]
+  assert_item_line "$output" "creado" "debug-source"
 }
 
 @test "source path supports HOME variable expansion" {
@@ -273,7 +277,7 @@ YAML
   run_dotfiler "false"
 
   [ "$status" -eq 0 ]
-  assert_no_double_separator "$output"
+  assert_no_double_blank_line "$output"
 }
 
 @test "summary table snapshot remains stable in spanish without color" {
@@ -282,20 +286,16 @@ YAML
   run_dotfiler "false" "--dry-run" "--quiet" "--no-color"
 
   [ "$status" -eq 0 ]
-  assert_output_contains_line "$output" "RESUMEN"
-  assert_output_contains_line "$output" "║ Métrica"
-  assert_output_contains_line "$output" "║ Valor"
-  assert_output_contains_line "$output" "Tiempo total (s)"
-  assert_output_contains_line "$output" "Creados"
-  assert_output_contains_line "$output" "Reemplazados"
-  assert_output_contains_line "$output" "Respaldos"
-  assert_output_contains_line "$output" "Omitidos"
-  assert_output_contains_line "$output" "Ops. Windows en cola (PS)"
-  assert_output_contains_line "$output" "Errores"
-  assert_output_contains_line "$output" "Estado"
-  assert_output_contains_line "$output" "[OK] Sin errores"
-  assert_output_contains_line "$output" "Modo simulación activo, no se escribieron cambios en el sistema de archivos."
-  assert_output_contains_line "$output" "Configuración de symlinks finalizada."
+  assert_output_contains_line "$output" "╭─ 📊 Resumen ─"
+  assert_summary_value "$output" "creados" 1
+  assert_summary_value "$output" "reemplazados" 0
+  assert_summary_value "$output" "sin cambios" 0
+  assert_summary_value "$output" "eliminados" 0
+  assert_summary_value "$output" "respaldos" 0
+  assert_summary_value "$output" "errores" 0
+  assert_output_contains_line "$output" "simulación, no se escribieron cambios"
+  assert_output_contains_line "$output" "🎉 Sin errores."
+  [[ "$output" != *"Windows (PS)"* ]]
 }
 
 @test "runtime errors return exit code 1 and print diagnostics section" {
@@ -309,7 +309,7 @@ BASH
   run_dotfiler "false" "--quiet" "--no-color"
 
   [ "$status" -eq 1 ]
-  assert_output_contains_line "$output" "DIAGNÓSTICO"
+  assert_output_contains_line "$output" "🩺 Diagnóstico"
   assert_output_contains_line "$output" "Fallo al crear symlink"
 }
 
@@ -332,7 +332,7 @@ YAML
   run_dotfiler "false" "--quiet" "--no-color"
 
   [ "$status" -eq 1 ]
-  assert_output_contains_line "$output" "DIAGNÓSTICO"
+  assert_output_contains_line "$output" "🩺 Diagnóstico"
   assert_output_contains_line "$output" "Ruta de origen inexistente"
   assert_path_missing "$HOME_DIR/linked-files/nonexistent-source"
 }
@@ -355,7 +355,9 @@ YAML
     "$REPO_DIR/configs/backup-source"
   [ -f "$HOME_DIR/linked-files/backup-source.bak" ]
   [ "$(cat "$HOME_DIR/linked-files/backup-source.bak")" = "previous-content" ]
-  assert_output_contains_line "$output" "Respaldos"
+  assert_item_line "$output" "respaldo" "backup-source"
+  assert_item_line "$output" "reemplazado" "backup-source"
+  assert_summary_value "$output" "respaldos" 1
 }
 
 @test "source path supports USER variable expansion" {
@@ -392,8 +394,8 @@ YAML
   assert_symlink_points_to \
     "$HOME_DIR/linked-files/replace-source" \
     "$REPO_DIR/configs/replace-source"
-  assert_output_contains_line "$output" "Symlink anterior eliminado"
-  assert_output_contains_line "$output" "Reemplazados"
+  assert_item_line "$output" "reemplazado" "replace-source"
+  assert_summary_value "$output" "reemplazados" 1
 }
 
 @test "stale .bak symlink is removed before recreating link" {
@@ -470,7 +472,6 @@ BASH
   run_dotfiler "false" "--verbose" "--no-color"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"TIEMPO"* ]]
   [[ "$output" == *"transcurrido="* ]]
 }
 
@@ -483,6 +484,13 @@ paths:
   - path: home-prefix-source
     exactTarget: ${home_twin}/home-prefix-source
 YAML
+  # The destination is outside HOME, so dotfiler uses sudo; fake it to avoid
+  # a real password prompt.
+  cat > "$FAKE_BIN_DIR/sudo" <<'BASH'
+#!/usr/bin/env bash
+exec "$@"
+BASH
+  chmod +x "$FAKE_BIN_DIR/sudo"
 
   run_dotfiler "false" "--no-color"
 
@@ -880,8 +888,9 @@ YAML
 
   [ "$status" -eq 0 ]
   assert_path_missing "$HOME_DIR/linked-files/inner-leaf"
-  [[ "$output" == *"Symlink excluido por condición eliminado"* ]]
-  assert_output_contains_line "$output" "Eliminados"
+  assert_item_line "$output" "eliminado" "inner-leaf"
+  [[ "$output" == *"(excluido por ~/.work-marker)"* ]]
+  assert_summary_value "$output" "eliminados" 1
 }
 
 @test "conditionalExcludes en dry-run informa eliminacion sin borrar el symlink" {
@@ -895,7 +904,9 @@ YAML
 
   [ "$status" -eq 0 ]
   assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
-  [[ "$output" == *"Eliminaría symlink excluido por condición"* ]]
+  assert_item_line "$output" "eliminado" "inner-leaf"
+  [[ "$output" == *"(excluido por ~/.work-marker)"* ]]
+  [[ "$output" == *"simulación: no se escriben cambios"* ]]
 }
 
 @test "conditionalExcludes no elimina archivos reales ni symlinks hacia otro origen" {
@@ -962,7 +973,8 @@ YAML
   assert_symlink_points_to "$HOME_DIR/linked-files/inner-leaf" "$REPO_DIR/configs/skills-tree/(group1)/inner-leaf"
   [ -z "$(find "$REPO_DIR/configs/skills-tree" -type l)" ]
   [ -f "$REPO_DIR/configs/skills-tree/leaf-a/SKILL.md" ]
-  [[ "$output" == *"Symlink de directorio reemplazado por carpeta real"* ]]
+  assert_item_line "$output" "carpeta real" "linked-files"
+  [[ "$output" == *"(antes symlink a skills-tree)"* ]]
 }
 
 @test "dry-run informa reemplazo de symlink de directorio sin modificar nada" {
@@ -975,7 +987,8 @@ YAML
   [ "$status" -eq 0 ]
   [ -L "$HOME_DIR/linked-files" ]
   [ -z "$(find "$REPO_DIR/configs/skills-tree" -type l)" ]
-  [[ "$output" == *"Reemplazaría symlink de directorio por carpeta real"* ]]
+  assert_item_line "$output" "carpeta real" "linked-files"
+  [[ "$output" == *"(antes symlink a skills-tree)"* ]]
 }
 
 @test "rechaza crear links cuando el destino resuelve dentro del repo por un ancestro" {
@@ -995,4 +1008,131 @@ YAML
   [ -L "$HOME_DIR/linked-configs" ]
   [ -z "$(find "$REPO_DIR/configs/skills-tree" -type l)" ]
   [[ "$output" == *"Directorio destino dentro del repositorio"* ]]
+}
+
+@test "enlaces ya correctos no se recrean y se informan como al dia" {
+  install_fixture "debug_flow"
+  run_dotfiler "false" "--no-color"
+  [ "$status" -eq 0 ]
+  local inode_before
+  inode_before=$(ls -di "$HOME_DIR/linked-files/debug-source" | awk '{print $1}')
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ "$(ls -di "$HOME_DIR/linked-files/debug-source" | awk '{print $1}')" = "$inode_before" ]
+  assert_output_contains_line "$output" "✅ Todos los enlaces están al día (1)."
+  assert_summary_value "$output" "sin cambios" 1
+  assert_summary_value "$output" "creados" 0
+  [[ "$output" != *"📁"* ]]
+}
+
+@test "--verbose lista cada enlace sin cambios dentro de su grupo" {
+  install_fixture "debug_flow"
+  run_dotfiler "false" "--no-color"
+
+  run_dotfiler "false" "--no-color" "--verbose"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"📁 ~/linked-files"* ]]
+  assert_item_line "$output" "sin cambios" "debug-source"
+  [[ "$output" == *"╰─ ✅ 1 sin cambios"* ]]
+}
+
+@test "grupos con cambios cierran con conteo de cambios y sin cambios" {
+  printf "first" > "$REPO_DIR/configs/first-file"
+  printf "second" > "$REPO_DIR/configs/second-file"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: first-file
+    target: linked-files
+YAML
+  run_dotfiler "false" "--no-color"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: first-file
+    target: linked-files
+  - path: second-file
+    target: linked-files
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_item_line "$output" "creado" "second-file"
+  [[ "$output" == *"╰─ 1 cambio · ✅ 1 sin cambios"* ]]
+}
+
+@test "entradas no consecutivas con el mismo destino se agrupan bajo un unico header" {
+  printf "first" > "$REPO_DIR/configs/first-file"
+  printf "middle" > "$REPO_DIR/configs/middle-file"
+  printf "second" > "$REPO_DIR/configs/second-file"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: first-file
+    target: shared
+  - path: middle-file
+    target: other
+  - path: second-file
+    target: shared
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ "$(printf "%s\n" "$output" | grep -c "📁 ~/shared")" -eq 1 ]
+  [[ "$output" == *"📁 ~/shared"$'\n'*"first-file"*"second-file"* ]]
+}
+
+@test "--plain oculta emojis y mantiene cajas y etiquetas" {
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--plain"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"📁"* ]]
+  [[ "$output" != *"✨"* ]]
+  [[ "$output" != *"🎉"* ]]
+  [[ "$output" == *"│ creado       debug-source"* ]]
+  [[ "$output" == *"╭─ Resumen ─"* ]]
+  [[ "$output" == *"Sin errores."* ]]
+}
+
+@test "errores muestran caja de diagnostico con destino y causa" {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: nonexistent-source
+    target: linked-files
+YAML
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"╭─ 🩺 Diagnóstico ─"* ]]
+  [[ "$output" == *"│ 1. ~/linked-files/nonexistent-source"* ]]
+  [[ "$output" == *"│    "*"Ruta de origen inexistente"* ]]
+  [[ "$output" == *"💥 Finalizado con 1 error(es)."* ]]
+}
+
+@test "DOTFILER_PROGRESS=always muestra loader de resolucion y progreso de enlaces" {
+  install_fixture "debug_flow"
+
+  DOTFILER_PROGRESS=always run_dotfiler_with_env "--no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Enlazando"*"1/1"*"debug-source"* ]]
+  [[ "$output" == *$'\r\e[K'* ]]
+  [[ "$output" == *$'\e[?25h'* ]]
+  assert_item_line "$output" "creado" "debug-source"
+  assert_summary_value "$output" "creados" 1
+}
+
+@test "sin terminal interactiva no se emiten secuencias de loader" {
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Enlazando"* ]]
+  [[ "$output" != *$'\e[?25l'* ]]
 }

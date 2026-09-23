@@ -33,7 +33,7 @@ $script:CountCreated = 0
 $script:CountReplaced = 0
 $script:CountBackups = 0
 $script:CountRemoved = 0
-$script:CountSimulated = 0
+$script:CountUnchanged = 0
 $script:CountErrors = 0
 $script:CountPlannedCreated = 0
 $script:CountPlannedReplaced = 0
@@ -42,42 +42,54 @@ $script:CountPlannedRemoved = 0
 
 $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
 $script:PreferredCommandPaths = @{}
-$script:LastOutputWasSeparator = $false
+$script:LastOutputWasBlank = $true
+$script:PendingGroupHeader = $null
+$script:GroupOpen = $false
+$script:GroupChangeCount = 0
+$script:GroupUnchangedCount = 0
+
+# Emojis without variation selectors so columns stay aligned.
+$script:Icons = @{
+  App        = '🔗'
+  RealRun    = '🚀'
+  DryRun     = '🧪'
+  Source     = '📦'
+  Home       = '🏠'
+  Group      = '📁'
+  Created    = '✨'
+  Replaced   = '🔄'
+  Unchanged  = '✅'
+  Delete     = '🧹'
+  Backup     = '💾'
+  Directory  = '📂'
+  Elevated   = '🔐'
+  Warn       = '🚨'
+  Error      = '❌'
+  Time       = '⌛'
+  Summary    = '📊'
+  Diagnostic = '🩺'
+  Done       = '🎉'
+  Failed     = '💥'
+}
+$script:BoxRuleWidth = 64
+$script:ActionLabelWidth = 12
+$script:SummaryLabelWidth = 14
+$script:MinItemNameWidth = 16
+$script:MaxItemNameWidth = 40
+$script:ItemNameWidth = $script:MinItemNameWidth
+$script:ProgressMode = if ([string]::IsNullOrWhiteSpace($env:DOTFILER_PROGRESS)) { 'auto' } else { $env:DOTFILER_PROGRESS }
+$script:ProgressActivity = '🔗 dotfiler'
+$script:ProgressBarWidth = 12
+$script:ResolveMessages = @(
+  @{ Icon = '🧭'; Text = 'Resolviendo rutas' },
+  @{ Icon = '🧩'; Text = 'Recorriendo agrupadores' },
+  @{ Icon = '🔎'; Text = 'Aplicando filtros' },
+  @{ Icon = '🧹'; Text = 'Buscando enlaces obsoletos' },
+  @{ Icon = '☕'; Text = 'Ya casi' }
+)
+$script:ResolveMessageSeconds = 2
 $script:PlannedDirectoryReplacements = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
-function Write-ColorLine {
-  param(
-    [Parameter(Mandatory = $true)][string]$Message,
-    [ConsoleColor]$Color = [ConsoleColor]::Gray,
-    [switch]$ErrorStream
-  )
-
-  if ($ErrorStream) {
-    $formattedMessage = $Message
-    if ($script:UseColor) {
-      $ansiColor = switch ($Color) {
-        ([ConsoleColor]::Red) { '31' }
-        ([ConsoleColor]::Yellow) { '33' }
-        ([ConsoleColor]::Blue) { '34' }
-        ([ConsoleColor]::Green) { '32' }
-        ([ConsoleColor]::Magenta) { '35' }
-        ([ConsoleColor]::DarkGray) { '90' }
-        default { '37' }
-      }
-
-      $formattedMessage = "$([char]27)[$ansiColor" + "m$Message$([char]27)[0m"
-    }
-
-    [Console]::Error.WriteLine($formattedMessage)
-    return
-  }
-
-  if ($script:UseColor) {
-    Write-Host $Message -ForegroundColor $Color
-  } else {
-    Write-Output $Message
-  }
-}
 
 function Get-AnsiColorCode {
   param([ConsoleColor]$Color)
@@ -135,7 +147,7 @@ function Write-FormattedLine {
     Write-Output $message
   }
 
-  $script:LastOutputWasSeparator = $false
+  $script:LastOutputWasBlank = $false
 }
 
 function Format-LabelText {
@@ -172,123 +184,278 @@ function Get-OptionalIcon {
   return $Icon
 }
 
-function Write-SymlinkLine {
-  param(
-    [Parameter(Mandatory = $true)][string]$Label,
-    [Parameter(Mandatory = $true)][ConsoleColor]$LabelColor,
-    [Parameter(Mandatory = $true)][string]$Prefix,
-    [Parameter(Mandatory = $true)][string]$TargetPath,
-    [Parameter(Mandatory = $true)][string]$SourcePath
-  )
-
-  $segments = [System.Collections.Generic.List[string]]::new()
-  $segments.Add('[ ')
-  $segments.Add((Format-LabelText -Text $Label -Color $LabelColor))
-  $segments.Add(' ] ')
-
-  $linkIcon = Get-OptionalIcon -Icon '⇢'
-  if (-not [string]::IsNullOrWhiteSpace($linkIcon)) {
-    $segments.Add((Format-IconText -Text $linkIcon -Color Blue))
-    $segments.Add(' ')
+function Test-ProgressEnabled {
+  switch ($script:ProgressMode) {
+    'always' { return $true }
+    'never' { return $false }
   }
 
-  $segments.Add($Prefix)
-  $segments.Add(' ')
-  $segments.Add((Format-PathText -Text $TargetPath))
-  $segments.Add(' ')
-  $segments.Add((Format-AnsiSegment -Text '→→' -Color Magenta -Bold))
-  $segments.Add(' ')
-  $segments.Add((Format-PathText -Text $SourcePath))
+  return (-not $script:Quiet) -and (-not [Console]::IsOutputRedirected)
+}
 
-  Write-FormattedLine -Segments $segments.ToArray()
+function Format-ProgressBar {
+  param(
+    [int]$Current,
+    [int]$Total
+  )
+
+  $filled = if ($Total -gt 0) { [int][Math]::Floor($Current * $script:ProgressBarWidth / $Total) } else { 0 }
+  return ('▰' * $filled) + ('▱' * ($script:ProgressBarWidth - $filled))
+}
+
+# Rotating status text for the resolve phase, chosen from elapsed seconds.
+function Get-ResolveProgressStatus {
+  param(
+    [int]$Current,
+    [int]$Total,
+    [string]$Detail,
+    [int]$ElapsedSeconds
+  )
+
+  $message = $script:ResolveMessages[[int][Math]::Floor($ElapsedSeconds / $script:ResolveMessageSeconds) % $script:ResolveMessages.Count]
+  return "$(Get-IconPrefix $message.Icon)$($message.Text) $(Format-ProgressBar -Current $Current -Total $Total) $Current/$Total · $Detail · $(Get-IconPrefix $script:Icons.Time)${ElapsedSeconds}s"
+}
+
+function Write-DotfilerProgress {
+  param(
+    [int]$Id,
+    [string]$Status,
+    [int]$Current,
+    [int]$Total
+  )
+
+  if (-not (Test-ProgressEnabled)) {
+    return
+  }
+
+  $percent = if ($Total -gt 0) { [int][Math]::Min(100, [Math]::Floor($Current * 100 / $Total)) } else { 0 }
+  Write-Progress -Id $Id -Activity $script:ProgressActivity -Status $Status -PercentComplete $percent
+}
+
+function Complete-DotfilerProgress {
+  param([int]$Id)
+
+  if (Test-ProgressEnabled) {
+    Write-Progress -Id $Id -Activity $script:ProgressActivity -Completed
+  }
+}
+
+function Get-IconPrefix {
+  param([AllowNull()][string]$Icon)
+
+  if (-not $script:UseIcons -or [string]::IsNullOrEmpty($Icon)) {
+    return ''
+  }
+
+  return "$Icon "
+}
+
+function Format-DisplayTarget {
+  param([AllowNull()][string]$Path)
+
+  if ([string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($script:HomeDir)) {
+    return $Path
+  }
+
+  $homePath = $script:HomeDir.TrimEnd('\', '/')
+  if ([string]::Equals($Path, $homePath, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return '~'
+  }
+  foreach ($separator in @('\', '/')) {
+    if ($Path.StartsWith($homePath + $separator, [System.StringComparison]::OrdinalIgnoreCase)) {
+      return '~' + $Path.Substring($homePath.Length)
+    }
+  }
+
+  return $Path
+}
+
+# Shows sources relative to the repository configs directory, or with `~`.
+function Format-DisplaySource {
+  param([AllowNull()][string]$Path)
+
+  if (-not [string]::IsNullOrWhiteSpace($script:ConfigsDir) -and -not [string]::IsNullOrWhiteSpace($Path)) {
+    $configsPath = $script:ConfigsDir.TrimEnd('\', '/')
+    foreach ($separator in @('\', '/')) {
+      if ($Path.StartsWith($configsPath + $separator, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $Path.Substring($configsPath.Length + 1)
+      }
+    }
+  }
+
+  return (Format-DisplayTarget -Path $Path)
+}
+
+function Format-LinkDetail {
+  param(
+    [string]$SourcePath,
+    [bool]$HardLink = $false
+  )
+
+  $detail = "→ $(Format-DisplaySource -Path $SourcePath)"
+  if ($HardLink) {
+    $detail = "$detail ($($script:LinkLabelHard))"
+  }
+  return $detail
+}
+
+# Boxes are open on the right: emoji width varies between terminals, so only
+# the left border and horizontal rules are drawn.
+function Write-BoxTop {
+  param([string]$Title = '')
+
+  if ([string]::IsNullOrEmpty($Title)) {
+    Write-FormattedLine -Segments @((Format-AnsiSegment -Text ('╭' + ('─' * $script:BoxRuleWidth)) -Color DarkGray -Bold))
+    return
+  }
+
+  $ruleLength = [Math]::Max(1, $script:BoxRuleWidth - $Title.Length - 4)
+  Write-FormattedLine -Segments @(
+    (Format-AnsiSegment -Text '╭─' -Color DarkGray -Bold), ' ',
+    (Format-AnsiSegment -Text $Title -Color Blue -Bold), ' ',
+    (Format-AnsiSegment -Text ('─' * $ruleLength) -Color DarkGray -Bold)
+  )
+}
+
+function Write-BoxRow {
+  param([string]$Content)
+
+  Write-FormattedLine -Segments @((Format-AnsiSegment -Text '│' -Color DarkGray -Bold), ' ', $Content)
+}
+
+function Write-BoxDivider {
+  Write-FormattedLine -Segments @((Format-AnsiSegment -Text ('├' + ('─' * $script:BoxRuleWidth)) -Color DarkGray -Bold))
+}
+
+function Write-BoxBottom {
+  Write-FormattedLine -Segments @((Format-AnsiSegment -Text ('╰' + ('─' * $script:BoxRuleWidth)) -Color DarkGray -Bold))
+}
+
+function Write-BlockGap {
+  if (-not $script:Quiet -and -not $script:LastOutputWasBlank) {
+    Write-Output ''
+    $script:LastOutputWasBlank = $true
+  }
+}
+
+function Write-Banner {
+  if ($script:Quiet) {
+    return
+  }
+
+  $modeText = if ($script:DryRun) {
+    "$(Get-IconPrefix $script:Icons.DryRun)simulacion: no se escriben cambios"
+  } else {
+    "$(Get-IconPrefix $script:Icons.RealRun)aplicacion real"
+  }
+
+  Write-BoxTop
+  Write-BoxRow -Content ("$(Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.App)dotfiler" -Color Magenta -Bold) · $modeText")
+  Write-BoxRow -Content (Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Source)$(Format-DisplayTarget -Path $script:ConfigsDir)  →  $(Get-IconPrefix $script:Icons.Home)~" -Color DarkGray)
+  Write-BoxBottom
+}
+
+# Registers the group header; it is printed lazily before the first visible
+# line, so groups where nothing changed stay hidden unless --verbose is set.
+function Set-GroupHeader {
+  param([string]$GroupPath)
+
+  $script:PendingGroupHeader = $GroupPath
+  if ($script:VerboseMode) {
+    Write-PendingGroupHeader
+  }
+}
+
+function Write-PendingGroupHeader {
+  if ([string]::IsNullOrEmpty($script:PendingGroupHeader) -or $script:Quiet) {
+    return
+  }
+
+  $groupPath = $script:PendingGroupHeader
+  $script:PendingGroupHeader = $null
+  $script:GroupOpen = $true
+  $script:GroupChangeCount = 0
+  Write-BlockGap
+  Write-FormattedLine -Segments @((Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Group)$groupPath" -Color Magenta -Bold))
+}
+
+# Closes the current group box with its change and unchanged counts.
+function Close-Group {
+  if ($script:GroupOpen -and -not $script:Quiet) {
+    $closingParts = [System.Collections.Generic.List[string]]::new()
+    if (-not $script:VerboseMode -and $script:GroupChangeCount -gt 0) {
+      $noun = if ($script:GroupChangeCount -eq 1) { 'cambio' } else { 'cambios' }
+      $closingParts.Add("$($script:GroupChangeCount) $noun")
+    }
+    if ($script:GroupUnchangedCount -gt 0) {
+      $closingParts.Add("$(Get-IconPrefix $script:Icons.Unchanged)$($script:GroupUnchangedCount) sin cambios")
+    }
+
+    $closingSegments = [System.Collections.Generic.List[string]]::new()
+    $closingSegments.Add((Format-AnsiSegment -Text '╰─' -Color DarkGray -Bold))
+    if ($closingParts.Count -gt 0) {
+      $closingSegments.Add(' ')
+      $closingSegments.Add((Format-AnsiSegment -Text ([string]::Join(' · ', $closingParts)) -Color DarkGray))
+    }
+    Write-FormattedLine -Segments $closingSegments.ToArray()
+  }
+
+  $script:PendingGroupHeader = $null
+  $script:GroupOpen = $false
+  $script:GroupChangeCount = 0
+  $script:GroupUnchangedCount = 0
+}
+
+# Prints one operation row: icon, action label, item name and optional detail.
+function Write-ItemLine {
+  param(
+    [Parameter(Mandatory = $true)][string]$Icon,
+    [Parameter(Mandatory = $true)][string]$Label,
+    [Parameter(Mandatory = $true)][ConsoleColor]$Color,
+    [Parameter(Mandatory = $true)][string]$Name,
+    [string]$Detail = '',
+    [switch]$Unchanged
+  )
+
+  if ($script:Quiet) {
+    return
+  }
+
+  Write-PendingGroupHeader
+  if (-not $Unchanged) {
+    $script:GroupChangeCount += 1
+  }
+
+  $itemText = $Name
+  if (-not [string]::IsNullOrEmpty($Detail)) {
+    $itemText = "$($Name.PadRight($script:ItemNameWidth)) $(Format-AnsiSegment -Text $Detail -Color DarkGray)"
+  }
+
+  Write-BoxRow -Content ("$(Get-IconPrefix $Icon)$(Format-AnsiSegment -Text $Label.PadRight($script:ActionLabelWidth) -Color $Color -Bold) $itemText")
 }
 
 function Write-Info {
   param([string]$Message)
   if (-not $script:Quiet) {
-    Write-FormattedLine -Segments @('[ ', (Format-LabelText -Text 'INFO' -Color Blue), " ] $Message")
+    Write-FormattedLine -Segments @('  ', (Format-AnsiSegment -Text $Message -Color DarkGray))
   }
 }
 
 function Write-Warn {
   param([string]$Message)
-  Write-FormattedLine -Segments @('[ ', (Format-LabelText -Text 'AVISO' -Color Yellow), " ] $Message") -ErrorStream
+  Write-FormattedLine -Segments @((Format-LabelText -Text "$(Get-IconPrefix $script:Icons.Warn)Aviso:" -Color Yellow), " $Message") -ErrorStream
 }
 
 function Write-ErrorLog {
   param([string]$Message)
-  Write-FormattedLine -Segments @('[ ', (Format-LabelText -Text 'ERROR' -Color Red), " ] $Message") -ErrorStream
+  Write-FormattedLine -Segments @((Format-LabelText -Text "$(Get-IconPrefix $script:Icons.Error)Error:" -Color Red), " $Message") -ErrorStream
 }
 
-function Write-Success {
-  param([string]$Message)
-  if (-not $script:Quiet) {
-    Write-FormattedLine -Segments @('[ ', (Format-LabelText -Text 'OK' -Color Green), " ] $Message")
-  }
-}
 
-function Write-Separator {
-  if (-not $script:Quiet -and -not $script:LastOutputWasSeparator) {
-    Write-ColorLine -Message '────────────────────────────────────────────────────────' -Color DarkGray
-    $script:LastOutputWasSeparator = $true
-  }
-}
 
-function Write-PlainLine {
-  param(
-    [Parameter(Mandatory = $true)][string]$Message,
-    [ConsoleColor]$Color = [ConsoleColor]::Gray
-  )
 
-  Write-ColorLine -Message $Message -Color $Color
-  $script:LastOutputWasSeparator = $false
-}
 
-function Write-Group {
-  param([string]$GroupPath)
-  if (-not $script:Quiet) {
-    $segments = [System.Collections.Generic.List[string]]::new()
-    $segments.Add('[ ')
-    $segments.Add((Format-LabelText -Text 'GRUPO' -Color Magenta))
-    $segments.Add(' ] ')
 
-    $groupIcon = Get-OptionalIcon -Icon '▸'
-    if (-not [string]::IsNullOrWhiteSpace($groupIcon)) {
-      $segments.Add((Format-IconText -Text $groupIcon -Color Magenta))
-      $segments.Add(' ')
-    }
-
-    $segments.Add((Format-PathText -Text $GroupPath))
-    Write-FormattedLine -Segments $segments.ToArray()
-  }
-}
-
-function Format-TableCell {
-  param(
-    [Parameter(Mandatory = $true)][string]$Value,
-    [Parameter(Mandatory = $true)][int]$Width
-  )
-
-  if ($Value.Length -gt $Width) {
-    return $Value.Substring(0, $Width)
-  }
-
-  return $Value.PadRight($Width)
-}
-
-function Write-TableRow {
-  param(
-    [Parameter(Mandatory = $true)][string]$Metric,
-    [Parameter(Mandatory = $true)][string]$Value
-  )
-
-  $metricColumnWidth = 32
-  $valueColumnWidth = 25
-
-  $metricCell = Format-TableCell -Value $Metric -Width $metricColumnWidth
-  $valueCell = Format-TableCell -Value $Value -Width $valueColumnWidth
-  Write-PlainLine -Message ("║ {0} ║ {1} ║" -f $metricCell, $valueCell) -Color DarkGray
-}
 
 function Write-HelpText {
   @'
@@ -298,7 +465,7 @@ Opciones:
   --dry-run   Muestra los cambios planificados sin escribir archivos
   --no-color  Desactiva los colores
   --plain     Desactiva colores e iconos
-  --verbose   Muestra tiempo por operacion
+  --verbose   Lista tambien los enlaces sin cambios y el tiempo por operacion
   --quiet     Oculta logs por item y deja resumen/errores
   --help      Muestra esta ayuda
 '@ | Write-Output
@@ -626,6 +793,7 @@ function Complete-PendingElevatedSymlinks {
       '-RequestPath', $requestPath, '-ResultPath', $resultPath
     )
     Write-Info "Solicitando permisos de administrador una vez para $($operations.Count) enlaces pendientes."
+    Set-GroupHeader -GroupPath 'Enlaces con elevacion'
     $process = Start-Process -FilePath (Get-PowerShellExecutablePath) -ArgumentList $arguments -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
     if ($process.ExitCode -ne 0) {
       throw "El proceso elevado finalizo con codigo $($process.ExitCode)."
@@ -640,7 +808,7 @@ function Complete-PendingElevatedSymlinks {
       $result = $results[$index]
       $linkLabel = if ($operation.HardLink -eq $true) { $script:LinkLabelHard } else { $script:LinkLabelSymbolic }
       if ($result.Success -eq $true) {
-        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix "$linkLabel creado con elevacion" -TargetPath $operation.Target -SourcePath $operation.Source
+        Write-ItemLine -Icon $script:Icons.Created -Label 'creado' -Color Green -Name (Format-DisplayTarget -Path $operation.Target) -Detail (Format-LinkDetail -SourcePath $operation.Source -HardLink ($operation.HardLink -eq $true))
       } else {
         $script:CountErrors += 1
         Add-Diagnostic -Target $operation.Target -Reason $result.Error
@@ -655,6 +823,7 @@ function Complete-PendingElevatedSymlinks {
       Write-ErrorLog "No se pudo crear $linkLabel $($operation.Target) -> $($operation.Source)"
     }
   } finally {
+    Close-Group
     foreach ($temporaryPath in @($requestPath, $resultPath)) {
       if ($temporaryPath) {
         Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
@@ -1291,10 +1460,12 @@ function Join-RegexPatterns {
   return [regex]::new($combined)
 }
 
-function Get-ConditionalExcludeRegex {
+# Returns the `conditionalExcludes` rules active on this machine as objects
+# with the compiled regex and the `whenPathExists` that activated them.
+function Get-ActiveConditionalExcludeRules {
   param([object]$Entry)
 
-  $activePatterns = [System.Collections.Generic.List[regex]]::new()
+  $activeRules = [System.Collections.Generic.List[object]]::new()
   foreach ($rule in @(Get-PropertyArray -Object $Entry -Name 'conditionalExcludes')) {
     $patternText = Get-TextPropertyValue -Object $rule -Name 'pattern'
     $conditionPath = Get-TextPropertyValue -Object $rule -Name 'whenPathExists'
@@ -1304,11 +1475,44 @@ function Get-ConditionalExcludeRegex {
 
     $pattern = ConvertTo-StrippedRegexPattern -Pattern $patternText
     if (Test-ConditionPathExists -Path $conditionPath) {
-      $activePatterns.Add($pattern) | Out-Null
+      $activeRules.Add([PSCustomObject]@{ Regex = $pattern; ConditionPath = $conditionPath }) | Out-Null
     }
   }
 
-  return (Join-RegexPatterns -Patterns $activePatterns.ToArray())
+  return $activeRules.ToArray()
+}
+
+function Get-ConditionalExcludeRegex {
+  param([object]$Entry)
+
+  $activeRules = @(Get-ActiveConditionalExcludeRules -Entry $Entry)
+  return (Join-RegexPatterns -Patterns @($activeRules | ForEach-Object { $_.Regex }))
+}
+
+# Returns the `whenPathExists` of the first active rule matching the item or
+# one of its grouping folders below the glob root.
+function Get-ConditionalExcludeReason {
+  param(
+    [object[]]$ActiveRules,
+    [string]$RootPath,
+    [string]$ItemPath
+  )
+
+  $relativePath = $ItemPath
+  if ($ItemPath.StartsWith($RootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+    $relativePath = $ItemPath.Substring($RootPath.Length)
+  }
+  $segments = @($relativePath -split '[\\/]' | Where-Object { $_ -ne '' })
+
+  foreach ($rule in @($ActiveRules)) {
+    foreach ($segment in $segments) {
+      if ($rule.Regex.IsMatch($segment)) {
+        return $rule.ConditionPath
+      }
+    }
+  }
+
+  return ''
 }
 
 function Test-FolderShouldDescend {
@@ -1452,12 +1656,10 @@ function Remove-ExistingSymlink {
   param([string]$Path)
 
   if ($script:DryRun) {
-    Write-Info "Eliminaria symlink anterior $Path"
     return
   }
 
   Remove-Item -LiteralPath $Path -Force
-  Write-Info "Symlink anterior eliminado $Path"
 }
 
 function Move-ToBackup {
@@ -1466,13 +1668,12 @@ function Move-ToBackup {
   $backupPath = Resolve-BackupPath -Target $Path
   if ($script:DryRun) {
     $script:CountPlannedBackups += 1
-    Write-Info "Crearia respaldo $backupPath"
-    return $backupPath
+  } else {
+    Move-Item -LiteralPath $Path -Destination $backupPath -Force
+    $script:CountBackups += 1
   }
 
-  Move-Item -LiteralPath $Path -Destination $backupPath -Force
-  $script:CountBackups += 1
-  Write-Info "Respaldo creado $backupPath"
+  Write-ItemLine -Icon $script:Icons.Backup -Label 'respaldo' -Color Yellow -Name (Split-Path -Path $Path -Leaf) -Detail "→ $(Split-Path -Path $backupPath -Leaf)"
   return $backupPath
 }
 
@@ -1540,10 +1741,11 @@ function Initialize-TargetDirectory {
 
   $resolvedLinkTarget = Get-SymlinkResolvedTarget -LinkPath $DirectoryPath
   if ($null -ne $resolvedLinkTarget -and (Test-PathInsideConfigsDir -Path $resolvedLinkTarget)) {
+    $replacementDetail = "(antes symlink a $(Format-DisplaySource -Path $resolvedLinkTarget))"
     if ($script:DryRun) {
       if ($script:PlannedDirectoryReplacements.Add($DirectoryPath)) {
         $script:CountPlannedRemoved += 1
-        Write-Info "Reemplazaria symlink de directorio por carpeta real $DirectoryPath"
+        Write-ItemLine -Icon $script:Icons.Directory -Label 'carpeta real' -Color Blue -Name (Split-Path -Path $DirectoryPath -Leaf) -Detail $replacementDetail
       }
       return
     }
@@ -1551,7 +1753,7 @@ function Initialize-TargetDirectory {
     # Directory.Delete on a link removes only the link, never the linked content.
     [System.IO.Directory]::Delete($DirectoryPath)
     $script:CountRemoved += 1
-    Write-Info "Symlink de directorio reemplazado por carpeta real $DirectoryPath"
+    Write-ItemLine -Icon $script:Icons.Directory -Label 'carpeta real' -Color Blue -Name (Split-Path -Path $DirectoryPath -Leaf) -Detail $replacementDetail
     return
   }
 
@@ -1571,8 +1773,11 @@ function Initialize-TargetDirectory {
 function Remove-StaleSymlink {
   param(
     [string]$SourcePath,
-    [string]$TargetPath
+    [string]$TargetPath,
+    [string]$Reason = ''
   )
+
+  $removalDetail = if ([string]::IsNullOrEmpty($Reason)) { '(excluido por condicion)' } else { "(excluido por $Reason)" }
 
   try {
     if (-not (Test-SymlinkPointsToSource -LinkPath $TargetPath -SourcePath $SourcePath)) {
@@ -1580,15 +1785,12 @@ function Remove-StaleSymlink {
     }
 
     if ($script:DryRun) {
-      $script:CountSimulated += 1
       $script:CountPlannedRemoved += 1
-      Write-Info "Eliminaria symlink excluido por condicion $TargetPath"
-      return
+    } else {
+      Remove-Item -LiteralPath $TargetPath -Force
+      $script:CountRemoved += 1
     }
-
-    Remove-Item -LiteralPath $TargetPath -Force
-    $script:CountRemoved += 1
-    Write-Info "Symlink excluido por condicion eliminado $TargetPath"
+    Write-ItemLine -Icon $script:Icons.Delete -Label 'eliminado' -Color Red -Name (Split-Path -Path $TargetPath -Leaf) -Detail $removalDetail
   } catch {
     $script:CountErrors += 1
     Add-Diagnostic -Target $TargetPath -Reason "Fallo al eliminar symlink excluido por condicion: $($_.Exception.Message)"
@@ -1623,10 +1825,8 @@ function New-DotfileSymlink {
       throw "No se puede crear hard link: el origen '$SourcePath' no es un archivo regular."
     }
 
-    if ($script:DryRun) {
-      $script:CountSimulated += 1
-    }
-
+    $itemName = Split-Path -Path $TargetPath -Leaf
+    $linkDetail = Format-LinkDetail -SourcePath $SourcePath -HardLink $HardLink
     $parentDir = Split-Path -Path $TargetPath -Parent
     if ([string]::IsNullOrWhiteSpace($parentDir)) {
       $parentDir = '.'
@@ -1637,14 +1837,33 @@ function New-DotfileSymlink {
     # would be read through it; the replaced directory will start empty.
     $targetDirectoryPendingReplacement = $script:DryRun -and $script:PlannedDirectoryReplacements.Contains($parentDir)
 
-    if (-not $targetDirectoryPendingReplacement -and (Test-IsSymlink -Path "$TargetPath.bak")) {
-      Remove-ExistingSymlink -Path "$TargetPath.bak"
+    # Symlinks already pointing to the source are left untouched. Hard links
+    # are always recreated: Windows has no cheap inode comparison.
+    if (-not $targetDirectoryPendingReplacement -and -not $HardLink -and (Test-SymlinkPointsToSource -LinkPath $TargetPath -SourcePath $SourcePath)) {
+      $script:CountUnchanged += 1
+      $script:GroupUnchangedCount += 1
+      if ($script:VerboseMode) {
+        Write-ItemLine -Icon $script:Icons.Unchanged -Label 'sin cambios' -Color DarkGray -Name $itemName -Detail $linkDetail -Unchanged
+      }
+      return
     }
 
+    if (-not $targetDirectoryPendingReplacement -and (Test-IsSymlink -Path "$TargetPath.bak")) {
+      Remove-ExistingSymlink -Path "$TargetPath.bak"
+      if ($script:DryRun) {
+        $script:CountPlannedRemoved += 1
+      } else {
+        $script:CountRemoved += 1
+      }
+      Write-ItemLine -Icon $script:Icons.Delete -Label 'eliminado' -Color Red -Name "$itemName.bak" -Detail '(symlink de respaldo obsoleto)'
+    }
+
+    $isReplacement = $false
     if ($targetDirectoryPendingReplacement) {
       $script:CountPlannedCreated += 1
     } elseif (Test-IsSymlink -Path $TargetPath) {
       Remove-ExistingSymlink -Path $TargetPath
+      $isReplacement = $true
       if ($script:DryRun) {
         $script:CountPlannedReplaced += 1
       } else {
@@ -1652,6 +1871,7 @@ function New-DotfileSymlink {
       }
     } elseif (Test-PathEntry -Path $TargetPath) {
       [void](Move-ToBackup -Path $TargetPath)
+      $isReplacement = $true
       if ($script:DryRun) {
         $script:CountPlannedReplaced += 1
       } else {
@@ -1665,8 +1885,12 @@ function New-DotfileSymlink {
       }
     }
 
+    $actionIcon = if ($isReplacement) { $script:Icons.Replaced } else { $script:Icons.Created }
+    $actionLabel = if ($isReplacement) { 'reemplazado' } else { 'creado' }
+    $actionColor = if ($isReplacement) { [ConsoleColor]::Blue } else { [ConsoleColor]::Green }
+
     if ($script:DryRun) {
-      Write-SymlinkLine -Label 'INFO' -LabelColor Blue -Prefix "Crearia $linkLabel" -TargetPath $TargetPath -SourcePath $SourcePath
+      Write-ItemLine -Icon $actionIcon -Label $actionLabel -Color $actionColor -Name $itemName -Detail $linkDetail
     } else {
       if (-not (Test-Path -LiteralPath $parentDir)) {
         New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
@@ -1674,7 +1898,7 @@ function New-DotfileSymlink {
 
       try {
         New-Item -ItemType $linkItemType -Path $TargetPath -Target $SourcePath -Force | Out-Null
-        Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix "$linkLabel creado" -TargetPath $TargetPath -SourcePath $SourcePath
+        Write-ItemLine -Icon $actionIcon -Label $actionLabel -Color $actionColor -Name $itemName -Detail $linkDetail
       } catch {
         if (-not (Test-IsPrivilegeElevationError -ErrorRecord $_) -or $script:IsElevatedSymlinkMode) {
           throw
@@ -1684,13 +1908,13 @@ function New-DotfileSymlink {
           throw "Auto-elevacion bloqueada: el destino '$TargetPath' esta fuera de las rutas permitidas."
         }
         $script:PendingElevatedSymlinks.Add([PSCustomObject]@{ Source = $SourcePath; Target = $TargetPath; HardLink = $HardLink })
-        Write-Info "$linkLabel pendiente de elevacion: $TargetPath"
+        Write-ItemLine -Icon $script:Icons.Elevated -Label 'pendiente' -Color Yellow -Name $itemName -Detail '(requiere elevacion)'
       }
     }
 
     if ($script:VerboseMode -and -not $script:Quiet) {
       $elapsed = [int]((Get-Date) - $startedAt).TotalSeconds
-      Write-ColorLine -Message "[ TIEMPO ] transcurrido=${elapsed}s" -Color DarkGray
+      Write-BoxRow -Content ("   " + (Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Time)transcurrido=${elapsed}s" -Color DarkGray))
     }
   } catch {
     $script:CountErrors += 1
@@ -1738,9 +1962,11 @@ function Get-StaleSymlinkRemovals {
     [System.Collections.Generic.HashSet[string]]$SeenBasenames,
     [AllowNull()][regex]$DescendIntoRegex,
     [AllowNull()][regex]$ExcludeRegex,
-    [AllowNull()][string]$MarkerFile
+    [AllowNull()][string]$MarkerFile,
+    [object[]]$ActiveRules = @()
   )
 
+  $rootPath = Split-Path -Path (Resolve-SourcePattern -Path $EntryPath) -Parent
   $linkedPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
   foreach ($linkedSource in @($LinkedSources)) {
     [void]$linkedPaths.Add($linkedSource.FullName)
@@ -1764,6 +1990,7 @@ function Get-StaleSymlinkRemovals {
         Target   = $targetPath
         HardLink = $false
         Remove   = $true
+        Reason   = (Get-ConditionalExcludeReason -ActiveRules $ActiveRules -RootPath $rootPath -ItemPath $candidate.FullName)
       })
   }
 
@@ -1772,8 +1999,15 @@ function Get-StaleSymlinkRemovals {
 
 function Resolve-Operations {
   $operations = [System.Collections.Generic.List[object]]::new()
+  $entries = @(Get-ConfigEntries)
+  $resolveStartedAt = Get-Date
+  $entryIndex = 0
 
-  foreach ($entry in (Get-ConfigEntries)) {
+  foreach ($entry in $entries) {
+    $entryIndex += 1
+    $elapsedSeconds = [int]((Get-Date) - $resolveStartedAt).TotalSeconds
+    Write-DotfilerProgress -Id 1 -Current $entryIndex -Total $entries.Count -Status (Get-ResolveProgressStatus -Current $entryIndex -Total $entries.Count -Detail ([string]$entry.path) -ElapsedSeconds $elapsedSeconds)
+
     if (-not (Test-EntryIncluded -Entry $entry)) {
       continue
     }
@@ -1805,13 +2039,15 @@ function Resolve-Operations {
     $descendIntoRegex = $null
     $excludeRegex = $null
     $conditionalExcludeRegex = $null
+    $activeConditionalRules = @()
     $markerFile = $null
     $hasFilters = $false
 
     try {
       $descendIntoRegex = Get-DescendIntoRegex -Entry $entry
       $excludeRegex = Get-ExcludeRegex -Entry $entry
-      $conditionalExcludeRegex = Get-ConditionalExcludeRegex -Entry $entry
+      $activeConditionalRules = @(Get-ActiveConditionalExcludeRules -Entry $entry)
+      $conditionalExcludeRegex = Join-RegexPatterns -Patterns @($activeConditionalRules | ForEach-Object { $_.Regex })
       $markerFile = Get-MarkerFileName -Entry $entry
       $hasFilters = ($null -ne $descendIntoRegex) -or ($null -ne $excludeRegex) -or (-not [string]::IsNullOrEmpty($markerFile)) -or
         (Test-PropertyPresent -Object $entry -Name 'conditionalExcludes')
@@ -1884,64 +2120,56 @@ function Resolve-Operations {
     }
 
     if ($null -ne $conditionalExcludeRegex) {
-      foreach ($removal in @(Get-StaleSymlinkRemovals -EntryPath $entryPath -TargetBase $targetBase -LinkedSources $sources -SeenBasenames $seenBasenames -DescendIntoRegex $descendIntoRegex -ExcludeRegex $excludeRegex -MarkerFile $markerFile)) {
+      foreach ($removal in @(Get-StaleSymlinkRemovals -EntryPath $entryPath -TargetBase $targetBase -LinkedSources $sources -SeenBasenames $seenBasenames -DescendIntoRegex $descendIntoRegex -ExcludeRegex $excludeRegex -MarkerFile $markerFile -ActiveRules $activeConditionalRules)) {
         $operations.Add($removal)
       }
     }
   }
 
+  Complete-DotfilerProgress -Id 1
   return $operations
 }
 
+function Format-SummaryCell {
+  param(
+    [string]$Icon,
+    [string]$Label,
+    [int]$Value
+  )
+
+  return ('{0}{1} {2,4}' -f (Get-IconPrefix $Icon), $Label.PadRight($script:SummaryLabelWidth), $Value)
+}
+
 function Print-Summary {
-  $endTime = Get-Date
-  $elapsed = [int]($endTime - $script:StartTime).TotalSeconds
-  $metricColumnWidth = 32
-  $valueColumnWidth = 25
-  $metricBorderWidth = $metricColumnWidth + 2
-  $valueBorderWidth = $valueColumnWidth + 2
-  $topBorder = ('╔' + ('═' * $metricBorderWidth) + '╦' + ('═' * $valueBorderWidth) + '╗')
-  $middleBorder = ('╠' + ('═' * $metricBorderWidth) + '╬' + ('═' * $valueBorderWidth) + '╣')
-  $bottomBorder = ('╚' + ('═' * $metricBorderWidth) + '╩' + ('═' * $valueBorderWidth) + '╝')
-  $mode = if ($script:DryRun) { 'Simulacion' } else { 'Aplicacion real' }
+  $elapsed = [int]((Get-Date) - $script:StartTime).TotalSeconds
   $created = if ($script:DryRun) { $script:CountPlannedCreated } else { $script:CountCreated }
   $replaced = if ($script:DryRun) { $script:CountPlannedReplaced } else { $script:CountReplaced }
   $backups = if ($script:DryRun) { $script:CountPlannedBackups } else { $script:CountBackups }
   $removed = if ($script:DryRun) { $script:CountPlannedRemoved } else { $script:CountRemoved }
-  $status = if ($script:CountErrors -eq 0) { '[OK] Sin errores' } else { '[X] Con errores' }
-  $createdLabel = if ($script:DryRun) { 'Creados (plan)' } else { 'Creados' }
-  $replacedLabel = if ($script:DryRun) { 'Reemplazados (plan)' } else { 'Reemplazados' }
-  $backupsLabel = if ($script:DryRun) { 'Respaldos (plan)' } else { 'Respaldos' }
-  $removedLabel = if ($script:DryRun) { 'Eliminados (plan)' } else { 'Eliminados' }
-
-  Write-Separator
-  Write-PlainLine -Message 'RESUMEN' -Color Blue
-  Write-PlainLine -Message $topBorder -Color DarkGray
-  Write-TableRow -Metric 'Metrica' -Value 'Valor'
-  Write-PlainLine -Message $middleBorder -Color DarkGray
-  Write-TableRow -Metric 'Inicio (local)' -Value $script:StartTime.ToString('yyyy-MM-ddTHH:mm:ssK')
-  Write-TableRow -Metric 'Fin (local)' -Value $endTime.ToString('yyyy-MM-ddTHH:mm:ssK')
-  Write-TableRow -Metric 'Tiempo total (s)' -Value ([string]$elapsed)
-  Write-TableRow -Metric 'Modo ejecucion' -Value $mode
-  Write-TableRow -Metric $createdLabel -Value ([string]$created)
-  Write-TableRow -Metric $replacedLabel -Value ([string]$replaced)
-  Write-TableRow -Metric $backupsLabel -Value ([string]$backups)
-  Write-TableRow -Metric $removedLabel -Value ([string]$removed)
-  Write-TableRow -Metric 'Omitidos' -Value ([string]$script:CountSimulated)
-  Write-TableRow -Metric 'Errores' -Value ([string]$script:CountErrors)
-  Write-TableRow -Metric 'Estado' -Value $status
-  Write-PlainLine -Message $bottomBorder -Color DarkGray
-
-  if ($script:DryRun) {
-    Write-Info "Modo simulacion activo, no se escribieron cambios en el sistema de archivos."
-  }
-
-  Write-Separator
-  if ($script:CountErrors -eq 0) {
-    Write-PlainLine -Message '[ FIN ] Configuracion de symlinks finalizada.' -Color Green
+  $columnGap = '     '
+  $modeText = if ($script:DryRun) {
+    "$(Get-IconPrefix $script:Icons.DryRun)simulacion, no se escribieron cambios"
   } else {
-    Write-PlainLine -Message ("[ FIN ] Finalizado con {0} error(es)." -f $script:CountErrors) -Color Red
+    "$(Get-IconPrefix $script:Icons.RealRun)aplicacion real"
   }
+  $errorsCell = Format-SummaryCell -Icon $script:Icons.Error -Label 'errores' -Value $script:CountErrors
+  if ($script:CountErrors -gt 0) {
+    $errorsCell = Format-AnsiSegment -Text $errorsCell -Color Red -Bold
+  }
+  $statusText = if ($script:CountErrors -eq 0) {
+    Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Done)Sin errores." -Color Green -Bold
+  } else {
+    Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Failed)Finalizado con $($script:CountErrors) error(es)." -Color Red -Bold
+  }
+
+  Write-BlockGap
+  Write-BoxTop -Title "$(Get-IconPrefix $script:Icons.Summary)Resumen"
+  Write-BoxRow -Content ((Format-AnsiSegment -Text (Format-SummaryCell -Icon $script:Icons.Created -Label 'creados' -Value $created) -Color Green -Bold) + $columnGap + (Format-AnsiSegment -Text (Format-SummaryCell -Icon $script:Icons.Replaced -Label 'reemplazados' -Value $replaced) -Color Blue -Bold))
+  Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Unchanged -Label 'sin cambios' -Value $script:CountUnchanged) + $columnGap + (Format-SummaryCell -Icon $script:Icons.Delete -Label 'eliminados' -Value $removed))
+  Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Backup -Label 'respaldos' -Value $backups) + $columnGap + $errorsCell)
+  Write-BoxDivider
+  Write-BoxRow -Content "$modeText · $(Get-IconPrefix $script:Icons.Time)${elapsed}s · $statusText"
+  Write-BoxBottom
 }
 
 function Print-Diagnostics {
@@ -1949,14 +2177,43 @@ function Print-Diagnostics {
     return
   }
 
-  Write-Separator
-  Write-PlainLine -Message 'DIAGNOSTICO' -Color Blue
+  Write-BlockGap
+  Write-BoxTop -Title "$(Get-IconPrefix $script:Icons.Diagnostic)Diagnostico"
 
   $index = 1
   foreach ($item in $script:Diagnostics) {
-    Write-PlainLine -Message ("[ ERROR ] {0}) destino={1} | causa={2}" -f $index, $item.Target, $item.Reason)
+    Write-BoxRow -Content ("$(Format-AnsiSegment -Text "$index." -Color Red -Bold) $(Format-DisplayTarget -Path $item.Target)")
+    Write-BoxRow -Content ("   " + (Format-AnsiSegment -Text "→ $($item.Reason)" -Color DarkGray))
     $index += 1
   }
+
+  Write-BoxBottom
+}
+
+# Groups operations by destination folder keeping config order inside each
+# group, so every folder header is printed once.
+function Group-OperationsByTarget {
+  param([object[]]$Operations)
+
+  $groupNames = @($Operations | ForEach-Object { $_.Group } | Sort-Object -Unique)
+  foreach ($groupName in $groupNames) {
+    foreach ($operation in $Operations) {
+      if ([string]::Equals($operation.Group, $groupName, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $operation
+      }
+    }
+  }
+}
+
+function Resolve-ItemNameWidth {
+  param([object[]]$Operations)
+
+  $longestName = 0
+  foreach ($operation in $Operations) {
+    $longestName = [Math]::Max($longestName, (Split-Path -Path $operation.Target -Leaf).Length)
+  }
+
+  return [Math]::Min($script:MaxItemNameWidth, [Math]::Max($script:MinItemNameWidth, $longestName))
 }
 
 function Main {
@@ -1969,22 +2226,38 @@ function Main {
   Assert-ConfigPathsFileExists
   Ensure-DotfilerDependencies
 
-  $operations = @(Resolve-Operations)
+  Write-Banner
+  $operations = @(Group-OperationsByTarget -Operations @(Resolve-Operations))
+  $script:ItemNameWidth = Resolve-ItemNameWidth -Operations $operations
   $lastGroup = $null
 
+  $operationIndex = 0
   foreach ($operation in $operations) {
+    $operationIndex += 1
+    Write-DotfilerProgress -Id 2 -Current $operationIndex -Total $operations.Count -Status "$(Get-IconPrefix '🔗')Enlazando $(Format-ProgressBar -Current $operationIndex -Total $operations.Count) $operationIndex/$($operations.Count) · $(Split-Path -Path $operation.Target -Leaf)"
+
     if ($operation.Group -ne $lastGroup) {
-      Write-Separator
-      Write-Group -GroupPath $operation.Group
+      Close-Group
+      Set-GroupHeader -GroupPath (Format-DisplayTarget -Path $operation.Group)
       $lastGroup = $operation.Group
     }
 
     if ($operation.Remove -eq $true) {
-      Remove-StaleSymlink -SourcePath $operation.Source -TargetPath $operation.Target
+      Remove-StaleSymlink -SourcePath $operation.Source -TargetPath $operation.Target -Reason ([string]$operation.Reason)
       continue
     }
 
     New-DotfileSymlink -SourcePath $operation.Source -TargetPath $operation.Target -HardLink ([bool]$operation.HardLink)
+  }
+  Close-Group
+  Complete-DotfilerProgress -Id 2
+
+  $changedCount = $script:CountCreated + $script:CountReplaced + $script:CountRemoved + $script:CountBackups +
+    $script:CountPlannedCreated + $script:CountPlannedReplaced + $script:CountPlannedRemoved + $script:CountPlannedBackups +
+    $script:PendingElevatedSymlinks.Count
+  if ($script:CountUnchanged -gt 0 -and $changedCount -eq 0 -and -not $script:VerboseMode -and -not $script:Quiet) {
+    Write-BlockGap
+    Write-FormattedLine -Segments @((Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Unchanged)Todos los enlaces estan al dia ($($script:CountUnchanged))." -Color Green -Bold))
   }
 
   Complete-PendingElevatedSymlinks

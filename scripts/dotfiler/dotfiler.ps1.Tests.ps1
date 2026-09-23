@@ -26,62 +26,90 @@
     $script:CountCreated = 0
     $script:CountReplaced = 0
     $script:CountBackups = 0
-    $script:CountSimulated = 0
     $script:CountErrors = 0
     $script:CountPlannedCreated = 0
     $script:CountPlannedReplaced = 0
     $script:CountPlannedBackups = 0
     $script:CountRemoved = 0
     $script:CountPlannedRemoved = 0
+    $script:CountUnchanged = 0
+    $script:PendingGroupHeader = $null
+    $script:GroupOpen = $false
+    $script:GroupChangeCount = 0
+    $script:GroupUnchangedCount = 0
+    $script:UseIcons = $true
+    $script:ProgressMode = 'never'
     $script:PlannedDirectoryReplacements = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    $script:LastOutputWasSeparator = $false
+    $script:LastOutputWasBlank = $true
     $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
     $script:ConfigPathsFile = ''
   }
 
-  It 'Print-Summary imprime tabla y cierre final en una ejecucion exitosa' {
-    $script:StartTime = [datetime]'2026-04-12T10:00:00-03:00'
+  It 'Print-Summary imprime caja de resumen con contadores y cierre exitoso' {
+    $script:UseColor = $false
+    $script:StartTime = Get-Date
     $script:CountCreated = 2
     $script:CountReplaced = 1
     $script:CountBackups = 1
+    $script:CountUnchanged = 7
     $script:CountErrors = 0
 
     $summaryOutput = Print-Summary | Out-String
 
-    $summaryOutput | Should -Match 'RESUMEN'
-    $summaryOutput | Should -Match '╔════════'
-    $summaryOutput | Should -Match 'Metrica'
-    $summaryOutput | Should -Match 'Modo ejecucion'
-    $summaryOutput | Should -Match '\[ FIN \] Configuracion de symlinks finalizada\.'
+    $summaryOutput | Should -Match '╭─ 📊 Resumen ─'
+    $summaryOutput | Should -Match '│ ✨ creados\s+2'
+    $summaryOutput | Should -Match '🔄 reemplazados\s+1'
+    $summaryOutput | Should -Match '✅ sin cambios\s+7'
+    $summaryOutput | Should -Match '💾 respaldos\s+1'
+    $summaryOutput | Should -Match '❌ errores\s+0'
+    $summaryOutput | Should -Match '🚀 aplicacion real'
+    $summaryOutput | Should -Match '🎉 Sin errores\.'
+    $summaryOutput | Should -Match '╰─{10}'
   }
 
-  It 'Print-Summary conserva el offset horario completo en los timestamps locales' {
-    $script:StartTime = [datetime]'2026-04-12T10:00:00-03:00'
-
-    $summaryOutput = Print-Summary | Out-String
-
-    $summaryOutput | Should -Match '2026-04-12T10:00:00-03:00'
-    $summaryOutput | Should -Match 'Fin \(local\)\s+║ \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-03:00'
-  }
-
-  It 'Print-Summary muestra labels de plan y mensaje de simulacion en dry-run' {
+  It 'Print-Summary usa contadores planificados y aviso de simulacion en dry-run' {
+    $script:UseColor = $false
     $script:DryRun = $true
-    $script:StartTime = [datetime]'2026-04-12T10:00:00-03:00'
+    $script:StartTime = Get-Date
     $script:CountPlannedCreated = 3
     $script:CountPlannedReplaced = 2
     $script:CountPlannedBackups = 1
-    $script:CountSimulated = 4
+    $script:CountPlannedRemoved = 4
 
     $summaryOutput = Print-Summary | Out-String
 
-    $summaryOutput | Should -Match 'Creados \(plan\)'
-    $summaryOutput | Should -Match 'Reemplazados \(plan\)'
-    $summaryOutput | Should -Match 'Respaldos \(plan\)'
-    $summaryOutput | Should -Match 'Modo simulacion activo, no se escribieron cambios en el sistema de archivos\.'
-    $summaryOutput | Should -Match '\[ FIN \] Configuracion de symlinks finalizada\.'
+    $summaryOutput | Should -Match 'creados\s+3'
+    $summaryOutput | Should -Match 'reemplazados\s+2'
+    $summaryOutput | Should -Match 'respaldos\s+1'
+    $summaryOutput | Should -Match 'eliminados\s+4'
+    $summaryOutput | Should -Match '🧪 simulacion, no se escribieron cambios'
   }
 
-  It 'Print-Diagnostics imprime el bloque de diagnostico con errores enumerados' {
+  It 'Print-Summary informa errores con cierre de fallo' {
+    $script:UseColor = $false
+    $script:StartTime = Get-Date
+    $script:CountErrors = 2
+
+    $summaryOutput = Print-Summary | Out-String
+
+    $summaryOutput | Should -Match 'errores\s+2'
+    $summaryOutput | Should -Match '💥 Finalizado con 2 error\(es\)\.'
+  }
+
+  It 'Print-Summary sin iconos conserva etiquetas alineadas' {
+    $script:UseColor = $false
+    $script:UseIcons = $false
+    $script:StartTime = Get-Date
+
+    $summaryOutput = Print-Summary | Out-String
+
+    $summaryOutput | Should -Match '╭─ Resumen ─'
+    $summaryOutput | Should -Match '│ creados\s+0\s+reemplazados\s+0'
+    $summaryOutput | Should -Not -Match '📊'
+  }
+
+  It 'Print-Diagnostics imprime caja de diagnostico con errores enumerados' {
+    $script:UseColor = $false
     $script:Diagnostics.Add([PSCustomObject]@{
         Target = 'C:\destino'
         Reason = 'Fallo controlado'
@@ -89,20 +117,41 @@
 
     $diagnosticsOutput = Print-Diagnostics | Out-String
 
-    $diagnosticsOutput | Should -Match 'DIAGNOSTICO'
-    $diagnosticsOutput | Should -Match '\[ ERROR \] 1\) destino=C:\\destino \| causa=Fallo controlado'
+    $diagnosticsOutput | Should -Match '╭─ 🩺 Diagnostico ─'
+    $diagnosticsOutput | Should -Match '│ 1\. C:\\destino'
+    $diagnosticsOutput | Should -Match '│    → Fallo controlado'
   }
 
-  It 'Write-SymlinkLine usa flecha doble violeta y rutas con estilo ANSI cuando hay color' {
-    $script:UseColor = $true
-    $styledOutput = & {
-      Write-SymlinkLine -Label 'OK' -LabelColor Green -Prefix 'Symlink creado' -TargetPath 'C:\destino' -SourcePath 'C:\fuente'
+  It 'Write-ItemLine imprime icono, accion, nombre y detalle dentro del grupo pendiente' {
+    $script:UseColor = $false
+    Set-GroupHeader -GroupPath '~/.claude/skills'
+
+    $itemOutput = & {
+      Write-ItemLine -Icon $script:Icons.Created -Label 'creado' -Color Green -Name 'simplify' -Detail '→ my-skills/simplify'
+      Close-Group
     } | Out-String
 
-    $styledOutput | Should -Match 'Symlink creado'
-    $styledOutput | Should -Match 'C:\\destino'
-    $styledOutput | Should -Match 'C:\\fuente'
-    $styledOutput | Should -Match '→→'
+    $itemOutput | Should -Match '📁 ~/.claude/skills'
+    $itemOutput | Should -Match '│ ✨ creado\s+simplify\s+→ my-skills/simplify'
+    $itemOutput | Should -Match '╰─ 1 cambio'
+  }
+
+  It 'Close-Group no imprime grupos sin cambios visibles' {
+    $script:UseColor = $false
+    Set-GroupHeader -GroupPath '~/.config'
+    $script:GroupUnchangedCount = 3
+
+    $groupOutput = & { Close-Group } | Out-String
+
+    $groupOutput.Trim() | Should -BeNullOrEmpty
+  }
+
+  It 'Write-Info aplica color ANSI cuando esta habilitado' {
+    $script:UseColor = $true
+    $styledOutput = & { Write-Info 'mensaje' } | Out-String
+
+    $styledOutput | Should -Match 'mensaje'
+    $styledOutput | Should -Match ([regex]::Escape("$([char]27)["))
   }
 
   It 'New-DotfileSymlink crea hard link usando el tipo correspondiente' {
@@ -110,7 +159,7 @@
     Mock Test-PathEntry { $false }
     Mock Test-Path { $true }
     Mock New-Item {} -ParameterFilter { $ItemType -eq 'HardLink' }
-    Mock Write-SymlinkLine {}
+    Mock Write-ItemLine {}
 
     New-DotfileSymlink -SourcePath 'C:\fuente.txt' -TargetPath 'C:\destino.txt' -HardLink $true
 
@@ -140,15 +189,69 @@
     Should -Invoke New-Item -Times 0 -Exactly
   }
 
-  It 'Write-Separator evita separadores consecutivos duplicados' {
-    $separatorOutput = & {
-      Write-Separator
-      Write-Separator
-      Write-PlainLine -Message 'contenido'
-      Write-Separator
-    } | Out-String
+  It 'Get-ResolveProgressStatus rota mensajes segun el tiempo y muestra barra, contador y detalle' {
+    $script:UseIcons = $true
 
-    ([regex]::Matches($separatorOutput, '────────────────────────────────────────────────────────')).Count | Should -Be 2
+    $firstStatus = Get-ResolveProgressStatus -Current 3 -Total 12 -Detail '.agents/skills/my-skills/*' -ElapsedSeconds 0
+    $laterStatus = Get-ResolveProgressStatus -Current 3 -Total 12 -Detail '.agents/skills/my-skills/*' -ElapsedSeconds 2
+
+    $firstStatus | Should -Be '🧭 Resolviendo rutas ▰▰▰▱▱▱▱▱▱▱▱▱ 3/12 · .agents/skills/my-skills/* · ⌛ 0s'
+    $laterStatus | Should -Match '^🧩 Recorriendo agrupadores'
+  }
+
+  It 'Test-ProgressEnabled respeta DOTFILER_PROGRESS y --quiet' {
+    $script:ProgressMode = 'never'
+    Test-ProgressEnabled | Should -BeFalse
+    $script:ProgressMode = 'always'
+    $script:Quiet = $true
+    Test-ProgressEnabled | Should -BeTrue
+    $script:ProgressMode = 'auto'
+    Test-ProgressEnabled | Should -BeFalse
+  }
+
+  It 'Write-BlockGap evita lineas en blanco consecutivas' {
+    $gapOutput = & {
+      Write-BlockGap
+      Write-FormattedLine -Segments @('contenido')
+      Write-BlockGap
+      Write-BlockGap
+      Write-FormattedLine -Segments @('otro')
+    }
+
+    @($gapOutput) | Should -Be @('contenido', '', 'otro')
+  }
+
+  It 'New-DotfileSymlink no recrea symlinks que ya apuntan a la fuente' {
+    Mock Test-SymlinkPointsToSource { $true }
+    Mock Initialize-TargetDirectory {}
+    Mock New-Item {}
+    Mock Remove-Item {}
+
+    New-DotfileSymlink -SourcePath 'C:\fuente' -TargetPath 'C:\destino'
+
+    $script:CountUnchanged | Should -Be 1
+    $script:GroupUnchangedCount | Should -Be 1
+    Should -Invoke New-Item -Times 0 -Exactly
+    Should -Invoke Remove-Item -Times 0 -Exactly
+  }
+
+  It 'Group-OperationsByTarget agrupa destinos repetidos conservando el orden interno' {
+    $operations = @(
+      [PSCustomObject]@{ Group = 'C:\b'; Target = 'C:\b\primero' },
+      [PSCustomObject]@{ Group = 'C:\a'; Target = 'C:\a\medio' },
+      [PSCustomObject]@{ Group = 'C:\b'; Target = 'C:\b\segundo' }
+    )
+
+    $grouped = @(Group-OperationsByTarget -Operations $operations)
+
+    @($grouped | ForEach-Object { $_.Target }) | Should -Be @('C:\a\medio', 'C:\b\primero', 'C:\b\segundo')
+  }
+
+  It 'Get-ConditionalExcludeReason devuelve la ruta de la regla que coincide con un agrupador' {
+    $rules = @([PSCustomObject]@{ Regex = [regex]::new('^\(refactor\)$'); ConditionPath = '~/.fury' })
+
+    Get-ConditionalExcludeReason -ActiveRules $rules -RootPath 'C:\skills' -ItemPath 'C:\skills\(code)\(refactor)\simplify' | Should -Be '~/.fury'
+    Get-ConditionalExcludeReason -ActiveRules $rules -RootPath 'C:\skills' -ItemPath 'C:\skills\(code)\otra' | Should -Be ''
   }
 
   It 'instala una dependencia faltante con winget cuando existe configuracion de paquete' {
@@ -450,7 +553,6 @@
     Mock Test-PathEntry { $false }
     Mock Test-Path { $true }
     Mock Write-Info {}
-    Mock Write-Success {}
     Mock Add-Diagnostic {}
     Mock Test-ElevationTargetAllowed { $true }
     Mock Start-Process { throw 'No debe solicitar UAC al acumular enlaces' }
@@ -474,7 +576,7 @@
       $script:PendingElevatedSymlinks.Add([PSCustomObject]@{ Source = 'C:\otra fuente'; Target = 'C:\otro destino' })
       Mock Get-PowerShellExecutablePath { 'powershell.exe' }
       Mock Write-Info {}
-      Mock Write-SymlinkLine {}
+      Mock Write-ItemLine {}
       Mock Write-ErrorLog {}
     }
 
@@ -499,7 +601,7 @@
       Complete-PendingElevatedSymlinks
 
       Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { $Verb -eq 'RunAs' -and $Wait -and $WindowStyle -eq 'Hidden' }
-      Should -Invoke Write-SymlinkLine -Times 1 -Exactly
+      Should -Invoke Write-ItemLine -Times 1 -Exactly
       $script:CountErrors | Should -Be 1
       $script:Diagnostics[0].Target | Should -Be 'C:\otro destino'
       Test-Path -LiteralPath $script:BatchRequestPath | Should -BeFalse
