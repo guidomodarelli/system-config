@@ -47,10 +47,24 @@ chmod +x scripts/setup/setup.sh
 ### Selector interactivo
 
 - El setup abre un selector clásico con selección múltiple y búsqueda incremental.
-- Los ítems seleccionados por defecto se muestran con la marca `@`.
+- La lista ocupa todo el alto disponible de la terminal y se recalcula al
+  redimensionar. Si no entra, aparece una barra de scroll a la izquierda
+  (`┃` indica la posición).
+- La fila bajo el cursor (`👉`) se resalta completa con un fondo gris.
+- Marcas: `★` recomendado (seleccionado por defecto), `🔐` requiere sudo o
+  administrador, `🔁` requiere reiniciar o abrir una nueva sesión.
 - `ENTER` confirma solo los ítems realmente marcados.
 - Usa `ESPACIO` para alternar un ítem, `a` para alternar toda la selección y `r` para restaurar defaults.
-- Usa `/` para buscar, `j/k` o flechas para navegar y `q`, `ESC` o `Ctrl+C` para cancelar.
+- Usa `/` para buscar, `j/k` o flechas para navegar y `q`, `ESC`, `Ctrl+C` o `Ctrl+D` para cancelar.
+- Antes de ejecutar muestra una caja `📋` con lo que se va a procesar. Cada
+  instalación se enmarca (`╭─ 📦 [2/5] fzf` … `╰─ ✅ fzf listo · 12s`) sin
+  ocultar la salida real del instalador, y al final hay una caja `📊 Resumen`
+  con estado y duración por ítem.
+- En Windows, los emojis se usan en Windows Terminal y VS Code; en la consola
+  clásica se reemplazan por marcas ASCII (`>`, `x`, `*`). `SETUP_ICONS=always|never`
+  fuerza uno u otro modo.
+- Compatible con `/bin/bash` 3.2 de macOS: flechas, PgUp/PgDn y Home/End
+  funcionan aunque esa versión no admite timeouts fraccionales en `read`.
 
 ### Ejecutar una función específica
 
@@ -72,7 +86,8 @@ función del shell correspondiente.
 ```
 
 - `--dry-run` puede ir antes o después de los ítems.
-- `--list` muestra `Id`, función y etiqueta disponibles.
+- `--list` muestra `Id`, función y etiqueta disponibles: como tabla en una
+  terminal y como TSV (`Id<TAB>función<TAB>etiqueta`) al redirigir la salida.
 - `--yes` omite la pantalla de confirmación previa a la ejecución.
 
 ## Uso en Linux

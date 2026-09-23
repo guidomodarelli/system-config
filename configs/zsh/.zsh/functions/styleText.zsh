@@ -1,18 +1,24 @@
-# Color name to code mapping
-# Using function-based approach for macOS compatibility
-function color_code() {
+# Color name to code mapping. Sets STYLE_TEXT_COLOR_CODE instead of echoing so
+# styleText can resolve colors without forking a subshell (it runs in hot
+# paths such as interactive menus). Works in zsh and bash 3.2.
+_style_text_resolve_color_code() {
   case "$1" in
-  "black") echo "30" ;;
-  "red") echo "31" ;;
-  "green") echo "32" ;;
-  "yellow") echo "33" ;;
-  "blue") echo "34" ;;
-  "magenta") echo "35" ;;
-  "cyan") echo "36" ;;
-  "white") echo "37" ;;
-  "gray") echo "90" ;;
-  *) echo "" ;;
+  "black") STYLE_TEXT_COLOR_CODE="30" ;;
+  "red") STYLE_TEXT_COLOR_CODE="31" ;;
+  "green") STYLE_TEXT_COLOR_CODE="32" ;;
+  "yellow") STYLE_TEXT_COLOR_CODE="33" ;;
+  "blue") STYLE_TEXT_COLOR_CODE="34" ;;
+  "magenta") STYLE_TEXT_COLOR_CODE="35" ;;
+  "cyan") STYLE_TEXT_COLOR_CODE="36" ;;
+  "white") STYLE_TEXT_COLOR_CODE="37" ;;
+  "gray") STYLE_TEXT_COLOR_CODE="90" ;;
+  *) STYLE_TEXT_COLOR_CODE="" ;;
   esac
+}
+
+function color_code() {
+  _style_text_resolve_color_code "$1"
+  echo "$STYLE_TEXT_COLOR_CODE"
 }
 
 # Get available colors
@@ -83,9 +89,9 @@ styleText() {
       shift
       ;;
     -c | --color)
-      local COLOR_CODE=$(color_code "$2")
-      if [[ -n "$2" && -n "$COLOR_CODE" ]]; then
-        MODIFIERS="${MODIFIERS};$COLOR_CODE"
+      _style_text_resolve_color_code "$2"
+      if [[ -n "$2" && -n "$STYLE_TEXT_COLOR_CODE" ]]; then
+        MODIFIERS="${MODIFIERS};$STYLE_TEXT_COLOR_CODE"
         shift 2
       else
         local errorMsg="Invalid color name: $2\n"
@@ -105,9 +111,8 @@ styleText() {
       ;;
     esac
   done
-  local ANSI_ESCAPE=$(printf "\033[${MODIFIERS}m")
-  local ANSI_END=$(printf "\033[m")
-  printf "$ANSI_ESCAPE%s$ANSI_END" "$@"
+  # MODIFIERS only holds digits and semicolons, so it is safe in the format.
+  printf "\033[${MODIFIERS}m%s\033[m" "$@"
 }
 
 logWhite() {

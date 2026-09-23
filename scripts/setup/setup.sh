@@ -9,6 +9,55 @@ SETUP_ESCAPE_SEQUENCE_TIMEOUT_SECONDS=0.05
 SETUP_INPUT_FLUSH_TIMEOUT_SECONDS=0.02
 SETUP_LATEST_VERSION_POLICY="latest-stable-official"
 
+# Emojis without variation selectors: single characters rendered two columns
+# wide, which keeps menu and summary columns aligned.
+SETUP_ICON_APP="🧰"
+SETUP_ICON_REAL_RUN="🚀"
+SETUP_ICON_DRY_RUN="🧪"
+SETUP_ICON_PLATFORM="💻"
+SETUP_ICON_CATALOG="📋"
+# Text star (not emoji): one column, shown in gray so it stays discreet.
+SETUP_ICON_RECOMMENDED="★"
+SETUP_ICON_ADMIN="🔐"
+SETUP_ICON_RESTART="🔁"
+SETUP_ICON_PACKAGE="📦"
+SETUP_ICON_SELECTED="✅"
+SETUP_ICON_POINTER="👉"
+SETUP_ICON_OK="✅"
+SETUP_ICON_FAILED_ITEM="❌"
+SETUP_ICON_SKIPPED="⏩"
+SETUP_ICON_INFO="🔹"
+SETUP_ICON_WARN="🚨"
+SETUP_ICON_ERROR="❌"
+SETUP_ICON_TIME="⌛"
+SETUP_ICON_SUMMARY="📊"
+SETUP_ICON_SHORTCUTS="🧭"
+SETUP_ICON_SEARCH="🔎"
+SETUP_ICON_NO_RESULTS="🤷"
+SETUP_SEARCH_PROMPT="❯"
+SETUP_SEARCH_CURSOR="▏"
+SETUP_ICON_REFRESH="🔄"
+SETUP_ICON_DONE="🎉"
+SETUP_ICON_FAILED_RUN="💥"
+SETUP_BOX_RULE_WIDTH=64
+SETUP_SUMMARY_LABEL_WIDTH=32
+SETUP_SHORTCUT_WIDTH=18
+SETUP_SHORTCUT_DESCRIPTION_WIDTH=20
+# Menu window: range, legend, spacer and top indicator above the rows.
+SETUP_MENU_HEADER_LINES=4
+# Lines outside the item rows: leading blank + banner (5), blank (1),
+# shortcuts box + spacer (7), window header (4), bottom indicator (1) and the
+# line where the cursor rests (1).
+SETUP_MENU_RESERVED_LINES=19
+SETUP_MENU_MIN_VISIBLE_ITEMS=5
+SETUP_DEFAULT_TERMINAL_ROWS=24
+# Subtle 256-color background for the row under the cursor.
+SETUP_MENU_CURSOR_BACKGROUND=$'\033[48;5;237m'
+SETUP_MENU_HIGHLIGHT_WIDTH=58
+# Emojis used in menu rows; each one takes two columns but counts as one
+# character, so the highlight padding compensates for them.
+SETUP_MENU_WIDE_GLYPHS=("👉" "✅" "🔐" "🔁")
+
 if [[ -f "$SETUP_STYLE_TEXT_PATH" ]]; then
   # shellcheck source=../../configs/zsh/.zsh/functions/styleText.zsh
   source "$SETUP_STYLE_TEXT_PATH"
@@ -28,6 +77,10 @@ if ! command -v styleText >/dev/null 2>&1; then
   }
 fi
 
+# Styled once at load: the menu redraws the scrollbar on every key.
+SETUP_MENU_SCROLLBAR_THUMB="$(styleText -c cyan -- "┃")"
+SETUP_MENU_SCROLLBAR_TRACK="$(styleText -c gray -- "│")"
+
 if ! command -v logInfo >/dev/null 2>&1; then
   logInfo() { printf "[ INFO ] %s\n" "$*"; }
   logSuccess() { printf "[ SUCCESS ] %s\n" "$*"; }
@@ -40,42 +93,133 @@ _setup_color() {
   styleText -c "$color" -- "$text"
 }
 
+_setup_color_bold() {
+  local color=$1 text=$2
+  styleText -c "$color" -b -- "$text"
+}
+
 _setup_colored_line() {
   local color=$1 text=$2
   _setup_color "$color" "$text"
   printf "\n"
 }
 
-_setup_reverse_start() {
-  printf "\033[;%sm" "${REVERSE:-7}"
+
+
+
+_setup_repeat_text() {
+  local text=$1 count=$2 result=""
+  while ((count > 0)); do
+    result+="$text"
+    count=$((count - 1))
+  done
+  printf "%s" "$result"
 }
 
-_setup_style_reset() {
-  printf "\033[m"
-}
-
-_setup_color_for_menu_row() {
-  local color=$1 text=$2 is_cursor=${3:-0}
-  _setup_color "$color" "$text"
-  if [[ $is_cursor -eq 1 ]]; then
-    _setup_reverse_start
+# Boxes are open on the right: emoji width varies between terminals, so only
+# the left border and horizontal rules are drawn.
+_setup_box_top() {
+  local title=${1:-}
+  if [[ -z "$title" ]]; then
+    _setup_colored_line "gray" "╭$(_setup_repeat_text "─" "$SETUP_BOX_RULE_WIDTH")"
+    return 0
   fi
+  local rule_length=$((SETUP_BOX_RULE_WIDTH - ${#title} - 4))
+  ((rule_length < 1)) && rule_length=1
+  _setup_color "gray" "╭─ "
+  styleText -c blue -b -- "$title"
+  _setup_color "gray" " $(_setup_repeat_text "─" "$rule_length")"
+  printf "\n"
+}
+
+_setup_box_row() {
+  _setup_color "gray" "│"
+  printf " %s\n" "$1"
+}
+
+_setup_box_divider() {
+  _setup_colored_line "gray" "├$(_setup_repeat_text "─" "$SETUP_BOX_RULE_WIDTH")"
+}
+
+_setup_box_bottom() {
+  _setup_colored_line "gray" "╰$(_setup_repeat_text "─" "$SETUP_BOX_RULE_WIDTH")"
+}
+
+_setup_box_close() {
+  _setup_color "gray" "╰─"
+  printf " %s\n" "$1"
+}
+
+_setup_log_line() {
+  local color=$1 prefix=$2 message=$3
+  printf "%s %s\n" "$(styleText -c "$color" -b -- "$prefix")" "$message"
 }
 
 _setup_log_error() {
-  logError "$1"
+  _setup_log_line "red" "$SETUP_ICON_ERROR Error:" "$1"
 }
 
 _setup_log_info() {
-  logInfo "$1"
+  _setup_log_line "blue" "$SETUP_ICON_INFO" "$1"
 }
 
 _setup_log_warning() {
-  logWarn "$1"
+  _setup_log_line "yellow" "$SETUP_ICON_WARN Aviso:" "$1"
 }
 
 _setup_log_success() {
-  logSuccess "$1"
+  _setup_log_line "green" "$SETUP_ICON_OK" "$1"
+}
+
+_setup_platform_display_name() {
+  case "$(_setup_current_platform)" in
+    darwin) printf "macOS" ;;
+    wsl) printf "WSL" ;;
+    linux) printf "Linux" ;;
+    windows) printf "Windows" ;;
+    *) _setup_current_platform ;;
+  esac
+}
+
+_setup_format_duration() {
+  local total_seconds=$1
+  if ((total_seconds >= 60)); then
+    printf "%dm %02ds" $((total_seconds / 60)) $((total_seconds % 60))
+  else
+    printf "%ds" "$total_seconds"
+  fi
+}
+
+_setup_print_banner() {
+  local dry_run=${1:-0}
+  local mode_text="$SETUP_ICON_REAL_RUN instalación"
+  if [[ $dry_run -eq 1 ]]; then
+    mode_text="$SETUP_ICON_DRY_RUN simulación: no se instalará nada"
+  fi
+  local recommended_count=0 default_selected
+  for default_selected in "${_MENU_DEFAULT_SELECTED[@]}"; do
+    ((default_selected == 1)) && recommended_count=$((recommended_count + 1))
+  done
+
+  _setup_box_top
+  _setup_box_row "$(styleText -c magenta -b -- "$SETUP_ICON_APP setup del sistema") $(_setup_color "gray" "·") $mode_text"
+  _setup_box_row "$(_setup_color "gray" "$SETUP_ICON_PLATFORM $(_setup_platform_display_name) · $SETUP_ICON_CATALOG ${#_MENU_LABELS[@]} ítems · $SETUP_ICON_RECOMMENDED $recommended_count recomendados")"
+  _setup_box_bottom
+}
+
+# Badges appended to a menu label: sudo and restart requirements.
+# Sets _SETUP_MENU_BADGES without a subshell (hot path while redrawing).
+_menu_load_item_badges() {
+  local menu_index=$1
+  _SETUP_MENU_BADGES=""
+  [[ "${_MENU_REQUIRES_ADMIN[$menu_index]:-0}" == "1" ]] && _SETUP_MENU_BADGES+=" $SETUP_ICON_ADMIN"
+  [[ "${_MENU_REQUIRES_RESTART[$menu_index]:-0}" == "1" ]] && _SETUP_MENU_BADGES+=" $SETUP_ICON_RESTART"
+  return 0
+}
+
+_menu_item_badges() {
+  _menu_load_item_badges "$1"
+  printf "%s" "$_SETUP_MENU_BADGES"
 }
 
 is_windows() {
@@ -110,7 +254,14 @@ is_darwin() {
   fi
 }
 
+# Uses the platform cached by _initialize_menu_catalog when available; the
+# detection forks uname and reads os-release, which is slow per catalog item.
 _setup_current_platform() {
+  if [[ -n "${_SETUP_PLATFORM_CACHE:-}" ]]; then
+    echo "$_SETUP_PLATFORM_CACHE"
+    return 0
+  fi
+
   if is_windows; then
     echo "wsl"
   elif is_darwin; then
@@ -126,8 +277,8 @@ _setup_platforms_include_current() {
   local supported_platforms=${1:-all}
   local current_platform
 
-  current_platform="$(_setup_current_platform)"
   [[ -z "$supported_platforms" || "$supported_platforms" == "all" ]] && return 0
+  current_platform="${_SETUP_PLATFORM_CACHE:-$(_setup_current_platform)}"
 
   case ",$supported_platforms," in
     *",$current_platform,"*) return 0 ;;
@@ -798,22 +949,25 @@ _is_setup_menu_item_recommended_for_platform() {
   local menu_item_id=$1
   local base_default_selected=$2
   local supported_platforms=${3:-all}
+  local current_platform
 
   [[ "$base_default_selected" -eq 1 ]] || return 1
   _setup_platforms_include_current "$supported_platforms" || return 1
+  current_platform="${_SETUP_PLATFORM_CACHE:-$(_setup_current_platform)}"
 
+  # wsl: is_windows; darwin: is_darwin; linux: debian-like, not WSL nor macOS.
   case "$menu_item_id" in
     espanso)
-      ! is_windows
+      [[ "$current_platform" != "wsl" ]]
       ;;
     gnu_grep)
-      is_darwin
+      [[ "$current_platform" == "darwin" ]]
       ;;
     xclip)
-      is_debian_like && ! is_darwin && ! is_windows
+      [[ "$current_platform" == "linux" ]]
       ;;
     win32yank)
-      is_windows
+      [[ "$current_platform" == "wsl" ]]
       ;;
     *)
       return 0
@@ -897,6 +1051,10 @@ _initialize_menu_catalog() {
   fi
 
   local expected_catalog_header="Id|Label|BashFunctionName|PowerShellFunctionName|DefaultSelected|RequiresAdmin|Platforms|RequiresRestart"
+  # Detect the platform once for the whole catalog; cleared at the end so later
+  # calls (and tests that switch platforms) detect it again.
+  _SETUP_PLATFORM_CACHE=""
+  _SETUP_PLATFORM_CACHE="$(_setup_current_platform)"
 
   local id label bash_function_name power_shell_function_name default_selected requires_admin supported_platforms requires_restart function_name
   local catalog_header
@@ -932,6 +1090,7 @@ _initialize_menu_catalog() {
     done
   } < "$SETUP_CATALOG_PATH"
 
+  _SETUP_PLATFORM_CACHE=""
   _sort_menu_catalog_by_default_selection
 }
 
@@ -1063,20 +1222,14 @@ _menu_indexes_require_sudo() {
   return 1
 }
 
-_print_restart_notice_if_needed() {
-  local menu_index
-  local found_restart_item=0
-
-  for menu_index in "${!_INSTALL_RESULT_LABELS[@]}"; do
-    if [[ "${_INSTALL_RESULT_REQUIRES_RESTART[$menu_index]}" -eq 1 && "${_INSTALL_RESULT_STATUSES[$menu_index]}" == "ok" ]]; then
-      found_restart_item=1
-      break
+_install_results_require_restart() {
+  local result_index
+  for result_index in "${!_INSTALL_RESULT_LABELS[@]}"; do
+    if [[ "${_INSTALL_RESULT_REQUIRES_RESTART[$result_index]}" -eq 1 && "${_INSTALL_RESULT_STATUSES[$result_index]}" == "ok" ]]; then
+      return 0
     fi
   done
-
-  if [[ $found_restart_item -eq 1 ]]; then
-    _setup_log_warning "Algunos cambios requieren reiniciar o abrir una nueva sesión para aplicarse."
-  fi
+  return 1
 }
 
 _menu_selected_count() {
@@ -1084,67 +1237,124 @@ _menu_selected_count() {
   local selection_state
 
   for selection_state in "${_MENU_SELECTED[@]}"; do
-    ((selection_state == 1)) && ((selected_count++))
+    ((selection_state == 1)) && selected_count=$((selected_count + 1))
   done
 
   echo "$selected_count"
 }
 
+_record_install_result() {
+  local menu_index=$1 status=$2 duration_seconds=$3 requires_restart=$4
+  _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
+  _INSTALL_RESULT_STATUSES+=("$status")
+  _INSTALL_RESULT_DURATIONS+=("$duration_seconds")
+  _INSTALL_RESULT_REQUIRES_RESTART+=("$requires_restart")
+}
+
+# Runs each selected item inside its own frame. Installer output is shown raw
+# (it may prompt for sudo), so there is no spinner around it.
 _run_selected_menu_items() {
   local dry_run=${1:-0}
   local menu_index
+  local total_selected current_position=0
+  total_selected="$(_menu_selected_count)"
   _INSTALL_RESULT_LABELS=()
   _INSTALL_RESULT_STATUSES=()
+  _INSTALL_RESULT_DURATIONS=()
   _INSTALL_RESULT_REQUIRES_RESTART=()
+  SETUP_RUN_STARTED_AT_SECONDS=$(date +%s)
+
+  if [[ $dry_run -eq 1 ]]; then
+    printf "\n"
+    _setup_box_top "$SETUP_ICON_DRY_RUN Simulación"
+  fi
 
   for menu_index in "${!_MENU_FUNCS[@]}"; do
-    if [[ ${_MENU_SELECTED[$menu_index]} -eq 1 ]]; then
-      if [[ $dry_run -eq 1 ]]; then
-        printf "\n"
-        _setup_log_info "Dry-run: se ejecutaría ${_MENU_LABELS[$menu_index]}."
-        _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
-        _INSTALL_RESULT_STATUSES+=("dry-run")
-        _INSTALL_RESULT_REQUIRES_RESTART+=("${_MENU_REQUIRES_RESTART[$menu_index]}")
-        continue
-      fi
+    [[ ${_MENU_SELECTED[$menu_index]} -eq 1 ]] || continue
+    current_position=$((current_position + 1))
+    local label="${_MENU_LABELS[$menu_index]}"
+    local position_text="[$current_position/$total_selected]"
 
+    if [[ $dry_run -eq 1 ]]; then
+      _setup_box_row "$(_setup_color "gray" "$position_text") se ejecutaría $label$(_menu_item_badges "$menu_index")"
+      _record_install_result "$menu_index" "dry-run" 0 "${_MENU_REQUIRES_RESTART[$menu_index]}"
+      continue
+    fi
+
+    if ! _setup_platforms_include_current "${_MENU_PLATFORMS[$menu_index]}"; then
       printf "\n"
-      _setup_log_info "Instalando: ${_MENU_LABELS[$menu_index]}"
-      if ! _setup_platforms_include_current "${_MENU_PLATFORMS[$menu_index]}"; then
-        _setup_log_warning "Omitido por plataforma: ${_MENU_LABELS[$menu_index]}"
-        _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
-        _INSTALL_RESULT_STATUSES+=("omitido")
-        _INSTALL_RESULT_REQUIRES_RESTART+=("0")
-      elif ${_MENU_FUNCS[$menu_index]}; then
-        _setup_log_success "${_MENU_LABELS[$menu_index]}"
-        _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
-        _INSTALL_RESULT_STATUSES+=("ok")
-        _INSTALL_RESULT_REQUIRES_RESTART+=("${_MENU_REQUIRES_RESTART[$menu_index]}")
-      else
-        _setup_log_error "Falló: ${_MENU_LABELS[$menu_index]}" >&2
-        _INSTALL_RESULT_LABELS+=("${_MENU_LABELS[$menu_index]}")
-        _INSTALL_RESULT_STATUSES+=("falló")
-        _INSTALL_RESULT_REQUIRES_RESTART+=("0")
-      fi
+      _setup_box_close "$SETUP_ICON_SKIPPED $position_text $label omitido por plataforma"
+      _record_install_result "$menu_index" "omitido" 0 0
+      continue
+    fi
+
+    printf "\n"
+    _setup_box_top "$SETUP_ICON_PACKAGE $position_text $label"
+    local item_started_at_seconds duration_seconds
+    item_started_at_seconds=$(date +%s)
+    if ${_MENU_FUNCS[$menu_index]}; then
+      duration_seconds=$(($(date +%s) - item_started_at_seconds))
+      _setup_box_close "$(styleText -c green -b -- "$SETUP_ICON_OK $label listo") $(_setup_color "gray" "· $SETUP_ICON_TIME $(_setup_format_duration "$duration_seconds")")"
+      _record_install_result "$menu_index" "ok" "$duration_seconds" "${_MENU_REQUIRES_RESTART[$menu_index]}"
+    else
+      duration_seconds=$(($(date +%s) - item_started_at_seconds))
+      _setup_box_close "$(styleText -c red -b -- "$SETUP_ICON_FAILED_ITEM $label falló") $(_setup_color "gray" "· $SETUP_ICON_TIME $(_setup_format_duration "$duration_seconds")")" >&2
+      _record_install_result "$menu_index" "falló" "$duration_seconds" 0
     fi
   done
+
+  if [[ $dry_run -eq 1 ]]; then
+    _setup_box_bottom
+  fi
 }
 
 _print_install_summary() {
-  local result_index
+  local result_index status label duration_text
+  local ok_count=0 failed_count=0 skipped_count=0 dry_run_count=0
+  local total_seconds=$(($(date +%s) - ${SETUP_RUN_STARTED_AT_SECONDS:-$(date +%s)}))
 
   printf "\n"
-  _setup_log_info "Resumen de instalación:"
+  _setup_box_top "$SETUP_ICON_SUMMARY Resumen"
   for result_index in "${!_INSTALL_RESULT_LABELS[@]}"; do
-    case "${_INSTALL_RESULT_STATUSES[$result_index]}" in
-      ok) _setup_colored_line "green" "  [OK] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
-      dry-run) _setup_colored_line "yellow" "  [DRY-RUN] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
-      omitido) _setup_colored_line "yellow" "  [OMITIDO] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
-      *) _setup_colored_line "red" "  [ERROR] ${_INSTALL_RESULT_LABELS[$result_index]}" ;;
+    status="${_INSTALL_RESULT_STATUSES[$result_index]}"
+    # The simulation box already listed every item.
+    if [[ "$status" == "dry-run" ]]; then
+      dry_run_count=$((dry_run_count + 1))
+      continue
+    fi
+    label="$(printf "%-${SETUP_SUMMARY_LABEL_WIDTH}s" "${_INSTALL_RESULT_LABELS[$result_index]}")"
+    duration_text="$(_setup_format_duration "${_INSTALL_RESULT_DURATIONS[$result_index]:-0}")"
+    case "$status" in
+      ok)
+        ok_count=$((ok_count + 1))
+        _setup_box_row "$SETUP_ICON_OK $(_setup_color "green" "$label") $(_setup_color "gray" "$duration_text")"
+        ;;
+      omitido)
+        skipped_count=$((skipped_count + 1))
+        _setup_box_row "$SETUP_ICON_SKIPPED $(_setup_color "yellow" "$label") $(_setup_color "gray" "omitido por plataforma")"
+        ;;
+      *)
+        failed_count=$((failed_count + 1))
+        _setup_box_row "$SETUP_ICON_FAILED_ITEM $(_setup_color "red" "$label") $(_setup_color "gray" "$duration_text")"
+        ;;
     esac
   done
 
-  _print_restart_notice_if_needed
+  _setup_box_divider
+  if ((dry_run_count > 0)); then
+    _setup_box_row "$SETUP_ICON_DRY_RUN $dry_run_count en simulación · no se instaló nada"
+  else
+    _setup_box_row "$SETUP_ICON_OK $ok_count ok · $SETUP_ICON_FAILED_ITEM $failed_count fallaron · $SETUP_ICON_SKIPPED $skipped_count omitidos · $SETUP_ICON_TIME $(_setup_format_duration "$total_seconds")"
+  fi
+  if _install_results_require_restart; then
+    _setup_box_row "$(styleText -c yellow -b -- "$SETUP_ICON_RESTART Algunos cambios requieren reiniciar o abrir una nueva sesión para aplicarse.")"
+  fi
+  if ((failed_count > 0)); then
+    _setup_box_row "$(styleText -c red -b -- "$SETUP_ICON_FAILED_RUN Proceso con $failed_count error(es).")"
+  else
+    _setup_box_row "$(styleText -c green -b -- "$SETUP_ICON_DONE Proceso completo.")"
+  fi
+  _setup_box_bottom
 }
 
 _setup_install_results_include_failure() {
@@ -1169,60 +1379,154 @@ _menu_display_label() {
   local label="${_MENU_LABELS[$menu_index]}"
 
   if ! _menu_is_recommended "$menu_index"; then
-    printf "%s" "$label"
+    printf "  %s%s" "$label" "$(_menu_item_badges "$menu_index")"
     return 0
   fi
 
-  printf "@ %s" "$label"
+  printf "%s %s%s" "$SETUP_ICON_RECOMMENDED" "$label" "$(_menu_item_badges "$menu_index")"
 }
 
 _draw_menu_label() {
   local menu_index=$1
   local is_cursor=${2:-0}
   local label="${_MENU_LABELS[$menu_index]}"
+  _menu_load_item_badges "$menu_index"
 
-  if ! _menu_is_recommended "$menu_index"; then
-    printf "%s" "$label"
+  if _menu_is_recommended "$menu_index"; then
+    _setup_color "gray" "$SETUP_ICON_RECOMMENDED"
+    printf " "
+  else
+    printf "  "
+  fi
+
+  _draw_menu_label_text "$label" "$is_cursor" "${_MENU_LOWERCASE_LABELS[$menu_index]:-}"
+  printf "%s" "$_SETUP_MENU_BADGES"
+}
+
+# Prints the label, highlighting the part that matches the active search query
+# (_SETUP_MENU_HIGHLIGHT_QUERY, lowercase) in underlined yellow.
+_draw_menu_label_text() {
+  local label=$1 is_cursor=$2 lowercase_label=${3:-}
+  local query="${_SETUP_MENU_HIGHLIGHT_QUERY:-}"
+  local label_style="default"
+  [[ $is_cursor -eq 1 ]] && label_style="cursor"
+
+  if [[ -z "$query" ]]; then
+    _draw_menu_label_segment "$label_style" "$label"
     return 0
   fi
 
-  _setup_color_for_menu_row "yellow" "@" "$is_cursor"
-  printf " %s" "$label"
-}
-
-_draw_menu_item() {
-  local idx=$1 cursor=$2 label=$3 is_selected=$4
-  local marker=" "
-  local pointer="  "
-  local cursor_prefix=""
-  local cursor_suffix=""
-  local is_cursor=0
-  [[ $is_selected -eq 1 ]] && marker="✅"
-  if [[ $idx -eq $cursor ]]; then
-    is_cursor=1
-    pointer="👉"
-    cursor_prefix="$(_setup_reverse_start)"
-    cursor_suffix="$(_setup_style_reset)"
+  if [[ -z "$lowercase_label" ]]; then
+    lowercase_label="$(printf "%s" "$label" | tr '[:upper:]' '[:lower:]')"
+  fi
+  if [[ "$lowercase_label" != *"$query"* ]]; then
+    _draw_menu_label_segment "$label_style" "$label"
+    return 0
   fi
 
-  printf "%s %s [" "$cursor_prefix" "$pointer"
-  if [[ $is_selected -eq 1 ]]; then
-    _setup_color_for_menu_row "green" "$marker" "$is_cursor"
+  local match_prefix="${lowercase_label%%"$query"*}"
+  local match_start=${#match_prefix}
+  local match_length=${#query}
+  _draw_menu_label_segment "$label_style" "${label:0:$match_start}"
+  styleText -c yellow -b -u -- "${label:$match_start:$match_length}"
+  _draw_menu_label_segment "$label_style" "${label:$((match_start + match_length))}"
+}
+
+_draw_menu_label_segment() {
+  local label_style=$1 text=$2
+  [[ -z "$text" ]] && return 0
+  if [[ "$label_style" == "cursor" ]]; then
+    _setup_color_bold "cyan" "$text"
   else
-    printf "%s" "$marker"
+    printf "%s" "$text"
   fi
-  printf "] "
-  _draw_menu_label "$idx" "$is_cursor"
-  printf "%s" "$cursor_suffix"
 }
 
+# Draws one menu row: scrollbar, cursor pointer, checkbox and label. The
+# unselected checkbox uses two spaces because the check emoji is two columns.
+# Draws one menu row: scrollbar, cursor pointer, checkbox and label. The
+# unselected checkbox uses two spaces because the check emoji is two columns.
+_draw_menu_item() {
+  local idx=$1 cursor=$2 label=$3 is_selected=$4 scrollbar_glyph=${5:- }
+
+  printf "%s " "$scrollbar_glyph"
+  if [[ $idx -ne $cursor ]]; then
+    _draw_menu_item_content "$idx" 0 "$is_selected"
+    return 0
+  fi
+
+  _setup_highlight_row "$(_draw_menu_item_content "$idx" 1 "$is_selected")"
+}
+
+_draw_menu_item_content() {
+  local idx=$1 is_cursor=$2 is_selected=$3
+  local pointer="  "
+  [[ $is_cursor -eq 1 ]] && pointer="$SETUP_ICON_POINTER"
+
+  printf "%s [" "$pointer"
+  if [[ $is_selected -eq 1 ]]; then
+    _setup_color "green" "$SETUP_ICON_SELECTED"
+  else
+    printf "  "
+  fi
+  printf "]  "
+  _draw_menu_label "$idx" "$is_cursor"
+}
+
+# Paints a whole row with the cursor background. Every style reset inside the
+# row re-applies the background, and the row is padded to a fixed width.
+_setup_highlight_row() {
+  local row=$1
+  local reset=$'\033[m'
+  local ansi_pattern=$'\033\\[[0-9;]*m'
+  local plain_row=$row
+  while [[ $plain_row =~ $ansi_pattern ]]; do
+    plain_row=${plain_row/"${BASH_REMATCH[0]}"/}
+  done
+
+  local visible_columns=${#plain_row} wide_glyph without_glyph
+  for wide_glyph in "${SETUP_MENU_WIDE_GLYPHS[@]}"; do
+    without_glyph="${plain_row//$wide_glyph/}"
+    visible_columns=$((visible_columns + ${#plain_row} - ${#without_glyph}))
+  done
+
+  local padding=$((SETUP_MENU_HIGHLIGHT_WIDTH - visible_columns))
+  ((padding < 1)) && padding=1
+  printf "%s%s%*s%s" "$SETUP_MENU_CURSOR_BACKGROUND" "${row//$reset/$reset$SETUP_MENU_CURSOR_BACKGROUND}" "$padding" "" "$reset"
+}
+
+# Reads the real terminal height. `tput lines` inside $(...) has no terminal on
+# stdout/stderr and falls back to 24 rows, so ask the controlling tty first.
+_setup_tty_size() {
+  { stty size </dev/tty; } 2>/dev/null
+}
+
+_setup_terminal_rows() {
+  local terminal_size terminal_rows
+  terminal_size="$(_setup_tty_size)"
+  terminal_rows="${terminal_size%% *}"
+  if [[ "$terminal_rows" =~ ^[0-9]+$ ]] && ((terminal_rows > 0)); then
+    echo "$terminal_rows"
+    return 0
+  fi
+
+  terminal_rows="$({ tput lines 2>/dev/tty; } 2>/dev/null)"
+  if [[ "$terminal_rows" =~ ^[0-9]+$ ]] && ((terminal_rows > 0)); then
+    echo "$terminal_rows"
+    return 0
+  fi
+
+  echo "${LINES:-$SETUP_DEFAULT_TERMINAL_ROWS}"
+}
+
+# Fills the viewport down to its last line; the list scrolls when it is taller.
 _menu_visible_height() {
   local terminal_rows
-  terminal_rows="$(tput lines 2>/dev/null || echo 24)"
+  terminal_rows="$(_setup_terminal_rows)"
 
-  local visible_height=$((terminal_rows - 18))
-  if ((visible_height < 5)); then
-    visible_height=5
+  local visible_height=$((terminal_rows - SETUP_MENU_RESERVED_LINES))
+  if ((visible_height < SETUP_MENU_MIN_VISIBLE_ITEMS)); then
+    visible_height=$SETUP_MENU_MIN_VISIBLE_ITEMS
   fi
 
   if ((visible_height > ${#_MENU_LABELS[@]})); then
@@ -1230,6 +1534,37 @@ _menu_visible_height() {
   fi
 
   echo "$visible_height"
+}
+
+# Scrollbar glyph for a visible row: thumb where the window sits, track
+# elsewhere, blank when the whole list fits.
+# Sets _SETUP_MENU_SCROLLBAR_GLYPH for a visible row without a subshell: thumb
+# where the window sits, track elsewhere, blank when the whole list fits.
+_menu_load_scrollbar_glyph() {
+  local row_position=$1 window_start=$2 visible_height=$3 count=$4
+  _SETUP_MENU_SCROLLBAR_GLYPH=" "
+
+  if ((count <= visible_height || visible_height <= 0)); then
+    return 0
+  fi
+
+  local thumb_size=$((visible_height * visible_height / count))
+  if ((thumb_size < 1)); then
+    thumb_size=1
+  fi
+  local max_window_start=$((count - visible_height))
+  local thumb_start=$((window_start * (visible_height - thumb_size) / max_window_start))
+
+  if ((row_position >= thumb_start && row_position < thumb_start + thumb_size)); then
+    _SETUP_MENU_SCROLLBAR_GLYPH="$SETUP_MENU_SCROLLBAR_THUMB"
+  else
+    _SETUP_MENU_SCROLLBAR_GLYPH="$SETUP_MENU_SCROLLBAR_TRACK"
+  fi
+}
+
+_menu_scrollbar_glyph() {
+  _menu_load_scrollbar_glyph "$@"
+  printf "%s" "$_SETUP_MENU_SCROLLBAR_GLYPH"
 }
 
 _menu_adjust_window_start() {
@@ -1261,16 +1596,23 @@ _draw_menu_window() {
   local cursor=$1 window_start=$2 visible_height=$3 count=$4
   local window_end=$((window_start + visible_height))
 
-  printf "\r\033[2K  Elementos "
+  printf "\r\033[2K  %s Elementos " "$SETUP_ICON_CATALOG"
   _setup_color "cyan" "$((window_start + 1))"
   printf "-"
   _setup_color "cyan" "$window_end"
   printf " de "
   _setup_color "cyan" "$count"
-  printf "\n"
+  local selected_count=0 selection_state
+  for selection_state in "${_MENU_SELECTED[@]}"; do
+    [[ "$selection_state" == "1" ]] && selected_count=$((selected_count + 1))
+  done
+  printf " · %s " "$SETUP_ICON_SELECTED"
+  _setup_color "cyan" "$selected_count"
+  printf " seleccionados\n"
   printf "\r\033[2K  "
-  _setup_color "yellow" "@"
-  printf " seleccionado por defecto\n"
+  _setup_color "gray" "$SETUP_ICON_RECOMMENDED"
+  printf " recomendado · %s requiere sudo · %s requiere reinicio\n" "$SETUP_ICON_ADMIN" "$SETUP_ICON_RESTART"
+  printf "\r\033[2K\n"
 
   if ((window_start > 0)); then
     printf "\r\033[2K  ↑ Hay más elementos arriba\n"
@@ -1281,7 +1623,8 @@ _draw_menu_window() {
   local menu_index
   for ((menu_index = window_start; menu_index < window_end; menu_index++)); do
     printf "\r\033[2K"
-    _draw_menu_item "$menu_index" "$cursor" "${_MENU_LABELS[$menu_index]}" "${_MENU_SELECTED[$menu_index]}"
+    _menu_load_scrollbar_glyph $((menu_index - window_start)) "$window_start" "$visible_height" "$count"
+    _draw_menu_item "$menu_index" "$cursor" "${_MENU_LABELS[$menu_index]}" "${_MENU_SELECTED[$menu_index]}" "$_SETUP_MENU_SCROLLBAR_GLYPH"
     printf "\n"
   done
 
@@ -1294,13 +1637,14 @@ _draw_menu_window() {
 
 _menu_item_row_offset() {
   local menu_index=$1 window_start=$2
-  echo $((3 + menu_index - window_start))
+  echo $((SETUP_MENU_HEADER_LINES + menu_index - window_start))
 }
 
 _draw_menu_item_line() {
-  local menu_index=$1 cursor=$2
+  local menu_index=$1 cursor=$2 window_start=${3:-0} visible_height=${4:-0}
   printf "\r\033[2K"
-  _draw_menu_item "$menu_index" "$cursor" "${_MENU_LABELS[$menu_index]}" "${_MENU_SELECTED[$menu_index]}"
+  _menu_load_scrollbar_glyph $((menu_index - window_start)) "$window_start" "$visible_height" "${#_MENU_LABELS[@]}"
+  _draw_menu_item "$menu_index" "$cursor" "${_MENU_LABELS[$menu_index]}" "${_MENU_SELECTED[$menu_index]}" "$_SETUP_MENU_SCROLLBAR_GLYPH"
 }
 
 _redraw_menu_item_from_bottom() {
@@ -1310,8 +1654,21 @@ _redraw_menu_item_from_bottom() {
   lines_up=$((rendered_lines - row_offset))
 
   printf "\033[%dA" "$lines_up"
-  _draw_menu_item_line "$menu_index" "$cursor"
+  _draw_menu_item_line "$menu_index" "$cursor" "$window_start" $((rendered_lines - SETUP_MENU_HEADER_LINES - 1))
   printf "\033[%dB\r" "$lines_up"
+}
+
+_redraw_full_menu_window() {
+  local previous_rendered_lines=$1
+  shift
+  printf "\033[%dA" "$previous_rendered_lines"
+  _draw_menu_window "$@"
+}
+
+_redraw_cursor_move() {
+  local previous_cursor=$1 cursor=$2 window_start=$3 rendered_lines=$4
+  _redraw_menu_item_from_bottom "$previous_cursor" "$cursor" "$window_start" "$rendered_lines"
+  _redraw_menu_item_from_bottom "$cursor" "$cursor" "$window_start" "$rendered_lines"
 }
 
 _menu_requires_full_render() {
@@ -1327,12 +1684,11 @@ _find_menu_item_index_by_label() {
     return
   fi
 
-  local offset candidate_index label_lower query_lower
-  query_lower="$(printf "%s" "$query" | tr '[:upper:]' '[:lower:]')"
+  local offset candidate_index
+  _menu_load_lowercase_labels "$query"
   for ((offset = 1; offset <= count; offset++)); do
     candidate_index=$(((start_index + offset) % count))
-    label_lower="$(printf "%s" "${_MENU_LABELS[$candidate_index]}" | tr '[:upper:]' '[:lower:]')"
-    if [[ "$label_lower" == *"$query_lower"* ]]; then
+    if [[ "${_MENU_LOWERCASE_LABELS[$candidate_index]}" == *"$_MENU_LOWERCASE_QUERY"* ]]; then
       echo "$candidate_index"
       return
     fi
@@ -1341,24 +1697,48 @@ _find_menu_item_index_by_label() {
   echo "$start_index"
 }
 
+# Lowercases the query and every label with a single tr call (bash 3.2 has no
+# ${var,,}), instead of one process per label on each key press.
+# Lowercases labels once per catalog (bash 3.2 has no ${var,,}) and only the
+# query on each key press, instead of one process per label.
+_menu_load_lowercase_labels() {
+  local query=$1
+  local labels_signature="${#_MENU_LABELS[@]}|${_MENU_LABELS[*]}"
+
+  if [[ "${_MENU_LOWERCASE_LABELS_SIGNATURE:-}" != "$labels_signature" ]]; then
+    local lowercase_labels
+    lowercase_labels="$(printf "%s\n" "${_MENU_LABELS[@]}" | tr '[:upper:]' '[:lower:]')"
+    _MENU_LOWERCASE_LABELS=()
+    IFS=$'\n' read -r -d '' -a _MENU_LOWERCASE_LABELS <<< "$lowercase_labels" || true
+    _MENU_LOWERCASE_LABELS_SIGNATURE="$labels_signature"
+  fi
+
+  _MENU_LOWERCASE_QUERY=""
+  if [[ -n "$query" ]]; then
+    _MENU_LOWERCASE_QUERY="$(printf "%s" "$query" | tr '[:upper:]' '[:lower:]')"
+  fi
+}
+
 _filter_menu_indexes() {
   local query=$1 count=$2
-  local query_lower label_lower menu_index
+  local menu_index
 
   _FILTERED_MENU_INDEXES=()
-  query_lower="$(printf "%s" "$query" | tr '[:upper:]' '[:lower:]')"
+  _menu_load_lowercase_labels "$query"
 
   for ((menu_index = 0; menu_index < count; menu_index++)); do
-    label_lower="$(printf "%s" "${_MENU_LABELS[$menu_index]}" | tr '[:upper:]' '[:lower:]')"
-    if [[ -z "$query_lower" || "$label_lower" == *"$query_lower"* ]]; then
+    if [[ -z "$_MENU_LOWERCASE_QUERY" || "${_MENU_LOWERCASE_LABELS[$menu_index]}" == *"$_MENU_LOWERCASE_QUERY"* ]]; then
       _FILTERED_MENU_INDEXES+=("$menu_index")
     fi
   done
 }
 
+# Search screen: an input box with prompt, cursor and match counter, a single
+# hint line, and the filtered results with the same rows as the main menu.
 _draw_search_window() {
   local query=$1 filtered_cursor=$2 visible_height=$3
   local filtered_count=${#_FILTERED_MENU_INDEXES[@]}
+  local total_count=${#_MENU_LABELS[@]}
   local visible_count=$visible_height
 
   if ((visible_count > filtered_count)); then
@@ -1370,45 +1750,65 @@ _draw_search_window() {
     search_window_start="$(_menu_adjust_window_start "$filtered_cursor" 0 "$visible_count" "$filtered_count")"
   fi
 
-  printf "\r\033[2K  Buscar: %s\n" "$query"
-  printf "\r\033[2K  Coincidencias: "
-  _setup_color "cyan" "$filtered_count"
-  printf "\n"
-  printf "\r\033[2K  "
-  _setup_color "cyan" "ENTER"
-  printf ": volver\n"
-  printf "\r\033[2K  "
-  _setup_color "cyan" "ESPACIO"
-  printf ": alternar\n"
-  printf "\r\033[2K  "
-  _setup_color "cyan" "ESC"
-  printf ": cancelar\n"
+  local input_text
+  if [[ -z "$query" ]]; then
+    input_text="$(_setup_color "cyan" "$SETUP_SEARCH_CURSOR")$(_setup_color "gray" "escribí para filtrar…")"
+  else
+    input_text="$(styleText -b -- "$query")$(_setup_color "cyan" "$SETUP_SEARCH_CURSOR")"
+  fi
+  local counter_text="$filtered_count de $total_count"
+  local input_padding=$((SETUP_BOX_RULE_WIDTH - ${#query} - ${#counter_text} - 6))
+  [[ -z "$query" ]] && input_padding=$((input_padding - 21))
+  ((input_padding < 1)) && input_padding=1
+
+  printf "\r\033[2K"
+  _setup_box_top "$SETUP_ICON_SEARCH Buscar paquetes"
+  printf "\r\033[2K"
+  _setup_box_row "$(styleText -c magenta -b -- "$SETUP_SEARCH_PROMPT") $input_text$(printf "%*s" "$input_padding" "")$(_setup_color "gray" "$counter_text")"
+  printf "\r\033[2K"
+  _setup_box_bottom
+  printf "\r\033[2K  %s %s  %s %s  %s %s  %s %s\n" \
+    "$(_setup_color "cyan" "↑/↓")" "$(_setup_color "gray" "mover")" \
+    "$(_setup_color "cyan" "ESPACIO")" "$(_setup_color "gray" "alternar")" \
+    "$(_setup_color "cyan" "ENTER")" "$(_setup_color "gray" "volver")" \
+    "$(_setup_color "cyan" "ESC")" "$(_setup_color "gray" "cancelar")"
+  printf "\r\033[2K\n"
 
   if ((filtered_count == 0)); then
-    printf "\r\033[2K  Sin coincidencias\n"
+    printf "\r\033[2K  %s Sin coincidencias para «%s»\n" "$SETUP_ICON_NO_RESULTS" "$query"
+    printf "\r\033[2K  %s\n" "$(_setup_color "gray" "Probá con menos letras o parte del nombre.")"
     local empty_line
-    for ((empty_line = 1; empty_line < visible_height; empty_line++)); do
+    for ((empty_line = 2; empty_line < visible_height; empty_line++)); do
       printf "\r\033[2K\n"
     done
     return
   fi
 
+  _SETUP_MENU_HIGHLIGHT_QUERY="$_MENU_LOWERCASE_QUERY"
   local visible_index menu_index
   for ((visible_index = search_window_start; visible_index < search_window_start + visible_count; visible_index++)); do
     menu_index=${_FILTERED_MENU_INDEXES[$visible_index]}
+    local row_cursor=-1
+    ((visible_index == filtered_cursor)) && row_cursor=$menu_index
+    _menu_load_scrollbar_glyph $((visible_index - search_window_start)) "$search_window_start" "$visible_count" "$filtered_count"
     printf "\r\033[2K"
-    _draw_menu_item "$menu_index" "$menu_index" "${_MENU_LABELS[$menu_index]}" "${_MENU_SELECTED[$menu_index]}"
-    if ((visible_index != filtered_cursor)); then
-      printf "\r\033[2K"
-      _draw_menu_item "$menu_index" "-1" "${_MENU_LABELS[$menu_index]}" "${_MENU_SELECTED[$menu_index]}"
-    fi
+    _draw_menu_item "$menu_index" "$row_cursor" "${_MENU_LABELS[$menu_index]}" "${_MENU_SELECTED[$menu_index]}" "$_SETUP_MENU_SCROLLBAR_GLYPH"
     printf "\n"
   done
+  _SETUP_MENU_HIGHLIGHT_QUERY=""
 
   local empty_line
   for ((empty_line = visible_count; empty_line < visible_height; empty_line++)); do
     printf "\r\033[2K\n"
   done
+}
+
+# Whole search screen in one frame: cursor home, content, clear the rest.
+# Whole search screen in one frame: cursor home, content, clear the rest.
+_draw_search_screen() {
+  printf "\033[H\033[2K\n"
+  _draw_search_window "$@"
+  printf "\033[J"
 }
 
 _search_menu_incrementally() {
@@ -1419,11 +1819,9 @@ _search_menu_incrementally() {
 
   _filter_menu_indexes "$query" "$count"
 
+  clear
   while true; do
-    clear
-    printf "\n  Búsqueda de paquetes\n"
-    printf "  Escribí para filtrar en vivo. Backspace borra.\n\n"
-    _draw_search_window "$query" "$filtered_cursor" "$visible_height"
+    _setup_write_buffered _draw_search_screen "$query" "$filtered_cursor" "$visible_height"
 
     local key
     key="$(_read_search_key)"
@@ -1492,7 +1890,26 @@ _setup_stty_available() {
   [[ -t 0 ]] && command -v stty >/dev/null 2>&1
 }
 
+# Renders a command into memory and writes it at once, so the terminal never
+# shows a half-cleared frame.
+_setup_write_buffered() {
+  local frame
+  frame="$("$@"; printf ".")"
+  printf "%s" "${frame%.}"
+}
+
+_setup_hide_cursor() {
+  [[ -t 1 ]] && printf "\033[?25l"
+  return 0
+}
+
+_setup_show_cursor() {
+  [[ -t 1 ]] && printf "\033[?25h"
+  return 0
+}
+
 _setup_enter_interactive_input_mode() {
+  _setup_hide_cursor
   _SETUP_PREVIOUS_STTY_STATE=""
   if _setup_stty_available; then
     _SETUP_PREVIOUS_STTY_STATE="$(stty -g 2>/dev/null || true)"
@@ -1507,22 +1924,64 @@ _setup_restore_interactive_input_mode() {
   _SETUP_PREVIOUS_STTY_STATE=""
 }
 
+# Bash 3.2 (macOS /bin/bash) rejects fractional read timeouts; fall back to the
+# smallest integer timeout it accepts.
+_setup_read_timeout() {
+  local bash_major_version=${2:-${BASH_VERSINFO[0]}}
+  if ((bash_major_version >= 4)); then
+    printf "%s" "$1"
+  else
+    printf "1"
+  fi
+}
+
 _setup_flush_pending_input() {
   local pending_key
-  while IFS= read -rsn1 -t "$SETUP_INPUT_FLUSH_TIMEOUT_SECONDS" pending_key 2>/dev/null; do
+  if ((BASH_VERSINFO[0] >= 4)); then
+    while IFS= read -rsn1 -t "$SETUP_INPUT_FLUSH_TIMEOUT_SECONDS" pending_key 2>/dev/null; do
+      :
+    done
+    return 0
+  fi
+
+  # Without fractional timeouts, drain input with a non-blocking terminal read.
+  # `read -n` would reset the terminal to its own blocking mode, so use dd,
+  # which honors `min 0 time 0` and returns immediately when nothing is queued.
+  _setup_stty_available || return 0
+  local previous_stty_state
+  previous_stty_state="$(stty -g 2>/dev/null)" || return 0
+  stty -icanon min 0 time 0 2>/dev/null || return 0
+  while [[ -n "$(dd bs=64 count=1 2>/dev/null)" ]]; do
     :
   done
+  stty "$previous_stty_state" 2>/dev/null || true
 }
 
 _setup_finish_interactive_input_mode() {
   _setup_flush_pending_input
   _setup_restore_interactive_input_mode
+  _setup_show_cursor
 }
 
 _read_escape_sequence() {
   local sequence="" sequence_part
 
-  while IFS= read -rsn1 -t "$SETUP_ESCAPE_SEQUENCE_TIMEOUT_SECONDS" sequence_part 2>/dev/null; do
+  # Bash 3.2 only accepts integer read timeouts, which would make a lone ESC
+  # wait one second. With a terminal, read the rest of the sequence with dd,
+  # which returns after at most 0.1s (stty time is in tenths of a second).
+  if ((BASH_VERSINFO[0] < 4)) && _setup_stty_available; then
+    local previous_stty_state
+    if previous_stty_state="$(stty -g 2>/dev/null)" && stty -icanon min 0 time 1 2>/dev/null; then
+      sequence="$(dd bs=8 count=1 2>/dev/null)"
+      stty "$previous_stty_state" 2>/dev/null || true
+      printf "%s" "$sequence"
+      return 0
+    fi
+  fi
+
+  local read_timeout
+  read_timeout="$(_setup_read_timeout "$SETUP_ESCAPE_SEQUENCE_TIMEOUT_SECONDS")"
+  while IFS= read -rsn1 -t "$read_timeout" sequence_part 2>/dev/null; do
     sequence+="$sequence_part"
     case "$sequence_part" in
       [A-Za-z~])
@@ -1556,7 +2015,7 @@ _read_key() {
       ;;
     ' ') echo "SPACE" ;;
     '') echo "ENTER" ;;
-    $'\003') echo "QUIT" ;;
+    $'\003'|$'\004') echo "QUIT" ;;
     j) echo "DOWN" ;;
     k) echo "UP" ;;
     a) echo "ALL" ;;
@@ -1577,7 +2036,7 @@ _read_search_key() {
       ;;
     ' ') echo "SPACE" ;;
     '') echo "ENTER" ;;
-    $'\003') echo "QUIT" ;;
+    $'\003'|$'\004') echo "QUIT" ;;
     $'\177'|$'\b') echo "BACKSPACE" ;;
     j) echo "DOWN" ;;
     k) echo "UP" ;;
@@ -1586,36 +2045,30 @@ _read_search_key() {
   esac
 }
 
-_draw_menu_reference_frame_line() {
-  _setup_colored_line "magenta" "$1"
+
+_draw_menu_reference_cell() {
+  local shortcut=$1 description=$2 description_width=${3:-$SETUP_SHORTCUT_DESCRIPTION_WIDTH}
+  _setup_color "cyan" "$(printf "%-${SETUP_SHORTCUT_WIDTH}s" "$shortcut")"
+  printf " %-${description_width}s" "$description"
 }
 
 _draw_menu_reference_row() {
-  local shortcut=$1 description=$2
-  local padded_shortcut
-
-  padded_shortcut="$(printf "%-18s" "$shortcut")"
-  _setup_color "magenta" "  | "
-  _setup_color "cyan" "$padded_shortcut"
-  _setup_color "magenta" " | "
-  printf "%-24s" "$description"
-  _setup_color "magenta" " |"
+  _setup_color "gray" "│"
+  printf " "
+  _draw_menu_reference_cell "$1" "$2"
+  if [[ -n "${3:-}" ]]; then
+    _draw_menu_reference_cell "$3" "$4" 0
+  fi
   printf "\n"
 }
 
 _draw_menu_reference() {
-  _draw_menu_reference_frame_line "  +--------------------+--------------------------+"
-  _draw_menu_reference_frame_line "  | Atajos del menú                               |"
-  _draw_menu_reference_frame_line "  +--------------------+--------------------------+"
-  _draw_menu_reference_row "Arriba/Abajo/j/k" "navegar"
-  _draw_menu_reference_row "PgUp/PgDn/Home/End" "saltar"
-  _draw_menu_reference_row "/" "buscar"
-  _draw_menu_reference_row "ESPACIO" "alternar"
-  _draw_menu_reference_row "a" "alternar todo"
-  _draw_menu_reference_row "r" "restaurar defaults"
-  _draw_menu_reference_row "ENTER" "confirmar"
-  _draw_menu_reference_row "q/Ctrl+C" "cancelar"
-  _draw_menu_reference_frame_line "  +--------------------+--------------------------+"
+  _setup_box_top "$SETUP_ICON_SHORTCUTS Atajos"
+  _draw_menu_reference_row "Arriba/Abajo/j/k" "navegar" "ESPACIO" "alternar"
+  _draw_menu_reference_row "PgUp/PgDn/Home/End" "saltar" "a" "alternar todo"
+  _draw_menu_reference_row "/" "buscar" "r" "restaurar defaults"
+  _draw_menu_reference_row "ENTER" "confirmar" "q/ESC/Ctrl+C/D" "cancelar"
+  _setup_box_bottom
   printf "\n"
 }
 
@@ -1626,7 +2079,7 @@ _multiselect() {
   local window_start=0
   local visible_height
   visible_height="$(_menu_visible_height)"
-  local rendered_lines=$((visible_height + 4))
+  local rendered_lines=$((visible_height + SETUP_MENU_HEADER_LINES + 1))
   local previous_interrupt_trap
   previous_interrupt_trap="$(trap -p INT)"
   _setup_enter_interactive_input_mode
@@ -1636,7 +2089,7 @@ _multiselect() {
   printf "\n"
   _draw_menu_reference
 
-  _draw_menu_window "$cursor" "$window_start" "$visible_height" "$count"
+  _setup_write_buffered _draw_menu_window "$cursor" "$window_start" "$visible_height" "$count"
 
   while true; do
     local key
@@ -1688,7 +2141,7 @@ _multiselect() {
         printf "\n"
         return 0
         ;;
-      QUIT)
+      QUIT|ESC)
         _setup_finish_interactive_input_mode
         if [[ -n "$previous_interrupt_trap" ]]; then
           eval "$previous_interrupt_trap"
@@ -1702,19 +2155,17 @@ _multiselect() {
     esac
 
     visible_height="$(_menu_visible_height)"
-    rendered_lines=$((visible_height + 4))
+    rendered_lines=$((visible_height + SETUP_MENU_HEADER_LINES + 1))
     window_start="$(_menu_adjust_window_start "$cursor" "$window_start" "$visible_height" "$count")"
 
     if [[ $should_draw_from_current_position -eq 1 ]]; then
-      _draw_menu_window "$cursor" "$window_start" "$visible_height" "$count"
+      _setup_write_buffered _draw_menu_window "$cursor" "$window_start" "$visible_height" "$count"
     elif _menu_requires_full_render "$previous_window_start" "$window_start" "$previous_visible_height" "$visible_height" "$force_full_render"; then
-      printf "\033[%dA" "$previous_rendered_lines"
-      _draw_menu_window "$cursor" "$window_start" "$visible_height" "$count"
+      _setup_write_buffered _redraw_full_menu_window "$previous_rendered_lines" "$cursor" "$window_start" "$visible_height" "$count"
     elif [[ "$key" == "SPACE" ]]; then
-      _redraw_menu_item_from_bottom "$cursor" "$cursor" "$window_start" "$rendered_lines"
+      _setup_write_buffered _redraw_menu_item_from_bottom "$cursor" "$cursor" "$window_start" "$rendered_lines"
     elif ((previous_cursor != cursor)); then
-      _redraw_menu_item_from_bottom "$previous_cursor" "$cursor" "$window_start" "$rendered_lines"
-      _redraw_menu_item_from_bottom "$cursor" "$cursor" "$window_start" "$rendered_lines"
+      _setup_write_buffered _redraw_cursor_move "$previous_cursor" "$cursor" "$window_start" "$rendered_lines"
     fi
   done
 }
@@ -1724,7 +2175,7 @@ _print_selected_menu_items() {
 
   for menu_index in "${!_MENU_LABELS[@]}"; do
     if [[ ${_MENU_SELECTED[$menu_index]} -eq 1 ]]; then
-      printf "  - %s\n" "${_MENU_LABELS[$menu_index]}"
+      _setup_box_row "$(_menu_display_label "$menu_index")"
     fi
   done
 }
@@ -1740,14 +2191,14 @@ _confirm_selected_menu_items() {
   trap '_setup_finish_interactive_input_mode; printf "\n  Instalación cancelada.\n"; exit 130' INT
 
   printf "\n"
-  if [[ $dry_run -eq 1 ]]; then
-    _setup_log_warning "Modo dry-run activo: no se instalará nada."
-  fi
-
-  _setup_log_info "Elementos seleccionados ($selected_count):"
+  _setup_box_top "$SETUP_ICON_CATALOG Se van a procesar ($selected_count)"
   _print_selected_menu_items
-  printf "\n  ENTER: continuar\n"
-  printf "  q/Ctrl+C: cancelar\n"
+  _setup_box_divider
+  if [[ $dry_run -eq 1 ]]; then
+    _setup_box_row "$(styleText -c yellow -b -- "$SETUP_ICON_DRY_RUN Simulación: no se instalará nada.")"
+  fi
+  _setup_box_row "$(_setup_color "cyan" "ENTER") continuar · $(_setup_color "cyan" "q/ESC/Ctrl+C/D") cancelar"
+  _setup_box_bottom
 
   while true; do
     local key
@@ -1786,9 +2237,7 @@ interactive_menu() {
 
   clear
   printf "\n"
-  _setup_colored_line "magenta" "  ╔══════════════════════════════════════╗"
-  _setup_colored_line "magenta" "  ║     Instalador de setup del sistema  ║"
-  _setup_colored_line "magenta" "  ╚══════════════════════════════════════╝"
+  _setup_print_banner "$dry_run"
 
   if ! _multiselect; then
     _setup_log_warning "Instalación cancelada."
@@ -1809,15 +2258,16 @@ interactive_menu() {
     return 0
   fi
 
-  _setup_log_info "Se procesarán $count elemento(s) seleccionado(s)."
-
   if [[ $dry_run -eq 0 ]] && _menu_selection_requires_sudo; then
     ensure_sudo
   fi
 
   if [[ $dry_run -eq 0 ]] && is_debian_like; then
+    printf "\n"
+    _setup_box_top "$SETUP_ICON_REFRESH Actualizando índices de apt"
     sudo apt-get update
     sudo apt-get --fix-broken install -y
+    _setup_box_close "$SETUP_ICON_OK apt listo"
   fi
 
   _run_selected_menu_items "$dry_run"
@@ -1825,9 +2275,6 @@ interactive_menu() {
   if _setup_install_results_include_failure; then
     return 1
   fi
-
-  printf "\n"
-  _setup_log_success "Proceso completo."
 }
 
 _print_setup_usage() {
@@ -1838,7 +2285,7 @@ Uso:
 Opciones:
   --dry-run  Muestra qué se ejecutaría sin instalar nada.
   --yes      Omite la confirmación antes de ejecutar los ítems seleccionados.
-  --list     Lista los ítems disponibles del catálogo.
+  --list     Lista los ítems del catálogo (tabla en terminal, TSV al redirigir).
   --help     Muestra esta ayuda.
 EOF
 }
@@ -1849,9 +2296,21 @@ _list_setup_catalog() {
   _initialize_menu_catalog || return 1
   _validate_menu_catalog || return 1
 
+  # Piped output keeps the tab-separated format for scripts.
+  if [[ ! -t 1 ]]; then
+    for menu_index in "${!_MENU_IDS[@]}"; do
+      printf "%s\t%s\t%s\n" "${_MENU_IDS[$menu_index]}" "${_MENU_FUNCS[$menu_index]}" "${_MENU_LABELS[$menu_index]}"
+    done
+    return 0
+  fi
+
+  _setup_box_top "$SETUP_ICON_CATALOG Catálogo · $(_setup_platform_display_name) (${#_MENU_IDS[@]})"
   for menu_index in "${!_MENU_IDS[@]}"; do
-    printf "%s\t%s\t%s\n" "${_MENU_IDS[$menu_index]}" "${_MENU_FUNCS[$menu_index]}" "${_MENU_LABELS[$menu_index]}"
+    _setup_box_row "$(_setup_color "cyan" "$(printf "%-22s" "${_MENU_IDS[$menu_index]}")") $(_menu_display_label "$menu_index")"
   done
+  _setup_box_divider
+  _setup_box_row "$(_setup_color "gray" "$SETUP_ICON_RECOMMENDED recomendado · $SETUP_ICON_ADMIN requiere sudo · $SETUP_ICON_RESTART requiere reinicio")"
+  _setup_box_bottom
 }
 
 _parse_setup_arguments() {
@@ -1915,6 +2374,8 @@ _run_setup_items_by_identifier() {
   for menu_index in "${menu_indexes[@]}"; do
     _MENU_SELECTED[$menu_index]=1
   done
+
+  _setup_print_banner "$dry_run"
 
   if [[ $assume_yes -eq 0 ]] && ! _confirm_selected_menu_items "$dry_run"; then
     _setup_log_warning "Instalación cancelada."
