@@ -675,6 +675,105 @@
     }
   }
 
+  Context 'lectura de teclas con input VT' {
+    BeforeAll {
+      function New-TestConsoleKey {
+        param(
+          [int]$KeyCharCode,
+          [ConsoleKey]$Key = [ConsoleKey]::None,
+          [switch]$Control
+        )
+        return [ConsoleKeyInfo]::new([char]$KeyCharCode, $Key, $false, $false, [bool]$Control)
+      }
+
+      # Simula el buffer de la consola: cada lectura consume la próxima tecla pendiente.
+      function Set-TestConsoleInput {
+        param([ConsoleKeyInfo[]]$Keys)
+        $script:PendingConsoleKeys = [System.Collections.Generic.Queue[ConsoleKeyInfo]]::new()
+        foreach ($pendingKey in $Keys) { $script:PendingConsoleKeys.Enqueue($pendingKey) }
+        Mock Read-SetupRawConsoleKey { $script:PendingConsoleKeys.Dequeue() }
+        Mock Test-SetupConsoleKeyAvailable { $script:PendingConsoleKeys.Count -gt 0 }
+      }
+
+      function ConvertTo-TestConsoleKeys {
+        param([string]$Text)
+        return @($Text.ToCharArray() | ForEach-Object { New-TestConsoleKey -KeyCharCode ([int]$_) })
+      }
+    }
+
+    It 'ESC como carácter VT (Key None) cancela el menú' {
+      Set-TestConsoleInput -Keys @(New-TestConsoleKey -KeyCharCode 27)
+
+      Read-SetupMenuKey | Should -Be 'Cancel'
+    }
+
+    It 'ESC nativo de la consola cancela el menú' {
+      Set-TestConsoleInput -Keys @(New-TestConsoleKey -KeyCharCode 27 -Key Escape)
+
+      Read-SetupMenuKey | Should -Be 'Cancel'
+    }
+
+    It 'la secuencia VT <Sequence> se lee como <Expected>' -ForEach @(
+      @{ Sequence = '[A'; Expected = 'Up' },
+      @{ Sequence = '[B'; Expected = 'Down' },
+      @{ Sequence = 'OH'; Expected = 'Home' },
+      @{ Sequence = '[F'; Expected = 'End' },
+      @{ Sequence = '[5~'; Expected = 'PageUp' },
+      @{ Sequence = '[6~'; Expected = 'PageDown' },
+      @{ Sequence = '[1;5A'; Expected = 'Up' }
+    ) {
+      Set-TestConsoleInput -Keys (@(New-TestConsoleKey -KeyCharCode 27) + (ConvertTo-TestConsoleKeys -Text $Sequence))
+
+      Read-SetupMenuKey | Should -Be $Expected
+      $script:PendingConsoleKeys.Count | Should -Be 0
+    }
+
+    It 'una secuencia VT desconocida se ignora sin cancelar' {
+      Set-TestConsoleInput -Keys (@(New-TestConsoleKey -KeyCharCode 27) + (ConvertTo-TestConsoleKeys -Text '[Z'))
+
+      Read-SetupMenuKey | Should -Be 'Other'
+    }
+
+    It 'el carácter VT <KeyCharCode> se lee como <Expected>' -ForEach @(
+      @{ KeyCharCode = 13; Expected = 'Enter' },
+      @{ KeyCharCode = 32; Expected = 'Toggle' },
+      @{ KeyCharCode = 3; Expected = 'Cancel' },
+      @{ KeyCharCode = 4; Expected = 'Cancel' }
+    ) {
+      Set-TestConsoleInput -Keys @(New-TestConsoleKey -KeyCharCode $KeyCharCode)
+
+      Read-SetupMenuKey | Should -Be $Expected
+    }
+
+    It 'ESC como carácter VT cierra la búsqueda sin mover el cursor' {
+      Mock Clear-Host { }
+      Mock Write-ClearedSetupMenuLine { }
+      Mock Write-SearchSetupMenu { }
+      Mock Set-SetupConsoleCursorPosition { }
+      Set-TestConsoleInput -Keys @(New-TestConsoleKey -KeyCharCode 27)
+      $selectedIndexes = [System.Collections.Generic.HashSet[int]]::new()
+
+      $searchResult = Invoke-SetupMenuSearch -menuCatalog (New-TestSetupMenuCatalog) -selectedIndexes $selectedIndexes -cursorIndex 1 -visibleItemCount 5
+
+      $searchResult.Cancelled | Should -BeTrue
+      $searchResult.CursorIndex | Should -Be 1
+    }
+
+    It 'Backspace VT (127) borra el último carácter de la búsqueda' {
+      Mock Clear-Host { }
+      Mock Write-ClearedSetupMenuLine { }
+      Mock Write-SearchSetupMenu { }
+      Mock Set-SetupConsoleCursorPosition { }
+      Set-TestConsoleInput -Keys ((ConvertTo-TestConsoleKeys -Text 'pz') + @((New-TestConsoleKey -KeyCharCode 127), (New-TestConsoleKey -KeyCharCode 13)))
+      $selectedIndexes = [System.Collections.Generic.HashSet[int]]::new()
+
+      $searchResult = Invoke-SetupMenuSearch -menuCatalog (New-TestSetupMenuCatalog) -selectedIndexes $selectedIndexes -cursorIndex 0 -visibleItemCount 5
+
+      $searchResult.Cancelled | Should -BeFalse
+      $searchResult.CursorIndex | Should -Be 1
+    }
+  }
+
   Context 'salida solo ASCII' {
     It 'el ícono <_> es ASCII' -ForEach @('Pointer', 'Checked', 'Unchecked', 'Recommended', 'Admin', 'Restart', 'Ok', 'FailedItem', 'Warn', 'Error') {
       Get-SetupIcon $_ | Should -Not -Match '[^\x00-\x7F]'

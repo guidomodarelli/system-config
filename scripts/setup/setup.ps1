@@ -1286,7 +1286,7 @@ function Write-ClassicSetupMenuItemRowAt {
   )
 
   $rowTop = $menuTop + (Get-ClassicSetupMenuItemRowOffset -menuIndex $menuIndex -windowStartIndex $windowStartIndex)
-  [Console]::SetCursorPosition(0, $rowTop)
+  Set-SetupConsoleCursorPosition -Top $rowTop
   $scrollbar = Get-SetupMenuScrollbarGlyph -RowPosition ($menuIndex - $windowStartIndex) -WindowStartIndex $windowStartIndex -VisibleItemCount $visibleItemCount -ItemCount $menuCatalog.Count
   Write-SetupMenuRow -menuItem $menuCatalog[$menuIndex] -IsSelected $selectedIndexes.Contains($menuIndex) -IsCursor ($menuIndex -eq $cursorIndex) -ScrollbarGlyph $scrollbar.Glyph -ScrollbarColor $scrollbar.Color -LabelColumn (Get-SetupMenuLabelColumn -menuCatalog $menuCatalog)
 }
@@ -1462,8 +1462,143 @@ function Get-SetupMenuWindowStartIndex {
   return $windowStartIndex
 }
 
+# Borde con la consola: mueve el cursor al inicio de la fila indicada.
+function Set-SetupConsoleCursorPosition {
+  param (
+    [int]$Top
+  )
+
+  [Console]::SetCursorPosition(0, $Top)
+}
+
+# Borde con la consola: aislado para poder reemplazarlo en los tests.
+function Read-SetupRawConsoleKey {
+  return [Console]::ReadKey($true)
+}
+
+# Borde con la consola: indica si hay más input en el buffer sin bloquear.
+function Test-SetupConsoleKeyAvailable {
+  return [Console]::KeyAvailable
+}
+
+# Traduce el cuerpo de una secuencia VT de teclado (lo que sigue a ESC, por
+# ejemplo '[A', 'OH', '[5~' o '[1;5B') a su ConsoleKey. Devuelve $null si no
+# corresponde a una tecla conocida.
+function ConvertFrom-SetupVtKeySequence {
+  param (
+    [string]$Sequence
+  )
+
+  if ($Sequence.Length -lt 2 -or ($Sequence[0] -ne '[' -and $Sequence[0] -ne 'O')) {
+    return $null
+  }
+
+  $finalCharacter = $Sequence[$Sequence.Length - 1]
+  switch -CaseSensitive ([string]$finalCharacter) {
+    'A' { return [ConsoleKey]::UpArrow }
+    'B' { return [ConsoleKey]::DownArrow }
+    'C' { return [ConsoleKey]::RightArrow }
+    'D' { return [ConsoleKey]::LeftArrow }
+    'H' { return [ConsoleKey]::Home }
+    'F' { return [ConsoleKey]::End }
+  }
+
+  if ($finalCharacter -ne '~') {
+    return $null
+  }
+
+  $keyCode = ($Sequence.Substring(1, $Sequence.Length - 2) -split ';')[0]
+  switch ($keyCode) {
+    { $_ -in '1', '7' } { return [ConsoleKey]::Home }
+    '3' { return [ConsoleKey]::Delete }
+    { $_ -in '4', '8' } { return [ConsoleKey]::End }
+    '5' { return [ConsoleKey]::PageUp }
+    '6' { return [ConsoleKey]::PageDown }
+  }
+
+  return $null
+}
+
+# Lee una tecla y normaliza el input VT. Con ENABLE_VIRTUAL_TERMINAL_INPUT
+# activo (Windows Terminal/ConPTY o una herramienta previa que dejó ese modo),
+# ReadKey entrega las teclas como caracteres con Key None (ESC = 27, Enter = 13,
+# Backspace = 127) y las flechas como secuencias ESC [ A. Sin normalizar, ESC no
+# se reconoce y las flechas se leerían como teclas sueltas.
+function Read-SetupConsoleKey {
+  $key = Read-SetupRawConsoleKey
+  if ($key.Key -ne [ConsoleKey]::None) {
+    return $key
+  }
+
+  $keyCharCode = [int]$key.KeyChar
+  $controlCharacterKey = switch ($keyCharCode) {
+    { $_ -in 8, 127 } { [ConsoleKey]::Backspace }
+    9 { [ConsoleKey]::Tab }
+    13 { [ConsoleKey]::Enter }
+    32 { [ConsoleKey]::Spacebar }
+  }
+  if ($null -ne $controlCharacterKey) {
+    return [ConsoleKeyInfo]::new($key.KeyChar, $controlCharacterKey, $false, $false, $false)
+  }
+
+  if ($keyCharCode -ne 27) {
+    return $key
+  }
+
+  $escapeKey = [ConsoleKeyInfo]::new([char]27, [ConsoleKey]::Escape, $false, $false, $false)
+  if (-not (Test-SetupConsoleKeyAvailable)) {
+    return $escapeKey
+  }
+
+  $sequence = [string](Read-SetupRawConsoleKey).KeyChar
+  if ($sequence -ne '[' -and $sequence -ne 'O') {
+    return $escapeKey
+  }
+
+  # El byte final de una secuencia CSI/SS3 está en el rango 0x40-0x7E.
+  while (Test-SetupConsoleKeyAvailable) {
+    $sequenceCharacter = (Read-SetupRawConsoleKey).KeyChar
+    $sequence += $sequenceCharacter
+    if ([int]$sequenceCharacter -ge 0x40 -and [int]$sequenceCharacter -le 0x7E) {
+      break
+    }
+  }
+
+  $sequenceKey = ConvertFrom-SetupVtKeySequence -Sequence $sequence
+  if ($null -eq $sequenceKey) {
+    return [ConsoleKeyInfo]::new([char]0, [ConsoleKey]::NoName, $false, $false, $false)
+  }
+
+  return [ConsoleKeyInfo]::new([char]0, $sequenceKey, $false, $false, $false)
+}
+
+# Indica si la tecla cancela: ESC o Ctrl+C/Ctrl+D (como tecla con modificador o
+# como carácter de control VT). Con -AllowQuitLetter también q/Q.
+function Test-SetupCancelKey {
+  param (
+    [ConsoleKeyInfo]$Key,
+    [switch]$AllowQuitLetter
+  )
+
+  $keyCharCode = [int]$Key.KeyChar
+  if ($Key.Key -eq [ConsoleKey]::Escape -or $keyCharCode -eq 27) {
+    return $true
+  }
+
+  $isControlPressed = [bool]($Key.Modifiers -band [ConsoleModifiers]::Control)
+  if ((($Key.Key -eq [ConsoleKey]::C -or $Key.Key -eq [ConsoleKey]::D) -and $isControlPressed) -or $keyCharCode -eq 3 -or $keyCharCode -eq 4) {
+    return $true
+  }
+
+  return ($AllowQuitLetter -and ($Key.KeyChar -eq 'q' -or $Key.KeyChar -eq 'Q'))
+}
+
 function Read-SetupMenuKey {
-  $key = [Console]::ReadKey($true)
+  $key = Read-SetupConsoleKey
+
+  if (Test-SetupCancelKey -Key $key -AllowQuitLetter) {
+    return 'Cancel'
+  }
 
   if ($key.Key -eq [ConsoleKey]::UpArrow -or $key.KeyChar -eq 'k') {
     return 'Up'
@@ -1507,14 +1642,6 @@ function Read-SetupMenuKey {
 
   if ($key.KeyChar -eq '/') {
     return 'Search'
-  }
-
-  if ($key.Key -eq [ConsoleKey]::Escape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q') {
-    return 'Cancel'
-  }
-
-  if (($key.Key -eq [ConsoleKey]::C -or $key.Key -eq [ConsoleKey]::D) -and ($key.Modifiers -band [ConsoleModifiers]::Control)) {
-    return 'Cancel'
   }
 
   return 'Other'
@@ -1601,12 +1728,12 @@ function Invoke-SetupMenuSearch {
   # Clear once and redraw from the top on each key to avoid flickering.
   Clear-Host
   while ($true) {
-    [Console]::SetCursorPosition(0, 0)
+    Set-SetupConsoleCursorPosition -Top 0
     Write-ClearedSetupMenuLine -text ''
     Write-SearchSetupMenu -menuCatalog $menuCatalog -filteredIndexes $filteredIndexes -selectedIndexes $selectedIndexes -filteredCursorIndex $filteredCursorIndex -query $query -visibleItemCount $visibleItemCount
-    $key = [Console]::ReadKey($true)
+    $key = Read-SetupConsoleKey
 
-    if ($key.Key -eq [ConsoleKey]::Escape -or (($key.Key -eq [ConsoleKey]::C -or $key.Key -eq [ConsoleKey]::D) -and ($key.Modifiers -band [ConsoleModifiers]::Control))) {
+    if (Test-SetupCancelKey -Key $key) {
       return [PSCustomObject]@{ Cancelled = $true; CursorIndex = $cursorIndex; HasManualSelection = $HasManualSelection }
     }
 
@@ -1740,7 +1867,7 @@ function Select-SetupMenuClassic {
       $windowStartIndex = Get-SetupMenuWindowStartIndex -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -visibleItemCount $visibleItemCount -itemCount $menuCatalog.Count
 
       if (Test-ClassicSetupMenuRequiresFullRender -previousWindowStartIndex $previousWindowStartIndex -windowStartIndex $windowStartIndex -previousVisibleItemCount $previousVisibleItemCount -visibleItemCount $visibleItemCount -ForceFullRender $forceFullRender) {
-        [Console]::SetCursorPosition(0, $menuTop)
+        Set-SetupConsoleCursorPosition -Top $menuTop
         Write-ClassicSetupMenu -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -visibleItemCount $visibleItemCount
         $menuTop = [Math]::Max(0, [Console]::CursorTop - $renderedLineCount)
         continue
@@ -1751,11 +1878,11 @@ function Select-SetupMenuClassic {
       } elseif ($previousCursorIndex -ne $cursorIndex) {
         Write-ClassicSetupMenuItemRowAt -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -menuIndex $previousCursorIndex -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -menuTop $menuTop -visibleItemCount $visibleItemCount
         Write-ClassicSetupMenuItemRowAt -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -menuIndex $cursorIndex -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -menuTop $menuTop -visibleItemCount $visibleItemCount
-        [Console]::SetCursorPosition(0, $menuTop + $renderedLineCount - 1)
+        Set-SetupConsoleCursorPosition -Top ($menuTop + $renderedLineCount - 1)
         Write-SetupMenuDetailsLine -menuItem $menuCatalog[$cursorIndex]
       }
 
-      [Console]::SetCursorPosition(0, $menuTop + $renderedLineCount)
+      Set-SetupConsoleCursorPosition -Top ($menuTop + $renderedLineCount)
     }
   } finally {
     [Console]::TreatControlCAsInput = $previousTreatControlCAsInput
@@ -1847,12 +1974,12 @@ function Confirm-SetupMenuSelection {
   [Console]::TreatControlCAsInput = $true
   try {
     while ($true) {
-      $key = [Console]::ReadKey($true)
+      $key = Read-SetupConsoleKey
       if ($key.Key -eq [ConsoleKey]::Enter) {
         return $true
       }
 
-      if ($key.Key -eq [ConsoleKey]::Escape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q' -or (($key.Key -eq [ConsoleKey]::C -or $key.Key -eq [ConsoleKey]::D) -and ($key.Modifiers -band [ConsoleModifiers]::Control))) {
+      if (Test-SetupCancelKey -Key $key -AllowQuitLetter) {
         return $false
       }
     }
