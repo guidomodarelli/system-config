@@ -5,19 +5,11 @@ _cx_wrapper_dir="${(%):-%x}"
 _cx_wrapper_dir="${_cx_wrapper_dir:A:h}"
 REPO_ROOT="${_cx_wrapper_dir:h:h:h:h}"
 
-# Returns the built-in prompt used by `cx --commit`.
-_cx_commit_prompt() {
-  local prompt_file
-  prompt_file="${REPO_ROOT}/configs/.agents/skills/commands/generate-commit-messages/SKILL.md"
-  prompt_file="${prompt_file:A}"
-
-  if [[ -r "$prompt_file" ]]; then
-    cat "$prompt_file"
-  else
-    echo "Error: commit prompt file not found: $prompt_file" >&2
-    return 1
-  fi
-}
+# Skill invoked by `cx --commit` (resolved by Codex from its skill catalog).
+_CX_COMMIT_SKILL_PROMPT='$generate-commit-messages'
+# Defaults for `cx --commit`; explicit -m/-re flags still take precedence.
+_CX_COMMIT_MODEL="gpt-5.6-luna"
+_CX_COMMIT_REASONING="low"
 
 _cx_plugin_id_for_mcp_server() {
   local server_name="$1"
@@ -239,6 +231,8 @@ cx() {
   # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit, --mcps
   local model="gpt-5.6-luna"
   local reasoning="high"
+  local model_overridden=""
+  local reasoning_overridden=""
   local yolo=""         # empty -> safe mode; set -> yolo mode
   local commit=""
   local disable_mcps=""
@@ -255,12 +249,12 @@ cx() {
         ;;
       -m)
         shift
-        [[ -n "$1" ]] && model="$1"
+        [[ -n "$1" ]] && model="$1" && model_overridden=1
         shift
         ;;
       -re)
         shift
-        [[ -n "$1" ]] && reasoning="$1"
+        [[ -n "$1" ]] && reasoning="$1" && reasoning_overridden=1
         shift
         ;;
       -c|--commit)
@@ -294,12 +288,12 @@ cx() {
 
   if [[ -n "$commit" ]]; then
     # `--commit` has priority over any user-provided query tokens.
-    local commit_prompt
-    commit_prompt="$(_cx_commit_prompt)" || return 1
+    [[ -z "$model_overridden" ]] && model="$_CX_COMMIT_MODEL"
+    [[ -z "$reasoning_overridden" ]] && reasoning="$_CX_COMMIT_REASONING"
     yolo=1
     prompt_mode=1
     codex_args=()
-    prompt_args=("$commit_prompt")
+    prompt_args=("$_CX_COMMIT_SKILL_PROMPT")
   fi
 
   if [[ -n "$disable_mcps" ]]; then

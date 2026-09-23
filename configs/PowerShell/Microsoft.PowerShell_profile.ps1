@@ -172,16 +172,11 @@ $script:REPO_ROOT = (Resolve-Path (Join-Path $script:ProfileScriptDirectory '..\
 
 # --- Codex unified (replica de lógica Zsh) ------------------------------------
 
-# Returns the built-in prompt used by `cx --commit`.
-function Get-CxCommitPrompt {
-    $promptFile = Join-Path $script:REPO_ROOT 'configs/.agents/skills/commands/generate-commit-messages/SKILL.md'
-
-    if (-not (Test-Path -LiteralPath $promptFile)) {
-        throw "Commit prompt file not found: $promptFile"
-    }
-
-    return (Get-Content -LiteralPath $promptFile -Raw)
-}
+# Skill invoked by `cx --commit` (resolved by Codex from its skill catalog).
+$script:CxCommitSkillPrompt = '$generate-commit-messages'
+# Defaults for `cx --commit`; explicit -m/-re flags still take precedence.
+$script:CxCommitModel = 'gpt-5.6-luna'
+$script:CxCommitReasoning = 'low'
 
 function Get-CxPluginIdForMcpServer {
     param([string]$ServerName)
@@ -355,6 +350,8 @@ function cx {
 
     $model = 'gpt-5.6-luna'
     $reasoning = 'high'
+    $modelOverridden = $false
+    $reasoningOverridden = $false
     $yolo = $false
     $commitMode = $false
     $disableMcps = $false
@@ -368,12 +365,14 @@ function cx {
             '-m' {
                 if ($i + 1 -lt $cliArgs.Count) {
                     $model = $cliArgs[$i + 1]
+                    $modelOverridden = $true
                     $i++
                 }
             }
             '-re' {
                 if ($i + 1 -lt $cliArgs.Count) {
                     $reasoning = $cliArgs[$i + 1]
+                    $reasoningOverridden = $true
                     $i++
                 }
             }
@@ -403,11 +402,13 @@ function cx {
 
     if ($commitMode) {
         # `--commit` has priority over any user-provided query tokens.
+        if (-not $modelOverridden) { $model = $script:CxCommitModel }
+        if (-not $reasoningOverridden) { $reasoning = $script:CxCommitReasoning }
         $yolo = $true
         $promptMode = $true
         $codexArgs.Clear()
         $promptArgs.Clear()
-        $promptArgs.Add((Get-CxCommitPrompt))
+        $promptArgs.Add($script:CxCommitSkillPrompt)
     }
 
     if ($disableMcps) {
@@ -468,8 +469,8 @@ if ($codexCommandInfo) {
         $wrapperFlags = @(
             @{ Text = '-m'; List = '-m'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Modelo a usar' }
             @{ Text = '-re'; List = '-re'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Esfuerzo de razonamiento del modelo' }
-            @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Usa el prompt interno de commit' }
-            @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Usa el prompt interno de commit' }
+            @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (luna/low)' }
+            @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (luna/low)' }
             @{ Text = '--mcps'; List = '--mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Compatibilidad: los servidores MCP ya están activos por defecto' }
             @{ Text = '--no-mcps'; List = '--no-mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Desactiva los servidores MCP para esta ejecución' }
             @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Actualiza Codex desde el wrapper' }
@@ -478,7 +479,7 @@ if ($codexCommandInfo) {
             'gpt-5.6-luna',
             'gpt-5.6-sol'
         )
-        $reasoningOptions = @('medium', 'high', 'xhigh', 'max')
+        $reasoningOptions = @('low', 'medium', 'high', 'xhigh', 'max')
 
         $results = New-Object System.Collections.Generic.List[System.Management.Automation.CompletionResult]
         $dashMode = 'none'
