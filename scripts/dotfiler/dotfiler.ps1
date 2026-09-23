@@ -14,6 +14,9 @@ $script:UseColor = $true
 $script:UseIcons = $true
 $script:Quiet = $false
 $script:VerboseMode = $false
+# Hard link destinations whose content diverged from the source (another tool
+# rewrote the file) are reported and left untouched unless this is enabled.
+$script:OverwriteDiverged = $false
 $script:CliArgs = @($args)
 $script:IsElevatedSymlinkMode = $false
 $script:ElevatedSymlinkSource = $null
@@ -39,6 +42,7 @@ $script:CountPlannedCreated = 0
 $script:CountPlannedReplaced = 0
 $script:CountPlannedBackups = 0
 $script:CountPlannedRemoved = 0
+$script:DivergedLinks = [System.Collections.Generic.List[object]]::new()
 
 $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
 $script:PreferredCommandPaths = @{}
@@ -480,6 +484,8 @@ Opciones:
   --plain     Desactiva colores e iconos
   --verbose   Lista tambien los enlaces sin cambios y el tiempo por operacion
   --quiet     Oculta logs por item y deja resumen/errores
+  --overwrite-diverged
+              Respalda y reenlaza los hard links cuyo destino tiene cambios propios
   --help      Muestra esta ayuda
 '@ | Write-Output
 }
@@ -500,6 +506,7 @@ function Parse-Args {
       }
       '--verbose' { $script:VerboseMode = $true }
       '--quiet' { $script:Quiet = $true }
+      '--overwrite-diverged' { $script:OverwriteDiverged = $true }
       '--internal-create-link' { $script:IsElevatedSymlinkMode = $true }
       '--internal-source' {
         if ($index + 1 -ge $CliArgs.Count) {
@@ -1823,6 +1830,33 @@ function Test-IsSymlink {
   return ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
 }
 
+function Test-HardLinkTargetIsRegularFile {
+  param([string]$TargetPath)
+
+  return (Test-PathEntry -Path $TargetPath) -and -not (Test-IsSymlink -Path $TargetPath) -and (Test-Path -LiteralPath $TargetPath -PathType Leaf)
+}
+
+function Test-FileContentEqual {
+  param(
+    [string]$FirstPath,
+    [string]$SecondPath
+  )
+
+  $firstHash = (Get-FileHash -LiteralPath $FirstPath -Algorithm SHA256).Hash
+  $secondHash = (Get-FileHash -LiteralPath $SecondPath -Algorithm SHA256).Hash
+  return $firstHash -eq $secondHash
+}
+
+function Register-DivergedHardLink {
+  param(
+    [string]$SourcePath,
+    [string]$TargetPath
+  )
+
+  $script:DivergedLinks.Add([PSCustomObject]@{ Source = $SourcePath; Target = $TargetPath })
+  Write-ItemLine -Icon $script:Icons.Warn -Label 'divergente' -Color Yellow -Name (Split-Path -Path $TargetPath -Leaf) -Detail '(cambios propios, no se toco)'
+}
+
 function New-DotfileSymlink {
   param(
     [string]$SourcePath,
@@ -1860,6 +1894,28 @@ function New-DotfileSymlink {
         Write-ItemLine -Icon $script:Icons.Unchanged -Label 'sin cambios' -Color DarkGray -Name $itemName -Detail $linkDetail -Unchanged
       }
       return
+    }
+
+    # A regular file at a hard link destination may have been rewritten by
+    # another tool, breaking the link. Identical content is relinked in place
+    # without a backup; different content is reported and preserved.
+    if (-not $targetDirectoryPendingReplacement -and $HardLink -and (Test-HardLinkTargetIsRegularFile -TargetPath $TargetPath)) {
+      if (Test-FileContentEqual -FirstPath $SourcePath -SecondPath $TargetPath) {
+        if (-not $script:DryRun) {
+          New-Item -ItemType $linkItemType -Path $TargetPath -Target $SourcePath -Force | Out-Null
+        }
+        $script:CountUnchanged += 1
+        $script:GroupUnchangedCount += 1
+        if ($script:VerboseMode) {
+          Write-ItemLine -Icon $script:Icons.Unchanged -Label 'sin cambios' -Color DarkGray -Name $itemName -Detail $linkDetail -Unchanged
+        }
+        return
+      }
+
+      if (-not $script:OverwriteDiverged) {
+        Register-DivergedHardLink -SourcePath $SourcePath -TargetPath $TargetPath
+        return
+      }
     }
 
     if (-not $targetDirectoryPendingReplacement -and (Test-IsSymlink -Path "$TargetPath.bak")) {
@@ -2183,8 +2239,33 @@ function Print-Summary {
   Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Created -Label 'creados' -Value $created -Color Green) + $columnGap + (Format-SummaryCell -Icon $script:Icons.Replaced -Label 'reemplazados' -Value $replaced -Color Blue))
   Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Unchanged -Label 'sin cambios' -Value $script:CountUnchanged -Color Cyan) + $columnGap + (Format-SummaryCell -Icon $script:Icons.Delete -Label 'eliminados' -Value $removed -Color Magenta))
   Write-BoxRow -Content ((Format-SummaryCell -Icon $script:Icons.Backup -Label 'respaldos' -Value $backups -Color Yellow) + $columnGap + (Format-SummaryCell -Icon $script:Icons.Error -Label 'errores' -Value $script:CountErrors -Color Red))
+  if ($script:DivergedLinks.Count -gt 0) {
+    Write-BoxRow -Content (Format-SummaryCell -Icon $script:Icons.Warn -Label 'divergentes' -Value $script:DivergedLinks.Count -Color Yellow)
+  }
   Write-BoxDivider
   Write-BoxRow -Content ((Format-AnsiSegment -Text "$modeText $($script:Glyphs.Separator) $(Get-IconPrefix $script:Icons.Time)${elapsed}s $($script:Glyphs.Separator)" -Color DarkGray) + " $statusText")
+  Write-BoxBottom
+}
+
+# Lists hard link destinations left untouched because their content diverged,
+# with the command to inspect each one and how to overwrite them.
+function Print-Divergences {
+  if ($script:DivergedLinks.Count -eq 0) {
+    return
+  }
+
+  Write-BlockGap
+  Write-BoxTop -Title "$(Get-IconPrefix $script:Icons.Warn)Divergencias"
+
+  $index = 1
+  foreach ($item in $script:DivergedLinks) {
+    Write-BoxRow -Content ("$(Format-AnsiSegment -Text "$index." -Color Yellow -Bold) $(Format-DisplayTarget -Path $item.Target)")
+    Write-BoxRow -Content ("   " + (Format-AnsiSegment -Text "git diff --no-index `"$($item.Source)`" `"$($item.Target)`"" -Color DarkGray))
+    $index += 1
+  }
+
+  Write-BoxDivider
+  Write-BoxRow -Content (Format-AnsiSegment -Text 'Incorpora los cambios al repo o usa --overwrite-diverged para respaldar y reenlazar.' -Color DarkGray)
   Write-BoxBottom
 }
 
@@ -2270,7 +2351,7 @@ function Main {
 
   $changedCount = $script:CountCreated + $script:CountReplaced + $script:CountRemoved + $script:CountBackups +
     $script:CountPlannedCreated + $script:CountPlannedReplaced + $script:CountPlannedRemoved + $script:CountPlannedBackups +
-    $script:PendingElevatedSymlinks.Count
+    $script:PendingElevatedSymlinks.Count + $script:DivergedLinks.Count
   if ($script:CountUnchanged -gt 0 -and $changedCount -eq 0 -and -not $script:VerboseMode -and -not $script:Quiet) {
     Write-BlockGap
     Write-FormattedLine -Segments @((Format-AnsiSegment -Text "$(Get-IconPrefix $script:Icons.Unchanged)Todos los enlaces estan al dia ($($script:CountUnchanged))." -Color Green -Bold))
@@ -2278,6 +2359,7 @@ function Main {
 
   Complete-PendingElevatedSymlinks
   Print-Summary
+  Print-Divergences
   Print-Diagnostics
 
   if ($script:CountErrors -gt 0) {

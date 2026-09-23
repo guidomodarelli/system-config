@@ -43,6 +43,8 @@
     $script:LastOutputWasBlank = $true
     $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
     $script:ConfigPathsFile = ''
+    $script:OverwriteDiverged = $false
+    $script:DivergedLinks = [System.Collections.Generic.List[object]]::new()
   }
 
   It 'Print-Summary imprime caja de resumen con contadores y cierre exitoso' {
@@ -189,6 +191,87 @@
     Should -Invoke New-Item -Times 0 -Exactly
   }
 
+  Context 'Hard links divergentes' {
+    BeforeEach {
+      $script:HardLinkSourcePath = Join-Path -Path $TestDrive -ChildPath 'fuente.md'
+      $script:HardLinkTargetPath = Join-Path -Path $TestDrive -ChildPath 'destino.md'
+      Set-Content -LiteralPath $script:HardLinkSourcePath -Value 'contenido del repo' -NoNewline
+      Mock Initialize-TargetDirectory {}
+      Mock New-Item {}
+      Mock Move-ToBackup {}
+    }
+
+    It 'no toca un destino con cambios propios y lo registra como divergente' {
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'contenido del repo + bloque local' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:DivergedLinks.Count | Should -Be 1
+      $script:DivergedLinks[0].Target | Should -Be $script:HardLinkTargetPath
+      Get-Content -LiteralPath $script:HardLinkTargetPath -Raw | Should -Be 'contenido del repo + bloque local'
+      Should -Invoke New-Item -Times 0 -Exactly
+      Should -Invoke Move-ToBackup -Times 0 -Exactly
+      $script:CountErrors | Should -Be 0
+    }
+
+    It 'reenlaza sin respaldo cuando el contenido es identico' {
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'contenido del repo' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:DivergedLinks.Count | Should -Be 0
+      $script:CountUnchanged | Should -Be 1
+      Should -Invoke Move-ToBackup -Times 0 -Exactly
+      Should -Invoke New-Item -Times 1 -Exactly -ParameterFilter { $ItemType -eq 'HardLink' -and $Force }
+    }
+
+    It 'no escribe al reenlazar contenido identico durante una simulacion' {
+      $script:DryRun = $true
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'contenido del repo' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:CountUnchanged | Should -Be 1
+      Should -Invoke New-Item -Times 0 -Exactly
+    }
+
+    It 'respalda y reenlaza un destino divergente con --overwrite-diverged' {
+      $script:OverwriteDiverged = $true
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'contenido local' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:DivergedLinks.Count | Should -Be 0
+      Should -Invoke Move-ToBackup -Times 1 -Exactly
+      Should -Invoke New-Item -Times 1 -Exactly -ParameterFilter { $ItemType -eq 'HardLink' }
+    }
+
+    It 'Print-Divergences lista cada destino con el comando para compararlo' {
+      $script:DivergedLinks.Add([PSCustomObject]@{ Source = 'C:\repo\AGENTS.md'; Target = 'C:\destino\AGENTS.md' })
+
+      $divergencesOutput = Print-Divergences | Out-String
+
+      $divergencesOutput | Should -Match '\+- ! Divergencias -'
+      $divergencesOutput | Should -Match '\| 1\. C:\\destino\\AGENTS\.md'
+      $divergencesOutput | Should -Match 'git diff --no-index "C:\\repo\\AGENTS\.md" "C:\\destino\\AGENTS\.md"'
+      $divergencesOutput | Should -Match '--overwrite-diverged'
+    }
+
+    It 'Print-Summary muestra el contador de divergentes solo cuando hay alguno' {
+      $script:StartTime = Get-Date
+      (Print-Summary | Out-String) | Should -Not -Match 'divergentes'
+
+      $script:DivergedLinks.Add([PSCustomObject]@{ Source = 'C:\repo\a'; Target = 'C:\destino\a' })
+      (Print-Summary | Out-String) | Should -Match '! divergentes\s+1'
+    }
+
+    It 'Parse-Args habilita --overwrite-diverged' {
+      Parse-Args -CliArgs @('--overwrite-diverged')
+
+      $script:OverwriteDiverged | Should -BeTrue
+    }
+  }
+
   It 'Get-ResolveProgressStatus rota mensajes segun el tiempo y muestra barra, contador y detalle' {
     $script:UseIcons = $true
 
@@ -277,7 +360,7 @@
 
     $script:installInvocations.Count | Should -Be 1
     $script:installInvocations[0] | Should -Be 'jq|jqlang.jq'
-    Assert-MockCalled Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
+    Should -Invoke Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
   }
 
   It 'falla cuando falta una dependencia y winget no esta disponible' {
@@ -308,7 +391,7 @@
     }
 
     { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Not -Throw
-    Assert-MockCalled Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
+    Should -Invoke Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
   }
 
   It 'omite un ejecutable previo roto y conserva la ruta operativa encontrada para usos posteriores' {
@@ -358,7 +441,7 @@
 
     { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Throw -ExpectedMessage '*sigue sin estar disponible*'
 
-    Assert-MockCalled Write-Warn -Times 1 -Exactly -Scope It -ParameterFilter {
+    Should -Invoke Write-Warn -Times 1 -Exactly -Scope It -ParameterFilter {
       $Message -like '*--dry-run*' -and $Message -like "*'yq'*"
     }
   }
@@ -402,7 +485,7 @@
 
     $script:installInvocations.Count | Should -Be 1
     $script:installInvocations[0] | Should -Be 'yq|MikeFarah.yq'
-    Assert-MockCalled Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
+    Should -Invoke Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
   }
 
   It 'considera yq no operativo cuando no soporta la sintaxis requerida por dotfiler' {

@@ -77,6 +77,98 @@ YAML
   [[ "$output" == *"Hard link requiere un archivo regular"* ]]
 }
 
+write_hard_link_config() {
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: hard-source
+    target: linked-files
+    hardLink: true
+YAML
+}
+
+@test "hardLink divergente no toca el destino y lo reporta con diff" {
+  printf "repo-content\n" > "$REPO_DIR/configs/hard-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "repo-content\nlocal-block\n" > "$HOME_DIR/linked-files/hard-source"
+  write_hard_link_config
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$HOME_DIR/linked-files/hard-source")" = $'repo-content\nlocal-block' ]
+  [ ! "$HOME_DIR/linked-files/hard-source" -ef "$REPO_DIR/configs/hard-source" ]
+  [ ! -e "$HOME_DIR/linked-files/hard-source.bak" ]
+  assert_item_line "$output" "divergente" "hard-source"
+  assert_summary_value "$output" "divergentes" "1"
+  assert_summary_value "$output" "respaldos" "0"
+  [[ "$output" == *"Divergencias"* ]]
+  [[ "$output" == *"diff -u"*"hard-source"* ]]
+  [[ "$output" != *"diff -u"*"//"* ]]
+  [[ "$output" == *"--overwrite-diverged"* ]]
+}
+
+@test "hardLink divergente se informa incluso con --quiet" {
+  printf "repo-content\n" > "$REPO_DIR/configs/hard-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "local-content\n" > "$HOME_DIR/linked-files/hard-source"
+  write_hard_link_config
+
+  run_dotfiler "false" "--quiet" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$HOME_DIR/linked-files/hard-source")" = "local-content" ]
+  [[ "$output" == *"Divergencias"* ]]
+  [[ "$output" == *"diff -u"* ]]
+}
+
+@test "hardLink con contenido identico y otro inode se reenlaza sin respaldo" {
+  printf "same-content\n" > "$REPO_DIR/configs/hard-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "same-content\n" > "$HOME_DIR/linked-files/hard-source"
+  write_hard_link_config
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_hard_link_points_to \
+    "$HOME_DIR/linked-files/hard-source" \
+    "$REPO_DIR/configs/hard-source"
+  [ ! -e "$HOME_DIR/linked-files/hard-source.bak" ]
+  assert_item_line "$output" "reemplazado" "hard-source"
+  assert_summary_value "$output" "respaldos" "0"
+  [[ "$output" != *"Divergencias"* ]]
+}
+
+@test "hardLink divergente con --overwrite-diverged respalda y reenlaza" {
+  printf "repo-content\n" > "$REPO_DIR/configs/hard-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "local-content\n" > "$HOME_DIR/linked-files/hard-source"
+  write_hard_link_config
+
+  run_dotfiler "false" "--overwrite-diverged" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_hard_link_points_to \
+    "$HOME_DIR/linked-files/hard-source" \
+    "$REPO_DIR/configs/hard-source"
+  [ "$(cat "$HOME_DIR/linked-files/hard-source.bak")" = "local-content" ]
+  assert_item_line "$output" "reemplazado" "hard-source"
+  [[ "$output" != *"Divergencias"* ]]
+}
+
+@test "hardLink divergente en dry-run solo reporta" {
+  printf "repo-content\n" > "$REPO_DIR/configs/hard-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "local-content\n" > "$HOME_DIR/linked-files/hard-source"
+  write_hard_link_config
+
+  run_dotfiler "false" "--dry-run" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$HOME_DIR/linked-files/hard-source")" = "local-content" ]
+  assert_item_line "$output" "divergente" "hard-source"
+}
+
 @test "darwin excludes entries even when excludeFor has multiple items" {
   install_fixture "darwin_exclude"
 
@@ -155,6 +247,7 @@ BASH
   [[ "$output" == *"--dry-run"* ]]
   [[ "$output" == *"--plain"* ]]
   [[ "$output" == *"--quiet"* ]]
+  [[ "$output" == *"--overwrite-diverged"* ]]
 }
 
 @test "--no-color disables ANSI escape codes" {

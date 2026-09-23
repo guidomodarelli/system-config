@@ -7,7 +7,7 @@
 
 En Windows, `dotfiler.bat` invoca `dotfiler.ps1` y soporta los mismos flags
 principales (`--dry-run`, `--no-color`, `--plain`, `--verbose`, `--quiet`,
-`--help`) para trabajar contra `symlinks.yml` desde PowerShell nativo.
+`--overwrite-diverged`, `--help`) para trabajar contra `symlinks.yml` desde PowerShell nativo.
 En ese entorno, `dotfiler.ps1` requiere `yq` y `jq` para interpretar el YAML.
 Si alguno no esta disponible, intenta instalarlo automaticamente con `winget`
 antes de continuar. Si la instalacion falla o `winget` no existe, el script
@@ -291,6 +291,16 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
   regular y origen y destino deben pertenecer al mismo filesystem.
 - Los hard links no admiten directorios. El script informa el error antes de
   crear respaldos o modificar el destino.
+- Si el destino de un hard link es un archivo regular que ya no comparte inode
+  con el origen (por ejemplo, otra herramienta lo reescribió con un reemplazo
+  atómico y rompió el enlace):
+  - Con el mismo contenido, rehace el hard link sin crear respaldo.
+  - Con contenido distinto, lo marca como `divergente`, no lo modifica y lo
+    lista al final en una caja `Divergencias` con el comando para compararlo
+    (`diff -u` en bash, `git diff --no-index` en PowerShell). No cuenta como
+    error.
+  - `--overwrite-diverged` restaura el comportamiento anterior: respalda el
+    destino divergente y rehace el hard link.
 - Comprueba los permisos del directorio destino y, si no es escribible o no
   pertenece al usuario actual, utiliza `sudo` para ejecutar la operación.
 - Notifica al usuario cuando se emplean permisos elevados.
@@ -386,11 +396,13 @@ línea por enlace con un ícono, la acción, el nombre y el origen relativo a
 
 - Los enlaces que ya apuntan al origen correcto no se recrean: se cuentan como
   `sin cambios`. Los grupos sin cambios se ocultan y, si nada cambió, se muestra
-  `Todos los enlaces están al día`. En PowerShell, los hard links se recrean
-  siempre porque Windows no permite comparar inodes a bajo costo.
+  `Todos los enlaces están al día`. En PowerShell, un hard link con el mismo
+  contenido que el origen se recrea en el lugar sin respaldo y cuenta como
+  `sin cambios`, porque Windows no permite comparar inodes a bajo costo.
 - En el resumen, cada contador mayor a cero se muestra en su color (creados
   verde, reemplazados azul, sin cambios cian, eliminados magenta, respaldos
-  amarillo, errores rojo) y los ceros en gris.
+  amarillo, errores rojo) y los ceros en gris. La fila `divergentes` (amarillo)
+  aparece solo cuando hay hard links divergentes.
 - `--verbose` lista también cada enlace sin cambios y el tiempo por operación.
 - `--quiet` oculta banner y grupos; deja resumen, avisos y errores.
 - `--plain` quita íconos y colores, pero conserva cajas y etiquetas.

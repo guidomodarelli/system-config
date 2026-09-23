@@ -51,6 +51,10 @@ USE_ICONS=true
 USE_PATH_STYLE=true
 QUIET=false
 VERBOSE=false
+# Hard link destinations whose content diverged from the source (another tool
+# rewrote the file, breaking the link) are reported and left untouched unless
+# this is enabled.
+OVERWRITE_DIVERGED=false
 
 EXIT_CODE_SUCCESS=0
 EXIT_CODE_RUNTIME_ERROR=1
@@ -125,6 +129,9 @@ GROUP_UNCHANGED_COUNT=0
 COUNT_ERRORS=0
 COUNT_WINDOWS_QUEUED=0
 COUNT_SUDO_OPERATIONS=0
+COUNT_DIVERGED=0
+DIVERGED_TARGETS=()
+DIVERGED_SOURCES=()
 PLANNED_DIRECTORY_REPLACEMENTS=$'\n'
 LAST_OUTPUT_WAS_BLANK=true
 PENDING_GROUP_HEADER=""
@@ -632,6 +639,8 @@ Opciones:
   --plain     Desactiva estilos, íconos y énfasis de rutas
   --verbose   Lista también los enlaces sin cambios y el tiempo por operación
   --quiet     Oculta logs por ítem y muestra solo resumen/errores
+  --overwrite-diverged
+              Respalda y reenlaza los hard links cuyo destino tiene cambios propios
   --help      Muestra esta ayuda
 
 Variables:
@@ -659,6 +668,9 @@ parse_args() {
       ;;
     --quiet)
       QUIET=true
+      ;;
+    --overwrite-diverged)
+      OVERWRITE_DIVERGED=true
       ;;
     --help)
       print_help
@@ -975,6 +987,19 @@ make_symlink() {
     return 0
   fi
 
+  # A regular file at a hard link destination that is no longer the same inode
+  # was rewritten by someone else: identical content is relinked without a
+  # backup, different content is reported and preserved.
+  local relink_identical_hard_link="false"
+  if [ "$target_dir_pending_replacement" != "true" ] && hard_link_target_is_detached "$path" "$target" "$hard_link"; then
+    if cmp -s "$path" "$target"; then
+      relink_identical_hard_link="true"
+    elif [ "$OVERWRITE_DIVERGED" != "true" ]; then
+      record_diverged_hard_link "$path" "$target"
+      return 0
+    fi
+  fi
+
   if [ "$target_dir_pending_replacement" != "true" ] && [ -L "${target}.bak" ]; then
     if ! remove_old_symlink "${target}.bak" "${command_prefix[@]}"; then
       return 1
@@ -986,7 +1011,7 @@ make_symlink() {
   local link_action="created"
   if [ "$target_dir_pending_replacement" = "true" ]; then
     COUNT_CREATED=$((COUNT_CREATED + 1))
-  elif [ -L "$target" ]; then
+  elif [ -L "$target" ] || [ "$relink_identical_hard_link" = "true" ]; then
     if ! remove_old_symlink "$target" "${command_prefix[@]}"; then
       return 1
     fi
@@ -1097,6 +1122,28 @@ link_is_already_correct() {
   fi
 
   [ -L "$target" ] && [ "$(readlink "$target")" = "$path" ]
+}
+
+# True when a hard link destination exists as a regular file that no longer
+# shares the inode of its source.
+hard_link_target_is_detached() {
+  local path="$1"
+  local target="$2"
+  local hard_link="$3"
+
+  [ "$hard_link" = "true" ] || return 1
+  [[ ! $path =~ "\\\\wsl\$" ]] || return 1
+  [ ! -L "$target" ] && [ -f "$target" ] && [ -f "$path" ] && [ ! "$target" -ef "$path" ]
+}
+
+record_diverged_hard_link() {
+  local path="$1"
+  local target="$2"
+
+  COUNT_DIVERGED=$((COUNT_DIVERGED + 1))
+  DIVERGED_SOURCES+=("$path")
+  DIVERGED_TARGETS+=("$target")
+  print_item_line print_yellow "$ICON_WARN" "divergente" "${target##*/}" "(cambios propios, no se tocó)"
 }
 
 # Width of the item name column: longest destination basename, clamped.
@@ -1835,6 +1882,9 @@ print_summary() {
   print_box_row "$(print_summary_cell "$ICON_CREATED" "creados" "$COUNT_CREATED" print_green)$column_gap$(print_summary_cell "$ICON_REPLACED" "reemplazados" "$COUNT_REPLACED" print_blue)"
   print_box_row "$(print_summary_cell "$ICON_UNCHANGED" "sin cambios" "$COUNT_UNCHANGED" print_cyan)$column_gap$(print_summary_cell "$ICON_DELETE" "eliminados" "$COUNT_REMOVED" print_magenta)"
   print_box_row "$(print_summary_cell "$ICON_BACKUP" "respaldos" "$COUNT_BACKUPS" print_yellow)$column_gap$(print_summary_cell "$ICON_ERROR" "errores" "$COUNT_ERRORS" print_red)"
+  if [ "$COUNT_DIVERGED" -gt 0 ]; then
+    print_box_row "$(print_summary_cell "$ICON_WARN" "divergentes" "$COUNT_DIVERGED" print_yellow)"
+  fi
   if [ "$COUNT_SUDO_OPERATIONS" -gt 0 ] || [ "$COUNT_WINDOWS_QUEUED" -gt 0 ]; then
     print_box_row "$(print_summary_cell "$ICON_SUDO" "con sudo" "$COUNT_SUDO_OPERATIONS" print_yellow)$column_gap$(print_summary_cell "$ICON_QUEUED" "Windows (PS)" "$COUNT_WINDOWS_QUEUED" print_blue)"
   fi
@@ -1859,6 +1909,27 @@ print_diagnostics() {
     print_box_row "   $(print_gray -b "$POINTER $failed_reason")"
     diagnostic_index=$((diagnostic_index + 1))
   done < "$FAILED_TARGETS_FILE"
+  print_box_bottom
+  LAST_OUTPUT_WAS_BLANK=false
+}
+
+# Lists hard link destinations left untouched because their content diverged,
+# with the command to inspect each one and how to overwrite them.
+print_divergences() {
+  if [ "$COUNT_DIVERGED" -eq 0 ]; then
+    return 0
+  fi
+
+  print_block_gap
+  print_box_top "$(icon_prefix "$ICON_WARN")Divergencias"
+
+  local divergence_index
+  for ((divergence_index = 0; divergence_index < COUNT_DIVERGED; divergence_index++)); do
+    print_box_row "$(print_yellow -b "$((divergence_index + 1)).") $(print_path "$(display_target_path "${DIVERGED_TARGETS[$divergence_index]}")")"
+    print_box_row "   $(print_gray -b "diff -u $(normalize_display_path "$(abbreviate_home_path "${DIVERGED_SOURCES[$divergence_index]}")") $(normalize_display_path "$(abbreviate_home_path "${DIVERGED_TARGETS[$divergence_index]}")")")"
+  done
+  print_box_divider
+  print_box_row "$(print_gray -b "Incorporá los cambios al repo o usá --overwrite-diverged para respaldar y reenlazar.")"
   print_box_bottom
   LAST_OUTPUT_WAS_BLANK=false
 }
@@ -1932,7 +2003,7 @@ main() {
   stop_spinner
 
   if [ "$COUNT_UNCHANGED" -gt 0 ] && [ "$VERBOSE" != "true" ] && can_print_details &&
-    [ $((COUNT_CREATED + COUNT_REPLACED + COUNT_REMOVED + COUNT_BACKUPS + COUNT_WINDOWS_QUEUED)) -eq 0 ]; then
+    [ $((COUNT_CREATED + COUNT_REPLACED + COUNT_REMOVED + COUNT_BACKUPS + COUNT_WINDOWS_QUEUED + COUNT_DIVERGED)) -eq 0 ]; then
     print_block_gap
     printf "%s\n" "$(print_green -b "$(icon_prefix "$ICON_UNCHANGED")Todos los enlaces están al día ($COUNT_UNCHANGED).")"
     LAST_OUTPUT_WAS_BLANK=false
@@ -1953,6 +2024,7 @@ main() {
   fi
 
   print_summary
+  print_divergences
   print_diagnostics
 
   if [ "$COUNT_ERRORS" -gt 0 ]; then
