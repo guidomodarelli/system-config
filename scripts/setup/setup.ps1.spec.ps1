@@ -89,9 +89,6 @@ function New-TestSetupMenuCatalog {
 
 $setupScriptPath = Join-Path $PSScriptRoot 'setup.ps1'
 Import-SetupScriptFunctions -ScriptPath $setupScriptPath
-# Deterministic ASCII markers; emoji mode is covered explicitly below.
-$previousSetupIcons = $env:SETUP_ICONS
-$env:SETUP_ICONS = 'never'
 
 $setupScriptContent = Get-Content -Path $setupScriptPath -Raw
 Assert-Contains -Haystack $setupScriptContent -Needle "latest-stable-official" -Message 'PowerShell setup should make the latest stable policy explicit.'
@@ -573,66 +570,68 @@ Update-SetupMenuSelectionForAll -selectedIndexes $selectedIndexesForAllShortcut 
 Assert-Equal -Expected 0 -Actual $selectedIndexesForAllShortcut.Count -Message 'The a shortcut should clear every item when all items are selected.'
 
 $defaultSelectedRowSegments = @(Get-SetupMenuRowSegments -menuItem $menuCatalog[0] -IsSelected $true -IsCursor $false)
-Assert-Equal -Expected '    [x]  * Git' -Actual (($defaultSelectedRowSegments | ForEach-Object Text) -join '') -Message 'Default selected row should keep the visible menu text with spacing.'
-Assert-Equal -Expected ([ConsoleColor]::DarkGreen) -Actual $defaultSelectedRowSegments[4].ForegroundColor -Message 'Selected marker should use a muted green.'
+Assert-Equal -Expected '    [x]  * Git' -Actual (($defaultSelectedRowSegments | ForEach-Object Text) -join '') -Message 'Selected rows should show the checkbox, the recommended star and the label.'
+Assert-Equal -Expected ([ConsoleColor]::Green) -Actual $defaultSelectedRowSegments[4].ForegroundColor -Message 'Selected checkbox should use green.'
 Assert-Equal -Expected ([ConsoleColor]::DarkGray) -Actual $defaultSelectedRowSegments[6].ForegroundColor -Message 'Recommended marker should be discreet gray.'
 Assert-Equal -Expected ([Console]::BackgroundColor) -Actual $defaultSelectedRowSegments[3].BackgroundColor -Message 'Non-cursor rows should keep the default background.'
-Assert-Equal -Expected ([Console]::ForegroundColor) -Actual $defaultSelectedRowSegments[8].ForegroundColor -Message 'Non-cursor labels should use the default foreground color.'
+Assert-Equal -Expected ([Console]::ForegroundColor) -Actual $defaultSelectedRowSegments[8].ForegroundColor -Message 'Selected labels should use the default foreground color.'
+
+$unselectedRowSegments = @(Get-SetupMenuRowSegments -menuItem $menuCatalog[1] -IsSelected $false -IsCursor $false)
+Assert-Equal -Expected ([ConsoleColor]::DarkGray) -Actual $unselectedRowSegments[4].ForegroundColor -Message 'Unselected checkbox should be gray.'
+Assert-Equal -Expected ([ConsoleColor]::DarkGray) -Actual $unselectedRowSegments[8].ForegroundColor -Message 'Unselected labels should be dimmed.'
 
 $cursorRowSegments = @(Get-SetupMenuRowSegments -menuItem $menuCatalog[1] -IsSelected $false -IsCursor $true)
-Assert-Equal -Expected '  > [ ]    PowerToys' -Actual ((($cursorRowSegments | ForEach-Object Text) -join '').TrimEnd()) -Message 'Cursor row should align non-recommended labels with recommended ones.'
+Assert-Equal -Expected '  > [ ]    PowerToys' -Actual ((($cursorRowSegments | ForEach-Object Text) -join '').TrimEnd()) -Message 'Cursor rows should align optional labels with recommended ones.'
 Assert-Equal -Expected ([ConsoleColor]::DarkGray) -Actual $cursorRowSegments[3].BackgroundColor -Message 'Cursor row should paint the row background.'
 Assert-Equal -Expected ([ConsoleColor]::DarkGray) -Actual $cursorRowSegments[-1].BackgroundColor -Message 'Cursor row padding should keep the highlighted background.'
 Assert-Equal -Expected ([Console]::BackgroundColor) -Actual $cursorRowSegments[0].BackgroundColor -Message 'Scrollbar should stay outside the highlight.'
 Assert-Equal -Expected (Get-SetupMenuHighlightWidth) -Actual (((@($cursorRowSegments | Select-Object -Skip 2) | ForEach-Object Text) -join '').Length) -Message 'Highlighted row should be padded to the fixed width.'
 Assert-Equal -Expected ([ConsoleColor]::Cyan) -Actual $cursorRowSegments[2].ForegroundColor -Message 'Cursor pointer should use cyan.'
-Assert-Equal -Expected ([ConsoleColor]::Cyan) -Actual $cursorRowSegments[8].ForegroundColor -Message 'Cursor label should be highlighted in cyan instead of inverting the row.'
+Assert-Equal -Expected ([ConsoleColor]::Cyan) -Actual $cursorRowSegments[8].ForegroundColor -Message 'Cursor label should be highlighted in cyan.'
 
-$scrollbarRowSegments = @(Get-SetupMenuRowSegments -menuItem $menuCatalog[0] -IsSelected $true -IsCursor $false -ScrollbarGlyph '┃' -ScrollbarColor Cyan)
-Assert-Equal -Expected '┃' -Actual $scrollbarRowSegments[0].Text -Message 'Rows should start with the scrollbar glyph.'
+$scrollbarRowSegments = @(Get-SetupMenuRowSegments -menuItem $menuCatalog[0] -IsSelected $true -IsCursor $false -ScrollbarGlyph '#' -ScrollbarColor Cyan)
+Assert-Equal -Expected '#' -Actual $scrollbarRowSegments[0].Text -Message 'Rows should start with the scrollbar glyph.'
 Assert-Equal -Expected ([ConsoleColor]::Cyan) -Actual $scrollbarRowSegments[0].ForegroundColor -Message 'Scrollbar thumb should use cyan.'
 
-Assert-Equal -Expected ' ' -Actual (Get-SetupMenuScrollbarGlyph -RowPosition 0 -WindowStartIndex 0 -VisibleItemCount 10 -ItemCount 10).Glyph -Message 'Scrollbar should be hidden when the list fits.'
-Assert-Equal -Expected '┃' -Actual (Get-SetupMenuScrollbarGlyph -RowPosition 0 -WindowStartIndex 0 -VisibleItemCount 5 -ItemCount 10).Glyph -Message 'Scrollbar thumb should start at the top for the first window.'
-Assert-Equal -Expected '│' -Actual (Get-SetupMenuScrollbarGlyph -RowPosition 4 -WindowStartIndex 0 -VisibleItemCount 5 -ItemCount 10).Glyph -Message 'Scrollbar track should fill the rest for the first window.'
-Assert-Equal -Expected '┃' -Actual (Get-SetupMenuScrollbarGlyph -RowPosition 4 -WindowStartIndex 5 -VisibleItemCount 5 -ItemCount 10).Glyph -Message 'Scrollbar thumb should reach the bottom for the last window.'
+$adminRestartItem = [PSCustomObject]@{ Id = 'wsl'; Label = 'WSL'; FunctionName = 'Install-WSL'; DefaultSelected = $true; RequiresAdmin = $true; Platforms = 'windows'; RequiresRestart = $true }
+$taggedRowText = ((@(Get-SetupMenuRowSegments -menuItem $adminRestartItem -IsSelected $true -IsCursor $false -LabelColumn 9) | ForEach-Object Text) -join '')
+Assert-Equal -Expected '    [x]  * WSL        # admin  ^ reinicio' -Actual $taggedRowText -Message 'Admin and restart tags should be aligned after the label column.'
 
-Assert-Equal -Expected 21 -Actual (Get-SetupMenuVisibleItemCount -itemCount 40 -WindowHeight 40) -Message 'Visible items should fill the window minus the reserved lines.'
+Assert-Equal -Expected ' ' -Actual (Get-SetupMenuScrollbarGlyph -RowPosition 0 -WindowStartIndex 0 -VisibleItemCount 10 -ItemCount 10).Glyph -Message 'Scrollbar should be hidden when the list fits.'
+Assert-Equal -Expected '#' -Actual (Get-SetupMenuScrollbarGlyph -RowPosition 0 -WindowStartIndex 0 -VisibleItemCount 5 -ItemCount 10).Glyph -Message 'Scrollbar thumb should start at the top for the first window.'
+Assert-Equal -Expected '|' -Actual (Get-SetupMenuScrollbarGlyph -RowPosition 4 -WindowStartIndex 0 -VisibleItemCount 5 -ItemCount 10).Glyph -Message 'Scrollbar track should fill the rest for the first window.'
+Assert-Equal -Expected '#' -Actual (Get-SetupMenuScrollbarGlyph -RowPosition 4 -WindowStartIndex 5 -VisibleItemCount 5 -ItemCount 10).Glyph -Message 'Scrollbar thumb should reach the bottom for the last window.'
+
+Assert-Equal -Expected 20 -Actual (Get-SetupMenuVisibleItemCount -itemCount 40 -WindowHeight 40) -Message 'Visible items should fill the window minus the reserved lines.'
 Assert-Equal -Expected 10 -Actual (Get-SetupMenuVisibleItemCount -itemCount 10 -WindowHeight 40) -Message 'Visible items should be capped by the number of items.'
 Assert-Equal -Expected 5 -Actual (Get-SetupMenuVisibleItemCount -itemCount 40 -WindowHeight 10) -Message 'Visible items should keep a minimum on tiny windows.'
 
 $referenceRows = @(Get-SetupMenuReferenceRows)
 Assert-Equal -Expected 'Arriba/Abajo/j/k' -Actual $referenceRows[0].Shortcut -Message 'Reference rows should start with navigation keys.'
 Assert-Equal -Expected ([ConsoleColor]::DarkCyan) -Actual $referenceRows[0].ShortcutColor -Message 'Key references should use muted cyan.'
+Assert-Equal -Expected 'd' -Actual (@($referenceRows | Where-Object { $_.Description -eq 'restaurar defaults' })[0].Shortcut) -Message 'Restoring defaults should use the d key.'
 Assert-Equal -Expected 'q/ESC/Ctrl+C/D' -Actual $referenceRows[-1].Shortcut -Message 'Reference should document every cancel shortcut.'
 Assert-Equal -Expected ([ConsoleColor]::DarkGray) -Actual (Get-SetupMenuReferenceFrameColor) -Message 'Reference box frame should use muted gray.'
 
-$defaultMarkerSegments = @(Get-SetupMenuDefaultMarkerSegments)
-Assert-Equal -Expected '  * recomendado · ! requiere admin · ~ requiere reinicio' -Actual (($defaultMarkerSegments | ForEach-Object Text) -join '') -Message 'Marker legend should explain every badge.'
-Assert-Equal -Expected ([ConsoleColor]::DarkGray) -Actual $defaultMarkerSegments[1].ForegroundColor -Message 'Recommended marker legend should be discreet gray.'
-
-$rangeSegments = @(Get-SetupMenuRangeSegments -FirstVisibleItemNumber 1 -LastVisibleItemNumber 5 -TotalItemCount 20 -SelectedItemCount 3)
-Assert-Equal -Expected '  - Elementos 1-5 de 20 · x 3 seleccionados' -Actual (($rangeSegments | ForEach-Object Text) -join '') -Message 'Range line should include the selected item count.'
-Assert-Equal -Expected ([ConsoleColor]::DarkCyan) -Actual $rangeSegments[1].ForegroundColor -Message 'First visible item number should use muted cyan.'
-Assert-Equal -Expected ([ConsoleColor]::DarkCyan) -Actual $rangeSegments[5].ForegroundColor -Message 'Total item count should use muted cyan.'
+Assert-Equal -Expected '  - git - Install-Git - windows - * recomendado' -Actual (Get-SetupMenuDetailsText -menuItem $menuCatalog[0]) -Message 'Details should describe the item under the cursor.'
+Assert-Equal -Expected '  - powertoys - Install-PowerToys - windows - opcional' -Actual (Get-SetupMenuDetailsText -menuItem $menuCatalog[1]) -Message 'Details should mark optional items.'
 
 $renderedLineCount = Get-ClassicSetupMenuRenderedLineCount -visibleItemCount 24
-Assert-Equal -Expected 29 -Actual $renderedLineCount -Message 'Rendered line count should include range, legend, spacer, top indicator, items, and bottom indicator.'
+Assert-Equal -Expected 30 -Actual $renderedLineCount -Message 'Rendered line count should include header box, top indicator, items, bottom indicator and details line.'
 
 $firstVisibleItemOffset = Get-ClassicSetupMenuItemRowOffset -menuIndex 10 -windowStartIndex 10
-Assert-Equal -Expected 4 -Actual $firstVisibleItemOffset -Message 'First visible menu item should render after range, legend, spacer, and top indicator.'
+Assert-Equal -Expected 4 -Actual $firstVisibleItemOffset -Message 'First visible menu item should render after the header box and the top indicator.'
 
 $thirdVisibleItemOffset = Get-ClassicSetupMenuItemRowOffset -menuIndex 12 -windowStartIndex 10
 Assert-Equal -Expected 6 -Actual $thirdVisibleItemOffset -Message 'Visible menu item offset should include its position in the current window.'
 
-$bottomIndicatorOffset = $renderedLineCount - 1
-Assert-Equal -Expected 28 -Actual $bottomIndicatorOffset -Message 'Bottom indicator should remain the final rendered menu line.'
+$bottomIndicatorOffset = $renderedLineCount - 2
+Assert-Equal -Expected 28 -Actual $bottomIndicatorOffset -Message 'Bottom indicator should be right above the details line.'
 
 Assert-Equal -Expected '45s' -Actual (Format-SetupDuration -TotalSeconds 45) -Message 'Short durations should be shown in seconds.'
 Assert-Equal -Expected '2m 05s' -Actual (Format-SetupDuration -TotalSeconds 125) -Message 'Long durations should be shown in minutes and seconds.'
 
-$adminRestartItem = [PSCustomObject]@{ Id = 'wsl'; Label = 'WSL'; FunctionName = 'Install-WSL'; DefaultSelected = $true; RequiresAdmin = $true; Platforms = 'windows'; RequiresRestart = $true }
-Assert-Equal -Expected '* WSL ! ~' -Actual (Get-SetupMenuDisplayLabel -menuItem $adminRestartItem) -Message 'Display label should include recommended marker and badges.'
+Assert-Equal -Expected '* WSL # ^' -Actual (Get-SetupMenuDisplayLabel -menuItem $adminRestartItem) -Message 'Display label should include recommended marker and badges.'
 
 $highlightedSegments = @(Get-SetupMenuLabelSegments -Label 'GitHub CLI' -HighlightQuery 'hub' -ForegroundColor Gray -BackgroundColor Black)
 Assert-Equal -Expected 3 -Actual $highlightedSegments.Count -Message 'Search highlight should split the label around the match.'
@@ -643,24 +642,14 @@ Assert-Equal -Expected 1 -Actual @(Get-SetupMenuLabelSegments -Label 'Git' -High
 $searchRowText = ((@(Get-SetupMenuRowSegments -menuItem $menuCatalog[0] -IsSelected $true -IsCursor $false -HighlightQuery 'gi') | ForEach-Object Text) -join '')
 Assert-Equal -Expected '    [x]  * Git' -Actual $searchRowText -Message 'Search highlight should not change the visible row text.'
 
-$env:SETUP_ICONS = 'always'
-$emojiRowSegments = @(Get-SetupMenuRowSegments -menuItem $menuCatalog[1] -IsSelected $false -IsCursor $true)
-Assert-Equal -Expected '  👉 [  ]    PowerToys' -Actual ((($emojiRowSegments | ForEach-Object Text) -join '').TrimEnd()) -Message 'Emoji rows should use two-column blanks to stay aligned.'
-Assert-Equal -Expected '★ WSL 🔐 🔁' -Actual (Get-SetupMenuDisplayLabel -menuItem $adminRestartItem) -Message 'Emoji display label should use emoji badges.'
-$previousWindowsTerminalSession = $env:WT_SESSION
-$previousTerminalProgram = $env:TERM_PROGRAM
-$env:WT_SESSION = $null
-$env:TERM_PROGRAM = $null
-$env:SETUP_ICONS = $null
-Assert-Equal -Expected ([System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT) -Actual (Test-SetupEmojiSupported) -Message 'Emoji detection should fall back to ASCII only on the classic Windows console.'
-$env:WT_SESSION = 'test-session'
-Assert-Equal -Expected $true -Actual (Test-SetupEmojiSupported) -Message 'Windows Terminal sessions should enable emojis.'
-$env:WT_SESSION = $previousWindowsTerminalSession
-$env:TERM_PROGRAM = $previousTerminalProgram
-$env:SETUP_ICONS = 'never'
+foreach ($iconName in @('Pointer', 'Checked', 'Unchecked', 'Recommended', 'Admin', 'Restart', 'Ok', 'FailedItem', 'Warn', 'Error')) {
+  Assert-Equal -Expected $false -Actual ((Get-SetupIcon $iconName) -match '[^\x00-\x7F]') -Message "Icon '$iconName' should be ASCII."
+}
+foreach ($glyphName in @('BoxTopLeft', 'BoxVertical', 'BoxHorizontal', 'ScrollbarThumb', 'ScrollbarTrack', 'ArrowUp', 'ArrowDown', 'Separator', 'BarFilled', 'BarEmpty')) {
+  Assert-Equal -Expected $false -Actual ((Get-SetupGlyph $glyphName) -match '[^\x00-\x7F]') -Message "Glyph '$glyphName' should be ASCII."
+}
 
 $resizeRequiresFullRender = Test-ClassicSetupMenuRequiresFullRender -previousWindowStartIndex 0 -windowStartIndex 0 -previousVisibleItemCount 5 -visibleItemCount 6 -ForceFullRender $false
 Assert-Equal -Expected $true -Actual $resizeRequiresFullRender -Message 'Changing the visible item count should require a full render.'
 
-$env:SETUP_ICONS = $previousSetupIcons
 Write-Host 'setup.ps1 menu search tests passed.'

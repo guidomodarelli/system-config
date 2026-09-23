@@ -47,22 +47,26 @@ chmod +x scripts/setup/setup.sh
 ### Selector interactivo
 
 - El setup abre un selector clásico con selección múltiple y búsqueda incremental.
+- La salida usa solo ASCII (ver `scripts/AGENTS.md`), así funciona en cualquier
+  terminal y fuente, incluida la consola clásica de Windows.
+- Arriba, una caja muestra cuántos ítems hay seleccionados, una barra de
+  selección (`######......`) y el rango visible.
 - La lista ocupa todo el alto disponible de la terminal y se recalcula al
   redimensionar. Si no entra, aparece una barra de scroll a la izquierda
-  (`┃` indica la posición).
-- La fila bajo el cursor (`👉`) se resalta completa con un fondo gris.
-- Marcas: `★` recomendado (seleccionado por defecto), `🔐` requiere sudo o
-  administrador, `🔁` requiere reiniciar o abrir una nueva sesión.
+  (`#` indica la posición).
+- Cada fila muestra `[x]` / `[ ]`, `*` si es recomendado (seleccionado por
+  defecto) y, alineadas a la derecha, las etiquetas `# sudo` (o `# admin` en
+  Windows) y `^ reinicio`. Los ítems no seleccionados se atenúan.
+- La fila bajo el cursor (`>`) se resalta completa con un fondo gris, y debajo
+  de la lista se muestra el detalle del ítem: id, función, plataformas y si es
+  recomendado u opcional.
 - `ENTER` confirma solo los ítems realmente marcados.
-- Usa `ESPACIO` para alternar un ítem, `a` para alternar toda la selección y `r` para restaurar defaults.
+- Usa `ESPACIO` para alternar un ítem, `a` para alternar toda la selección y `d` para restaurar defaults.
 - Usa `/` para buscar, `j/k` o flechas para navegar y `q`, `ESC`, `Ctrl+C` o `Ctrl+D` para cancelar.
-- Antes de ejecutar muestra una caja `📋` con lo que se va a procesar. Cada
-  instalación se enmarca (`╭─ 📦 [2/5] fzf` … `╰─ ✅ fzf listo · 12s`) sin
-  ocultar la salida real del instalador, y al final hay una caja `📊 Resumen`
+- Antes de ejecutar muestra una caja con lo que se va a procesar. Cada
+  instalación se enmarca (`+- > [2/5] fzf` ... `+- + fzf listo - 12s`) sin
+  ocultar la salida real del instalador, y al final hay una caja `Resumen`
   con estado y duración por ítem.
-- En Windows, los emojis se usan en Windows Terminal y VS Code; en la consola
-  clásica se reemplazan por marcas ASCII (`>`, `x`, `*`). `SETUP_ICONS=always|never`
-  fuerza uno u otro modo.
 - Compatible con `/bin/bash` 3.2 de macOS: flechas, PgUp/PgDn y Home/End
   funcionan aunque esa versión no admite timeouts fraccionales en `read`.
 

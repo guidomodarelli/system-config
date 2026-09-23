@@ -418,72 +418,86 @@ assert_equals "TEXT:g" "$(printf 'g' | _read_search_key)" "Search input should k
 assert_equals "TEXT:q" "$(printf 'q' | _read_search_key)" "Search input should allow filtering package names that contain q."
 
 export TERM=xterm-256color
+_MENU_IDS=("git" "powertoys")
+_MENU_FUNCS=("install_git" "install_powertoys")
+_MENU_PLATFORMS=("linux,wsl,darwin" "all")
 _MENU_LABELS=("Git" "PowerToys")
 _MENU_DEFAULT_SELECTED=(1 0)
 _MENU_SELECTED=(1 0)
 _MENU_REQUIRES_ADMIN=(0 0)
 _MENU_REQUIRES_RESTART=(0 0)
+_menu_load_label_column
 
 selected_row="$(_draw_menu_item 0 1 "${_MENU_LABELS[0]}" 1)"
-assert_contains "$selected_row" "$(styleText -c green -- "✅")" "Selected marker should use styleText success green."
-assert_contains "$selected_row" "$(styleText -c gray -- "★")" "Default marker should be a discreet gray star."
-selected_row_text="$(printf "%s" "$selected_row" | strip_ansi)"
-assert_equals "     [✅]  ★ Git" "$selected_row_text" "Default selected row should keep the visible menu text."
+assert_contains "$selected_row" "$(styleText -c green -- "[x]")" "Selected items should use a green checkbox."
+assert_equals "    [x]  * Git" "$(printf "%s" "$selected_row" | strip_ansi)" "Selected rows should show the checkbox, the recommended star and the label."
+assert_contains "$selected_row" "$(styleText -c gray -- "*")" "Recommended star should be discreet gray."
 
 cursor_row="$(_draw_menu_item 1 1 "${_MENU_LABELS[1]}" 0)"
-assert_contains "$cursor_row" "$(styleText -c cyan -b -- "PowerToys")" "Cursor row should highlight the label in bold cyan."
+assert_contains "$cursor_row" $'\033[;'"$SETUP_MENU_CURSOR_BACKGROUND_CODE;36;1mPowerToys" "Cursor row should highlight the label in bold cyan over the row background."
 assert_contains "$cursor_row" "$SETUP_MENU_CURSOR_BACKGROUND" "Cursor row should paint the whole row background."
+assert_contains "$cursor_row" $'\033[;'"$SETUP_MENU_CURSOR_BACKGROUND_CODE;90m[ ]" "Cursor row should keep the background inside colored escapes."
 cursor_row_text="$(printf "%s" "$cursor_row" | strip_ansi)"
-assert_equals "  👉 [  ]    PowerToys" "$(printf "%s" "$cursor_row_text" | sed -E 's/ +$//')" "Cursor row should align unselected and non-recommended rows with emoji markers."
+assert_equals "  > [ ]    PowerToys" "$(printf "%s" "$cursor_row_text" | sed -E 's/ +$//')" "Optional items should show an empty checkbox and no star."
 cursor_row_columns="$(printf "%s" "$cursor_row_text" | wc -m | tr -d ' ')"
-assert_equals "$((SETUP_MENU_HIGHLIGHT_WIDTH + 2 - 1))" "$cursor_row_columns" "Highlighted row should be padded to the fixed width (the pointer emoji counts as one character)."
+assert_equals "$((SETUP_MENU_HIGHLIGHT_WIDTH + 2))" "$cursor_row_columns" "Highlighted row should be padded to the fixed width."
 
-selected_cursor_row="$(_draw_menu_item 0 0 "${_MENU_LABELS[0]}" 1)"
-selected_cursor_expected_segment="]  $(styleText -c gray -- "★")$SETUP_MENU_CURSOR_BACKGROUND "
-assert_contains "$selected_cursor_row" "$selected_cursor_expected_segment" "Cursor row should re-apply the background after each colored marker."
-selected_cursor_row_text="$(printf "%s" "$selected_cursor_row" | strip_ansi)"
-assert_equals "  👉 [✅]  ★ Git" "$(printf "%s" "$selected_cursor_row_text" | sed -E 's/ +$//')" "Selected cursor row should keep the visible menu text."
-assert_contains "$(_draw_menu_item 0 1 "Git" 1 "┃" | strip_ansi)" "┃    [✅]" "Rows should start with the given scrollbar glyph."
+unselected_row="$(_draw_menu_item 1 0 "${_MENU_LABELS[1]}" 0)"
+assert_contains "$unselected_row" "$(styleText -c gray -- "PowerToys")" "Unselected labels should be dimmed."
+assert_equals "  > [x]  * Git" "$(_draw_menu_item 0 0 "Git" 1 | strip_ansi | sed -E 's/ +$//')" "Selected cursor row should keep the visible menu text."
+assert_contains "$(_draw_menu_item 0 1 "Git" 1 "#" | strip_ansi)" "#   [x]  * Git" "Rows should start with the given scrollbar glyph."
+
+_MENU_REQUIRES_ADMIN=(1 0)
+_MENU_REQUIRES_RESTART=(0 1)
+assert_equals "    [x]  * Git        # sudo" "$(_draw_menu_item 0 1 "Git" 1 | strip_ansi)" "Sudo items should show a right-aligned tag."
+assert_contains "$(_draw_menu_item 1 0 "PowerToys" 0 | strip_ansi)" "   PowerToys  ^ reinicio" "Restart items should show a right-aligned tag."
+_MENU_REQUIRES_ADMIN=(0 0)
+_MENU_REQUIRES_RESTART=(0 0)
 
 _MENU_LABELS=(a b c d e f g h i j)
 _MENU_SELECTED=(0 0 0 0 0 0 0 0 0 0)
 assert_equals " " "$(_menu_scrollbar_glyph 0 0 10 10)" "Scrollbar should be hidden when the list fits."
-assert_equals "┃" "$(_menu_scrollbar_glyph 0 0 5 10 | strip_ansi)" "Scrollbar thumb should start at the top for the first window."
-assert_equals "│" "$(_menu_scrollbar_glyph 4 0 5 10 | strip_ansi)" "Scrollbar track should fill the rest for the first window."
-assert_equals "┃" "$(_menu_scrollbar_glyph 4 5 5 10 | strip_ansi)" "Scrollbar thumb should reach the bottom for the last window."
-assert_equals "│" "$(_menu_scrollbar_glyph 0 5 5 10 | strip_ansi)" "Scrollbar track should be above the thumb for the last window."
+assert_equals "#" "$(_menu_scrollbar_glyph 0 0 5 10 | strip_ansi)" "Scrollbar thumb should start at the top for the first window."
+assert_equals "|" "$(_menu_scrollbar_glyph 4 0 5 10 | strip_ansi)" "Scrollbar track should fill the rest for the first window."
+assert_equals "#" "$(_menu_scrollbar_glyph 4 5 5 10 | strip_ansi)" "Scrollbar thumb should reach the bottom for the last window."
+assert_equals "|" "$(_menu_scrollbar_glyph 0 5 5 10 | strip_ansi)" "Scrollbar track should be above the thumb for the last window."
 assert_equals "30" "$(_setup_tty_size() { printf "30 120\n"; }; _setup_terminal_rows)" "Terminal rows should come from stty size of the controlling tty."
 assert_equals "42" "$(_setup_tty_size() { :; }; tput() { :; }; LINES=42 _setup_terminal_rows)" "Terminal rows should fall back to LINES without a tty."
 assert_equals "10" "$(_setup_terminal_rows() { echo 30; }; _menu_visible_height)" "Visible height should be capped by the number of items."
 _MENU_LABELS=(a b c d e f g h i j k l m n o p q r s t u v w x y z)
-assert_equals "21" "$(_setup_terminal_rows() { echo 40; }; _menu_visible_height)" "Visible height should fill the viewport minus the reserved lines."
+assert_equals "20" "$(_setup_terminal_rows() { echo 40; }; _menu_visible_height)" "Visible height should fill the viewport minus the reserved lines."
 assert_equals "5" "$(_setup_terminal_rows() { echo 10; }; _menu_visible_height)" "Visible height should keep a minimum on tiny terminals."
 _MENU_LABELS=("Git" "PowerToys")
+_MENU_SELECTED=(1 0)
 
-range_window="$(_draw_menu_window 0 0 1 2)"
-assert_contains "$range_window" "$(styleText -c cyan -- "1")" "First visible item number should use styleText info cyan."
-assert_contains "$range_window" "$(styleText -c cyan -- "2")" "Total item count should use styleText info cyan."
-assert_contains "$range_window" "$(styleText -c gray -- "★")" "Default marker legend should use the discreet gray star."
-assert_contains "$(printf "%s" "$range_window" | strip_ansi)" "seleccionados" "Menu header should show the selected item count."
-assert_contains "$(printf "%s" "$range_window" | strip_ansi)" "🔐 requiere sudo" "Menu legend should explain the sudo badge."
+_SETUP_PLATFORM_DISPLAY_NAME="macOS"
+menu_window="$(_draw_menu_window 0 0 1 2)"
+menu_window_text="$(printf "%s" "$menu_window" | strip_ansi)"
+assert_contains "$menu_window_text" "+- Paquetes - macOS" "Menu header should be a titled box with the platform."
+assert_contains "$menu_window_text" "x 1 de 2 seleccionados  ######......  - mostrando 1-1" "Menu header should show the selection count, a selection bar and the visible range."
+assert_contains "$menu_window" "$(styleText -c cyan -- "1")" "Selected count should use styleText info cyan."
+assert_contains "$menu_window_text" "v Hay más elementos abajo" "Menu should indicate hidden items below."
+assert_contains "$menu_window_text" "- git - install_git - linux, wsl, darwin - * recomendado" "Menu should show the details of the item under the cursor."
+assert_equals "$((SETUP_MENU_HEADER_LINES + 1 + SETUP_MENU_FOOTER_LINES))" "$(printf "%s\n" "$menu_window" | wc -l | tr -d ' ')" "Menu window should keep the line budget used for partial redraws."
+assert_contains "$(_draw_menu_details_line 1 | strip_ansi)" "powertoys - install_powertoys - todas las plataformas - opcional" "Details should describe optional items available everywhere."
 
 reference_output="$(_draw_menu_reference)"
-assert_contains "$(printf "%s" "$reference_output" | strip_ansi)" "╭─ 🧭 Atajos ─" "Reference shortcuts should render inside a titled box."
+assert_contains "$(printf "%s" "$reference_output" | strip_ansi)" "+- Atajos -" "Reference shortcuts should render inside a titled box."
 assert_equals "6" "$(printf "%s\n" "$reference_output" | wc -l | tr -d ' ')" "Two-column reference should use 6 lines (the trailing spacer is trimmed by command substitution)."
 padded_navigation_shortcut="$(printf "%-18s" "Arriba/Abajo/j/k")"
 assert_contains "$reference_output" "$(styleText -c cyan -- "$padded_navigation_shortcut")" "Reference shortcuts should use styleText info cyan."
 
 log_output="$(_setup_log_info "Shared styleText log")"
-assert_contains "$log_output" "$(styleText -c blue -b -- "🔹")" "Setup info logs should use the shared styleText helper with the info icon."
-assert_contains "$(_setup_log_warning "Cuidado" | strip_ansi)" "🚨 Aviso: Cuidado" "Setup warnings should use the warning icon and label."
-assert_contains "$(_setup_log_error "Roto" | strip_ansi)" "❌ Error: Roto" "Setup errors should use the error icon and label."
+assert_contains "$log_output" "$(styleText -c blue -b -- "-")" "Setup info logs should use the shared styleText helper with the info icon."
+assert_contains "$(_setup_log_warning "Cuidado" | strip_ansi)" "! Aviso: Cuidado" "Setup warnings should use the warning icon and label."
+assert_contains "$(_setup_log_error "Roto" | strip_ansi)" "x Error: Roto" "Setup errors should use the error icon and label."
 
 _MENU_LABELS=("Zsh" "Espanso")
 _MENU_DEFAULT_SELECTED=(1 0)
 _MENU_REQUIRES_ADMIN=(1 0)
 _MENU_REQUIRES_RESTART=(0 1)
-assert_equals "★ Zsh 🔐" "$(_menu_display_label 0)" "Recommended admin items should show the star and sudo badge."
-assert_equals "  Espanso 🔁" "$(_menu_display_label 1)" "Optional restart items should align with recommended labels and show the restart badge."
+assert_equals "* Zsh #" "$(_menu_display_label 0)" "Recommended admin items should show the star and sudo badge."
+assert_equals "  Espanso ^" "$(_menu_display_label 1)" "Optional restart items should align with recommended labels and show the restart badge."
 
 assert_equals "45s" "$(_setup_format_duration 45)" "Short durations should be shown in seconds."
 assert_equals "2m 05s" "$(_setup_format_duration 125)" "Long durations should be shown in minutes and seconds."
@@ -505,30 +519,30 @@ _MENU_DEFAULT_SELECTED=(1 1 1 1)
 run_output="$(_run_selected_menu_items 0 2>&1 | strip_ansi)"
 _run_selected_menu_items 0 >/dev/null 2>&1
 summary_output="$(_print_install_summary | strip_ansi)"
-assert_contains "$run_output" "╭─ 📦 [1/4] Fake OK" "Each install should open a numbered frame."
+assert_contains "$run_output" "+- > [1/4] Fake OK" "Each install should open a numbered frame."
 assert_contains "$run_output" "salida real del instalador" "Installer output should stay visible inside the frame."
-assert_contains "$run_output" "╰─ ✅ Fake OK listo" "Successful installs should close the frame with success."
-assert_contains "$run_output" "╰─ ❌ Fake Fail falló" "Failed installs should close the frame with failure."
-assert_contains "$run_output" "╰─ ⏩ [4/4] Fake Skip omitido por plataforma" "Unsupported items should be reported as skipped."
-assert_contains "$summary_output" "╭─ 📊 Resumen" "Summary should render inside a titled box."
-assert_contains "$summary_output" "✅ 2 ok · ❌ 1 fallaron · ⏩ 1 omitidos" "Summary footer should count results."
-assert_contains "$summary_output" "🔁 Algunos cambios requieren reiniciar" "Summary should warn about required restarts."
-assert_contains "$summary_output" "💥 Proceso con 1 error(es)." "Summary should close with the failure status."
+assert_contains "$run_output" "+- + Fake OK listo" "Successful installs should close the frame with success."
+assert_contains "$run_output" "+- x Fake Fail falló" "Failed installs should close the frame with failure."
+assert_contains "$run_output" "+- - [4/4] Fake Skip omitido por plataforma" "Unsupported items should be reported as skipped."
+assert_contains "$summary_output" "+- Resumen" "Summary should render inside a titled box."
+assert_contains "$summary_output" "+ 2 ok - x 1 fallaron - - 1 omitidos" "Summary footer should count results."
+assert_contains "$summary_output" "^ Algunos cambios requieren reiniciar" "Summary should warn about required restarts."
+assert_contains "$summary_output" "x Proceso con 1 error(es)." "Summary should close with the failure status."
 assert_success "Install results should report failures." _setup_install_results_include_failure
 
 _MENU_SELECTED=(1 0 0 0)
 dry_run_output="$(_run_selected_menu_items 1 | strip_ansi)"
 _run_selected_menu_items 1 >/dev/null
 dry_run_summary="$(_print_install_summary | strip_ansi)"
-assert_contains "$dry_run_output" "│ [1/1] se ejecutaría Fake OK" "Dry-run should list items inside the simulation box."
-assert_contains "$dry_run_summary" "🧪 1 en simulación · no se instaló nada" "Dry-run summary should only report the simulation footer."
-assert_not_contains "$dry_run_summary" "│ 🧪 Fake OK" "Dry-run summary should not repeat the item list."
+assert_contains "$dry_run_output" "| [1/1] se ejecutaría Fake OK" "Dry-run should list items inside the simulation box."
+assert_contains "$dry_run_summary" "~ 1 en simulación - no se instaló nada" "Dry-run summary should only report the simulation footer."
+assert_not_contains "$dry_run_summary" "| ~ Fake OK" "Dry-run summary should not repeat the item list."
 
 set_test_platform darwin
 _initialize_menu_catalog
 list_output="$(_list_setup_catalog)"
 assert_contains "$list_output" "$(printf 'jq\tinstall_jq\tjq')" "Piped --list output should keep the tab-separated format."
-assert_not_contains "$list_output" "╭─" "Piped --list output should not include boxes."
+assert_not_contains "$list_output" "+- " "Piped --list output should not include boxes."
 
 _MENU_LABELS=("Git" "GitHub CLI" "PowerToys" "ripgrep")
 _filter_menu_indexes "GIT" 4
@@ -547,15 +561,39 @@ _MENU_REQUIRES_RESTART=(0 0 0)
 _filter_menu_indexes "hub" 3
 search_screen="$(_draw_search_window "hub" 0 5)"
 search_screen_text="$(printf "%s" "$search_screen" | strip_ansi)"
-assert_contains "$search_screen_text" "╭─ 🔎 Buscar paquetes" "Search should render the input inside a titled box."
-assert_contains "$search_screen_text" "❯ hub▏" "Search input should show the prompt, query and cursor."
+assert_contains "$search_screen_text" "+- Buscar paquetes" "Search should render the input inside a titled box."
+assert_contains "$search_screen_text" "> hub_" "Search input should show the prompt, query and cursor."
 assert_contains "$search_screen_text" "1 de 3" "Search input should show the match counter."
 assert_contains "$search_screen_text" "ESPACIO alternar" "Search should show hints on one line."
-assert_contains "$search_screen" "$(styleText -c yellow -b -u -- "Hub")" "Search results should highlight the matching part with the original casing."
+assert_contains "$search_screen" "33;1;4mHub" "Search results should highlight the matching part with the original casing (also on the cursor row)."
 assert_equals "" "${_SETUP_MENU_HIGHLIGHT_QUERY:-}" "Search highlight should not leak into the main menu."
 _filter_menu_indexes "" 3
-assert_contains "$(_draw_search_window "" 0 5 | strip_ansi)" "escribí para filtrar…" "Empty search should show a placeholder."
+assert_contains "$(_draw_search_window "" 0 5 | strip_ansi)" "escribí para filtrar..." "Empty search should show a placeholder."
 _filter_menu_indexes "zzz" 3
-assert_contains "$(_draw_search_window "zzz" 0 5 | strip_ansi)" "🤷 Sin coincidencias para «zzz»" "Search without results should show a friendly empty state."
+assert_contains "$(_draw_search_window "zzz" 0 5 | strip_ansi)" "? Sin coincidencias para \"zzz\"" "Search without results should show a friendly empty state."
+
+assert_failure "Mode flags no longer exist: output is always ASCII." _parse_setup_arguments --ascii
+
+_MENU_LABELS=("Git" "PowerToys")
+_MENU_DEFAULT_SELECTED=(1 0)
+_MENU_SELECTED=(1 0)
+_MENU_REQUIRES_ADMIN=(1 0)
+_MENU_REQUIRES_RESTART=(0 1)
+_MENU_IDS=("git" "powertoys")
+_MENU_FUNCS=("install_git" "install_powertoys")
+_MENU_PLATFORMS=("all" "all")
+_filter_menu_indexes "gi" 2
+ascii_screen="$(
+  _draw_menu_window 0 0 2 2
+  _draw_search_window "gi" 0 2
+  _setup_print_banner 1
+  _setup_log_warning "aviso"
+  _setup_log_success "listo"
+)"
+ascii_text="$(printf "%s" "$ascii_screen" | strip_ansi | LC_ALL=C sed -e 's/á//g; s/é//g; s/í//g; s/ó//g; s/ú//g; s/ñ//g')"
+if printf "%s" "$ascii_text" | LC_ALL=C grep -q '[^ -~[:cntrl:]]'; then
+  printf "ERROR: Setup output should only use ASCII decorations.\n" >&2
+  exit 1
+fi
 
 printf "setup.sh catalog and menu tests passed.\n"

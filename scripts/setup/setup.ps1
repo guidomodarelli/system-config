@@ -2,52 +2,56 @@
 
 $SetupLatestVersionPolicy = 'latest-stable-official'
 
-# Emojis need a terminal that renders them (Windows Terminal, VS Code or any
-# non-Windows host). The classic Windows console gets ASCII markers instead.
-# SETUP_ICONS=always|never overrides the detection.
-function Test-SetupEmojiSupported {
-  switch ($env:SETUP_ICONS) {
-    'always' { return $true }
-    'never' { return $false }
-  }
-
-  if (-not [string]::IsNullOrEmpty($env:WT_SESSION) -or -not [string]::IsNullOrEmpty($env:TERM_PROGRAM)) {
-    return $true
-  }
-
-  return [System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT
-}
-
+# ASCII-only markers: the setup runs on fresh machines and in terminals
+# without Unicode or emoji fonts (same symbols as setup.sh).
 function Get-SetupIcon {
   param (
     [string]$Name
   )
 
-  $emojiIcons = @{
-    App = '🧰'; RealRun = '🚀'; DryRun = '🧪'; Platform = '💻'; Catalog = '📋'
-    Recommended = '★'; Admin = '🔐'; Restart = '🔁'; Package = '📦'; Selected = '✅'
-    Pointer = '👉'; Ok = '✅'; FailedItem = '❌'; Skipped = '⏩'; Info = '🔹'; Warn = '🚨'
-    Error = '❌'; Time = '⌛'; Summary = '📊'; Shortcuts = '🧭'; Search = '🔎'
-    Done = '🎉'; FailedRun = '💥'; NoResults = '🤷'; Prompt = '❯'; InputCursor = '▏'
-  }
   $asciiIcons = @{
-    App = '*'; RealRun = '>'; DryRun = '~'; Platform = '-'; Catalog = '-'
-    Recommended = '*'; Admin = '!'; Restart = '~'; Package = '>'; Selected = 'x'
-    Pointer = '>'; Ok = '[OK]'; FailedItem = '[X]'; Skipped = '[-]'; Info = '[i]'; Warn = '[!]'
-    Error = '[X]'; Time = 't'; Summary = '='; Shortcuts = '?'; Search = '/'
-    Done = '[OK]'; FailedRun = '[X]'; NoResults = '(?)'; Prompt = '>'; InputCursor = '_'
+    App = ''; RealRun = '>'; DryRun = '~'; Platform = ''; Catalog = ''
+    Recommended = '*'; Admin = '#'; Restart = '^'; Package = '>'; Selected = 'x'
+    Pointer = '>'; Ok = '+'; FailedItem = 'x'; Skipped = '-'; Info = '-'; Warn = '!'
+    Error = 'x'; Time = ''; Summary = ''; Shortcuts = ''; Search = ''
+    Done = '+'; FailedRun = 'x'; NoResults = '?'; Prompt = '>'; InputCursor = '_'
+    Checked = '[x]'; Unchecked = '[ ]'
   }
 
-  $icons = if (Test-SetupEmojiSupported) { $emojiIcons } else { $asciiIcons }
-  return $icons[$Name]
+  return [string]$asciiIcons[$Name]
 }
 
-# Blank with the same width as a single-cell marker (emoji: two columns).
-function Get-SetupMarkerBlank {
-  if (Test-SetupEmojiSupported) {
-    return '  '
+# Icon followed by a space, or nothing when the mode has no icon for it.
+function Get-SetupIconPrefix {
+  param (
+    [string]$Name
+  )
+
+  $icon = Get-SetupIcon $Name
+  if ([string]::IsNullOrEmpty($icon)) {
+    return ''
   }
 
+  return "$icon "
+}
+
+# Box, scrollbar, arrow, separator and selection bar glyphs (ASCII only).
+function Get-SetupGlyph {
+  param (
+    [string]$Name
+  )
+
+  $asciiGlyphs = @{
+    BoxTopLeft = '+'; BoxBottomLeft = '+'; BoxVertical = '|'; BoxTee = '+'; BoxHorizontal = '-'
+    ScrollbarThumb = '#'; ScrollbarTrack = '|'; ArrowUp = '^'; ArrowDown = 'v'; Separator = '-'
+    BarFilled = '#'; BarEmpty = '.'
+  }
+
+  return $asciiGlyphs[$Name]
+}
+
+# Blank with the width of the pointer marker.
+function Get-SetupMarkerBlank {
   return ' '
 }
 
@@ -55,28 +59,28 @@ function LogError {
   param (
     [string]$message
   )
-  Write-Host "$(Get-SetupIcon 'Error') Error: $message" -ForegroundColor Red
+  Write-Host "$(Get-SetupIconPrefix 'Error')Error: $message" -ForegroundColor Red
 }
 
 function LogInfo {
   param (
     [string]$message
   )
-  Write-Host "$(Get-SetupIcon 'Info') $message" -ForegroundColor Blue
+  Write-Host "$(Get-SetupIconPrefix 'Info')$message" -ForegroundColor Blue
 }
 
 function LogWarning {
   param (
     [string]$message
   )
-  Write-Host "$(Get-SetupIcon 'Warn') Aviso: $message" -ForegroundColor Yellow
+  Write-Host "$(Get-SetupIconPrefix 'Warn')Aviso: $message" -ForegroundColor Yellow
 }
 
 function LogSuccess {
   param (
     [string]$message
   )
-  Write-Host "$(Get-SetupIcon 'Ok') $message" -ForegroundColor Green
+  Write-Host "$(Get-SetupIconPrefix 'Ok')$message" -ForegroundColor Green
 }
 
 # Boxes are open on the right: emoji width varies between terminals, so only
@@ -87,14 +91,14 @@ function Write-SetupBoxTop {
   )
 
   if ([string]::IsNullOrEmpty($Title)) {
-    Write-Host ('╭' + ('─' * (Get-SetupBoxRuleWidth))) -ForegroundColor DarkGray
+    Write-Host ((Get-SetupGlyph 'BoxTopLeft') + ((Get-SetupGlyph 'BoxHorizontal') * (Get-SetupBoxRuleWidth))) -ForegroundColor DarkGray
     return
   }
 
   $ruleLength = [Math]::Max(1, (Get-SetupBoxRuleWidth) - $Title.Length - 4)
-  Write-Host '╭─ ' -ForegroundColor DarkGray -NoNewline
+  Write-Host ((Get-SetupGlyph 'BoxTopLeft') + (Get-SetupGlyph 'BoxHorizontal') + ' ') -ForegroundColor DarkGray -NoNewline
   Write-Host $Title -ForegroundColor Blue -NoNewline
-  Write-Host (' ' + ('─' * $ruleLength)) -ForegroundColor DarkGray
+  Write-Host (' ' + ((Get-SetupGlyph 'BoxHorizontal') * $ruleLength)) -ForegroundColor DarkGray
 }
 
 function Get-SetupBoxRuleWidth {
@@ -107,16 +111,16 @@ function Write-SetupBoxRow {
     [ConsoleColor]$ForegroundColor = [Console]::ForegroundColor
   )
 
-  Write-Host '│ ' -ForegroundColor DarkGray -NoNewline
+  Write-Host ((Get-SetupGlyph 'BoxVertical') + ' ') -ForegroundColor DarkGray -NoNewline
   Write-Host $Text -ForegroundColor $ForegroundColor
 }
 
 function Write-SetupBoxDivider {
-  Write-Host ('├' + ('─' * (Get-SetupBoxRuleWidth))) -ForegroundColor DarkGray
+  Write-Host ((Get-SetupGlyph 'BoxTee') + ((Get-SetupGlyph 'BoxHorizontal') * (Get-SetupBoxRuleWidth))) -ForegroundColor DarkGray
 }
 
 function Write-SetupBoxBottom {
-  Write-Host ('╰' + ('─' * (Get-SetupBoxRuleWidth))) -ForegroundColor DarkGray
+  Write-Host ((Get-SetupGlyph 'BoxBottomLeft') + ((Get-SetupGlyph 'BoxHorizontal') * (Get-SetupBoxRuleWidth))) -ForegroundColor DarkGray
 }
 
 function Write-SetupBoxClose {
@@ -125,7 +129,7 @@ function Write-SetupBoxClose {
     [ConsoleColor]$ForegroundColor = [Console]::ForegroundColor
   )
 
-  Write-Host '╰─ ' -ForegroundColor DarkGray -NoNewline
+  Write-Host ((Get-SetupGlyph 'BoxBottomLeft') + (Get-SetupGlyph 'BoxHorizontal') + ' ') -ForegroundColor DarkGray -NoNewline
   Write-Host $Text -ForegroundColor $ForegroundColor
 }
 
@@ -162,15 +166,15 @@ function Write-SetupBanner {
     [bool]$DryRun = $false
   )
 
-  $modeText = if ($DryRun) { "$(Get-SetupIcon 'DryRun') simulacion: no se instalara nada" } else { "$(Get-SetupIcon 'RealRun') instalacion" }
+  $modeText = if ($DryRun) { "$(Get-SetupIconPrefix 'DryRun')simulacion: no se instalara nada" } else { "$(Get-SetupIconPrefix 'RealRun')instalacion" }
   $recommendedCount = @($menuCatalog | Where-Object { $_.DefaultSelected }).Count
 
   Write-SetupBoxTop
-  Write-Host '│ ' -ForegroundColor DarkGray -NoNewline
-  Write-Host "$(Get-SetupIcon 'App') setup del sistema" -ForegroundColor Magenta -NoNewline
-  Write-Host ' · ' -ForegroundColor DarkGray -NoNewline
+  Write-Host ((Get-SetupGlyph 'BoxVertical') + ' ') -ForegroundColor DarkGray -NoNewline
+  Write-Host "$(Get-SetupIconPrefix 'App')setup del sistema" -ForegroundColor Magenta -NoNewline
+  Write-Host ' $(Get-SetupGlyph 'Separator') ' -ForegroundColor DarkGray -NoNewline
   Write-Host $modeText
-  Write-SetupBoxRow -Text "$(Get-SetupIcon 'Platform') Windows · $(Get-SetupIcon 'Catalog') $($menuCatalog.Count) items · $(Get-SetupIcon 'Recommended') $recommendedCount recomendados" -ForegroundColor DarkGray
+  Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'Platform')Windows $(Get-SetupGlyph 'Separator') $(Get-SetupIconPrefix 'Catalog')$($menuCatalog.Count) items $(Get-SetupGlyph 'Separator') $(Get-SetupIconPrefix 'Recommended')$recommendedCount recomendados" -ForegroundColor DarkGray
   Write-SetupBoxBottom
 }
 
@@ -899,13 +903,14 @@ function Get-SetupMenuRowSegments {
     [bool]$IsCursor,
     [string]$ScrollbarGlyph = ' ',
     [ConsoleColor]$ScrollbarColor = [ConsoleColor]::DarkGray,
-    [string]$HighlightQuery = ''
+    [string]$HighlightQuery = '',
+    [int]$LabelColumn = 0
   )
 
-  $markerBlank = Get-SetupMarkerBlank
-  $pointer = if ($IsCursor) { Get-SetupIcon 'Pointer' } else { $markerBlank }
-  $selectionMarker = if ($IsSelected) { Get-SetupIcon 'Selected' } else { $markerBlank }
-  $labelColor = if ($IsCursor) { [ConsoleColor]::Cyan } else { [Console]::ForegroundColor }
+  $pointer = if ($IsCursor) { Get-SetupIcon 'Pointer' } else { Get-SetupMarkerBlank }
+  $checkbox = if ($IsSelected) { Get-SetupIcon 'Checked' } else { Get-SetupIcon 'Unchecked' }
+  $checkboxColor = if ($IsSelected) { [ConsoleColor]::Green } else { [ConsoleColor]::DarkGray }
+  $labelColor = if ($IsCursor) { [ConsoleColor]::Cyan } elseif ($IsSelected) { [Console]::ForegroundColor } else { [ConsoleColor]::DarkGray }
 
   $rowBackground = if ($IsCursor) { [ConsoleColor]::DarkGray } else { [Console]::BackgroundColor }
   $defaultForeground = [Console]::ForegroundColor
@@ -914,9 +919,9 @@ function Get-SetupMenuRowSegments {
     New-SetupMenuRowSegment -Text $ScrollbarGlyph -ForegroundColor $ScrollbarColor
     New-SetupMenuRowSegment -Text ' '
     New-SetupMenuRowSegment -Text $pointer -ForegroundColor Cyan -BackgroundColor $rowBackground
-    New-SetupMenuRowSegment -Text ' [' -ForegroundColor $defaultForeground -BackgroundColor $rowBackground
-    New-SetupMenuRowSegment -Text $selectionMarker -ForegroundColor DarkGreen -BackgroundColor $rowBackground
-    New-SetupMenuRowSegment -Text ']  ' -ForegroundColor $defaultForeground -BackgroundColor $rowBackground
+    New-SetupMenuRowSegment -Text ' ' -ForegroundColor $defaultForeground -BackgroundColor $rowBackground
+    New-SetupMenuRowSegment -Text $checkbox -ForegroundColor $checkboxColor -BackgroundColor $rowBackground
+    New-SetupMenuRowSegment -Text '  ' -ForegroundColor $defaultForeground -BackgroundColor $rowBackground
   )
 
   $recommendedColor = if ($IsCursor) { [ConsoleColor]::Gray } else { [ConsoleColor]::DarkGray }
@@ -924,13 +929,54 @@ function Get-SetupMenuRowSegments {
   $segments += New-SetupMenuRowSegment -Text $recommendedText -ForegroundColor $recommendedColor -BackgroundColor $rowBackground
   $segments += New-SetupMenuRowSegment -Text ' ' -BackgroundColor $rowBackground
   $segments += @(Get-SetupMenuLabelSegments -Label $menuItem.Label -HighlightQuery $HighlightQuery -ForegroundColor $labelColor -BackgroundColor $rowBackground)
-  $segments += New-SetupMenuRowSegment -Text (Get-SetupMenuItemBadges -menuItem $menuItem) -ForegroundColor $defaultForeground -BackgroundColor $rowBackground
+  $segments += @(Get-SetupMenuTagSegments -menuItem $menuItem -LabelColumn $LabelColumn -BackgroundColor $rowBackground)
 
   if ($IsCursor) {
     $segments += New-SetupMenuRowSegment -Text (' ' * (Get-SetupMenuHighlightPadding -Segments $segments)) -ForegroundColor $defaultForeground -BackgroundColor $rowBackground
   }
 
   return $segments
+}
+
+# Right-side tags after the label column: sudo/admin and restart requirements.
+function Get-SetupMenuTagSegments {
+  param (
+    [PSCustomObject]$menuItem,
+    [int]$LabelColumn,
+    [ConsoleColor]$BackgroundColor
+  )
+
+  $tags = @()
+  if ($menuItem.RequiresAdmin) {
+    $tags += New-SetupMenuRowSegment -Text "$(Get-SetupIconPrefix 'Admin')admin" -ForegroundColor Yellow -BackgroundColor $BackgroundColor
+  }
+  if ($menuItem.RequiresRestart) {
+    $tags += New-SetupMenuRowSegment -Text "$(Get-SetupIconPrefix 'Restart')reinicio" -ForegroundColor Blue -BackgroundColor $BackgroundColor
+  }
+  if ($tags.Count -eq 0) {
+    return @()
+  }
+
+  $segments = @(New-SetupMenuRowSegment -Text (' ' * [Math]::Max(2, $LabelColumn - $menuItem.Label.Length + 2)) -BackgroundColor $BackgroundColor)
+  for ($tagIndex = 0; $tagIndex -lt $tags.Count; $tagIndex++) {
+    if ($tagIndex -gt 0) {
+      $segments += New-SetupMenuRowSegment -Text '  ' -BackgroundColor $BackgroundColor
+    }
+    $segments += $tags[$tagIndex]
+  }
+  return $segments
+}
+
+function Get-SetupMenuLabelColumn {
+  param (
+    [PSCustomObject[]]$menuCatalog
+  )
+
+  $longestLabel = 0
+  foreach ($menuItem in $menuCatalog) {
+    $longestLabel = [Math]::Max($longestLabel, $menuItem.Label.Length)
+  }
+  return [Math]::Min(40, $longestLabel)
 }
 
 # Splits the label so the part matching the search query is shown in yellow.
@@ -963,15 +1009,14 @@ function Get-SetupMenuHighlightWidth {
   return 58
 }
 
-# Columns left to reach the highlight width. Astral emojis already count as two
-# UTF-16 units; the BMP check mark is two columns but one unit.
+# Columns left to reach the highlight width.
 function Get-SetupMenuHighlightPadding {
   param (
     [PSCustomObject[]]$Segments
   )
 
   $rowText = (@($Segments | Select-Object -Skip 2) | ForEach-Object Text) -join ''
-  $visibleColumns = $rowText.Length + ([regex]::Matches($rowText, '✅')).Count
+  $visibleColumns = $rowText.Length
   return [Math]::Max(1, (Get-SetupMenuHighlightWidth) - $visibleColumns)
 }
 
@@ -994,10 +1039,10 @@ function Get-SetupMenuScrollbarGlyph {
   $thumbStart = [Math]::Floor($WindowStartIndex * ($VisibleItemCount - $thumbSize) / $maxWindowStart)
 
   if ($RowPosition -ge $thumbStart -and $RowPosition -lt ($thumbStart + $thumbSize)) {
-    return [PSCustomObject]@{ Glyph = '┃'; Color = [ConsoleColor]::Cyan }
+    return [PSCustomObject]@{ Glyph = (Get-SetupGlyph 'ScrollbarThumb'); Color = [ConsoleColor]::Cyan }
   }
 
-  return [PSCustomObject]@{ Glyph = '│'; Color = [ConsoleColor]::DarkGray }
+  return [PSCustomObject]@{ Glyph = (Get-SetupGlyph 'ScrollbarTrack'); Color = [ConsoleColor]::DarkGray }
 }
 
 function Get-DefaultSetupMenuIndexes {
@@ -1022,11 +1067,12 @@ function Write-SetupMenuRow {
     [bool]$IsCursor,
     [string]$ScrollbarGlyph = ' ',
     [ConsoleColor]$ScrollbarColor = [ConsoleColor]::DarkGray,
-    [string]$HighlightQuery = ''
+    [string]$HighlightQuery = '',
+    [int]$LabelColumn = 0
   )
 
   Write-ClearedSetupMenuLineStart
-  $rowSegments = Get-SetupMenuRowSegments -menuItem $menuItem -IsSelected $IsSelected -IsCursor $IsCursor -ScrollbarGlyph $ScrollbarGlyph -ScrollbarColor $ScrollbarColor -HighlightQuery $HighlightQuery
+  $rowSegments = Get-SetupMenuRowSegments -menuItem $menuItem -IsSelected $IsSelected -IsCursor $IsCursor -ScrollbarGlyph $ScrollbarGlyph -ScrollbarColor $ScrollbarColor -HighlightQuery $HighlightQuery -LabelColumn $LabelColumn
   foreach ($rowSegment in $rowSegments) {
     Write-Host $rowSegment.Text -ForegroundColor $rowSegment.ForegroundColor -BackgroundColor $rowSegment.BackgroundColor -NoNewline
   }
@@ -1054,28 +1100,13 @@ function Get-SetupMenuReferenceRows {
     New-SetupMenuReferenceRow -Shortcut '/' -Description 'buscar'
     New-SetupMenuReferenceRow -Shortcut 'ESPACIO' -Description 'alternar'
     New-SetupMenuReferenceRow -Shortcut 'a' -Description 'alternar todo'
-    New-SetupMenuReferenceRow -Shortcut 'r' -Description 'restaurar defaults'
+    New-SetupMenuReferenceRow -Shortcut 'd' -Description 'restaurar defaults'
     New-SetupMenuReferenceRow -Shortcut 'ENTER' -Description 'confirmar'
     New-SetupMenuReferenceRow -Shortcut 'q/ESC/Ctrl+C/D' -Description 'cancelar'
   )
 }
 
-function Get-SetupMenuDefaultMarkerSegments {
-  return @(
-    New-SetupMenuRowSegment -Text '  '
-    New-SetupMenuRowSegment -Text (Get-SetupIcon 'Recommended') -ForegroundColor DarkGray
-    New-SetupMenuRowSegment -Text " recomendado · $(Get-SetupIcon 'Admin') requiere admin · $(Get-SetupIcon 'Restart') requiere reinicio"
-  )
-}
 
-function Write-SetupMenuDefaultMarkerLegend {
-  Write-ClearedSetupMenuLineStart
-  $defaultMarkerSegments = Get-SetupMenuDefaultMarkerSegments
-  foreach ($defaultMarkerSegment in $defaultMarkerSegments) {
-    Write-Host $defaultMarkerSegment.Text -ForegroundColor $defaultMarkerSegment.ForegroundColor -BackgroundColor $defaultMarkerSegment.BackgroundColor -NoNewline
-  }
-  Write-Host ''
-}
 
 function Get-SetupMenuReferenceFrameColor {
   return [ConsoleColor]::DarkGray
@@ -1084,11 +1115,11 @@ function Get-SetupMenuReferenceFrameColor {
 
 function Write-SetupMenuReference {
   Write-Host ''
-  Write-SetupBoxTop -Title "$(Get-SetupIcon 'Shortcuts') Atajos"
+  Write-SetupBoxTop -Title "$(Get-SetupIconPrefix 'Shortcuts')Atajos"
 
   $referenceRows = @(Get-SetupMenuReferenceRows)
   for ($rowIndex = 0; $rowIndex -lt $referenceRows.Count; $rowIndex += 2) {
-    Write-Host '│ ' -ForegroundColor (Get-SetupMenuReferenceFrameColor) -NoNewline
+    Write-Host ((Get-SetupGlyph 'BoxVertical') + ' ') -ForegroundColor (Get-SetupMenuReferenceFrameColor) -NoNewline
     foreach ($referenceRow in @($referenceRows[$rowIndex..([Math]::Min($rowIndex + 1, $referenceRows.Count - 1))])) {
       Write-Host ('{0,-18}' -f $referenceRow.Shortcut) -ForegroundColor $referenceRow.ShortcutColor -NoNewline
       Write-Host (' {0,-20}' -f $referenceRow.Description) -NoNewline
@@ -1100,47 +1131,7 @@ function Write-SetupMenuReference {
   Write-Host ''
 }
 
-function Get-SetupMenuRangeSegments {
-  param (
-    [int]$FirstVisibleItemNumber,
-    [int]$LastVisibleItemNumber,
-    [int]$TotalItemCount,
-    [int]$SelectedItemCount = -1
-  )
 
-  $segments = @(
-    New-SetupMenuRowSegment -Text "  $(Get-SetupIcon 'Catalog') Elementos "
-    New-SetupMenuRowSegment -Text $FirstVisibleItemNumber -ForegroundColor DarkCyan
-    New-SetupMenuRowSegment -Text '-'
-    New-SetupMenuRowSegment -Text $LastVisibleItemNumber -ForegroundColor DarkCyan
-    New-SetupMenuRowSegment -Text ' de '
-    New-SetupMenuRowSegment -Text $TotalItemCount -ForegroundColor DarkCyan
-  )
-
-  if ($SelectedItemCount -ge 0) {
-    $segments += New-SetupMenuRowSegment -Text " · $(Get-SetupIcon 'Selected') "
-    $segments += New-SetupMenuRowSegment -Text $SelectedItemCount -ForegroundColor DarkCyan
-    $segments += New-SetupMenuRowSegment -Text ' seleccionados'
-  }
-
-  return $segments
-}
-
-function Write-SetupMenuRange {
-  param (
-    [int]$FirstVisibleItemNumber,
-    [int]$LastVisibleItemNumber,
-    [int]$TotalItemCount,
-    [int]$SelectedItemCount = -1
-  )
-
-  Write-ClearedSetupMenuLineStart
-  $rangeSegments = Get-SetupMenuRangeSegments -FirstVisibleItemNumber $FirstVisibleItemNumber -LastVisibleItemNumber $LastVisibleItemNumber -TotalItemCount $TotalItemCount -SelectedItemCount $SelectedItemCount
-  foreach ($rangeSegment in $rangeSegments) {
-    Write-Host $rangeSegment.Text -ForegroundColor $rangeSegment.ForegroundColor -BackgroundColor $rangeSegment.BackgroundColor -NoNewline
-  }
-  Write-Host ''
-}
 
 function Write-ClassicSetupMenu {
   param (
@@ -1152,29 +1143,76 @@ function Write-ClassicSetupMenu {
   )
 
   $windowEndIndex = $windowStartIndex + $visibleItemCount
-  Write-SetupMenuRange -FirstVisibleItemNumber ($windowStartIndex + 1) -LastVisibleItemNumber $windowEndIndex -TotalItemCount $menuCatalog.Count -SelectedItemCount $selectedIndexes.Count
-  Write-SetupMenuDefaultMarkerLegend
-  Write-ClearedSetupMenuLine -text ''
+  $labelColumn = Get-SetupMenuLabelColumn -menuCatalog $menuCatalog
+  Write-SetupMenuHeader -SelectedItemCount $selectedIndexes.Count -TotalItemCount $menuCatalog.Count -FirstVisibleItemNumber ($windowStartIndex + 1) -LastVisibleItemNumber $windowEndIndex
 
   if ($windowStartIndex -gt 0) {
-    Write-ClearedSetupMenuLine -text '  ↑ Hay mas elementos arriba'
+    Write-ClearedSetupMenuLine -text "  $(Get-SetupGlyph 'ArrowUp') Hay mas elementos arriba" -ForegroundColor DarkGray
   } else {
     Write-ClearedSetupMenuLine -text ''
   }
 
   for ($menuIndex = $windowStartIndex; $menuIndex -lt $windowEndIndex; $menuIndex++) {
     $scrollbar = Get-SetupMenuScrollbarGlyph -RowPosition ($menuIndex - $windowStartIndex) -WindowStartIndex $windowStartIndex -VisibleItemCount $visibleItemCount -ItemCount $menuCatalog.Count
-    Write-SetupMenuRow -menuItem $menuCatalog[$menuIndex] -IsSelected $selectedIndexes.Contains($menuIndex) -IsCursor ($menuIndex -eq $cursorIndex) -ScrollbarGlyph $scrollbar.Glyph -ScrollbarColor $scrollbar.Color
+    Write-SetupMenuRow -menuItem $menuCatalog[$menuIndex] -IsSelected $selectedIndexes.Contains($menuIndex) -IsCursor ($menuIndex -eq $cursorIndex) -ScrollbarGlyph $scrollbar.Glyph -ScrollbarColor $scrollbar.Color -LabelColumn $labelColumn
   }
 
   if ($windowEndIndex -lt $menuCatalog.Count) {
-    Write-ClearedSetupMenuLine -text '  ↓ Hay mas elementos abajo'
+    Write-ClearedSetupMenuLine -text "  $(Get-SetupGlyph 'ArrowDown') Hay mas elementos abajo" -ForegroundColor DarkGray
   } else {
     Write-ClearedSetupMenuLine -text ''
   }
+  Write-SetupMenuDetailsLine -menuItem $menuCatalog[$cursorIndex]
 }
 
-# Rows start after range, legend, spacer and top indicator.
+# Header box: title, selection count, selection bar and visible range.
+function Write-SetupMenuHeader {
+  param (
+    [int]$SelectedItemCount,
+    [int]$TotalItemCount,
+    [int]$FirstVisibleItemNumber,
+    [int]$LastVisibleItemNumber
+  )
+
+  $barWidth = 12
+  $filledWidth = if ($TotalItemCount -gt 0) { [int][Math]::Floor($SelectedItemCount * $barWidth / $TotalItemCount) } else { 0 }
+  $separator = Get-SetupGlyph 'Separator'
+
+  Write-ClearedSetupMenuLineStart
+  Write-SetupBoxTop -Title "$(Get-SetupIconPrefix 'Catalog')Paquetes $separator Windows"
+  Write-ClearedSetupMenuLineStart
+  Write-Host ((Get-SetupGlyph 'BoxVertical') + ' ') -ForegroundColor DarkGray -NoNewline
+  Write-Host "$(Get-SetupIconPrefix 'Selected')" -NoNewline
+  Write-Host $SelectedItemCount -ForegroundColor DarkCyan -NoNewline
+  Write-Host " de $TotalItemCount seleccionados  " -NoNewline
+  Write-Host ((Get-SetupGlyph 'BarFilled') * $filledWidth) -ForegroundColor Green -NoNewline
+  Write-Host ((Get-SetupGlyph 'BarEmpty') * ($barWidth - $filledWidth)) -ForegroundColor DarkGray -NoNewline
+  Write-Host "  $separator mostrando $FirstVisibleItemNumber-$LastVisibleItemNumber" -ForegroundColor DarkGray
+  Write-ClearedSetupMenuLineStart
+  Write-SetupBoxBottom
+}
+
+# Details of the item under the cursor: id, function, platforms and whether it
+# is recommended.
+function Write-SetupMenuDetailsLine {
+  param (
+    [PSCustomObject]$menuItem
+  )
+
+  Write-ClearedSetupMenuLine -text (Get-SetupMenuDetailsText -menuItem $menuItem) -ForegroundColor DarkGray
+}
+
+function Get-SetupMenuDetailsText {
+  param (
+    [PSCustomObject]$menuItem
+  )
+
+  $separator = Get-SetupGlyph 'Separator'
+  $recommendation = if ($menuItem.DefaultSelected) { "$(Get-SetupIcon 'Recommended') recomendado" } else { 'opcional' }
+  return "  $(Get-SetupIconPrefix 'Info')$($menuItem.Id) $separator $($menuItem.FunctionName) $separator $($menuItem.Platforms -replace ',', ', ') $separator $recommendation"
+}
+
+# Rows start after the header box (3 lines) and the top indicator.
 function Get-ClassicSetupMenuItemRowOffset {
   param (
     [int]$menuIndex,
@@ -1214,7 +1252,7 @@ function Write-ClassicSetupMenuItemRowAt {
   $rowTop = $menuTop + (Get-ClassicSetupMenuItemRowOffset -menuIndex $menuIndex -windowStartIndex $windowStartIndex)
   [Console]::SetCursorPosition(0, $rowTop)
   $scrollbar = Get-SetupMenuScrollbarGlyph -RowPosition ($menuIndex - $windowStartIndex) -WindowStartIndex $windowStartIndex -VisibleItemCount $visibleItemCount -ItemCount $menuCatalog.Count
-  Write-SetupMenuRow -menuItem $menuCatalog[$menuIndex] -IsSelected $selectedIndexes.Contains($menuIndex) -IsCursor ($menuIndex -eq $cursorIndex) -ScrollbarGlyph $scrollbar.Glyph -ScrollbarColor $scrollbar.Color
+  Write-SetupMenuRow -menuItem $menuCatalog[$menuIndex] -IsSelected $selectedIndexes.Contains($menuIndex) -IsCursor ($menuIndex -eq $cursorIndex) -ScrollbarGlyph $scrollbar.Glyph -ScrollbarColor $scrollbar.Color -LabelColumn (Get-SetupMenuLabelColumn -menuCatalog $menuCatalog)
 }
 
 # Search screen: input box with prompt, cursor and match counter, one hint
@@ -1235,10 +1273,10 @@ function Write-SearchSetupMenu {
   $inputPadding = [Math]::Max(1, (Get-SetupBoxRuleWidth) - $inputText.Length - $counterText.Length - 6)
 
   Write-ClearedSetupMenuLineStart
-  Write-SetupBoxTop -Title "$(Get-SetupIcon 'Search') Buscar paquetes"
+  Write-SetupBoxTop -Title "$(Get-SetupIconPrefix 'Search')Buscar paquetes"
   Write-ClearedSetupMenuLineStart
-  Write-Host '│ ' -ForegroundColor DarkGray -NoNewline
-  Write-Host "$(Get-SetupIcon 'Prompt') " -ForegroundColor Magenta -NoNewline
+  Write-Host ((Get-SetupGlyph 'BoxVertical') + ' ') -ForegroundColor DarkGray -NoNewline
+  Write-Host "$(Get-SetupIconPrefix 'Prompt')" -ForegroundColor Magenta -NoNewline
   if ([string]::IsNullOrEmpty($query)) {
     Write-Host (Get-SetupIcon 'InputCursor') -ForegroundColor Cyan -NoNewline
     Write-Host $inputText -ForegroundColor DarkGray -NoNewline
@@ -1252,7 +1290,7 @@ function Write-SearchSetupMenu {
   Write-SetupBoxBottom
 
   Write-ClearedSetupMenuLineStart
-  foreach ($hint in @(@('↑/↓', 'mover'), @('ESPACIO', 'alternar'), @('ENTER', 'volver'), @('ESC', 'cancelar'))) {
+  foreach ($hint in @(@("$(Get-SetupGlyph 'ArrowUp')/$(Get-SetupGlyph 'ArrowDown')", 'mover'), @('ESPACIO', 'alternar'), @('ENTER', 'volver'), @('ESC', 'cancelar'))) {
     Write-Host "  $($hint[0])" -ForegroundColor DarkCyan -NoNewline
     Write-Host " $($hint[1])" -ForegroundColor DarkGray -NoNewline
   }
@@ -1330,15 +1368,15 @@ function Get-FilteredSetupMenuIndexes {
 
 # Fills the window down to its last line; the list scrolls when it is taller.
 # Reserved lines: leading blank + banner (5), shortcuts box with blank lines
-# around it (8), window header (4), bottom indicator (1) and the resting
-# cursor line (1).
+# around it (8), window header (4), bottom indicator (1), details line (1) and
+# the resting cursor line (1).
 function Get-SetupMenuVisibleItemCount {
   param (
     [int]$itemCount,
     [int]$WindowHeight = [Console]::WindowHeight
   )
 
-  $visibleItemCount = $WindowHeight - 19
+  $visibleItemCount = $WindowHeight - 20
   if ($visibleItemCount -lt 5) {
     $visibleItemCount = 5
   }
@@ -1355,7 +1393,7 @@ function Get-ClassicSetupMenuRenderedLineCount {
     [int]$visibleItemCount
   )
 
-  return $visibleItemCount + (Get-ClassicSetupMenuHeaderLineCount) + 1
+  return $visibleItemCount + (Get-ClassicSetupMenuHeaderLineCount) + 2
 }
 
 function Get-SetupMenuWindowStartIndex {
@@ -1427,7 +1465,7 @@ function Read-SetupMenuKey {
     return 'All'
   }
 
-  if ($key.KeyChar -eq 'r' -or $key.KeyChar -eq 'R') {
+  if ($key.KeyChar -eq 'd' -or $key.KeyChar -eq 'D') {
     return 'Defaults'
   }
 
@@ -1677,6 +1715,8 @@ function Select-SetupMenuClassic {
       } elseif ($previousCursorIndex -ne $cursorIndex) {
         Write-ClassicSetupMenuItemRowAt -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -menuIndex $previousCursorIndex -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -menuTop $menuTop -visibleItemCount $visibleItemCount
         Write-ClassicSetupMenuItemRowAt -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -menuIndex $cursorIndex -cursorIndex $cursorIndex -windowStartIndex $windowStartIndex -menuTop $menuTop -visibleItemCount $visibleItemCount
+        [Console]::SetCursorPosition(0, $menuTop + $renderedLineCount - 1)
+        Write-SetupMenuDetailsLine -menuItem $menuCatalog[$cursorIndex]
       }
 
       [Console]::SetCursorPosition(0, $menuTop + $renderedLineCount)
@@ -1701,7 +1741,7 @@ function Invoke-SelectedSetupMenuItems {
 
   if ($DryRun) {
     Write-Host ''
-    Write-SetupBoxTop -Title "$(Get-SetupIcon 'DryRun') Simulacion"
+    Write-SetupBoxTop -Title "$(Get-SetupIconPrefix 'DryRun')Simulacion"
   }
 
   foreach ($selectedIndex in $sortedIndexes) {
@@ -1717,12 +1757,12 @@ function Invoke-SelectedSetupMenuItems {
 
     Write-Host ''
     if (-not (Test-SetupMenuItemSupportsCurrentPlatform -Platforms $menuItem.Platforms)) {
-      Write-SetupBoxClose -Text "$(Get-SetupIcon 'Skipped') $positionText $($menuItem.Label) omitido por plataforma" -ForegroundColor Yellow
+      Write-SetupBoxClose -Text "$(Get-SetupIconPrefix 'Skipped')$positionText $($menuItem.Label) omitido por plataforma" -ForegroundColor Yellow
       $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'Omitido'; Detail = 'Plataforma no soportada'; RequiresRestart = $false; DurationSeconds = 0 }
       continue
     }
 
-    Write-SetupBoxTop -Title "$(Get-SetupIcon 'Package') $positionText $($menuItem.Label)"
+    Write-SetupBoxTop -Title "$(Get-SetupIconPrefix 'Package')$positionText $($menuItem.Label)"
     $startedAt = Get-Date
     try {
       $global:LASTEXITCODE = 0
@@ -1732,11 +1772,11 @@ function Invoke-SelectedSetupMenuItems {
       }
 
       $durationSeconds = [int]((Get-Date) - $startedAt).TotalSeconds
-      Write-SetupBoxClose -Text "$(Get-SetupIcon 'Ok') $($menuItem.Label) listo · $(Get-SetupIcon 'Time') $(Format-SetupDuration -TotalSeconds $durationSeconds)" -ForegroundColor Green
+      Write-SetupBoxClose -Text "$(Get-SetupIconPrefix 'Ok')$($menuItem.Label) listo $(Get-SetupGlyph 'Separator') $(Get-SetupIconPrefix 'Time')$(Format-SetupDuration -TotalSeconds $durationSeconds)" -ForegroundColor Green
       $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'OK'; Detail = ''; RequiresRestart = $menuItem.RequiresRestart; DurationSeconds = $durationSeconds }
     } catch {
       $durationSeconds = [int]((Get-Date) - $startedAt).TotalSeconds
-      Write-SetupBoxClose -Text "$(Get-SetupIcon 'FailedItem') $($menuItem.Label) fallo: $($_.Exception.Message)" -ForegroundColor Red
+      Write-SetupBoxClose -Text "$(Get-SetupIconPrefix 'FailedItem')$($menuItem.Label) fallo: $($_.Exception.Message)" -ForegroundColor Red
       $results += [PSCustomObject]@{ Label = $menuItem.Label; Status = 'Falló'; Detail = $_.Exception.Message; RequiresRestart = $false; DurationSeconds = $durationSeconds }
     }
   }
@@ -1756,15 +1796,15 @@ function Confirm-SetupMenuSelection {
   )
 
   Write-Host ''
-  Write-SetupBoxTop -Title "$(Get-SetupIcon 'Catalog') Se van a procesar ($($selectedIndexes.Count))"
+  Write-SetupBoxTop -Title "$(Get-SetupIconPrefix 'Catalog')Se van a procesar ($($selectedIndexes.Count))"
   foreach ($selectedIndex in $selectedIndexes | Sort-Object) {
     Write-SetupBoxRow -Text (Get-SetupMenuDisplayLabel -menuItem $menuCatalog[$selectedIndex])
   }
   Write-SetupBoxDivider
   if ($DryRun) {
-    Write-SetupBoxRow -Text "$(Get-SetupIcon 'DryRun') Simulacion: no se instalara nada." -ForegroundColor Yellow
+    Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'DryRun')Simulacion: no se instalara nada." -ForegroundColor Yellow
   }
-  Write-SetupBoxRow -Text 'ENTER continuar · q/ESC/Ctrl+C/D cancelar'
+  Write-SetupBoxRow -Text "ENTER continuar $(Get-SetupGlyph 'Separator') q/ESC/Ctrl+C/D cancelar"
   Write-SetupBoxBottom
 
   $previousTreatControlCAsInput = [Console]::TreatControlCAsInput
@@ -1798,35 +1838,35 @@ function Write-SetupExecutionSummary {
   if ($null -eq $totalSeconds) { $totalSeconds = 0 }
 
   Write-Host ''
-  Write-SetupBoxTop -Title "$(Get-SetupIcon 'Summary') Resumen"
+  Write-SetupBoxTop -Title "$(Get-SetupIconPrefix 'Summary')Resumen"
   foreach ($result in $results) {
     $label = '{0,-32}' -f $result.Label
     $durationText = Format-SetupDuration -TotalSeconds ([int]$result.DurationSeconds)
     if ($result.Status -eq 'OK') {
-      Write-SetupBoxRow -Text "$(Get-SetupIcon 'Ok') $label $durationText" -ForegroundColor Green
+      Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'Ok')$label $durationText" -ForegroundColor Green
     } elseif ($result.Status -eq 'Omitido') {
-      Write-SetupBoxRow -Text "$(Get-SetupIcon 'Skipped') $label omitido por plataforma" -ForegroundColor Yellow
+      Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'Skipped')$label omitido por plataforma" -ForegroundColor Yellow
     } elseif ($result.Status -ne 'Dry-run') {
-      Write-SetupBoxRow -Text "$(Get-SetupIcon 'FailedItem') $(Get-SetupFailureSummaryMessage -Label $result.Label -Detail $result.Detail)" -ForegroundColor Red
+      Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'FailedItem')$(Get-SetupFailureSummaryMessage -Label $result.Label -Detail $result.Detail)" -ForegroundColor Red
     }
   }
 
   Write-SetupBoxDivider
   if ($dryRunCount -gt 0) {
-    Write-SetupBoxRow -Text "$(Get-SetupIcon 'DryRun') $dryRunCount en simulacion · no se instalo nada"
+    Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'DryRun')$dryRunCount en simulacion $(Get-SetupGlyph 'Separator') no se instalo nada"
   } else {
-    Write-SetupBoxRow -Text "$(Get-SetupIcon 'Ok') $okCount ok · $(Get-SetupIcon 'FailedItem') $($failedResults.Count) fallaron · $(Get-SetupIcon 'Skipped') $skippedCount omitidos · $(Get-SetupIcon 'Time') $(Format-SetupDuration -TotalSeconds ([int]$totalSeconds))"
+    Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'Ok')$okCount ok $(Get-SetupGlyph 'Separator') $(Get-SetupIconPrefix 'FailedItem')$($failedResults.Count) fallaron $(Get-SetupGlyph 'Separator') $(Get-SetupIconPrefix 'Skipped')$skippedCount omitidos $(Get-SetupGlyph 'Separator') $(Get-SetupIconPrefix 'Time')$(Format-SetupDuration -TotalSeconds ([int]$totalSeconds))"
   }
 
   $restartRequired = @($results | Where-Object { $_.Status -eq 'OK' -and $_.RequiresRestart }).Count -gt 0
   if ($restartRequired) {
-    Write-SetupBoxRow -Text "$(Get-SetupIcon 'Restart') Algunos cambios requieren reiniciar o abrir una nueva sesión para aplicarse." -ForegroundColor Yellow
+    Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'Restart')Algunos cambios requieren reiniciar o abrir una nueva sesión para aplicarse." -ForegroundColor Yellow
   }
 
   if ($failedResults.Count -gt 0) {
-    Write-SetupBoxRow -Text "$(Get-SetupIcon 'FailedRun') Proceso con $($failedResults.Count) error(es)." -ForegroundColor Red
+    Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'FailedRun')Proceso con $($failedResults.Count) error(es)." -ForegroundColor Red
   } else {
-    Write-SetupBoxRow -Text "$(Get-SetupIcon 'Done') Proceso completo." -ForegroundColor Green
+    Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'Done')Proceso completo." -ForegroundColor Green
   }
   Write-SetupBoxBottom
 }
@@ -1959,14 +1999,14 @@ function Write-SetupCatalogList {
     return
   }
 
-  Write-SetupBoxTop -Title "$(Get-SetupIcon 'Catalog') Catalogo · Windows ($($menuCatalog.Count))"
+  Write-SetupBoxTop -Title "$(Get-SetupIconPrefix 'Catalog')Catalogo $(Get-SetupGlyph 'Separator') Windows ($($menuCatalog.Count))"
   foreach ($menuItem in $menuCatalog) {
-    Write-Host '│ ' -ForegroundColor DarkGray -NoNewline
+    Write-Host ((Get-SetupGlyph 'BoxVertical') + ' ') -ForegroundColor DarkGray -NoNewline
     Write-Host ('{0,-22} ' -f $menuItem.Id) -ForegroundColor DarkCyan -NoNewline
     Write-Host (Get-SetupMenuDisplayLabel -menuItem $menuItem)
   }
   Write-SetupBoxDivider
-  Write-SetupBoxRow -Text "$(Get-SetupIcon 'Recommended') recomendado · $(Get-SetupIcon 'Admin') requiere admin · $(Get-SetupIcon 'Restart') requiere reinicio" -ForegroundColor DarkGray
+  Write-SetupBoxRow -Text "$(Get-SetupIconPrefix 'Recommended')recomendado $(Get-SetupGlyph 'Separator') $(Get-SetupIconPrefix 'Admin')requiere admin $(Get-SetupGlyph 'Separator') $(Get-SetupIconPrefix 'Restart')requiere reinicio" -ForegroundColor DarkGray
   Write-SetupBoxBottom
 }
 
@@ -2001,7 +2041,12 @@ function Invoke-SetupItemsByIdentifier {
   }
 }
 
-$parsedArguments = ConvertTo-SetupArguments -Arguments $args
+try {
+  $parsedArguments = ConvertTo-SetupArguments -Arguments $args
+} catch {
+  LogError $_.Exception.Message
+  exit 1
+}
 
 if ($parsedArguments.ShowHelp) {
   Write-Host (Get-SetupUsage)
