@@ -20,6 +20,16 @@
       "id": 3,
       "prompt": "Aplicá traceability-only sobre un PR existente para agregar o normalizar backlink Jira. El body actual ya tiene sus secciones y no debe retemplarse.",
       "expected_output": "No agrega ni recalcula la línea de metadata de archivos; modifica únicamente backlink Jira permitido, preserva título y contenido protegido, y verifica el body resultante."
+    },
+    {
+      "id": 5,
+      "prompt": "Componé un body nuevo de PR en full composition para un diff que solo modifica `.agents/skills/logger/SKILL.md`, `AGENTS.md` y `docs/setup.md`.",
+      "expected_output": "El body muestra `<div align=\"right\"><sup>📄 Archivos de código modificados: 0</sup></div>`; en **Pruebas Manuales** reemplaza entorno y pasos por una única línea `No aplica: <motivo>`; no incluye blockquotes de instrucciones, separadores `---` ni una sección **Decisiones técnicas relevantes**."
+    },
+    {
+      "id": 6,
+      "prompt": "Componé un body nuevo de PR en full composition para un diff que cambia `api/services/orders.ts` eligiendo reintentos solo para errores temporales en lugar de reintentar todo.",
+      "expected_output": "La decisión de reintentar solo errores temporales aparece dentro de **Notas para el Revisor** junto con dónde enfocar la revisión; no existe una sección separada **Decisiones técnicas relevantes** y **Pruebas Manuales** lista pasos reproducibles."
     }
   ]
 }
