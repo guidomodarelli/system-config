@@ -223,6 +223,26 @@
       $global:LASTEXITCODE | Should -Be 0
     }
 
+    It 'Install-PowerShell instala el MSI oficial en vez del paquete MSIX' {
+      Mock Test-WingetPackageInstalled { $false }
+      Mock winget { $global:LASTEXITCODE = 0 }
+
+      Install-PowerShell
+
+      Should -Invoke winget -Times 1 -Exactly -ParameterFilter {
+        ($args -join ' ') -like 'install --exact --id Microsoft.PowerShell --installer-type wix *'
+      }
+    }
+
+    It 'no fuerza tipo de instalador cuando no se pide' {
+      Mock Test-WingetPackageInstalled { $false }
+      Mock winget { $global:LASTEXITCODE = 0 }
+
+      Install-WingetPackage -appIds @('Example.Tool')
+
+      Should -Invoke winget -Times 0 -Exactly -ParameterFilter { $args -contains '--installer-type' }
+    }
+
     It 'Install-Gh usa el id oficial de winget' {
       Mock winget { $global:LASTEXITCODE = 0 }
 

@@ -337,12 +337,15 @@ function Test-WingetIdempotentSuccessExitCode {
 
 function Install-WingetPackage {
   param (
-    [string[]]$appIds
+    [string[]]$appIds,
+    # Fuerza un tipo de instalador de winget (por ejemplo `wix` para el MSI) cuando el default no conviene.
+    [string]$InstallerType
   )
+  $installerTypeArguments = if ([string]::IsNullOrWhiteSpace($InstallerType)) { @() } else { @('--installer-type', $InstallerType) }
   foreach ($appId in $appIds) {
     if (Test-WingetPackageInstalled -AppId $appId) {
       LogInfo "El paquete '$appId' ya está instalado. Actualizando a la última versión estable oficial disponible..."
-      winget upgrade --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
+      winget upgrade --exact --id $appId @installerTypeArguments --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
       if ($LASTEXITCODE -ne 0) {
         $upgradeExitCode = $LASTEXITCODE
         if (Test-WingetIdempotentSuccessExitCode -ExitCode $upgradeExitCode) {
@@ -351,7 +354,7 @@ function Install-WingetPackage {
           continue
         }
         LogWarning "Winget no pudo actualizar '$appId' (código: $upgradeExitCode). Intentando instalación idempotente para recuperar..."
-        winget install --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
+        winget install --exact --id $appId @installerTypeArguments --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
         if ($LASTEXITCODE -ne 0) {
           if (Test-WingetIdempotentSuccessExitCode -ExitCode $LASTEXITCODE) {
             $global:LASTEXITCODE = 0
@@ -368,7 +371,7 @@ function Install-WingetPackage {
     }
 
     LogInfo "Instalando el paquete '$appId'..."
-    winget install --exact --id $appId --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
+    winget install --exact --id $appId @installerTypeArguments --accept-package-agreements --accept-source-agreements --disable-interactivity 1>$null 2>$null
     if ($LASTEXITCODE -ne 0) {
       if (Test-WingetIdempotentSuccessExitCode -ExitCode $LASTEXITCODE) {
         $global:LASTEXITCODE = 0
@@ -685,7 +688,9 @@ function Install-fnm {
 }
 
 function Install-PowerShell {
-  Install-WingetPackage Microsoft.PowerShell
+  # El instalador por defecto de winget es MSIX: cada ejecución paga la activación del paquete
+  # y queda en una ruta versionada de WindowsApps. El MSI oficial instala en Program Files\PowerShell\7.
+  Install-WingetPackage -appIds Microsoft.PowerShell -InstallerType wix
 }
 
 function Install-Pester {
