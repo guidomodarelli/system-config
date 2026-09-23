@@ -57,11 +57,15 @@ Use when another skill updates an existing PR only to add or normalize traceabil
 
 Apply only during `full composition`, before writing the body. Obtain the changed paths from the actual PR comparison range (`base...head`), not from the whole repository, a line-count statistic, or unrelated working-tree changes. For a caller that already resolved the range, reuse its exact `git diff --name-only` output.
 
-- Exclude paths containing a `test`, `tests`, `__tests__`, `mock`, `mocks`, or `__mocks__` path segment.
-- Exclude basenames with `.test.*`, `.spec.*`, or `.mock.*` suffixes.
-- Exclude image extensions (`.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp`, `.avif`, `.ico`, `.bmp`, `.tif`, `.tiff`) and stylesheet extensions (`.scss`, `.sass`).
-- From paths that remain, count only names ending in `.js`, `.jsx`, `.ts`, or `.tsx`, case-insensitively. This includes dotfiles such as `.eslintrc.js`; count files, not changed lines.
-- Emit `0` when no eligible path remains. If comparison range cannot be determined, stop and report the concrete blocker instead of inventing a number.
+The count reports reviewable product code only: source a reviewer must read to judge behavior. Agent tooling, tests, fixtures, configuration, and generated declarations are not counted, even when they use a code extension.
+
+- Exclude any path with a segment that starts with `.`: dot directories such as `.agents/`, `.claude/`, `.github/`, `.husky/`, `.storybook/` (at any depth, e.g. `storybook/.storybook/`), `.vscode/`, and dotfiles such as `.eslintrc.js` or `.prettierrc.cjs`.
+- Exclude repository-root settings directories: `config/` and `settings/` (for example Nordic `config/default.js`). Nested product folders such as `src/config/` still count.
+- Exclude paths with a test or fixture segment: `test`, `tests`, `__tests__`, `mock`, `mocks`, `__mocks__`, `fixture`, `fixtures`, `__fixtures__`, `__snapshots__`, `e2e`, `cypress`, or `playwright`.
+- Exclude basenames with test or mock words (`test`, `tests`, `mock`, `mocks` as a `-`/`_`/`.`-delimited part), and the suffixes `.spec.*`, `.test.*`, `.stories.*`, `.story.*`, `.e2e.*`, and declaration files `.d.ts`, `.d.mts`, `.d.cts`.
+- Exclude tooling configuration files: any `*.config.*` basename (`jest.config.js`, `vite.config.ts`, `eslint.config.mjs`, `rollup.config.mjs`) and basenames that start with a tooling name — `jest`, `babel`, `webpack`, `rollup`, `vite`, `vitest`, `postcss`, `tailwind`, `prettier`, `eslint`, `stylelint`, `commitlint`, `lint-staged`, `husky`, `karma`, `gulpfile`, `gruntfile` — followed by `.`, `-`, or `_` (`jest.resolver.js`, `eslint-import-core-modules.js`).
+- From paths that remain, count only names ending in `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.mts`, or `.cts`, case-insensitively. Stylesheets, images, Markdown, JSON, YAML, lockfiles, and translation catalogs never count. Count files, not changed lines.
+- Emit `0` when no eligible path remains. If comparison range cannot be determined, stop and report the concrete blocker instead of inventing a number or estimating it by hand.
 
 Use a path-based count equivalent to:
 
@@ -70,15 +74,23 @@ git diff --name-only "$BASE_REF...$HEAD_REF" |
 awk '
   {
     path = tolower($0)
-    if (path ~ /(^|\/)(__tests__|__mocks__|tests?|mocks?)(\/|$)/) next
-    if (path ~ /(^|\/)([^\/]*[-_.])?(test|tests|mock|mocks)([-_.][^\/]*)?\.[^\/]+$/) next
-    if (path ~ /(^|\/)[^\/]+\.(spec)\.[^\/]+$/) next
-    if (path ~ /\.(png|jpe?g|gif|svg|webp|avif|ico|bmp|tif|tiff|scss|sass)$/) next
-    if (path ~ /\.[tj]sx?$/) count++
+    segment_count = split(path, segments, "/")
+    basename = segments[segment_count]
+    for (i = 1; i <= segment_count; i++) if (segments[i] ~ /^\./) next
+    if (path ~ /^(config|settings)\//) next
+    if (path ~ /(^|\/)(__tests__|__mocks__|__fixtures__|__snapshots__|tests?|mocks?|fixtures?|e2e|cypress|playwright)(\/|$)/) next
+    if (basename ~ /^([^\/]*[-_.])?(test|tests|mock|mocks)([-_.][^\/]*)?\.[^\/]+$/) next
+    if (basename ~ /\.(spec|test|stories|story|e2e)\.[^\/]+$/) next
+    if (basename ~ /\.d\.[cm]?ts$/) next
+    if (basename ~ /\.config\.[^\/]+$/) next
+    if (basename ~ /^(jest|babel|webpack|rollup|vite|vitest|postcss|tailwind|prettier|eslint|stylelint|commitlint|lint-staged|husky|karma|gulpfile|gruntfile)([-_.][^\/]*)?\.[cm]?[jt]sx?$/) next
+    if (basename ~ /\.[cm]?[jt]sx?$/) count++
   }
   END { print count + 0 }
 '
 ```
+
+When the PR already exists, `gh pr view <number> --json files --jq '.files[].path'` yields the same path list for this filter.
 
 Place exactly one line, `<sub>📄 Archivos de código modificados: N</sub>`, as the first body content, followed by one blank line and `## 📝 Descripción`. Replace `N` with computed integer; never leave placeholder text. Do not add this line in `traceability-only`.
 
