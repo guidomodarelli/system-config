@@ -132,7 +132,7 @@ $result.Failed | ForEach-Object { $_.ExpandedName + " :: " + (($_.ErrorRecord | 
 ```
 
 - **Distinguir regresiones de fallos previos:** correr los mismos tests sobre `HEAD` en un worktree temporal, sin tocar el checkout ni el trabajo sin commitear: `git worktree add --detach /tmp/sc-head HEAD`, ejecutar Pester con `Run.Path` apuntando a `/tmp/sc-head/...`, y después `git worktree remove --force /tmp/sc-head`. No copiar solo el `.ps1` a `/tmp`, porque los tests dependen de archivos cercanos a `$PSScriptRoot`.
-- **Fallos conocidos en macOS** (también en `HEAD`, no son regresiones): 5 tests usan rutas `C:\` (`Cannot find drive ... 'C'`) y 2 de `conditionalExcludes` fallan por la plataforma. Reportarlos como no validables fuera de Windows.
+- **Fallos conocidos en macOS** (también en `HEAD`, no son regresiones): los tests que usan rutas `C:\` (`Cannot find drive ... 'C'`) y los de `conditionalExcludes` que dependen de la plataforma. La cantidad puede variar con el tiempo; confirmar contra `HEAD` y reportarlos como no validables fuera de Windows.
 - **Limpieza:** `rm -rf /tmp/psmodules`, además de la limpieza de `pwsh` de la sección anterior.
 
 ## Workspaces Generados Por Skills
