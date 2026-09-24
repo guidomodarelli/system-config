@@ -1,11 +1,11 @@
 ---
 name: react-render-performance-patterns
-description: Apply React render-performance and update-priority patterns (startTransition/useDeferredValue for input responsiveness, useMemo/useCallback/React.memo to cut re-renders, equality guards before setState, stable identities, O(1) lookup maps, and library-specific reset/identity gotchas). Use this skill whenever the user reports or wants to prevent UI jank, typing lag, frozen pages, "Maximum update depth exceeded", slow tables/lists/grids/filters, or asks to optimize, memoize, speed up, or reduce re-renders in any React/Next.js component — even when they don't name a specific API. Also use when porting the data-table optimizations to other components or projects.
+description: Apply React render-performance and update-priority patterns (startTransition/useDeferredValue for input responsiveness, useMemo/useCallback/React.memo to cut re-renders, equality guards before setState, stable identities, and library-specific reset/identity gotchas). Use this skill whenever the user reports or wants to prevent UI jank, typing lag, frozen pages, "Maximum update depth exceeded", slow tables/lists/grids/filters, or asks to optimize, memoize, speed up, or reduce re-renders in any React/Next.js component — even when they don't name a specific API. Also use when porting these optimizations to other components or projects.
 ---
 
 # React Render Performance Patterns
 
-Battle-tested patterns extracted from optimizing a heavy filterable data table (hundreds of cells with popovers, tooltips and per-row menus) where every keystroke was triggering several full re-renders and hanging the page. The goal of these patterns is the same everywhere: **keep urgent interactions (typing, clicking, dropdown selection) instant while heavy work happens off the critical path, and stop re-renders that produce no visible change.**
+Patterns for components whose interactions trigger expensive re-renders — typically large filterable tables, lists or grids with rich per-row content. The goal is the same everywhere: **keep urgent interactions (typing, clicking, dropdown selection) instant while heavy work happens off the critical path, and stop re-renders that produce no visible change.**
 
 Use these as a toolkit, not a checklist. Measure first, apply the pattern that fits the bottleneck, and always explain *why* a given change helps.
 
@@ -135,13 +135,13 @@ const selectedIds = useMemo(() => new Set(selection), [selection]);
 Headless data libraries keep internal reactive state; two recurring traps:
 
 - **Auto-reset feedback loops.** Without pagination/expansion, leaving auto-resets on means each filter change calls `resetPageIndex` → `setPagination` → re-render → reset again: `Maximum update depth exceeded` and a frozen page while typing. Disable the resets you don't need: `autoResetPageIndex: false`, `autoResetExpanded: false`.
-- **Don't depend on the library instance identity.** The `table` object is recreated on most renders. Memoizing on `[table]` never holds. Follow the library's own pattern: depend on the underlying data (`table.getRowModel().rows`) read into a local before the memo, not on `table` itself.
+- **Don't depend on the library instance identity.** In TanStack Table v8 the `table` object returned by `useReactTable` keeps the same reference across renders while its internal state changes, so a memo keyed on `[table]` never invalidates and renders stale output. Depend on what actually changes instead: the state slices you render from (`table.getState().columnVisibility`, `sorting`, …) or the row model read into a local before the memo (`const rowModelRows = table.getRowModel().rows`).
 
 ## Applying these to other components / projects
 
 When porting these patterns elsewhere:
 1. Reproduce and locate the bottleneck first (Diagnose section). Don't memoize blindly.
-2. Match the symptom to the pattern: input lag → Pattern 1; expensive derived value → Patterns 2–3; child re-renders → Pattern 4; no-op updates → Pattern 5; O(n²) hot loop → Pattern 6; "max update depth"/headless lib → Pattern 7.
+2. Match the symptom to the pattern: input lag → Pattern 1; expensive derived value → Patterns 2–3; child re-renders → Pattern 4; no-op updates → Pattern 5; "max update depth"/headless lib → Pattern 6.
 3. Keep the urgent path outside transitions and the heavy path inside them.
 4. Leave a one-line comment on every non-obvious dependency-array choice and every intentional lint suppression — these are the lines that get silently reverted into regressions.
 5. Verify: re-profile and confirm the re-render count / interaction latency actually dropped. A memo that doesn't reduce renders is just complexity.
