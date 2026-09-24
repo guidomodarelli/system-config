@@ -147,7 +147,7 @@ Create the `user-guides/` directory if it does not exist before writing either f
 - No code, no jargon. Refer to UI elements by their visible labels, not their prop names.
 - Permission flag names (`canViewSSFFInfo`) are the one exception — show them in `<code>` only
   inside the permissions table, never in prose sections.
-- Use short paragraphs (3–5 lines max). The Heritage Spec line-height is for scanning.
+- Use short paragraphs, one idea each, so a non-technical reader can scan them; split a paragraph when it starts covering a second idea. The Heritage Spec line-height is for scanning.
 - Use `<strong>` for emphasis inside paragraphs, never arbitrary colors.
 
 ### Mockups
