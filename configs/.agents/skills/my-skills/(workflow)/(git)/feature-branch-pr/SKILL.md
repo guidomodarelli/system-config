@@ -33,7 +33,7 @@ Use when:
 - Never commit on `develop`/`main`/`master`. If on a default branch, you must create the feature branch first.
 - Keep every technical name (branch, commit subject, PR title/body) in **English**. The summary table shown to the user is in **Spanish**.
 - Do not force-push, do not skip hooks (`--no-verify`), do not bypass signing.
-- End commit messages with the required co-author trailer.
+- End commit messages with the co-author/attribution trailer that the runtime provides for this session (e.g. the `Co-Authored-By:` line from the system instructions). Do not hardcode a model name: models change and a stale trailer misattributes the commit. If the runtime provides no trailer, omit it.
 - If `gh` is unavailable or unauthenticated, stop before the PR step and report the push result plus the exact blocker.
 
 ## Steps
@@ -109,7 +109,7 @@ git commit -m "$(cat <<'EOF'
 
 <short english body: what changed and why>
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+<co-author trailer provided by the runtime, if any>
 EOF
 )"
 ```
