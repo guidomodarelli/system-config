@@ -50,10 +50,6 @@ No inventar una jerarquía de clases, `Result` ni retry automático. Reusar guar
 
 Leer y aplicar `~/.agents/rules/payload-validation-boundaries.md`. Esa rule es fuente única: prohíbe revalidar payloads backend/upstream, permite narrowing estructural mínimo para control flow y exige validar inputs y DTOs públicos del middleend. No duplicar ni contradecir sus detalles aquí.
 
-### Handoff de observabilidad
-
-Si el cambio afecta Failure Studio/ErrorUX, logs estructurados para Grafana/Loki, métricas, traces, sampling, deduplicación o cardinalidad, coordinar con `error-observability-diagnostics`. Esta skill conserva propiedad sobre progreso, terminalidad, idempotencia, retry, resume y cancelación; la skill de observabilidad define proyecciones y políticas de sinks.
-
 ## Contrato estable
 
 Definir códigos de máquina allowlisted y no traducibles para cada semántica relevante. Como mínimo, evaluar:
