@@ -68,7 +68,7 @@ Pasos sugeridos:
   - `P2`: `https://img.shields.io/badge/P2-yellow?style=flat`
   - `P3`: `https://img.shields.io/badge/P3-blue?style=flat`
 - Do not use Markdown reference links for badges; use the direct image URL inline.
-- After the badge/title line, write the 1-3 sentence description directly. Do not add an icon or a "Resumen" heading.
+- After the badge/title line, write a short description directly: just enough for the author to understand what is wrong and why it matters; move anything longer to `<details>`. Do not add an icon or a "Resumen" heading.
 - Keep `✅ **Solución**` actionable and specific.
 - Do not include `<details>` by default.
 - Include `<details>` only when one of these applies:
