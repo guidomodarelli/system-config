@@ -162,7 +162,7 @@ Usa cuando el usuario pide agregar otro PR a un stack.
 - Tests y fixtures necesarios para ejecutar una capa viajan con esa capa; fixtures puramente adicionales pueden ir en `mocks-tests`.
 - Catálogos generados nunca se editan manualmente. Usa `npm run i18n` y no aceptes locales ajenos o churn accidental.
 - Si una capa falla porque depende de una capa posterior, mueve el consumer/contrato hacia arriba o agrega un bridge temporal documentado que cleanup eliminará. No debilites assertions.
-- Valida cada branch con comandos del repositorio. Como mínimo:
+- Valida cada branch con los comandos de validación que define el repositorio (scripts del package manager, Makefile, CI, `AGENTS.md`/`CONTRIBUTING`): instalación limpia, typecheck, lint, tests, build y `git diff --check`, en la medida en que el repo los tenga. Así cada capa se prueba igual que la probará CI. Por ejemplo, en un proyecto Node:
 
   ```bash
   npm ci
