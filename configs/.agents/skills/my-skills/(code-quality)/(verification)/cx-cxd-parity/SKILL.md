@@ -14,7 +14,7 @@ Aplicar workflow sobre estas superficies:
 - `configs/zsh/.zsh/completions/_cx`
 - `configs/zsh/.zsh/completions/_cxd`, cuando exista
 
-La skill complementa `AGENTS.md` y no reemplaza sus guardrails de revisión dual.
+Esta skill es la fuente única de las reglas de `cx`/`cxd`: no dar por terminado un cambio si solo se revisó un shell, aunque se modifique un único archivo.
 
 ## Workflow
 
