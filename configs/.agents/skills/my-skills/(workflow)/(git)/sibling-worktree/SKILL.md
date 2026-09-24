@@ -9,16 +9,10 @@ Gestiona worktrees Git persistentes en rutas hermanas. Cada `create` debe partir
 
 ## Helper
 
-Invocar siempre:
+Invocar siempre `scripts/sibling-worktree` relativo al directorio de esta skill (el directorio base que informa el runtime al cargarla, por ejemplo `~/.claude/skills/sibling-worktree` o `~/.agents/skills/...`). No hardcodear rutas absolutas de otra máquina; en Windows ejecutarlo desde Git Bash.
 
 ```bash
-/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/(workflow)/(git)/sibling-worktree/scripts/sibling-worktree
-```
-
-Si runtime expone skill mediante `~/.claude/skills`, usar ruta equivalente:
-
-```bash
-~/.claude/skills/sibling-worktree/scripts/sibling-worktree
+SCRIPT="<directorio-de-la-skill>/scripts/sibling-worktree"
 ```
 
 ## Ubicación obligatoria
@@ -63,7 +57,7 @@ git switch develop
 4. Ejecutar helper desde worktree que no sea destino actual para validar y crear nuevo sibling:
 
 ```bash
-SCRIPT=/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/(workflow)/(git)/sibling-worktree/scripts/sibling-worktree
+SCRIPT="<directorio-de-la-skill>/scripts/sibling-worktree"
 "$SCRIPT" create --branch feature/example --name example-migrated --dry-run
 # pedir confirmación
 "$SCRIPT" create --branch feature/example --name example-migrated
@@ -78,7 +72,7 @@ Si helper se ejecuta desde branch que se quiere liberar, primero completar `git 
 ### Crear
 
 ```bash
-SCRIPT=/Users/gmodarelli/system-config/configs/.agents/skills/my-skills/(workflow)/(git)/sibling-worktree/scripts/sibling-worktree
+SCRIPT="<directorio-de-la-skill>/scripts/sibling-worktree"
 "$SCRIPT" create --branch feature/example --dry-run
 "$SCRIPT" create --branch feature/example
 ```
