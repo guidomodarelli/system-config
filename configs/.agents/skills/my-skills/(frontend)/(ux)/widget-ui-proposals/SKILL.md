@@ -27,8 +27,9 @@ specified exactly, or when the user explicitly asked you to just write the code.
 ## Workflow
 
 ### 1. Before the first widget
-Call `mcp__visualize__read_me` **once, silently** (pick modules `mockup` / `interactive` /
-`data_viz` as fit). Do not narrate this call — just build the widget afterward.
+Call `mcp__visualize__read_me` once per conversation (pick modules `mockup` / `interactive` /
+`data_viz` as fit), then build the widget. A brief one-line update on what you're doing is
+fine; the widget itself is what the user needs to see, so keep the focus there.
 
 ### 2a. Proposals / variants mode
 When the user wants to explore options, render **one widget** with a responsive grid of
