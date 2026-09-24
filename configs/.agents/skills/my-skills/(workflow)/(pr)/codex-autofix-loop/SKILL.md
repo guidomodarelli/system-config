@@ -218,7 +218,8 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   cada subagente NO repushea a ciegas: corre un ciclo completo de re-integración
   —fetch → rebase → resolver conflictos → revalidar que tanto el fix propio como
   los cambios integrados de los otros subagentes siguen pasando → push— y lo
-  repite hasta subir. Eso evita el clobber y garantiza que ni el fix propio ni los
+  repite hasta el tope de ciclos de `fix-in-ephemeral-clone` (al agotarlo
+  reporta `CONCURRENT_PUSH_RETRY_EXHAUSTED`). Eso evita el clobber y garantiza que ni el fix propio ni los
   fixes de los demás quedaron rotos al combinarse, sin perder el paralelismo del
   trabajo pesado. El closeout (reacciones, replies,
   resolver hilos) corre por comentario a medida que vuelve cada subagente; la
