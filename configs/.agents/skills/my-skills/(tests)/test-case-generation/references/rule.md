@@ -6,8 +6,8 @@ cases, and data mocks ready to use.
 ### Requirements
 
 - **Identify inputs**: props, state, dependencies, callbacks, permissions, and i18n when applicable.
-- **Base cases**: list 3 to 8 cases that cover the main flow (render, key props, user events, state
-  changes, async when applicable).
+- **Base cases**: cover the main flow (render, key props, user events, state changes, async when
+  applicable), scaling the number of cases to the behavior's risk and complexity.
 - **Edge cases**: list boundary scenarios relevant to the component or hook, for example:
   - empty list, list with one item, very large list
   - `null` or `undefined` props when they can be missing
@@ -21,11 +21,11 @@ cases, and data mocks ready to use.
   - edge dataset (empty, missing fields, or error)
 - **Suggested variants**: for each edge case, provide at least one variant and the expected
   assertion (empty state, fallback, error UI, disabled, default props, etc.).
-- **Invalid test goals**: do not propose cases that read source files, style files, or SQL files with
-  `fs` to assert exact text, substrings, regex matches, snapshots, or fragments such as `SELECT`,
-  `JOIN`, `WHERE`, aliases, or ordering clauses. Do not replace that with tests that only assert
-  ORM/query-builder function parameters or internal query-construction calls. Replace them with
-  observable behavior, public contracts, real query execution, or build/lint validation.
+- **Valid test goals**: every case asserts observable behavior or a public contract. For code backed
+  by queries, styles, or other source artifacts, assert what they produce — returned data, applied
+  filters, persisted effects through real query execution, user-visible state — or rely on the real
+  build/lint command, because tests tied to source text or query-construction internals break on
+  harmless refactors without catching real regressions.
 
 ### Output format
 
