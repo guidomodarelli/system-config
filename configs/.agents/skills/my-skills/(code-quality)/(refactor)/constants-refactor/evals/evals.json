@@ -22,7 +22,7 @@
     {
       "id": 4,
       "prompt": "Mové constantes de scan a constants/process-contingency/scan.ts. El index interno usa export *, pero constants/index.ts enumera exports manualmente. Algunas constantes son copy de UI y otras son límites de contrato.",
-      "expected_output": "Usa archivo de dominio existente, mueve también copy UI y límites estáticos aunque tengan un solo consumidor, actualiza cada barrel necesario, evita ciclos con app/ y ejecuta typecheck antes de cerrar.",
+      "expected_output": "Usa archivo de dominio existente, mueve límites estáticos aunque tengan un solo consumidor, deja el copy UI en i18n (solo msgids compartidos en constants), actualiza cada barrel necesario, evita ciclos con app/ y ejecuta typecheck antes de cerrar.",
       "files": []
     },
     {

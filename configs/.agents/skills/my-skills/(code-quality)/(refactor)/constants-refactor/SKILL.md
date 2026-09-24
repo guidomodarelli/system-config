@@ -54,8 +54,8 @@ Aplicar estas reglas:
 Cuando usuario pida mover constantes de módulo o feature hacia `constants/`:
 
 1. Buscar primero archivo de dominio existente, por ejemplo `constants/<domain>/<feature>.ts`; no crear `constants.ts` genérico.
-2. Mover toda constante estática a `constants/`, incluyendo límites, estados, regex, rutas, códigos, configuración, copy, msgids, estilos, paginación, delays, mapas y valores usados una sola vez. Un único consumidor nunca es motivo para mantenerla local.
-3. Mantener fuera de `constants/` únicamente variables calculadas en runtime, estado mutable y resultados de llamadas, porque no son constantes. No crear excepciones basadas en cantidad de usos, visibilidad o tipo de literal.
+2. Mover toda constante estática a `constants/`, incluyendo límites, estados, regex, rutas, códigos, msgids, estilos, paginación, delays, mapas y valores usados una sola vez. Un único consumidor nunca es motivo para mantenerla local. Las únicas excepciones de destino son las de "Separar destinos" (copy user-facing, valores por entorno, secretos, autorización, paths upstream).
+3. Mantener fuera de `constants/` variables calculadas en runtime, estado mutable y resultados de llamadas, porque no son constantes, y los valores con destino propio listados en "Separar destinos". No crear excepciones basadas en cantidad de usos o visibilidad.
 4. Separar tipos runtime de UI: constants no deben importar valores desde `app/`, componentes o tipos que dependan de constants.
 5. Mantener specifiers públicos existentes solo cuando el barrel los soporte; no introducir un alias nuevo por uniformidad.
 
@@ -127,16 +127,16 @@ Mover siempre toda declaración que represente un valor estático, sin exigir re
 
 - constantes de contrato, aunque tengan un solo consumidor;
 - límites, estados, códigos, rutas, regex, allowlists, atributos y claves públicas;
-- configuración, secretos, credenciales, tokens y metadata representados como valores constantes;
+- metadata estática que no dependa del entorno;
 - runtime constants ubicadas dentro de `interfaces/` o `types/`;
 - literales unitarios y elementos de arrays contractuales, aunque hoy no estén repetidos;
-- copy, labels, msgids, estilos, paths privados, statuses HTTP, timeouts, paginación, delays y mapas estáticos.
+- msgids/claves de traducción, estilos, paths privados, statuses HTTP, timeouts, paginación, delays y mapas estáticos.
 
-La decisión de mover no depende de cantidad de referencias, visibilidad ni categoría del literal. Crear o ampliar el archivo de dominio correspondiente aunque el valor aparezca una sola vez.
+La decisión de mover no depende de cantidad de referencias ni visibilidad; solo "Separar destinos" define otro destino. Crear o ampliar el archivo de dominio correspondiente aunque el valor aparezca una sola vez.
 
 ### Mantener fuera de `constants/`
 
-Solo dejar fuera valores que no sean constantes:
+Dejar fuera los valores con destino propio (ver "Separar destinos") y los que no sean constantes:
 
 - variables calculadas en runtime;
 - estado mutable;
@@ -149,9 +149,10 @@ Si un valor puede declararse y permanecer fijo durante la ejecución, tratarlo c
 
 - autorización → módulo `permissions/`, `auth/` o equivalente del dominio, no `constants` genérico;
 - valores por entorno/deployment → `config/` o settings, no `constants`;
+- secretos, credenciales y tokens → variables de entorno o secret manager, nunca hardcodeados en `constants/` ni en `config/` versionado;
 - rutas backend-for-frontend compartidas → `constants/routes.ts` o equivalente;
 - paths upstream privados → cliente/adapter;
-- mensajes user-facing → i18n/localization;
+- copy, labels y mensajes user-facing → i18n/localization; en `constants/` solo sus msgids/claves cuando se compartan;
 - regex/estados de parser únicamente locales → parser, salvo contrato cross-layer probado.
 
 ## Diseño seguro
