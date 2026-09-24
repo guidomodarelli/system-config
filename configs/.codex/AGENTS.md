@@ -54,7 +54,7 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Modularizar por responsabilidad y organizar el código en estructuras cohesionadas como `utils/`, `constants/`, `services/`, `adapters/` u otras equivalentes cuando corresponda. → ver "Naming, literales y errores" y Skill: `refactor-structure-a11y`
 - Priorizar eliminacion de duplicidad, alta cohesión, bajo acoplamiento y principios SOLID cuando aporten valor real al diseño. → Skills: `refactor-structure-a11y`, `mock-first-testing-design`
 - Antes de implementar cambios relevantes, identificar módulos y responsabilidades; después del cambio, verificar que cada módulo conserve una responsabilidad clara. → Skill: `refactor-structure-a11y`
-- Tras cada edición significativa, incluir una validación breve de 1 a 2 líneas indicando si se cumplió el objetivo del cambio y corregir si no se logró.
+- Tras cada edición significativa, verificar si se cumplió el objetivo del cambio y corregir si no se logró; mencionarlo en el reporte de forma breve, sin un formato fijo.
 - En cambios relevantes, listar y justificar brevemente las principales decisiones de diseño tomadas.
 ## Naming, literales y errores
 
