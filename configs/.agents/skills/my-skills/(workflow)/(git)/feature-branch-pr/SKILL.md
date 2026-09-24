@@ -116,7 +116,7 @@ EOF
 
 On Windows PowerShell, use a single-quoted here-string (`@' ... '@`) for the message instead of the bash heredoc.
 
-If a pre-commit hook fails, fix the underlying issue and retry — do not bypass it.
+If a pre-commit hook fails, stop and report the blocker with the hook output — do not fix it automatically and do not bypass it (`--no-verify`).
 
 ### 5. Push
 
