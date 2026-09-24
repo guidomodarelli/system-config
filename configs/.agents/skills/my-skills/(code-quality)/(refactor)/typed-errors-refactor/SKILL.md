@@ -25,8 +25,6 @@ Aplicar la skill de forma genérica. Detectar el lenguaje, runtime, arquitectura
 
 Si el inventario encuentra batches/chunks, resultados parciales, polling, jobs/runs, deadline, reanudación, unresolved work o cancelación, leer y aplicar [`async-operation-error-handling`](../async-operation-error-handling/SKILL.md). Esa skill agrega invariantes de progreso, idempotencia, terminalidad y recovery; no reemplaza el contrato general de errores tipados.
 
-Si el cambio agrega o corrige logs de errores, métricas, tracing, correlation IDs, Failure Studio/ErrorUX, sinks tipo Grafana/Loki, severidad, sampling, deduplicación o cardinalidad, coordinar con [`error-observability-diagnostics`](../../observability/error-observability-diagnostics/SKILL.md). Si el flujo no tiene estas características, continuar únicamente con este workflow y los handoffs aplicables.
-
 ### Regla canónica de payloads
 
 Leer y aplicar `~/.agents/rules/payload-validation-boundaries.md`. Esa rule define el límite global: no revalidar payloads backend/upstream, permitir narrowing estructural mínimo y validar inputs/DTOs públicos del middleend. No duplicar ni contradecir el contrato aquí.
