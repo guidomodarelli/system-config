@@ -28,7 +28,7 @@ matches:
     force_clipboard: true
     label: Add unit tests
     replace: |-
-      Add comprehensive unit tests to the codebase to ensure that all functions and methods are properly tested. This includes writing tests for edge cases, validating input and output, and ensuring that the code behaves as expected under various conditions.
+      Add unit tests for the behavior that matters most in this code: the main paths, relevant edge cases, and error handling. Focus on observable behavior and public contracts rather than implementation details, and prioritize by risk instead of aiming to test every function.
   - trigger: ";ref"
     force_clipboard: true
     label: Update documentation
