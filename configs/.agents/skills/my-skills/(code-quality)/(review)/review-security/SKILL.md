@@ -21,7 +21,7 @@ If the user has not already chosen the scope, ask in Spanish before reviewing:
 
 Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
 
-Always run `git fetch --all --prune` before resolving branches, selecting files, or reading diffs. If fetch fails, stop the review and report the fetch error instead of continuing with stale refs.
+Fetch remote refs (with pruning) before resolving branches or reading diffs, because a stale base produces a diff that does not match what the PR will actually merge. If the fetch fails, stop and report the error rather than reviewing against stale refs.
 
 Use these scopes:
 
@@ -30,29 +30,15 @@ Use these scopes:
 - **HEAD against main/master including uncommitted changes**: inspect commits from the merge base with `main` or `master` to `HEAD`, then include staged, unstaged, and untracked files.
 - **Custom review instructions**: ask the user for the exact scope and review focus, then apply the closest matching scope above.
 
-For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`.
+For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`. Remote tracking branches come first because they reflect the shared base more reliably. Review from the merge base with the selected base to `HEAD`, and when the scope includes uncommitted changes, say so explicitly in the report.
 
-Useful commands:
+## Review Approach
 
-```bash
-git fetch --all --prune
-git status --short
-git branch -r --list origin/develop origin/main origin/master
-git branch --list develop main master
-git merge-base HEAD <base>
-git diff --name-status <merge-base>...HEAD
-git diff --cached --name-status
-git diff --name-status
-git ls-files --others --exclude-standard
-```
+A vulnerability exists where untrusted input reaches a sensitive sink without a control, so orient the review around the security boundaries the change touches: request input, auth/authz, database query, template/rendering, shell/process execution, filesystem, network call, secrets/config, dependency, logging/telemetry, AI prompt, skill, agent instruction, or tool invocation.
 
-## Review Workflow
-
-1. Identify the changed files and classify the security boundary they touch: request input, auth/authz, database query, template/rendering, shell/process execution, filesystem, network call, secrets/config, dependency, logging/telemetry, AI prompt, skill, agent instruction, or tool invocation.
-2. Read the diff first, then inspect surrounding code only where needed to trace untrusted input from source to sink.
-3. For each suspected issue, confirm the attacker-controlled input, the vulnerable sink, the missing control, and the impact.
-4. Prefer concrete exploit paths over speculative concerns. If exploitability depends on deployment, permissions, or upstream validation, state that assumption clearly.
-5. Check tests only when they validate behavior relevant to the security boundary. Do not treat snapshots or import-only tests as security validation.
+- Start from the diff and widen to surrounding code as far as needed to trace untrusted input from source to sink.
+- A finding is solid when you can name the attacker-controlled input, the vulnerable sink, the missing control, and the impact; concrete exploit paths are more useful than speculative concerns. When exploitability depends on deployment, permissions, or upstream validation, state that assumption.
+- Count tests as evidence only when they exercise behavior at the security boundary; snapshots and import-only tests say nothing about exploitability.
 
 ## Focus Areas
 
