@@ -32,27 +32,6 @@ Tests must cover clearing stale errors after changing selection, replacing or cl
 - **Navigation/search**: Validate input (required, format) before routing or querying.
 - **Edits**: Validate required fields, minimum lengths, and allowed ranges; show helper text while typing when possible.
 
-## Patterns
-
-### Pre-action validation
-```
-if (!isValid) {
-  setError('Ingresa un termino de busqueda valido');
-  return;
-}
-```
-
-### Inline feedback near action
-```
-<Button ... />
-{error && <Text ...>{error}</Text>}
-```
-
-### Loading feedback
-```
-{isLoading && <Spinner />}
-```
-
 ## Quick checklist
 - Critical actions validate inputs and state before executing.
 - Validation failures block the action.
