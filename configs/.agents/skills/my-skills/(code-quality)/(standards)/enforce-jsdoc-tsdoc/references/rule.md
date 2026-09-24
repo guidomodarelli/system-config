@@ -1,16 +1,16 @@
-## Rule: Always add JSDoc/TSDoc to functions/methods and key constructs
+## Rule: Add JSDoc/TSDoc where it helps readers
 
-When creating or modifying **any** JavaScript or TypeScript function or method (including exported helpers), you must add or update the documentation block immediately above it. Also add documentation for classes, module-level constants/variables, and file/module headers when they are created or changed.
+When creating or modifying JavaScript or TypeScript code, add or update the documentation block of each construct whose language, complexity, or intent makes documentation relevant: public APIs, exported helpers, non-obvious constructs, and domain logic come first. Skip blocks that would only restate obvious code, because they add noise and drift out of sync without helping the reader.
 
 - For `.js` files, use **JSDoc** (`/** ... */`).
 - For `.ts` and `.tsx` files, use **TSDoc** (`/** ... */` with TSDoc tags).
 
 ### Requirements
 
-- **Scope**: Applies to all `.js`, `.ts`, and `.tsx` files.
+- **Scope**: Applies to `.js`, `.ts`, and `.tsx` files, following the relevance criteria above.
 - **Placement**: The JSDoc block must be immediately above the item it documents. File/module JSDoc goes at the top of the file, before imports (after `'use strict'` if present).
 - **Language**: All JSDoc text must be **English**.
-- **Must document**:
+- **Constructs to document when relevant**:
   - Function declarations (`function name() {}`)
   - Function expressions (`const x = function () {}`)
   - Arrow functions (`const x = () => {}`)
@@ -18,7 +18,7 @@ When creating or modifying **any** JavaScript or TypeScript function or method (
   - Class methods (including `static` and `async`)
   - Exported functions and module-level helpers
   - Class declarations (document purpose and context)
-  - Module/file headers for every new or modified file; include exports, side effects, or non-obvious domain intent
+  - Module/file headers when the file has exports, side effects, or non-obvious domain intent
   - Exported constants/variables, module-level constants/variables, configuration objects, complex data shapes, regexes, and values with non-obvious meaning/units/constraints
 - **Minimum content**:
   - **Functions/methods**:
