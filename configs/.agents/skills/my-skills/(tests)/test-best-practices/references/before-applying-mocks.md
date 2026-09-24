@@ -9,25 +9,21 @@
 
 ### Components
 
-- **Props-only**: reuse the real component to validate props without changing its behavior.
+- **Platform components** (`nordic/*`, Andes, internal UI kits and SDKs): never mock them. Render them
+  for real and assert observable output.
 
 ```ts
-jest.mock('nordic/image', () => ({
-  Image: jest.fn((props) => {
-    const { Image } = jest.requireActual<{ Image: typeof NordicImage }>(
-      'nordic/image',
-    );
+render(<ProductCard product={product} />);
 
-    return <Image {...props} />;
-  }),
-}));
+expect(screen.getByRole('img', { name: product.title })).toHaveAttribute('src', product.thumbnail);
 ```
 
-- **Behavior**: replace the component with a stub using `data-testid`.
+- **Project-own heavy components**: stub them only when they are slow or side-effectful, and keep the
+  stub at the project boundary using `data-testid`.
 
 ```ts
-jest.mock('nordic/image', () => ({
-  Image: jest.fn((props) => <div {...props} data-testid="mock-image" />),
+jest.mock('@/components/ProductCarousel', () => ({
+  ProductCarousel: jest.fn(() => <div data-testid="mock-product-carousel" />),
 }));
 ```
 
