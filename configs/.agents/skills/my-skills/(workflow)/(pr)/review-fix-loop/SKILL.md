@@ -1,6 +1,6 @@
 ---
 name: review-fix-loop
-description: "Multi-provider review and fix loop: Claude Code, then Codex fallback; local or PR targets; reruns after accepted findings."
+description: "Multi-provider review and fix loop: Claude Code, then Codex fallback; local or PR targets; reruns after accepted findings. Use when the user asks for a Codex review, autoreview, second-model review or review-and-fix loop, after non-trivial code edits as a closeout check before final/commit/ship, or when reviewing a local branch or PR branch after fixes."
 ---
 
 # Review Fix Loop
@@ -196,8 +196,8 @@ The filter must not invoke this skill or another provider. Run inline only for t
 - Start exactly one provider attempt at a time.
 - Wait for the selected command and every child process it launches to finish before fallback or closeout.
 - Do not start the next provider while the previous process tree is alive.
-- After 60 seconds without output, inspect provider process tree and publish concise heartbeat. Repeat every 60 seconds while active.
-- Do not terminate a review only because it becomes quiet. At 10 minutes, inspect process tree again and report elapsed time; only helper/provider/host timeout counts as eligible fallback failure.
+- When a review stays quiet long enough that the user could think it hung, inspect the provider process tree and send a brief progress update (elapsed time, what is still running). Report again at meaningful milestones (provider finished, fallback, tests done) rather than on a fixed interval, so the user knows the loop is alive without noise.
+- Do not terminate a review only because it becomes quiet; long silences are normal for providers. Only helper/provider/host timeout counts as eligible fallback failure.
 - Repeated plugin warnings, validation chatter, or lack of a final clean line are not success evidence.
 - A run is clean only after all launched processes exit and verified review output contains 0 accepted/actionable findings.
 - Never present a self-interrupted review as a clean or responsible partial closeout. If the environment terminates it, report the contract as unsatisfied.
