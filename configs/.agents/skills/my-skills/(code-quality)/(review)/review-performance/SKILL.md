@@ -21,7 +21,7 @@ If the user has not already chosen the scope, ask in Spanish before reviewing:
 
 Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
 
-Always run `git fetch --all --prune` before resolving branches, selecting files, or reading diffs. If fetch fails, stop the review and report the fetch error instead of continuing with stale refs.
+Fetch remote refs (with pruning) before resolving branches or reading diffs, because a stale base produces a diff that does not match what the PR will actually merge. If the fetch fails, stop and report the error rather than reviewing against stale refs.
 
 Use these scopes:
 
@@ -30,29 +30,15 @@ Use these scopes:
 - **HEAD against main/master including uncommitted changes**: inspect commits from the merge base with `main` or `master` to `HEAD`, then include staged, unstaged, and untracked files.
 - **Custom review instructions**: ask the user for the exact scope and review focus, then apply the closest matching scope above.
 
-For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`.
+For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`. Remote tracking branches come first because they reflect the shared base more reliably. Review from the merge base with the selected base to `HEAD`, and when the scope includes uncommitted changes, say so explicitly in the report.
 
-Useful commands:
+## Review Approach
 
-```bash
-git fetch --all --prune
-git status --short
-git branch -r --list origin/develop origin/main origin/master
-git branch --list develop main master
-git merge-base HEAD <base>
-git diff --name-status <merge-base>...HEAD
-git diff --cached --name-status
-git diff --name-status
-git ls-files --others --exclude-standard
-```
+Performance impact depends on where the code runs and how often, so anchor each judgment in the production path the change affects (request handling, database access, service calls, background jobs, UI rendering, build-time code, tests, or tooling) and in the workload shape that exercises it (users, requests, rows, items, renders, retries, pages, files, or events).
 
-## Review Workflow
-
-1. Identify the changed files and the production path they affect: request handling, database access, service calls, background jobs, UI rendering, build-time code, tests, or tooling.
-2. Read the diff first, then inspect surrounding code only where needed to understand data size, call frequency, lifecycle, or dependency contracts.
-3. Estimate the workload shape: number of users, requests, rows, items, renders, retries, pages, files, or events that can exercise the changed path.
-4. Report only risks that scale poorly or introduce repeated expensive work in normal production use.
-5. Prefer evidence from code paths, loops, query placement, allocations, and API boundaries. If impact depends on an assumption, state it clearly.
+- Start from the diff and widen to surrounding code only as far as needed to understand data size, call frequency, lifecycle, or dependency contracts.
+- Report risks that scale poorly or add repeated expensive work in normal production use; a micro-optimization on a cold path is not worth the reader's attention.
+- Ground findings in evidence from code paths, loops, query placement, allocations, and API boundaries. When impact depends on an assumption, state it.
 
 ## Focus Areas
 
