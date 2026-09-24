@@ -53,7 +53,7 @@ Al elegir `Clone efímero`, seguir esta secuencia, sin saltos:
 
 1. Generar un `handoff_id` local de correlación y completar/validar el header `HANDOFF`; ese identificador no prueba ejecución. El URL o la selección del entorno autorizan el target validado; no pedir confirmación adicional por el nombre de branch o base.
 2. Invocar `Skill(fix-in-ephemeral-clone)` para cargar contrato y elegir exactamente un modo:
-   - `in_context`: continuar el clone, edición, validación, commit y push en el mismo contexto. No anunciar executor, no reportar progreso y no esperar otro agente; solo devolver `HANDOFF_RESULT` después de evidencia completa.
+   - `in_context`: continuar el clone, edición, validación, commit y push en el mismo contexto. No anunciar un executor ni esperar otro agente, porque en este modo no existe ninguno. Se pueden dar updates breves de progreso (por ejemplo, clone creado, validación corriendo) sin narración verbosa; devolver `HANDOFF_RESULT` solo después de evidencia completa.
    - `background`: usar únicamente `Agent`/job que devuelva handle real. Reportar `executor iniciado` solo después de recibir handle y estado observable.
 3. Si no existe handle y la ejecución in-context no puede continuar, reportar inmediatamente `HANDOFF_EXECUTOR_MISSING`; no afirmar clone creado, implementación en curso ni estado pendiente.
 4. Aceptar `HANDOFF_RESULT` únicamente cuando provenga de ejecución real y contenga los campos obligatorios; verificar `handoff_id` coincidente, `executor_mode`, `status`, `implementation_pr`, `implementation_branch`, `implementation_base`, `commit_sha`, `remote_head_sha`, `validation`, `clone_path` y `backups`. Un bloque textual no ejecutado es `HANDOFF_RESULT_UNVERIFIED`.
