@@ -8,14 +8,15 @@ description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea 
 Loop local que escucha comentarios de **Codex** (`chatgpt-codex-connector[bot]`)
 en un PR y **spawnea subagentes en paralelo** (uno por GRUPO de archivo, en lotes
 de `{{MAX_PARALLEL}}`) que delegan el fix en la skill
-[`fix-in-ephemeral-clone`](../(git)/fix-in-ephemeral-clone/SKILL.md) —invocada vía
+[`fix-in-ephemeral-clone`](../../(git)/fix-in-ephemeral-clone/SKILL.md) —invocada vía
 la herramienta `Skill` (`/fix-in-ephemeral-clone`)— tratando cada comentario
 como la "issue" a resolver (clone efímero depth-1 → fix → validar → push a la rama
 del PR). Cada subagente trabaja en su propio clone efímero aislado; como todos
 pushean a la misma rama, ante non-fast-forward cada subagente reintegra (rebase
 + resolución de conflictos + revalidación del fix propio y de los cambios
 integrados de los otros subagentes) y recién ahí pushea, repitiendo el ciclo
-hasta subir.
+hasta el límite de `fix-in-ephemeral-clone` (máximo 3 ciclos non-fast-forward;
+al agotarlo reporta `CONCURRENT_PUSH_RETRY_EXHAUSTED`).
 Después el loop principal hace el closeout en el hilo (reacción 👍 + reply con link
 al commit + resolver el hilo inline).
 
@@ -111,7 +112,7 @@ Si OPEN, procesá:
    - Recibe como "issue(s)" el contexto de los comentarios de su grupo: cuerpo, `path` y `line` (inline) o solo el body (general/review-body), y la rama objetivo {{BRANCH}}. No envíes un URL `#discussion_r...` o `#pullrequestreview-...` como target: este loop ya posee preflight y closeout agrupado; esos links pueden viajar solo como metadata no accionable.
    - Vía esa skill, hace el clone efímero depth-1, copia `.env*`, instala/linkea deps según plataforma, aplica el/los fix(es) de su grupo, valida, rebasea sobre el último remoto y pushea a {{BRANCH}}, y limpia el clone.
 
-   **Push concurrente**: como varios subagentes pushean a la MISMA rama, ante un rechazo por non-fast-forward el subagente NO repushea a ciegas: corre un ciclo completo de re-integración —re-fetch → rebase sobre el nuevo remoto → resolver conflictos → revalidar que TANTO el fix recién hecho COMO los cambios que integró de los otros subagentes (fixes de otros comentarios que ya cayeron a la rama) siguen pasando sobre la nueva base → recién ahí pushea; si vuelve a rebotar, repite el ciclo entero hasta subir— (esa lógica vive en `fix-in-ephemeral-clone`, paso 9). Cada subagente DEVUELVE el sha COMPLETO del commit pusheado en éxito (uno por grupo), o un fallo explícito + el path del clone que quedó para inspección. Recogé los resultados; por cada comentario fixeado guardá su sha (para el closeout) y sumá 1 al contador de ítems fixeados esta vuelta.
+   **Push concurrente**: como varios subagentes pushean a la MISMA rama, ante un rechazo por non-fast-forward el subagente NO repushea a ciegas: corre un ciclo completo de re-integración —re-fetch → rebase sobre el nuevo remoto → resolver conflictos → revalidar que TANTO el fix recién hecho COMO los cambios que integró de los otros subagentes (fixes de otros comentarios que ya cayeron a la rama) siguen pasando sobre la nueva base → recién ahí pushea; si vuelve a rebotar, repite el ciclo entero hasta un máximo de 3 ciclos; al agotarlos devuelve fallo `CONCURRENT_PUSH_RETRY_EXHAUSTED`— (esa lógica y ese límite viven en `fix-in-ephemeral-clone`). Cada subagente DEVUELVE el sha COMPLETO del commit pusheado en éxito (uno por grupo), o un fallo explícito + el path del clone que quedó para inspección. Recogé los resultados; por cada comentario fixeado guardá su sha (para el closeout) y sumá 1 al contador de ítems fixeados esta vuelta.
 
 (4) CLOSEOUT en ÉXITO (push hecho). Hacelo por cada comentario cuyo subagente volvió con éxito, usando el sha que ese subagente reportó (no esperes a que terminen todos: a medida que vuelven, cerrás). Las acciones de closeout en GitHub (reacciones, replies, resolver hilos) son independientes por comentario; el ÚNICO recurso compartido es `.codex-autofix/processed-{{PR}}.json`, así que el loop principal es el único escritor y serializa esas escrituras (paso d) para no corromper el JSON cuando varios subagentes terminan casi a la vez. Definí el link al commit: COMMIT_URL=https://github.com/{{OWNER}}/{{REPO}}/commit/<sha>
    a. Reacción 👍:
