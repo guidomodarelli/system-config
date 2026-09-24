@@ -21,7 +21,7 @@ If the user has not already chosen the scope, ask in Spanish before reviewing:
 
 Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
 
-Always run `git fetch --all --prune` before resolving branches, selecting files, or reading diffs. If fetch fails, stop the review and report the fetch error instead of continuing with stale refs.
+Fetch remote refs (with pruning) before resolving branches or reading diffs, because a stale base produces a diff that does not match what the PR will actually merge. If the fetch fails, stop and report the error rather than reviewing against stale refs.
 
 Use these scopes:
 
@@ -30,50 +30,20 @@ Use these scopes:
 - **HEAD against main/master including uncommitted changes**: inspect commits from the merge base with `main` or `master` to `HEAD`, then include staged, unstaged, and untracked files.
 - **Custom review instructions**: ask the user for the exact scope and review focus, then apply the closest matching scope above.
 
-Useful commands:
-
-```bash
-git fetch --all --prune
-git status --short
-git diff --cached --name-status
-git diff --name-status
-git ls-files --others --exclude-standard
-git diff --cached
-git diff
-```
-
 ## Base Selection
 
-Prefer remote tracking branches when available because they reflect the shared base more reliably:
+For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`. Remote tracking branches come first because they reflect the shared base more reliably. Option `3` needs no base branch: review staged, unstaged, and untracked files relative to `HEAD`. For option `4`, get the custom instructions first, then pick the requested base or file scope.
 
-- For option `1`, use `origin/develop` if it exists; otherwise use local `develop`.
-- For option `2`, use `origin/main` if it exists; otherwise use `origin/master`, then local `main`, then local `master`.
-- For option `3`, do not select a base branch; review staged, unstaged, and untracked files relative to `HEAD`.
-- For option `4`, ask for custom instructions first, then select the requested base or file scope.
+Review from the merge base with the selected base to `HEAD`. When the scope includes uncommitted changes, cover staged, unstaged, and untracked files too, and say explicitly in the report that the review includes them.
 
-Use `git merge-base HEAD <base>` and review from that merge base to `HEAD`. When the selected scope includes uncommitted changes, inspect staged, unstaged, and untracked files too and say explicitly that the review includes uncommitted changes.
+## Review Approach
 
-Useful commands:
+Resolve the base and merge base before reading code, since everything else depends on reviewing the right diff. Classifying changed files by runtime responsibility (UI, API route, service, persistence, background job, shared utility, test, config, or documentation) helps decide where concurrency, correctness, or leak risks are plausible.
 
-```bash
-git fetch --all --prune
-git branch --list develop main master
-git branch -r --list origin/develop origin/main origin/master
-git merge-base HEAD <base>
-git diff --name-status <merge-base>...HEAD
-git diff --stat <merge-base>...HEAD
-git diff <merge-base>...HEAD -- <path>
-git diff --check <merge-base>...HEAD
-```
-
-## Review Workflow
-
-1. Identify the base branch and merge base before reading code.
-2. List changed files and classify them by runtime responsibility: UI, API route, service, persistence, background job, shared utility, test, config, or documentation.
-3. Read the diff first, then open the surrounding implementation for any changed code that depends on invariants outside the diff.
-4. Trace changed control flow across module boundaries when a changed function calls or is called by another changed function.
-5. Prefer concrete failures over style comments. Do not report broad maintainability opinions unless they create a plausible defect in one of the focus areas.
-6. Validate likely findings against code context before reporting. If a risk depends on an assumption, state the assumption clearly or omit the finding.
+- Start from the diff and open surrounding implementation when changed code depends on invariants outside it.
+- Follow control flow across module boundaries when changed functions call each other, because many defects live in the interaction rather than in either side.
+- Prefer concrete failures over style comments: a maintainability opinion belongs in the report only when it creates a plausible defect in one of the focus areas.
+- Check likely findings against code context before reporting. If a risk depends on an assumption, state it, or drop the finding when the assumption is weak.
 
 ## Focus Areas
 
