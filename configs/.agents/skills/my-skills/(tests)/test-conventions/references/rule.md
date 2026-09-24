@@ -31,7 +31,8 @@
 ## Mocks and Isolation
 
 - Organize manual mocks in a `__mocks__` sibling folder to the file being mocked.
-- Mock all external dependencies (APIs, databases, network calls, timers) with mocks/spies.
+- Mock only at the project's own boundaries: network/HTTP clients, timers and other non-deterministic or side-effectful edges. Prefer real integrations (e.g. a test database or in-memory fake) over mocks when feasible.
+- Never mock internal or platform libraries (UI kits, SDKs, validators); exercise them for real. Document any unavoidable exception with its technical reason.
 - Keep tests independent, reset shared state in `beforeEach`/`afterEach`, and avoid relying on execution order.
 
 ## Output Requirements
