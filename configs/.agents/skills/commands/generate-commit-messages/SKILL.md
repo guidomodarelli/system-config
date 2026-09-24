@@ -1,6 +1,6 @@
 ---
 name: generate-commit-messages
-description: Collect the information required to draft and apply a high-quality commit message.
+description: "Collect the information required to draft and apply a high-quality commit message, then commit the current changes. Use when the user asks to generate or write a commit message, commit the current/staged changes, or invokes /generate-commit-messages."
 ---
 
 # Generate Commit Messages
@@ -14,8 +14,13 @@ Collect the information required to draft and apply a high-quality commit messag
 - If there are no staged changes, analyze all current uncommitted changes and stage them with «git add -A» before commit.
 - Do not propose new code changes.
 - Do not execute destructive commands.
-- Do not run typecheck, lint, build, tests, test coverage, validation scripts, or
-  any equivalent quality gate.
+- Do not run typecheck, lint, build, tests, coverage or other quality gates as
+  part of this skill: validating the changes belongs to the task that produced
+  them, and this skill only drafts the message and commits. Git hooks still run
+  as part of «git commit». If there is no evidence in the current session that
+  the relevant tests ran and passed for these changes, say so explicitly in the
+  final message to the user (what was not validated and why) instead of running
+  them here.
 - Run «git commit» directly using the generated message after the selected scope is properly staged.
 
 ## Gather
@@ -32,9 +37,6 @@ Collect the information required to draft and apply a high-quality commit messag
 ## Apply Step
 
 - Run «git commit» without asking for confirmation.
-- If a test, lint, typecheck, build, or validation command would normally be
-  expected before committing, skip it and keep the workflow focused only on the
-  commit message and commit operation.
 
 ## Style Constraints
 
