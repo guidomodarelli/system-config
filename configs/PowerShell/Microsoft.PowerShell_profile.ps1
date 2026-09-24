@@ -203,8 +203,8 @@ $script:REPO_ROOT = (Resolve-Path (Join-Path $script:ProfileScriptDirectory '..\
 # Skill invoked by `cx --commit` (resolved by Codex from its skill catalog).
 $script:CxCommitSkillPrompt = '$generate-commit-messages'
 # Defaults for `cx --commit`; explicit -m/-re flags still take precedence.
-$script:CxCommitModel = 'gpt-5.6-luna'
-$script:CxCommitReasoning = 'low'
+$script:CxCommitModel = 'gpt-6-luna'
+$script:CxCommitReasoning = 'max'
 
 function Get-CxPluginIdForMcpServer {
     param([string]$ServerName)
@@ -376,8 +376,8 @@ function cx {
         return
     }
 
-    $model = 'gpt-5.6-luna'
-    $reasoning = 'high'
+    $model = 'gpt-6-luna'
+    $reasoning = 'max'
     $modelOverridden = $false
     $reasoningOverridden = $false
     $yolo = $false
@@ -497,14 +497,14 @@ if ($codexCommandInfo) {
         $wrapperFlags = @(
             @{ Text = '-m'; List = '-m'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Modelo a usar' }
             @{ Text = '-re'; List = '-re'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Esfuerzo de razonamiento del modelo' }
-            @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (luna/low)' }
-            @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (luna/low)' }
+            @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (gpt-6-luna / max)' }
+            @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (gpt-6-luna / max)' }
             @{ Text = '--mcps'; List = '--mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Compatibilidad: los servidores MCP ya están activos por defecto' }
             @{ Text = '--no-mcps'; List = '--no-mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Desactiva los servidores MCP para esta ejecución' }
             @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Actualiza Codex desde el wrapper' }
         )
         $modelOptions = @(
-            'gpt-5.6-luna',
+            'gpt-6-luna',
             'gpt-5.6-sol'
         )
         $reasoningOptions = @('low', 'medium', 'high', 'xhigh', 'max')

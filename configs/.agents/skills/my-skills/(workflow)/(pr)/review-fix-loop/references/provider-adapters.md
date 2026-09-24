@@ -6,14 +6,14 @@ Leer esta referencia antes de ejecutar provider manualmente o modificar helper.
 
 Incluir target exacto, modo read-only, prohibición de editar/commit/push, prohibición de invocar otro reviewer y pedido de findings directos con archivo, línea, escenario, severidad y confianza.
 
-## Claude + Copilot API + Terra high
+## Claude + Copilot API + Luna con esfuerzo max
 
 ```bash
 env ANTHROPIC_BASE_URL="http://localhost:4141" \
   ANTHROPIC_AUTH_TOKEN="dummy" \
-  ANTHROPIC_MODEL="gpt-5.6-luna[1m]" \
-  ANTHROPIC_DEFAULT_OPUS_MODEL="gpt-5.6-luna[1m]" \
-  ANTHROPIC_DEFAULT_SONNET_MODEL="gpt-5.6-luna[1m]" \
+  ANTHROPIC_MODEL="gpt-6-luna[1m]" \
+  ANTHROPIC_DEFAULT_OPUS_MODEL="gpt-6-luna[1m]" \
+  ANTHROPIC_DEFAULT_SONNET_MODEL="gpt-6-luna[1m]" \
   CLAUDE_CODE_USE_VERTEX=0 \
   CLAUDE_CODE_USE_BEDROCK=0 \
   DISABLE_NON_ESSENTIAL_MODEL_CALLS=1 \
@@ -23,7 +23,8 @@ env ANTHROPIC_BASE_URL="http://localhost:4141" \
   CLAUDE_CODE_ENABLE_AWAY_SUMMARY=0 \
   CLAUDE_CODE_TOTAL_TOKENS_REMINDER=off \
   MCP_CONNECT_TIMEOUT_MS=20000 \
-  CLAUDE_CODE_SUBAGENT_MODEL="gpt-5.6-luna[1m]" \
+  CLAUDE_CODE_SUBAGENT_MODEL="gpt-6-luna[1m]" \
+  CLAUDE_CODE_EFFORT_LEVEL="max" \
   claude \
   --permission-mode plan \
   --tools Read,Grep,Glob,Bash \
@@ -32,7 +33,7 @@ env ANTHROPIC_BASE_URL="http://localhost:4141" \
   -p "$REVIEW_PROMPT"
 ```
 
-Do not inherit Copilot API environment from user settings. This command defines full provider profile. Subagents always use Terra.
+No heredar variables de Copilot API desde settings del usuario. Este comando fija perfil completo del provider. Subagentes usan gpt-6-luna con esfuerzo max.
 
 ## Claude direct
 

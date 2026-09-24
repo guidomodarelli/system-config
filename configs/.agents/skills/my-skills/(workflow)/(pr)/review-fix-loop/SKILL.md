@@ -7,7 +7,7 @@ description: "Multi-provider review and fix loop: Claude Code, then Codex fallba
 
 Run a code review as a closeout check. Select the first available provider in this order:
 
-1. Claude + Copilot API + Terra high
+1. Claude + Copilot API con Luna y esfuerzo max
 2. Claude directo
 3. Codex
 
@@ -100,7 +100,7 @@ scripts/review-fix-loop -p claude
 scripts/review-fix-loop -p codex
 ```
 
-`auto` is the default and tries Claude + Copilot API + Terra high, then direct Claude, then Codex.
+El default es `auto`: prueba Claude + Copilot API con gpt-6-luna/max, luego Claude directo y después Codex.
 
 Do not ask which provider to use by default. A closeout check must remain non-interactive. If the user explicitly names a provider or passes `--provider/-p`, run only that provider and report a provider failure without fallback.
 
@@ -137,9 +137,9 @@ Read [provider adapters](references/provider-adapters.md) before manually invoki
 
 ### Claude review profiles
 
-`claude-copilot` is first. Helper exports endpoint, dummy token, Terra model mappings, provider flags and MCP timeout explicitly. It never inherits Copilot API variables from user settings. It also sets `CLAUDE_CODE_SUBAGENT_MODEL=gpt-5.6-luna[1m]` so every subagent uses Terra.
+`claude-copilot` va primero. El helper fija endpoint, dummy token, modelos gpt-6-luna con esfuerzo max, flags del provider y timeout MCP. No hereda variables de Copilot API desde settings del usuario. También define `CLAUDE_CODE_SUBAGENT_MODEL=gpt-6-luna[1m]` para que cada subagente use Luna.
 
-`claude` is direct-only. It clears Copilot API Anthropic variables and loads only project/local settings. It never inherits Terra/Copilot profile from `claude-copilot`.
+`claude` usa conexión directa: limpia variables Anthropic de Copilot API y carga solo settings de proyecto/locales. No hereda perfil Luna/Copilot de `claude-copilot`.
 
 ## Pick Target Once
 

@@ -8,8 +8,8 @@ REPO_ROOT="${_cx_wrapper_dir:h:h:h:h}"
 # Skill invoked by `cx --commit` (resolved by Codex from its skill catalog).
 _CX_COMMIT_SKILL_PROMPT='$generate-commit-messages'
 # Defaults for `cx --commit`; explicit -m/-re flags still take precedence.
-_CX_COMMIT_MODEL="gpt-5.6-luna"
-_CX_COMMIT_REASONING="low"
+_CX_COMMIT_MODEL="gpt-6-luna"
+_CX_COMMIT_REASONING="max"
 
 _cx_plugin_id_for_mcp_server() {
   local server_name="$1"
@@ -229,8 +229,8 @@ cx() {
   clear
 
   # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit, --mcps
-  local model="gpt-5.6-luna"
-  local reasoning="high"
+  local model="gpt-6-luna"
+  local reasoning="max"
   local model_overridden=""
   local reasoning_overridden=""
   local yolo=""         # empty -> safe mode; set -> yolo mode

@@ -22,7 +22,10 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
       'Get-GhqRootFingerprint',
       'Get-CachedGhqRepositoryList',
       'Get-CachedGhqRootPath',
-      'Get-CachedGhqCommandInfo'
+      'Get-CachedGhqCommandInfo',
+      'Resolve-CxCodexExecutable',
+      'cx',
+      'cxd'
     )
     foreach ($functionName in $functionNamesUnderTest) {
       $functionDefinition = $profileAst.Find({
@@ -35,9 +38,27 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
       . ([scriptblock]::Create($functionDefinition.Extent.Text))
     }
 
+    $scriptVariableNamesUnderTest = @(
+      '$script:CxCommitSkillPrompt',
+      '$script:CxCommitModel',
+      '$script:CxCommitReasoning'
+    )
+    foreach ($scriptVariableName in $scriptVariableNamesUnderTest) {
+      $assignment = $profileAst.Find({
+          param($node)
+          $node -is [System.Management.Automation.Language.AssignmentStatementAst] -and
+          $node.Left.Extent.Text -eq $scriptVariableName
+        }, $true)
+      if (-not $assignment) {
+        throw "Assignment '$scriptVariableName' was not found in profile script."
+      }
+      . ([scriptblock]::Create($assignment.Extent.Text))
+    }
+
     # Borde externo: el binario ghq. Existe como función para que Mock pueda reemplazarlo
     # aunque ghq no esté instalado donde corren los tests.
     function ghq { }
+    function codex { }
 
     function New-TestGitRepository {
       param([string]$RepositoryPath)
@@ -182,6 +203,46 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
 
       Get-CachedGhqRootPath | Should -Be $resolvedRootPath
       Should -Invoke ghq -Times 1 -Exactly -ParameterFilter { $args[0] -eq 'root' }
+    }
+  }
+
+  Context 'modelo predeterminado del wrapper Codex' {
+    BeforeEach {
+      Mock Resolve-CxCodexExecutable { 'codex' }
+      Mock codex { }
+    }
+
+    It 'usa gpt-6-luna con esfuerzo max en cx' {
+      cx
+
+      Should -Invoke codex -Times 1 -Exactly -ParameterFilter {
+        $args[0] -eq '-m' -and
+        $args[1] -eq 'gpt-6-luna' -and
+        $args[2] -eq '-c' -and
+        $args[3] -eq 'model_reasoning_effort=max'
+      }
+    }
+
+    It 'usa mismo modelo y esfuerzo en cxd' {
+      cxd
+
+      Should -Invoke codex -Times 1 -Exactly -ParameterFilter {
+        $args[0] -eq '-m' -and
+        $args[1] -eq 'gpt-6-luna' -and
+        $args[2] -eq '-c' -and
+        $args[3] -eq 'model_reasoning_effort=max'
+      }
+    }
+
+    It 'usa gpt-6-luna y max en modo commit' {
+      cx --commit
+
+      Should -Invoke codex -Times 1 -Exactly -ParameterFilter {
+        $args[0] -eq '-m' -and
+        $args[1] -eq 'gpt-6-luna' -and
+        $args[2] -eq '-c' -and
+        $args[3] -eq 'model_reasoning_effort=max'
+      }
     }
   }
 }
