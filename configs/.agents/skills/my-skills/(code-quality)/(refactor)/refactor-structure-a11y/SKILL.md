@@ -40,7 +40,10 @@ Use semantic HTML for actions, apply accessibility attributes when behavior is n
 
 ### Accessible non-obvious behavior
 ```
-<div role="button" tabIndex={0} onKeyDown={handleKeyDown} onClick={handleClick} aria-label="Abrir filtros" />
+<button type="button" aria-expanded={isFiltersOpen} aria-controls="filters-panel" onClick={toggleFilters}>
+  {i18n.gettext('Filtros')}
+</button>
+<section id="filters-panel" hidden={!isFiltersOpen}>…</section>
 ```
 
 ### Component structure
