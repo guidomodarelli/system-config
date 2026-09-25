@@ -34,7 +34,7 @@
   "window.titleBarStyle": "custom",
   "window.customTitleBarVisibility": "auto",
   "window.menuBarVisibility": "visible",
-  "window.newWindowProfile": "Agents",
+  "window.newWindowProfile": "Default",
   "window.title": "${rootNameShort}${separator}${activeEditorShort}",
 
   /* ======================================================================== */
