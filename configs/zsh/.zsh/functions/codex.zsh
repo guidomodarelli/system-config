@@ -229,8 +229,8 @@ cx() {
   clear
 
   # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit, --mcps
-  local model="gpt-6-luna"
-  local reasoning="max"
+  local model="gpt-6-sol"
+  local reasoning="medium"
   local model_overridden=""
   local reasoning_overridden=""
   local yolo=""         # empty -> safe mode; set -> yolo mode

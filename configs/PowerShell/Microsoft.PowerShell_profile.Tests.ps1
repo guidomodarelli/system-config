@@ -212,14 +212,14 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
       Mock codex { }
     }
 
-    It 'usa gpt-6-luna con esfuerzo max en cx' {
+    It 'usa gpt-6-sol con esfuerzo medium en cx' {
       cx
 
       Should -Invoke codex -Times 1 -Exactly -ParameterFilter {
         $args[0] -eq '-m' -and
-        $args[1] -eq 'gpt-6-luna' -and
+        $args[1] -eq 'gpt-6-sol' -and
         $args[2] -eq '-c' -and
-        $args[3] -eq 'model_reasoning_effort=max'
+        $args[3] -eq 'model_reasoning_effort=medium'
       }
     }
 
@@ -228,9 +228,9 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
 
       Should -Invoke codex -Times 1 -Exactly -ParameterFilter {
         $args[0] -eq '-m' -and
-        $args[1] -eq 'gpt-6-luna' -and
+        $args[1] -eq 'gpt-6-sol' -and
         $args[2] -eq '-c' -and
-        $args[3] -eq 'model_reasoning_effort=max'
+        $args[3] -eq 'model_reasoning_effort=medium'
       }
     }
 

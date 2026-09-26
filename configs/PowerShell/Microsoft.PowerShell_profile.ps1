@@ -383,8 +383,8 @@ function cx {
         return
     }
 
-    $model = 'gpt-6-luna'
-    $reasoning = 'max'
+    $model = 'gpt-6-sol'
+    $reasoning = 'medium'
     $modelOverridden = $false
     $reasoningOverridden = $false
     $yolo = $false
@@ -511,6 +511,7 @@ if ($codexCommandInfo) {
             @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Actualiza Codex desde el wrapper' }
         )
         $modelOptions = @(
+            'gpt-6-sol',
             'gpt-6-luna',
             'gpt-5.6-sol'
         )
