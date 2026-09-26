@@ -66,12 +66,15 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Carpetas: usar convencionales (`utils/`, `services/`, `components/`, `store/`, `constants/`, `adapters/`) o lowercase kebab-case (`data-fetchers/`).
 
 ### Literales hardcodeados
-- Extraer literales con significado de negocio, reusados, o env-dependent (status, roles, route fragments, timeouts, retry limits, paginación, feature flags, currency, site values) a constantes nombradas o config.
-- Mantener inline lo trivial: `0`, `1`, `-1`, `true`, `false`, empty strings de init, y one-off en scope chico donde el nombre sería más ruidoso que el valor.
-- Antes de crear constante, buscar el mismo valor en el codebase. Constante en el scope más angosto que evite duplicación (local → module-level → domain constants file). Config cuando varía por entorno/site/brand/deployment. Reusar `constants/`, `config/`, `settings/` existentes antes de crear estructura.
+- Fuente canónica: Skill `constants-refactor`. Toda constante estática con significado de dominio o contrato (status, roles, route fragments, timeouts, retry limits, paginación, feature flags, currency, site values, regex, códigos, schemas, msgids) va a `constants/` organizada por dominio, aunque hoy tenga un solo consumidor: la cantidad de usos no decide la ubicación.
+- Mantener inline lo trivial (`0`, `1`, `-1`, `true`, `false`, `""`, literales mecánicos donde el nombre sería más ruidoso que el valor) y el vocabulario estándar del lenguaje/plataforma (resultados de `typeof`, keywords de JSON Schema, selectores/hooks del framework, encodings, eventos del DOM).
+- No son constantes y no van a `constants/`: variables calculadas en runtime, estado mutable, resultados de llamadas e instancias creadas al importar.
+- Copy user-facing va a i18n y solo su msgid a `constants/`; si el proyecto no tiene i18n, dejar el copy donde lo espera la convención del framework y mover solo su identificador.
+- No derivar tipos desde constantes (`typeof X[number]`, `(typeof X)[keyof typeof X]`); declarar unions explícitas y verificar la constante con `satisfies`.
+- Antes de crear constante, buscar el mismo valor en el codebase y reusar `constants/`, `config/`, `settings/` existentes antes de crear estructura. Config cuando varía por entorno/site/brand/deployment.
 - Preferir config (no constante) cuando el valor representa endpoints, bucket/topic names, app ids, límites de servicios externos, o se espera tunear sin cambiar lógica de negocio.
 - Nombrar por rol, no por valor; incluir unidades (`REQUEST_TIMEOUT_MS`, `DEFAULT_PAGE_SIZE`). No encodear historia de implementación en el nombre.
-- Evitar malas extracciones: no crear constante por cada literal mecánicamente, no alejar el valor más de lo necesario, no agrupar literales no relacionados en un `constants.js` genérico, no crear config para invariantes de compile-time, no renombrar constantes compartidas salvo que el refactor lo incluya explícitamente.
+- Evitar malas extracciones: no extraer triviales ni vocabulario estándar, no unificar dos conceptos distintos solo porque hoy comparten valor, no agrupar literales no relacionados en un `constants.js` genérico, no crear config para invariantes de compile-time, no renombrar constantes compartidas salvo que el refactor lo incluya explícitamente.
 - Tras extraer, actualizar imports, tests, mocks y snapshots que dependían del literal.
 
 ### Mensajes de error

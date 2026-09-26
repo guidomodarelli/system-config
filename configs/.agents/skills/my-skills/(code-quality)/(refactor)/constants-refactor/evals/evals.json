@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "Revisá este PR de un repositorio de software y analizá qué constantes podrían moverse a constants/. Hay límites repetidos entre schema, API y cliente, códigos de error compartidos, regex de validación y algunos timeouts de UI. No hagas cambios todavía.",
-      "expected_output": "Informe con alcance del PR, tabla de candidatos, clasificación mover a constants/mantener como variable runtime y comandos de verificación. Debe mover toda constante estática, incluso con un solo consumidor, incluyendo mensajes, mocks, UI-only, HTTP statuses y timeouts; solo deja fuera cálculos, estado mutable y resultados runtime.",
+      "expected_output": "Informe con modo PR, métrica antes/después, tabla de candidatos, clasificación mover a constants/ / mantener fuera y comandos de verificación. Debe mover toda constante estática con significado de dominio, incluso con un solo consumidor (límites, códigos, regex, timeouts, HTTP statuses, msgids); deja fuera cálculos, estado mutable, resultados runtime, triviales, vocabulario estándar y el copy user-facing (que va a i18n).",
       "files": []
     },
     {
@@ -16,7 +16,7 @@
     {
       "id": 3,
       "prompt": "En un repo TypeScript, mové códigos de error, estados de polling, límites de entrada y runtime constants que hoy viven en interfaces/ a fuentes canónicas. Conservá unions TypeScript, evitá ciclos, no edites catálogos generados y explicá qué valores deben quedarse locales.",
-      "expected_output": "Objetos as const con tipos derivados, interfaces sin duplicar constantes estáticas, límites separados por semántica, imports y tests actualizados, validación de typecheck/lint/build y lista de únicas exclusiones: variables calculadas, estado mutable y resultados runtime.",
+      "expected_output": "Objetos/arrays con valores fijos verificados con satisfies contra unions TypeScript explícitas (sin typeof X[number] ni (typeof X)[keyof typeof X]), interfaces sin duplicar constantes estáticas, tipos importados type-only sin ciclos, límites separados por semántica, imports y tests actualizados, validación de typecheck/lint/build y exclusiones justificadas: variables runtime, triviales y vocabulario estándar.",
       "files": []
     },
     {
@@ -29,6 +29,24 @@
       "id": 5,
       "prompt": "En un módulo TypeScript hay una constante estática usada una sola vez: const MAX_VISIBLE_ITEMS = 20. Refactorizá el módulo según la skill y explicá si debe permanecer local.",
       "expected_output": "Mueve MAX_VISIBLE_ITEMS a un archivo cohesivo dentro de constants/ aunque tenga un solo uso, actualiza el import y explica que cantidad de consumidores no decide ubicación. Solo dejaría local una variable calculada o estado mutable.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Auditá todo este repositorio de una librería npm (plugin de ESLint en TypeScript, sin i18n) y aplicá la skill al máximo: tiene src/, scripts/ de release, benchmarks/ y tests/. Publica tipos .d.ts.",
+      "expected_output": "Usa modo auditoría de repo; mide con un linter de literales antes y después; crea constants/ en producción y scripts/constants/ para tooling; deja inputs de tests en los tests; deja mensajes de reglas en meta.messages y mueve solo sus messageIds; no extrae typeof, keywords de JSON Schema ni selectores de ESLint; compara .d.ts antes/después sin tipos derivados con typeof y ejecuta typecheck de consumidor.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "Extraé a constants/ la lógica de ancho de columnas: hoy es una cadena de condiciones code >= 0x1100 && (code <= 0x115f || ...). Querés una tabla de rangos.",
+      "expected_output": "Mueve los rangos a una constante documentada, reemplaza la condición por un recorrido equivalente, y demuestra paridad con un test que se ejecuta contra el código original y el refactorizado; no cambia otros comportamientos.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "Tengo DEFAULT_DUPLICATE_SEVERITY = \"warn\" y DEFAULT_ADVISORY_SEVERITY = \"warn\" en el mismo archivo de constants y un linter dice que son duplicados. ¿Los unifico?",
+      "expected_output": "No los unifica: son conceptos distintos que hoy coinciden en valor; lo explica como falso positivo aceptable del linter y mantiene ambas constantes separadas.",
       "files": []
     }
   ]
