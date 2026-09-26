@@ -125,7 +125,14 @@ if ($zoxideCommand) {
     }
 }
 
-fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+# fnm returns no output when it cannot create its multishell symlink
+# (e.g. sandboxed users without write access to fnm_multishells).
+$fnmEnvironmentScript = fnm env --use-on-cd --shell powershell 2>$null | Out-String
+if ([string]::IsNullOrWhiteSpace($fnmEnvironmentScript)) {
+    Write-Verbose 'Profile: fnm env returned no output; skipping fnm initialization.'
+} else {
+    Invoke-Expression $fnmEnvironmentScript
+}
 
 # Ensure ~\.local\bin (used by native installers such as Claude Code) is on PATH.
 $localBin = Join-Path $env:USERPROFILE '.local\bin'
