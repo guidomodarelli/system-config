@@ -512,8 +512,7 @@ if ($codexCommandInfo) {
         )
         $modelOptions = @(
             'gpt-6-sol',
-            'gpt-6-luna',
-            'gpt-5.6-sol'
+            'gpt-6-luna'
         )
         $reasoningOptions = @('low', 'medium', 'high', 'xhigh', 'max')
 

@@ -13,8 +13,7 @@
 
 _cx_models() {
   echo "gpt-6-sol
-gpt-6-luna
-gpt-5.6-sol"
+gpt-6-luna"
 }
 
 _cx_reasoning() {
