@@ -28,6 +28,7 @@
 
 - Al escribir, actualizar o revisar specs, consultar y aplicar la guía visual de `configs/.agents/DESIGN.md`.
 - Si una spec no puede seguir esa guía por una restricción técnica o de formato, dejar explícita la razón en la respuesta final.
+- Si se modifica la paleta de `configs/.agents/DESIGN.md` (front matter o `:root` del boilerplate), ejecutar `bash scripts/design/check-design-tokens.sh` y sus tests `scripts/design/test_check_design_tokens.bats`.
 
 ## Memoria Persistente Del Repositorio
 

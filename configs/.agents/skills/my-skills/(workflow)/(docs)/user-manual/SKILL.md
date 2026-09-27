@@ -122,8 +122,13 @@ Create the `user-guides/` directory if it does not exist before writing either f
 
 - Encoding: `UTF-8`.
 - Viewport: `width=device-width, initial-scale=1.0`.
-- Google Fonts import: `DM Sans` (400/500/600) + `DM Mono` (400/500).
-- All CSS inline in `<style>` — no external stylesheets, no framework classes.
+- Google Fonts via `<link>` + `preconnect`: `DM Sans` (400/500/600) + `DM Mono` (400/500), with the
+  system fallback stacks from the boilerplate.
+- All CSS inline in `<style>` — no external stylesheets, no framework classes. Colors only through
+  the `:root` CSS variables (`var(--label)`), never loose hex values.
+- Semantic markup: `<header class="doc-header">` with `<h1 class="doc-title">`, one
+  `<section class="section">` per numbered section with `<h2 class="section-title" id="sNN">`.
+- Keep the `beforeprint` script so accordions open when printing.
 - Max width: `860px`, centered.
 
 ### Components to use (from DESIGN.md)
@@ -131,15 +136,22 @@ Create the `user-guides/` directory if it does not exist before writing either f
 | Need | Component |
 |---|---|
 | Document header | `doc-header` + `doc-label` + `doc-title` + `doc-sub` + `doc-meta` |
+| Table of contents (5+ sections) | `toc` + `toc-label` + `toc-num`, right after the header |
 | Numbered section | `section` + `section-num` + `section-title` |
 | Major divider | `part-header` + `part-header-label` + `part-header-title` |
-| Info / warn / ok / error note | `callout` `.c-info` / `.c-warn` / `.c-ok` / `.c-red` |
-| Comparison table | `table` + `th` + `td` with `badge` pills for status |
+| Info / warn / ok / error note | `callout` `.c-info` / `.c-warn` / `.c-ok` / `.c-red`, starting with a `<strong>` keyword |
+| Comparison table | `.table-wrap` > `table` + `th scope="col"` + `td` with `badge` pills for status |
 | Permission / status pill | `.badge` `.b-green` / `.b-amber` / `.b-red` / `.b-gray` |
-| Process walkthrough | `steps` + `step-circle` + `step-label` + `step-desc` |
-| UI preview | `mockup` + `mockup-bar` (3 dots + URL) + `mockup-body` |
+| Process walkthrough | `ol.steps` > `step-item` + `step-circle` + `step-label` + `step-desc` |
+| UI preview | `mockup` + `mockup-bar` (`mockup-dots` + `mockup-url`) + `mockup-body` |
+| Concrete scenario | `example-box` + `example-label` |
+| Value transition (`$15 → $20`) | `flow` + `pill-stale` / `pill-neutral` / `pill-success` |
+| Reference block (rules, errors, checklist) | `details.acc` + `summary` (+ `acc-num`) + `acc-body` |
 | Inline identifier | `<code>` |
+| Link | plain `<a>` (the boilerplate styles it) |
 | Horizontal rule | `divider` |
+
+Copy the markup from the "Snippets de componentes" block in DESIGN.md; class names are a contract.
 
 ### Writing tone
 
@@ -185,6 +197,8 @@ If a discrepancy is found, fix the HTML before reporting done.
 - [ ] All CSS is inline — no external deps beyond Google Fonts.
 - [ ] Heritage Spec colors, fonts, and radii match DESIGN.md exactly (no hard-coded values
       that differ from the spec).
+- [ ] Passes the "Checklist de conformidad" in DESIGN.md (semantic headings, tables in
+      `.table-wrap`, TOC when 5+ sections, spacing on the scale, no text under 11px).
 - [ ] Visibility matrix is complete — every gated element accounted for.
 - [ ] Mockups use real values from the codebase.
 - [ ] Tone is non-technical throughout (except permission codes in the table).
