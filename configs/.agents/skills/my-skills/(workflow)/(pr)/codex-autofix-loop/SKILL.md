@@ -56,14 +56,14 @@ Cubre **tres fuentes** de comentarios de Codex:
 
 > **Variables globales del loop** (única fuente de verdad — cambiá SOLO estos
 > números y se propagan a todo el documento):
-> - `{{INTERVAL_MIN}}` = `8` — minutos entre corridas.
+> - `{{INTERVAL_MIN}}` = `3` — minutos entre corridas.
 > - `{{MAX_PARALLEL}}` = `4` — máximo de subagentes (grupos de archivo) corriendo a
 >   la vez. Cada subagente es un clone efímero + install + tests, así que este cap
 >   evita fundir disco/CPU; los grupos restantes se procesan en lotes sucesivos.
 >
 > Derivados (no los edites a mano; salen de `{{INTERVAL_MIN}}`):
-> - `{{INTERVAL}}` = `{{INTERVAL_MIN}}m` (= `8m`) — intervalo de `/loop`.
-> - `{{CRON}}` = `*/{{INTERVAL_MIN}} * * * *` (= `*/8 * * * *`) — cron equivalente
+> - `{{INTERVAL}}` = `{{INTERVAL_MIN}}m` (= `3m`) — intervalo de `/loop`.
+> - `{{CRON}}` = `*/{{INTERVAL_MIN}} * * * *` (= `*/3 * * * *`) — cron equivalente
 >   para identificar el job en `CronList`.
 
 El intervalo es session-only: si cerrás Claude, hay que relanzarlo. El loop se
