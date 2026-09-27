@@ -6,8 +6,8 @@ description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea 
 # Codex auto-fix loop (local, vía Claude Code)
 
 Loop local que escucha comentarios de **Codex** (`chatgpt-codex-connector[bot]`)
-en un PR y **spawnea subagentes en paralelo** (uno por GRUPO de archivo, en lotes
-de `{{MAX_PARALLEL}}`) que delegan el fix en la skill
+en un PR y **spawnea subagentes en paralelo** (uno por GRUPO de archivo, tantos
+como permitan la CPU, la RAM y el disco libres en cada vuelta) que delegan el fix en la skill
 [`fix-in-ephemeral-clone`](../../(git)/fix-in-ephemeral-clone/SKILL.md) —invocada vía
 la herramienta `Skill` (`/fix-in-ephemeral-clone`)— tratando cada comentario
 como la "issue" a resolver (clone efímero depth-1 → fix → validar → push a la rama
@@ -29,7 +29,7 @@ Cubre **tres fuentes** de comentarios de Codex:
 > contrato de aislamiento (clone efímero, copia de `.env*`, deps por plataforma,
 > rebase pre-push, push con retry, cleanup). Este loop NO reimplementa ese flujo:
 > solo arma el input (comentarios agrupados por archivo → issue), spawnea un
-> subagente por grupo (en lotes de `{{MAX_PARALLEL}}`) que la invoca en paralelo, y
+> subagente por grupo (con concurrencia según recursos libres) que la invoca en paralelo, y
 > hace el closeout. Cualquier cambio al mecanismo de clone/fix/push vive en esa skill.
 
 > Es un complemento del workflow de CI `.github/workflows/codex-autofix.yml`.
@@ -44,8 +44,10 @@ Cubre **tres fuentes** de comentarios de Codex:
 2. Inicializá el estado de dedup del PR (vacío procesa todo el backlog; con ids
    ya cargados procesa solo los nuevos):
    ```
-   .codex-autofix/processed-{{PR}}.json  ->  {"pr":{{PR}},"processedCommentIds":[]}
+   .codex-autofix/processed-{{PR}}.json  ->  {"pr":{{PR}},"processedCommentIds":[],"inFlight":{}}
    ```
+   (`inFlight` registra los comentarios que tienen un subagente trabajando; si
+   falta la clave, el loop la trata como `{}`.)
    (`.codex-autofix/` está gitignored: es estado de runtime, no se commitea.)
 3. Lanzá el loop pegando el prompt con el intervalo `{{INTERVAL}}`:
    ```
@@ -56,14 +58,21 @@ Cubre **tres fuentes** de comentarios de Codex:
 
 > **Variables globales del loop** (única fuente de verdad — cambiá SOLO estos
 > números y se propagan a todo el documento):
-> - `{{INTERVAL_MIN}}` = `3` — minutos entre corridas.
-> - `{{MAX_PARALLEL}}` = `4` — máximo de subagentes (grupos de archivo) corriendo a
->   la vez. Cada subagente es un clone efímero + install + tests, así que este cap
->   evita fundir disco/CPU; los grupos restantes se procesan en lotes sucesivos.
+> - `{{INTERVAL_MIN}}` = `5` — minutos entre corridas.
+> - Costo estimado de UN subagente (clone efímero + install + tests), usado para
+>   calcular cuántos caben en paralelo según recursos libres:
+>   - `{{CPU_PER_AGENT}}` = `1` — cores lógicos libres por subagente.
+>   - `{{RAM_PER_AGENT_GB}}` = `2` — GB de RAM disponible por subagente.
+>   - `{{DISK_PER_AGENT_GB}}` = `3` — GB de disco libre (en el tempdir) por subagente.
+> - Reserva que nunca se reparte entre subagentes (queda para el sistema y la sesión):
+>   - `{{RAM_RESERVE_GB}}` = `2`.
+>   - `{{DISK_RESERVE_GB}}` = `5`.
+> - `{{INFLIGHT_TTL_MIN}}` = `60` — minutos tras los cuales una entrada de
+>   `inFlight` sin subagente vivo se considera huérfana y se libera.
 >
 > Derivados (no los edites a mano; salen de `{{INTERVAL_MIN}}`):
-> - `{{INTERVAL}}` = `{{INTERVAL_MIN}}m` (= `3m`) — intervalo de `/loop`.
-> - `{{CRON}}` = `*/{{INTERVAL_MIN}} * * * *` (= `*/3 * * * *`) — cron equivalente
+> - `{{INTERVAL}}` = `{{INTERVAL_MIN}}m` (= `5m`) — intervalo de `/loop`.
+> - `{{CRON}}` = `*/{{INTERVAL_MIN}} * * * *` (= `*/5 * * * *`) — cron equivalente
 >   para identificar el job en `CronList`.
 
 El intervalo es session-only: si cerrás Claude, hay que relanzarlo. El loop se
@@ -83,7 +92,12 @@ GUARD DE AUTO-CANCELACIÓN (hacelo SIEMPRE primero). Obtené el estado del PR:
 Auto-cancelar = CronList, identificá el job de ESTE loop (cron `{{CRON}}`, auto-fix de Codex en PR #{{PR}}), borralo con CronDelete por id, PushNotification de una línea avisando el motivo, y terminá sin procesar.
 
 Si OPEN, procesá:
-(1) Leé `processedCommentIds` desde `.codex-autofix/processed-{{PR}}.json`. Los ids de comentarios (inline/generales) se guardan como número crudo; los ids de review-body se guardan namespaceados como `"review:<id>"` (evita colisión entre espacios de id distintos). `processedCommentIds` representa fixes aplicados y cerrados.
+(1) Leé `processedCommentIds` desde `.codex-autofix/processed-{{PR}}.json`. Los ids de comentarios (inline/generales) se guardan como número crudo; los ids de review-body se guardan namespaceados como `"review:<id>"` (evita colisión entre espacios de id distintos). `processedCommentIds` representa fixes aplicados y cerrados. Leé también `inFlight` (mapa `id -> {label, startedAt}` con el mismo formato de id; si falta, tratalo como `{}`): son los comentarios que YA tienen un subagente trabajando, lanzado en esta vuelta o en una anterior.
+
+(1-bis) NO RELANCES COMENTARIOS CON UN SUBAGENTE TRABAJANDO. Una vuelta puede empezar mientras siguen corriendo subagentes de vueltas anteriores. Antes de armar grupos, reconciliá `inFlight`:
+   - Si el subagente de una entrada sigue vivo (lo ves corriendo en tus tareas/agentes en background con ese label), el id queda BLOQUEADO: no lo agrupes, no lo spawnees de nuevo, no reacciones ni respondas. Esperá su resultado; el closeout lo hace el paso (4) cuando vuelva.
+   - Si el subagente ya no existe (murió sin devolver resultado, la sesión se reinició) Y pasaron más de `{{INFLIGHT_TTL_MIN}}` min desde `startedAt`, sacá la entrada de `inFlight`: el comentario vuelve a ser elegible en esta vuelta. Si no pasó ese tiempo, dejalo bloqueado por las dudas.
+   - Si un comentario nuevo cae en el mismo `path` (o zona) que un grupo en curso, tampoco lo spawnees en paralelo: esperá a que ese grupo termine y tomalo en una vuelta siguiente (evita dos clones pisando el mismo archivo).
 
 (2) Traé comentarios de chatgpt-codex-connector[bot] de las TRES fuentes:
    - inline: `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments --paginate` (cada uno trae `id`, `path`, `line`, `body` y `pull_request_review_id` = review padre).
@@ -98,16 +112,31 @@ Si OPEN, procesá:
    - Si `HAS_EYES == 0` (sin ojitos del bot): reposteá el trigger → `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si `HAS_EYES >= 1`, NO hagas nada: Codex ya lo está procesando.
    - Para no duplicar el trigger: si en ESTA misma vuelta vas a fixear ítems nuevos (vas a postear `@codex review` en el paso (6)), salteá el repost acá; ese paso ya re-dispara la review.
 
-(3) FAN-OUT EN PARALELO (por GRUPO de archivo, con cap de concurrencia).
+(3) FAN-OUT EN PARALELO (por GRUPO de archivo, con concurrencia según recursos libres).
 
-(3a) ARMÁ LOS GRUPOS DE TRABAJO. Tomá los ítems accionables y elegibles (los que NO están en `processedCommentIds`; para review-bodies, además, pasá el filtro de accionabilidad de (3b)) y agrupalos así, porque dos fixes sobre el MISMO archivo/zona en clones paralelos se pisan o explotan en el rebase:
+(3a) ARMÁ LOS GRUPOS DE TRABAJO. Tomá los ítems accionables y elegibles (los que NO están en `processedCommentIds` NI en `inFlight`; para review-bodies, además, pasá el filtro de accionabilidad de (3b)) y agrupalos así, porque dos fixes sobre el MISMO archivo/zona en clones paralelos se pisan o explotan en el rebase:
    - Los **inline** se agrupan por `path`; si dos inline del mismo `path` tienen `line` solapadas o cercanas, van en el MISMO grupo igual.
    - Cada **general** y cada **review-body accionable** es su propio grupo (no tienen `path`; asumí que pueden tocar cualquier archivo, así que no los mezcles con otros).
    - Un grupo = la unidad que toma UN subagente. Dentro del grupo, el subagente resuelve sus comentarios **secuencialmente en el mismo clone** (un solo push al final). Entre grupos de archivos DISJUNTOS sí hay paralelismo.
 
 (3b) ACCIONABILIDAD DE REVIEW-BODIES (antes de agrupar/spawnear, la decide el LOOP PRINCIPAL). Evaluá si el body trae una **sugerencia accionable real** (un cambio concreto de código). Si es solo un resumen/observación no accionable ("revisé X, ver inline", aprobación, etc.), SALTEALO: no lo metas en ningún grupo, no reacciones, no respondas y NO lo marques como procesado (no ensucia el estado; igual entra en el paso de minimize si corresponde).
 
-(3c) SPAWNEÁ EN LOTES DE `{{MAX_PARALLEL}}`. Lanzá hasta `{{MAX_PARALLEL}}` subagentes a la vez (herramienta `Agent`/`Task`, varios tool-uses en un mismo mensaje); cuando un grupo termina, arrancá el siguiente, hasta agotar la cola. **Etiquetá cada subagente con los comment ids de su grupo** (label), para mapear sin ambigüedad resultado→comentarios al cerrar. Cada subagente:
+(3c) CALCULÁ CUÁNTOS SUBAGENTES CABEN (`SLOTS`) según CPU, RAM y disco libres AHORA. Los subagentes que ya corren están incluidos en la medición, así que no los restes aparte.
+   - Medí (usá el bloque de tu plataforma; disco = unidad del tempdir donde se crean los clones):
+     - Windows (PowerShell):
+       `$cores = (Get-CimInstance Win32_Processor | Measure-Object NumberOfLogicalProcessors -Sum).Sum; $loadPct = (Get-CimInstance Win32_Processor | Measure-Object LoadPercentage -Average).Average; $busyCores = $cores * $loadPct / 100; $freeRamGb = (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1MB; $freeDiskGb = (Get-PSDrive ((Split-Path $env:TEMP -Qualifier).TrimEnd(':'))).Free / 1GB`
+     - Linux: `cores=$(nproc); busy_cores=$(cut -d' ' -f1 /proc/loadavg); free_ram_gb=$(awk '/MemAvailable/{print $2/1048576}' /proc/meminfo); free_disk_gb=$(df -Pk "${TMPDIR:-/tmp}" | awk 'NR==2{print $4/1048576}')`
+     - macOS: `cores=$(sysctl -n hw.ncpu); busy_cores=$(sysctl -n vm.loadavg | awk '{print $2}'); free_ram_gb=$(vm_stat | awk -v ps=$(pagesize) '/Pages (free|inactive|speculative)/{gsub(/\./,"",$NF); sum+=$NF} END{print sum*ps/1073741824}'); free_disk_gb=$(df -Pk "${TMPDIR:-/tmp}" | awk 'NR==2{print $4/1048576}')`
+   - Calculá (redondeando hacia abajo):
+     - `cpu_slots  = floor((cores - busy_cores) / {{CPU_PER_AGENT}})`
+     - `ram_slots  = floor((free_ram_gb - {{RAM_RESERVE_GB}}) / {{RAM_PER_AGENT_GB}})`
+     - `disk_slots = floor((free_disk_gb - {{DISK_RESERVE_GB}}) / {{DISK_PER_AGENT_GB}})`
+     - `SLOTS = max(0, min(cpu_slots, ram_slots, disk_slots, cantidad_de_grupos_pendientes))`
+   - Si `SLOTS == 0` y NO hay ningún subagente en curso, usá `SLOTS = 1` para garantizar progreso. Si `SLOTS == 0` y SÍ hay subagentes en curso, no lances nada nuevo: los grupos pendientes esperan a que se liberen recursos.
+   - Si la medición falla, usá `SLOTS = 1` y mencioná el fallo en la PushNotification de la vuelta.
+   - Reportá en una línea del resumen de la vuelta qué recurso limitó (`cpu`, `ram` o `disk`) y el valor de `SLOTS`.
+
+(3d) SPAWNEÁ HASTA `SLOTS` SUBAGENTES a la vez (herramienta `Agent`/`Task` en background, varios tool-uses en un mismo mensaje). **Antes de lanzar cada uno, registrá en `inFlight` todos los comment ids de su grupo** (`{label, startedAt: <ISO-8601 UTC>}`) y persistí el JSON: así la próxima vuelta, aunque este subagente siga trabajando, no vuelve a lanzar esos comentarios. Cuando un grupo termina, recalculá `SLOTS` (paso 3c) y arrancá los siguientes que quepan, hasta agotar la cola. **Etiquetá cada subagente con los comment ids de su grupo** (label), para mapear sin ambigüedad resultado→comentarios al cerrar y para reconocerlo como vivo en el paso (1-bis). Cada subagente:
    - Recibe en su prompt el **path absoluto al `SKILL.md` de `fix-in-ephemeral-clone`** como fuente de verdad del flujo de aislamiento (que lo lea), además de intentar invocarla por nombre vía la herramienta `Skill` (`/fix-in-ephemeral-clone`). NO reimplementa el clone/push a mano.
    - Recibe como "issue(s)" el contexto de los comentarios de su grupo: cuerpo, `path` y `line` (inline) o solo el body (general/review-body), y la rama objetivo {{BRANCH}}. No envíes un URL `#discussion_r...` o `#pullrequestreview-...` como target: este loop ya posee preflight y closeout agrupado; esos links pueden viajar solo como metadata no accionable.
    - Vía esa skill, hace el clone efímero depth-1, copia `.env*`, instala/linkea deps según plataforma, aplica el/los fix(es) de su grupo, valida, rebasea sobre el último remoto y pushea a {{BRANCH}}, y limpia el clone.
@@ -126,7 +155,7 @@ Si OPEN, procesá:
    c. SOLO INLINE — resolver el hilo vía GraphQL:
       THREAD_ID=$(gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{id comments(first:100){nodes{databaseId}}}}}}}' -F owner={{OWNER}} -F repo={{REPO}} -F pr={{PR}} --jq "[.data.repository.pullRequest.reviewThreads.nodes[] | select(any(.comments.nodes[]; .databaseId == <id>)) | .id] | first // empty")
       si THREAD_ID no vacío: gh api graphql -f query='mutation($threadId:ID!){resolveReviewThread(input:{threadId:$threadId}){thread{isResolved}}}' -F threadId="$THREAD_ID"
-   d. Agregá el id a processedCommentIds en .codex-autofix/processed-{{PR}}.json: número crudo para inline/generales; `"review:<id>"` para review-bodies. **Invariante de idempotencia**: por cada comentario hacé el reply de cierre Y la escritura del id como una sola unidad apenas vuelve su subagente (no batchees al final). Si el loop se cae entre el push y esta escritura, la próxima vuelta re-fixearía el comentario (reply duplicado): cerrar+marcar de inmediato achica esa ventana al mínimo.
+   d. Agregá el id a processedCommentIds en .codex-autofix/processed-{{PR}}.json: número crudo para inline/generales; `"review:<id>"` para review-bodies. En la misma escritura, sacá el id de `inFlight`. **Invariante de idempotencia**: por cada comentario hacé el reply de cierre Y la escritura del id como una sola unidad apenas vuelve su subagente (no batchees al final). Si el loop se cae entre el push y esta escritura, la próxima vuelta re-fixearía el comentario (reply duplicado): cerrar+marcar de inmediato achica esa ventana al mínimo.
 
 (4-bis) MINIMIZE de la review cuando esté COMPLETAMENTE resuelta (estado RESOLVED → queda oculta/colapsada). Para CADA review de Codex que tenga al menos 1 comment inline asociado y que NO esté ya minimizada, chequeá si está fully-resolved:
    - el review-body está cubierto: era no accionable (nada que fixear) O su id `"review:<id>"` ya está en processedCommentIds, **y**
@@ -137,10 +166,10 @@ Si OPEN, procesá:
      `gh api graphql -f query='mutation($id:ID!){minimizeComment(input:{subjectId:$id,classifier:RESOLVED}){minimizedComment{isMinimized minimizedReason}}}' -F id="<review_node_id>"`
    NO minimices reviews donde el loop no resolvió nada (sin inline resueltos por el loop y body no accionable): dejalas como están.
 
-(5) Si FALLA (no se pudo aplicar el fix por una falla del loop/agente, no porque la sugerencia sea inválida): NO marques el id, NO resuelvas, y NO cuentes ese comentario como fixeado. NO reacciones 👎 (content=-1): el 👎 es la señal de "sugerencia incorrecta/no útil" que Codex interpreta sobre su comentario, y acá el problema es el loop, no la sugerencia. No agregues reacción final; opcionalmente, dejá un reply con el motivo/link al error. Reservá el 👎 solo para cuando evaluaste la sugerencia y concluiste que no requería cambios.
+(5) Si FALLA (no se pudo aplicar el fix por una falla del loop/agente, no porque la sugerencia sea inválida): NO marques el id, NO resuelvas, y NO cuentes ese comentario como fixeado. SÍ sacá sus ids de `inFlight` (el subagente ya terminó), para que la próxima vuelta pueda reintentarlo. NO reacciones 👎 (content=-1): el 👎 es la señal de "sugerencia incorrecta/no útil" que Codex interpreta sobre su comentario, y acá el problema es el loop, no la sugerencia. No agregues reacción final; opcionalmente, dejá un reply con el motivo/link al error. Reservá el 👎 solo para cuando evaluaste la sugerencia y concluiste que no requería cambios.
    - **Clones huérfanos**: en fallo, `fix-in-ephemeral-clone` conserva el clone para inspección y reporta su path. Recolectá esos paths de los subagentes que fallaron y, al cerrar la vuelta, listalos en UNA línea de PushNotification (p. ej. "PR #{{PR}}: 2 fixes fallaron, clones en <paths>"). Si no los vas a inspeccionar, podés limpiarlos vos (`rm -rf <path>`) DESPUÉS de loguear el path, nunca antes. Con varios fallos en paralelo el tempdir se llena: no dejes los paths sin reportar.
 
-(5-bis) TERMINACIÓN POR REVIEW LIMPIA (mergear + cortar). Chequealo cuando NO quedó ningún ítem accionable de Codex sin resolver esta vuelta (ni nuevos sin procesar, ni fallas pendientes del paso 5). Buscá el ÚLTIMO comentario general de Codex que sea una review limpia y de qué commit es:
+(5-bis) TERMINACIÓN POR REVIEW LIMPIA (mergear + cortar). Chequealo cuando NO quedó ningún ítem accionable de Codex sin resolver esta vuelta (ni nuevos sin procesar, ni ids en `inFlight`, ni fallas pendientes del paso 5). Buscá el ÚLTIMO comentario general de Codex que sea una review limpia y de qué commit es:
    CLEAN=$(gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate --jq '[.[] | select(.user.login=="chatgpt-codex-connector[bot]") | select(.body | test("Codex Review:.*([Dd]idn.t find any|[Nn]o (major )?issues|[Ff]ound no issues)"))] | last // empty')
    Si CLEAN está vacío -> no aplica, seguí al paso (6). Si no:
    REVIEWED=$(printf '%s' "$CLEAN" | jq -r '.body' | grep -oiE 'Reviewed commit:\*\* `[0-9a-f]{7,}`' | grep -oiE '[0-9a-f]{7,}' | head -1)
@@ -150,7 +179,7 @@ Si OPEN, procesá:
    - Si el merge tiene ÉXITO -> auto-cancelá el loop (mismo procedimiento del guard: CronList, identificá el job de ESTE loop por cron `{{CRON}}` y PR #{{PR}}, CronDelete por id, PushNotification de una línea avisando "PR #{{PR}} mergeado tras review limpia de Codex") y terminá. NO postees `@codex review`.
    - Si el merge FALLA (checks pendientes, no-mergeable, conflicto, branch protection): NO cortes el loop. PushNotification de una línea con el motivo (una sola vez) y dejá el loop vivo para reintentar en la próxima vuelta. No es trabajo del loop resolver conflictos de merge.
 
-(6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 ítem nuevo (inline, general o review-body; contador >= 1) y ya no quedan pendientes, posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam).
+(6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 ítem nuevo (inline, general o review-body; contador >= 1) y ya no quedan pendientes (ni ids en `inFlight`), posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam).
 
 (7) SIEMPRE que postees `@codex review`, asegurá que el loop siga vivo SIN que el usuario lo pida: si el cron del loop (`{{CRON}}`, este PR) fue cancelado o pausado, relanzalo (mismo prompt parametrizado) y corré una iteración. `@codex review` dispara comentarios nuevos; el loop debe quedar escuchando para auto-procesarlos. Nunca dejes el loop cancelado justo después de disparar una review.
 ```
@@ -208,8 +237,10 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   no es el comentario suelto sino el GRUPO —inline del mismo `path` (o `line`
   cercanas) juntos; cada general/review-body es su propio grupo—. Un subagente por
   grupo; dentro del grupo resuelve secuencial en el mismo clone (un push). Así dos
-  fixes sobre el mismo archivo no se pisan ni chocan en el rebase. Se spawnean en
-  lotes de `{{MAX_PARALLEL}}` para no fundir disco/CPU (cada subagente es clone +
+  fixes sobre el mismo archivo no se pisan ni chocan en el rebase. La cantidad
+  de subagentes simultáneos se calcula en cada vuelta (y al liberarse cada slot)
+  como el mínimo entre lo que permiten los cores libres, la RAM disponible y el
+  disco libre del tempdir, descontando una reserva (cada subagente es clone +
   install + tests). Cada subagente lleva como label los comment ids de su grupo, y
   recibe en el prompt el path al `SKILL.md` de `fix-in-ephemeral-clone` como
   fuente de verdad (además de invocarla por nombre).
@@ -225,6 +256,11 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   resolver hilos) corre por comentario a medida que vuelve cada subagente; la
   escritura de `processed-<PR>.json` la serializa el loop principal (único
   escritor).
+- **Sin relanzar trabajo en curso**: como el loop dispara cada `{{INTERVAL}}` y
+  un subagente puede tardar más, `inFlight` marca los comentarios con un
+  subagente trabajando. Se registran antes de spawnear y se liberan al volver
+  (éxito o fallo); una vuelta nueva los saltea. Las entradas sin subagente vivo
+  por más de `{{INFLIGHT_TTL_MIN}}` min se liberan para no bloquear para siempre.
 - **Estado por PR**: un archivo `processed-<PR>.json` por cada PR en seguimiento;
   así un mismo loop o varios loops no reprocesan lo ya hecho. `processedCommentIds`
   contiene únicamente fixes aplicados/cerrados. Los review-bodies se guardan
