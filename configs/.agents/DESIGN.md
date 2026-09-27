@@ -99,7 +99,7 @@ typography:
     lineHeight: 1.6
   table-header:
     fontFamily: DM Mono
-    fontSize: 10px
+    fontSize: 11px
     fontWeight: 500
     letterSpacing: 0.1em
     # uso: text-transform: uppercase
@@ -110,7 +110,7 @@ typography:
     lineHeight: 1.5
   badge:
     fontFamily: DM Mono
-    fontSize: 10px
+    fontSize: 11px
     fontWeight: 500
     letterSpacing: 0.05em
   code-inline:
@@ -135,6 +135,16 @@ typography:
     fontSize: 13px
     fontWeight: 400
     lineHeight: 1.6
+  accordion-title:
+    fontFamily: DM Sans
+    fontSize: 16px
+    fontWeight: 600
+    lineHeight: 1.4
+  toc-item:
+    fontFamily: DM Sans
+    fontSize: 13px
+    fontWeight: 400
+    lineHeight: 1.5
 
 rounded:
   xs:   3px     # code inline
@@ -145,17 +155,23 @@ rounded:
   full: 9999px  # circular (step-circle, mockup dots)
 
 spacing:
-  xs:  4px
-  sm:  6px
-  md:  8px
-  lg:  12px
-  xl:  16px
-  2xl: 20px
-  3xl: 24px
-  4xl: 28px
-  5xl: 40px
-  6xl: 48px
-  7xl: 80px
+  # Todo padding, margin y gap sale de esta escala. Excepciones: 1–2px de chips
+  # inline (badges, code inline) y geometría que no es espaciado (tamaños,
+  # posición de la línea conectora de steps).
+  xs:   4px
+  sm:   6px
+  md:   8px
+  lg:   10px
+  xl:   12px
+  2xl:  16px
+  3xl:  20px
+  4xl:  24px
+  5xl:  28px
+  6xl:  32px
+  7xl:  40px
+  8xl:  48px
+  9xl:  56px
+  10xl: 80px
 
 breakpoints:
   mobile: 720px   # por debajo: padding lateral 16px, tablas con scroll horizontal
@@ -213,6 +229,23 @@ components:
     typography:      "{typography.section-title}"
     # elemento: <h2>; padding-bottom: 8px, border-bottom: 1px solid {colors.border}
 
+  # —— Índice (TOC) para documentos con 5+ secciones
+  toc:
+    padding:         "0"
+    # elemento: <nav aria-labelledby>, margin-bottom: 40px, lista a 2 columnas (1 en mobile)
+  toc-label:
+    textColor:       "{colors.label}"
+    typography:      "{typography.doc-label}"
+  toc-item:
+    textColor:       "{colors.primary}"
+    typography:      "{typography.toc-item}"
+    padding:         "4px 0"
+    # link sin subrayado en reposo (navegación, no prosa); hover y foco lo muestran
+  toc-num:
+    textColor:       "{colors.label}"
+    typography:      "{typography.section-num}"
+    # mismo número que el section-num de destino
+
   # —— Links
   link:
     textColor:       "{colors.link}"
@@ -224,28 +257,28 @@ components:
     textColor:       "{colors.info-text}"
     typography:      "{typography.body-callout}"
     rounded:         "{rounded.lg}"
-    padding:         "14px 18px"
+    padding:         "12px 16px"
     # border-left: 3px solid {colors.info-border}
   callout-warn:
     backgroundColor: "{colors.warn-bg}"
     textColor:       "{colors.warn-text}"
     typography:      "{typography.body-callout}"
     rounded:         "{rounded.lg}"
-    padding:         "14px 18px"
+    padding:         "12px 16px"
     # border-left: 3px solid {colors.warn-border}
   callout-ok:
     backgroundColor: "{colors.ok-bg}"
     textColor:       "{colors.ok-text}"
     typography:      "{typography.body-callout}"
     rounded:         "{rounded.lg}"
-    padding:         "14px 18px"
+    padding:         "12px 16px"
     # border-left: 3px solid {colors.ok-border}
   callout-red:
     backgroundColor: "{colors.red-bg}"
     textColor:       "{colors.red-text}"
     typography:      "{typography.body-callout}"
     rounded:         "{rounded.lg}"
-    padding:         "14px 18px"
+    padding:         "12px 16px"
     # border-left: 3px solid {colors.red-border}
 
   # —— Table
@@ -316,7 +349,7 @@ components:
     textColor:       "{colors.primary}"
     typography:      "{typography.code-inline}"
     rounded:         "{rounded.xs}"
-    padding:         "1px 5px"
+    padding:         "1px 6px"
   code-block:
     backgroundColor: "{colors.surface-dark}"
     textColor:       "{colors.on-dark}"
@@ -344,7 +377,7 @@ components:
   example-box:
     backgroundColor: "{colors.surface-card}"
     rounded:         "{rounded.xl}"
-    padding:         "18px 22px"
+    padding:         "16px 20px"
     # border: 1.5px solid {colors.border-strong}
   example-box-label:
     textColor:       "{colors.label}"
@@ -386,8 +419,8 @@ components:
     # border: 1px solid {colors.border}, margin-bottom: 10px, overflow: hidden
   accordion-summary:
     textColor:       "{colors.primary}"
-    typography:      "{typography.section-title}"  # mismo peso/size que un título de sección, sin border
-    padding:         "13px 16px"
+    typography:      "{typography.accordion-title}"  # un escalón debajo de section-title para no competir con él
+    padding:         "12px 16px"
     # cursor: pointer; marcador nativo oculto; glifo +/– (DM Mono, color label) a la derecha
     # [open] agrega border-bottom: 1px solid {colors.border}
   accordion-num:
@@ -396,7 +429,7 @@ components:
     # label mono uppercase opcional dentro del summary (ej. "Reglas", "Checklist")
   accordion-body:
     textColor:       "{colors.body}"
-    padding:         "14px 16px 4px"
+    padding:         "12px 16px 4px"
 ---
 
 ## Overview
@@ -428,6 +461,16 @@ documento declara `color-scheme: light` y no redefine la paleta.
 La paleta se construye sobre **neutros cálidos de alto contraste** y cuatro
 familias de acento semánticas. Nada de grises azulados ni blancos puros.
 Cualquier color que no esté en el front matter está fuera del sistema.
+
+El front matter es la **fuente de verdad**. El `:root` del boilerplate declara
+una variable CSS por token, con el mismo nombre (`label` → `--label`) y el
+mismo valor. Después de tocar un color en cualquiera de los dos lados, correr:
+
+```bash
+bash scripts/design/check-design-tokens.sh
+```
+
+Falla (exit `1`) si falta una variable, sobra una o un valor no coincide.
 
 ### Tinta y texto
 
@@ -466,6 +509,12 @@ Dos familias, ambas de Google Fonts. Cargarlas con `<link>` + `preconnect`
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap">
 ```
 
+Si el documento se abre sin conexión, las fuentes caen a un stack de sistema
+de métricas parecidas, no al `sans-serif` genérico:
+
+- Sans: `'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`
+- Mono: `'DM Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace`
+
 ### DM Sans — lectura
 
 Geométrica humanista, levemente grotesca. Funciona en titulares y en body
@@ -484,6 +533,8 @@ navegador; el boilerplate los fija en 600.
 | `table-cell` | 13px | 400 | Celdas de tabla |
 | `step-label` | 14px | 600 | Etiqueta de cada paso |
 | `step-desc` | 13px | 400 | Descripción bajo la etiqueta del paso |
+| `accordion-title` | 16px | 600 | Título del `summary` de un accordion |
+| `toc-item` | 13px | 400 | Entradas del índice |
 
 Line-height: **1.7** para body, **1.6** para callouts, **1.5** para celdas.
 Esto da espacio para leer páginas largas sin agotar la vista.
@@ -499,8 +550,10 @@ metadato — no como prosa.
 | `doc-label` | 11px | 500 | 0.14em | UPPERCASE |
 | `section-num` | 11px | 500 | 0.12em | UPPERCASE |
 | `doc-meta` | 11px | 400 | — | mixed |
-| `table-header` | 10px | 500 | 0.10em | UPPERCASE |
-| `badge` | 10px | 500 | 0.05em | mixed |
+| `table-header` | 11px | 500 | 0.10em | UPPERCASE |
+| `badge` | 11px | 500 | 0.05em | mixed |
+
+**11px es el piso** del sistema: ningún texto va más chico, ni siquiera en mono.
 | `code-inline` | 12px | 400 | — | mixed |
 | `code-block` | 12px | 400 | — | mixed |
 | `step-num` | 12px | 500 | — | mixed |
@@ -521,7 +574,8 @@ Si es un identificador, número, label, código o estado, va en **DM Mono**.
 
 - Separación entre secciones: **`40px`**.
 - Separación interna de una sección (entre párrafos, listas, tablas, callouts): **`12–16px`**.
-- Padding de callouts y example boxes: **`14–22px`**, nunca más.
+- Padding de callouts y example boxes: **`12–20px`**, nunca más.
+- **Todo padding, margin y gap sale de la escala `spacing`** (4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 40, 48, 56, 80). Solo quedan fuera los 1–2px de chips inline y la geometría que no es espaciado (tamaños de círculos y dots, posición de la línea conectora).
 
 ### Jerarquía estructural
 
@@ -529,6 +583,7 @@ Un documento típico se estructura así, de arriba a abajo:
 
 ```
 doc-header           ← encabezado completo del documento (<header>, título en <h1>)
+[toc]                ← (opcional, 5+ secciones) índice con links a cada sección
 section 01           ← cada sección numerada (<section>, título en <h2>)
 section 02
 section 03
@@ -588,6 +643,23 @@ El primer bloque de todo documento. Estructura vertical:
 
 Cierra con `border-bottom: 2px solid {colors.border-ink}` y `margin-bottom: 40px`.
 Las fechas de `doc-meta` van en formato absoluto (`2026-09-27`), nunca relativas.
+
+### Índice (TOC)
+
+Navegación para documentos con **5 o más secciones**; con menos, sobra. Va
+inmediatamente después del `doc-header`. Estructura:
+
+```
+[toc-label]   "CONTENIDO" — mono uppercase
+[toc-list]    01 Título de la sección   05 Título de la sección
+              02 …                      06 …
+```
+
+- `<nav class="toc" aria-labelledby="toc-label">` con una `<ol>` a dos columnas (una en mobile).
+- Cada entrada es un link al `id` del `section-title`, con el número en `toc-num` (mono, color `label`) y el título en `toc-item`.
+- Es navegación, no prosa: el link va sin subrayado en reposo y lo muestra en hover y foco.
+- Si el documento tiene `part-header`, la parte se indica como un `toc-label` más dentro de la lista, sin link.
+- Sin borde ni fondo: el índice no es una pieza encajada, es parte del flujo.
 
 ### Part header
 
@@ -673,7 +745,7 @@ Lista vertical numerada con línea conectora. Estructura:
 
 ### Code
 
-- **Inline (`<code>`)**: fondo `{colors.surface-alt}`, padding `1px 5px`, radius `3px`. Para nombres de archivo, identificadores, valores literales en prosa.
+- **Inline (`<code>`)**: fondo `{colors.surface-alt}`, padding `1px 6px`, radius `3px`. Para nombres de archivo, identificadores, valores literales en prosa.
 - **Block (`.code-block`)**: fondo `{colors.surface-dark}`, texto `{colors.on-dark}`, padding `20px 24px`, radius `8px`, `overflow-x: auto`. Para snippets de SQL, HTML, JS, configuración. Escapar `<`, `>` y `&` dentro del `<pre>`.
 
 Sintaxis: usar `<span>` con clases `c-comment`, `c-key`, `c-str`, `c-num`,
@@ -724,8 +796,9 @@ Se intercalan con flechas mono (`→`, `aria-hidden="true"`) en color
 ### Link
 
 Color `{colors.link}`, subrayado `1px` con `text-underline-offset: 2px`; en
-hover el subrayado pasa a `2px`. Nunca quitar el subrayado: el color solo no
-distingue un link del texto. Links externos con texto descriptivo, no
+hover el subrayado pasa a `2px`. Nunca quitar el subrayado en prosa: el color
+solo no distingue un link del texto. Única excepción: el índice (TOC), donde
+el contexto ya indica que todo es navegable. Links externos con texto descriptivo, no
 "click acá".
 
 ### Accordion (bloques colapsables)
@@ -744,7 +817,7 @@ abrir/cerrar). Estructura:
 ```
 
 - Borde `1px solid {colors.border}`, radius `8px`, fondo `surface-card`.
-- El `summary` usa el peso/tamaño de un `section-title` pero **sin** su borde inferior; el marcador nativo se oculta y se reemplaza por un glifo `+` (cerrado) / `–` (abierto) en mono, color `label`, alineado a la derecha.
+- El `summary` usa `accordion-title` (16/600), un escalón por debajo de `section-title` para que el título de la sección siga mandando, y **sin** borde inferior; el marcador nativo se oculta y se reemplaza por un glifo `+` (cerrado) / `–` (abierto) en mono, color `label`, alineado a la derecha.
 - Al abrir (`[open]`), el `summary` cierra con `border-bottom: 1px solid {colors.border}` para separar del cuerpo.
 - Opcional: un `accordion-num` (mono uppercase, color `label`) al inicio del summary como mini-etiqueta del bloque (`Reglas`, `Comportamiento`, `Checklist`), en el mismo espíritu que `section-num`.
 - El `summary` es focuseable con teclado: nunca quitarle el `:focus-visible`.
@@ -804,8 +877,10 @@ El documento debe imprimirse (o exportarse a PDF) sin perder jerarquía:
 Antes de entregar o aprobar un documento con este sistema:
 
 - [ ] Un solo `<h1 class="doc-title">`; secciones numeradas con `<h2 class="section-title">`.
-- [ ] Solo colores del front matter, referenciados por variable CSS.
-- [ ] Solo DM Sans (400/500/600) y DM Mono (400/500); ningún peso 700.
+- [ ] Solo colores del front matter, referenciados por variable CSS; `check-design-tokens.sh` pasa si se tocó la paleta.
+- [ ] Solo DM Sans (400/500/600) y DM Mono (400/500), con su stack de fallback; ningún peso 700 ni texto <11px.
+- [ ] Paddings, margins y gaps dentro de la escala `spacing`.
+- [ ] Índice (TOC) presente si hay 5 o más secciones.
 - [ ] Toda tabla dentro de `.table-wrap`, headers con `scope="col"`.
 - [ ] Callouts elegidos por significado y con palabra clave inicial; ninguno anidado.
 - [ ] Badges con texto legible sin color; sin emojis.
@@ -813,6 +888,28 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Sin sombras (salvo la mínima documentada) ni redondeos >10px no circulares.
 - [ ] Sin scroll horizontal de página a 360px de ancho.
 - [ ] Vista previa de impresión legible: accordions abiertos, bloques sin cortar.
+
+## Changelog
+
+Cambios que alteran cómo se ve o se escribe un documento. Los documentos
+viejos siguen funcionando: los nombres de clase no cambiaron.
+
+### 2026-09-27
+
+- **Contraste:** `label` pasa de `#888888` a `#6B6B6B` y `syntax-comment` de `#64748B` a `#7C8BA1` para cumplir WCAG AA. Nuevos tokens `link`, `focus-ring` y `border-neutral`.
+- **Tipografía:** `table-header` y `badge` suben de 10px a 11px (nuevo piso). Nuevo token `accordion-title` (16/600): el `summary` deja de usar el tamaño de `section-title`. Stack de fallback de sistema para ambas familias.
+- **Spacing:** la escala suma 10, 32 y 56px y se renombra en orden; los paddings fuera de escala se ajustan (callouts `12px 16px`, example box `16px 20px`, accordion `12px 16px`, code inline `1px 6px`, indentación de listas `24px`).
+- **Componentes nuevos:** índice (TOC), estilos de link, `mockup-body` y `.table-wrap`.
+- **Boilerplate:** HTML semántico (`<h1>`, `<h2>`, `<section>`, `<ol>`), variables CSS con el mismo nombre que los tokens, CSS de todos los componentes, foco visible, breakpoint mobile e impresión.
+- **Tooling:** `scripts/design/check-design-tokens.sh` verifica que front matter y `:root` no se desalineen.
+
+### 2026-06-26
+
+- Componente accordion para documentos densos.
+
+### 2026-05-25
+
+- Versión inicial del sistema.
 
 ---
 
@@ -835,7 +932,7 @@ el CSS de **todos** los componentes; los que no se usen pueden quedarse.
 :root{
   color-scheme:light;
   --primary:#1a1a1a;--body:#333;--muted:#555;--label:#6b6b6b;--link:#1a4f7a;--focus-ring:#1a4f7a;
-  --bg:#f8f7f4;--surface-alt:#f0ede6;--surface-card:#fff;
+  --background:#f8f7f4;--surface-alt:#f0ede6;--surface-card:#fff;
   --border:#e0ddd6;--border-strong:#d0cdc6;--border-neutral:#ccc;--border-ink:#1a1a1a;
   --surface-dark:#1a1a2e;--on-dark:#e2e8f0;
   --info-bg:#eaf3fb;--info-border:#5a9fd4;--info-text:#1a4f7a;
@@ -844,10 +941,11 @@ el CSS de **todos** los componentes; los que no se usen pueden quedarse.
   --red-bg:#fef8f6;--red-border:#e8917a;--red-text:#9e3d25;
   --syntax-comment:#7c8ba1;--syntax-keyword:#7dd3fc;--syntax-string:#86efac;
   --syntax-number:#fbbf24;--syntax-function:#c084fc;--syntax-tag:#f9a8d4;
-  --sans:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+  --sans:'DM Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'DM Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:var(--sans);background:var(--bg);color:var(--primary);padding:48px 24px 80px;max-width:860px;margin:0 auto;}
+body{font-family:var(--sans);background:var(--background);color:var(--primary);padding:48px 24px 80px;max-width:860px;margin:0 auto;}
 h1,h2,th,strong{font-weight:600;}
 .doc-header{border-bottom:2px solid var(--border-ink);padding-bottom:20px;margin-bottom:40px;}
 .doc-label,.part-header-label,.example-label{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--label);margin-bottom:8px;}
@@ -861,13 +959,13 @@ h1,h2,th,strong{font-weight:600;}
 .section-num{margin-bottom:6px;}
 .section-title{font-size:20px;line-height:1.3;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border);}
 p{font-size:14px;line-height:1.7;color:var(--body);margin-bottom:12px;}
-ul,ol{padding-left:22px;margin-bottom:12px;}
+ul,ol{padding-left:24px;margin-bottom:12px;}
 li{font-size:14px;line-height:1.7;color:var(--body);margin-bottom:6px;}
 strong{color:var(--primary);}
 a{color:var(--link);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px;}
 a:hover{text-decoration-thickness:2px;}
 :focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px;border-radius:2px;}
-.callout{border-radius:8px;padding:14px 18px;margin:16px 0;font-size:13px;line-height:1.6;border-left:3px solid;}
+.callout{border-radius:8px;padding:12px 16px;margin:16px 0;font-size:13px;line-height:1.6;border-left:3px solid;}
 .callout p,.callout li{font-size:inherit;line-height:inherit;color:inherit;}
 .callout strong{color:inherit;}
 .callout>:last-child{margin-bottom:0;}
@@ -877,10 +975,10 @@ a:hover{text-decoration-thickness:2px;}
 .c-red{background:var(--red-bg);border-color:var(--red-border);color:var(--red-text);}
 .table-wrap{overflow-x:auto;margin:16px 0;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
-th{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--label);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface-alt);}
+th{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--label);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface-alt);}
 td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.5;color:var(--body);}
 tr:last-child td{border-bottom:none;}
-.badge{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:500;padding:2px 8px;border-radius:4px;letter-spacing:0.05em;border:1px solid;white-space:nowrap;}
+.badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:500;padding:2px 8px;border-radius:4px;letter-spacing:0.05em;border:1px solid;white-space:nowrap;}
 .b-green{background:var(--ok-bg);color:var(--ok-text);border-color:var(--ok-border);}
 .b-amber{background:var(--warn-bg);color:var(--warn-text);border-color:var(--warn-border);}
 .b-red{background:var(--red-bg);color:var(--red-text);border-color:var(--red-border);}
@@ -894,7 +992,7 @@ tr:last-child td{border-bottom:none;}
 .step-body{padding-top:4px;flex:1;}
 .step-label{font-size:14px;font-weight:600;margin-bottom:4px;}
 .step-desc{font-size:13px;color:var(--muted);line-height:1.6;}
-code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);padding:1px 5px;border-radius:3px;font-size:12px;}
+code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);padding:1px 6px;border-radius:3px;font-size:12px;}
 .code-block{background:var(--surface-dark);border-radius:8px;padding:20px 24px;margin:16px 0;overflow-x:auto;}
 .code-block pre{font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--on-dark);white-space:pre;}
 .c-comment{color:var(--syntax-comment);} .c-key{color:var(--syntax-keyword);} .c-str{color:var(--syntax-string);}
@@ -908,7 +1006,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .mockup-dots span:nth-child(3){background:var(--ok-border);}
 .mockup-url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mockup-body{padding:20px;}
-.example-box{background:var(--surface-card);border:1.5px solid var(--border-strong);border-radius:10px;padding:18px 22px;margin:16px 0;}
+.example-box{background:var(--surface-card);border:1.5px solid var(--border-strong);border-radius:10px;padding:16px 20px;margin:16px 0;}
 .example-box>:last-child{margin-bottom:0;}
 .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:16px 0;}
 .flow-arrow{font-family:var(--mono);color:var(--label);}
@@ -917,17 +1015,26 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .pill-success{background:var(--ok-bg);color:var(--ok-text);border-color:var(--ok-border);}
 .pill-stale{background:var(--surface-alt);color:var(--red-text);text-decoration:line-through;}
 .pill-stale del{text-decoration:inherit;}
+.toc{margin-bottom:40px;}
+.toc-label{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--label);margin-bottom:8px;}
+.toc ol{list-style:none;padding:0;margin:0;columns:2;column-gap:40px;}
+.toc li{break-inside:avoid;margin:0;}
+.toc li .toc-label{margin:12px 0 4px;}
+.toc a{display:flex;align-items:baseline;gap:10px;padding:4px 0;font-size:13px;line-height:1.5;color:var(--primary);text-decoration:none;}
+.toc a:hover{text-decoration:underline;text-underline-offset:2px;}
+.toc-num{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.12em;color:var(--label);flex-shrink:0;}
 .divider{height:1px;background:var(--border);border:0;margin:28px 0;}
 .acc{background:var(--surface-card);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;}
-.acc>summary{list-style:none;display:flex;align-items:baseline;gap:10px;padding:13px 16px;cursor:pointer;font-size:20px;font-weight:600;line-height:1.3;color:var(--primary);}
+.acc>summary{list-style:none;display:flex;align-items:baseline;gap:10px;padding:12px 16px;cursor:pointer;font-size:16px;font-weight:600;line-height:1.4;color:var(--primary);}
 .acc>summary::-webkit-details-marker{display:none;}
 .acc>summary::after{content:'+';margin-left:auto;font-family:var(--mono);font-size:16px;font-weight:400;color:var(--label);}
 .acc[open]>summary{border-bottom:1px solid var(--border);}
 .acc[open]>summary::after{content:'–';}
 .acc>summary:focus-visible{outline-offset:-2px;}
-.acc-body{padding:14px 16px 4px;color:var(--body);}
+.acc-body{padding:12px 16px 4px;color:var(--body);}
 @media (max-width:719px){
   body{padding-left:16px;padding-right:16px;}
+  .toc ol{columns:1;}
   .code-block{padding:16px;}
 }
 @media print{
@@ -969,6 +1076,15 @@ Markup de referencia para cada componente. Los nombres de clase son contrato:
 otras skills (por ejemplo `user-manual`) dependen de ellos.
 
 ```html
+<!-- Índice (TOC): después del doc-header, solo con 5+ secciones -->
+<nav class="toc" aria-labelledby="toc-label">
+  <div class="toc-label" id="toc-label">Contenido</div>
+  <ol>
+    <li><a href="#s01"><span class="toc-num">01</span>[Título de la sección]</a></li>
+    <li><a href="#s02"><span class="toc-num">02</span>[Título de la sección]</a></li>
+  </ol>
+</nav>
+
 <!-- Part header -->
 <div class="part-header">
   <div class="part-header-label">Parte B</div>
