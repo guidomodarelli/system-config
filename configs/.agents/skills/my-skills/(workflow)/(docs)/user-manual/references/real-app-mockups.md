@@ -238,6 +238,38 @@ IntersectionObserver does not fire in a background tab, so first force every fra
 Then look at a screenshot of each frame that shows an open layer. If a layer is cut, recapture it
 from a position where it opens inside its container, or trim the fragment with `transform`.
 
+### 6b. The cascade order must match the app
+
+Which rule wins between two selectors of the **same specificity** depends only on their order.
+Real case: Andes ships `.andes-button__content *{display:block}` and the app ships
+`.change-rep-modal__icon-label{display:inline-flex}`. The app CSS loads later, so in the product
+the icon sits centered next to its text. In the manual the Andes rule won, the label became a
+block, and the ★/↺ icons sat above the baseline.
+
+- `capture.rules` lists each capture's rules in the order the page walked its stylesheets, which
+  is the cascade order. `embed-app-frames.mjs` gives each capture its own stylesheet in exactly
+  that order and shares the rule texts by index. **Never sort rules globally or by registry
+  index**: the registry grows in discovery order across captures and pages, which is not the
+  cascade order.
+- When a frame looks slightly off (an icon misaligned, a gap missing, text wrapping differently),
+  compare computed styles instead of guessing. Open the same state in the app, then measure the
+  same element in the app and inside the frame's shadow root:
+
+  ```js
+  // Run in the app, then in the manual with root = host.shadowRoot; compare the two outputs.
+  const describeTree = (element) => {
+    const base = element.getBoundingClientRect();
+    return [element, ...element.querySelectorAll('*')].map((node) => {
+      const style = getComputedStyle(node);
+      const rect = node.getBoundingClientRect();
+      return [node.tagName, style.display, style.float, style.lineHeight, Math.round(rect.top - base.top), Math.round(rect.width)];
+    });
+  };
+  ```
+
+  The first differing `display` or position points at the rule that lost or won in the wrong
+  order. Check `capture.rules` for both rules, then fix the embed, not the captured HTML.
+
 ### 7. Verify visually
 
 Serve the manual locally (`python3 -m http.server --bind 127.0.0.1`), open it in the browser and

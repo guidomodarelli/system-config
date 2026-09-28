@@ -159,114 +159,28 @@ Create the `user-guides/` directory if it does not exist before writing either f
 
 Copy the markup from the "Snippets de componentes" block in DESIGN.md; class names are a contract.
 
-### Table of contents (always)
+### Table of contents and "Inicio" button (always)
 
-Every manual has a TOC right after `</header>`, even when it has fewer than 5 sections. This
-overrides the "5+ sections" guidance in DESIGN.md for user manuals. Build it from the final
-sections, after all renumbering:
+Both components, their markup, CSS, motion and the navigation script are defined in DESIGN.md
+("Índice (TOC)", "Botón Inicio", "Motion" and the boilerplate). Copy them from there; this skill
+only adds when to use them:
 
-- One entry per numbered section, in order, linking to the `id` of its `<h2 class="section-title">`
-  (`s01`, `s02`, …), with the number in `toc-num` and the exact section title as the text.
-- Before the first section of each `part-header`, add a non-link entry with the part title in a
-  `toc-label` (for example "Quién ve qué: permisos y roles").
-- Two columns on desktop and one on mobile; the boilerplate CSS already handles this.
+- **TOC always**, right after `</header>`, even with fewer than 5 sections. This overrides the
+  "5+ sections" guidance in DESIGN.md for user manuals. One entry per numbered section, in order,
+  and, before the first section of each `part-header`, a non-link `toc-label` with the part title.
+  After any edit that adds, removes, renames or renumbers a section, regenerate it so every link
+  resolves and every title matches.
+- **"Inicio" button always**, with the navigation script of the boilerplate just before
+  `</body>`. The manual scrolls inside an iframe in Grid; the script already handles it.
+- **Lazy screenshots:** the `embed-app-frames.mjs` runtime listens to `heritage:before-scroll`
+  (fired by the navigation script) and renders every frame above the target, so their real
+  heights do not push the section down while scrolling.
 
-```html
-<nav class="toc" aria-labelledby="toc-label">
-  <div class="toc-label" id="toc-label">Contenido</div>
-  <ol>
-    <li><a href="#s01"><span class="toc-num">01</span>¿Para qué sirve?</a></li>
-    <li><a href="#s02"><span class="toc-num">02</span>Cómo se entra desde el menú</a></li>
-    <!-- … -->
-    <li><div class="toc-label">Quién ve qué: permisos y roles</div></li>
-    <li><a href="#s10"><span class="toc-num">10</span>Tabla de visibilidad por permiso</a></li>
-  </ol>
-</nav>
-```
-
-After any edit that adds, removes, renames, or renumbers a section, regenerate the TOC so every
-link resolves and every title matches.
-
-TOC links scroll smoothly to their section with the shared navigation script below (see "Floating
-'back to top' button"); do not add a second script for them.
-
-### Floating "back to top" button (always)
-
-Every manual ends its `<body>` with a floating **Inicio** button that returns to the header. It
-appears once the reader has scrolled past the first screen, stays out of print, and works inside
-embedded viewers (Grid renders the manual in an iframe that scrolls internally).
-
-- Give the header `id="top"` and `tabindex="-1"` so focus lands there after the jump:
-  `<header class="doc-header" id="top" tabindex="-1">`.
-- Add this CSS to the `<style>` block. It uses only DESIGN.md tokens: `surface-dark`, mono,
-  circular radius, and the minimal allowed shadow. The first line turns on smooth scrolling for
-  every in-page jump, unless the reader asked the system to reduce motion.
-
-```css
-@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth;}}
-.back-to-top{position:fixed;right:24px;bottom:24px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-size:12px;font-weight:500;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,0.04);z-index:10;}
-.back-to-top:hover{text-decoration:underline;text-underline-offset:2px;}
-.back-to-top[hidden]{display:none;}
-@media (max-width:719px){.back-to-top{right:16px;bottom:16px;}}
-@media print{.back-to-top{display:none;}}
-```
-
-- Put this markup and script just before `</body>`, before any other trailing script. One script
-  drives both the TOC links and the button: smooth scroll, focus on the target, and the section
-  hash in the URL for TOC links.
-
-```html
-<a class="back-to-top" href="#top" aria-label="Volver al inicio" hidden><span aria-hidden="true">↑</span> Inicio</a>
-<script>
-// Scroll suave para la tabla de contenido y el botón "Volver al inicio"; respeta "reducir movimiento".
-(function () {
-  var button = document.querySelector('.back-to-top');
-  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  var toggle = function () { button.hidden = window.scrollY < 480; };
-  window.addEventListener('scroll', toggle, { passive: true });
-  toggle();
-
-  // The page top (0) for "Volver al inicio", the heading position for the table of contents.
-  function targetTop(target) { return target.id === 'top' ? 0 : target.getBoundingClientRect().top + window.scrollY; }
-
-  function scrollToTarget(target, updateHash) {
-    window.scrollTo({ top: targetTop(target), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
-    // Smooth scrolling can be skipped by the browser (background tab, embedded viewer): land on the target anyway.
-    setTimeout(function () {
-      // 'instant' is explicit because html{scroll-behavior:smooth} would make this fallback smooth too.
-      if (Math.abs(window.scrollY - targetTop(target)) > 2) window.scrollTo({ top: targetTop(target), behavior: 'instant' });
-    }, 700);
-    if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
-    target.focus({ preventScroll: true });
-    if (updateHash) history.replaceState(null, '', '#' + target.id);
-  }
-
-  document.querySelectorAll('.toc a[href^="#"]').forEach(function (link) {
-    link.addEventListener('click', function (event) {
-      var target = document.getElementById(link.getAttribute('href').slice(1));
-      if (!target) return;
-      event.preventDefault();
-      scrollToTarget(target, true);
-    });
-  });
-
-  button.addEventListener('click', function (event) {
-    event.preventDefault();
-    scrollToTarget(document.getElementById('top'), false);
-  });
-})();
-</script>
-```
-
-Why the script has a fallback, and why it is `behavior: 'instant'`: browsers can skip or stall a
-smooth scroll (background tabs, embedded viewers such as Grid). The 700 ms fallback lands on the
-target anyway. With `html{scroll-behavior:smooth}`, a plain `window.scrollTo(x, y)` is smooth
-too, so the fallback must say `'instant'` or it stalls the same way. "Volver al inicio" goes to
-`0`, not to the header position, because the header has a top margin.
-
-Verify both in the browser: click a TOC link and the button, then check that the heading ends at
-the top of the viewport (`getBoundingClientRect().top` ≈ 0) and that `scrollY` returns to `0`.
-Repeat inside the destination viewer (Grid scrolls an iframe, not the parent page).
+Verify both in the browser **on a fresh load** (no frame rendered yet) and in the destination
+viewer: click TOC links to sections below several screenshots and check that the section ends
+16 px below the top (`section.getBoundingClientRect().top` ≈ 16 about 2 s later), and that the
+button brings `scrollY` back to `0`. Scroll with `behavior: 'instant'` before screenshots, because
+`html{scroll-behavior:smooth}` makes `scrollIntoView` animate.
 
 ### Downloads
 
@@ -366,10 +280,8 @@ If a discrepancy is found, fix the HTML before reporting done.
       that differ from the spec).
 - [ ] Passes the "Checklist de conformidad" in DESIGN.md (semantic headings, tables in
       `.table-wrap`, spacing on the scale, no text under 11px).
-- [ ] Floating "Inicio" button present: hidden at the top, visible after scrolling, returns to
-      `scrollY` 0 smoothly, and hidden in print.
-- [ ] TOC links scroll smoothly to their heading (heading at the top of the viewport), also inside
-      the destination viewer.
+- [ ] TOC and "Inicio" button present as defined in DESIGN.md, and the DESIGN.md "Checklist de
+      conformidad" item about them passes on a fresh load, also inside the destination viewer.
 - [ ] TOC present right after the header, with one working link per section, titles identical to
       the `<h2>`, and a part label before each `part-header` group.
 - [ ] Visibility matrix is complete — every gated element accounted for.
@@ -379,6 +291,8 @@ If a discrepancy is found, fix the HTML before reporting done.
 - [ ] Mockups are real-app captures (`app-frame`) unless the fallback was justified in the report.
 - [ ] Every frame was visually compared against the live screen, and `grep` finds none of the
       real values seen during capture.
+- [ ] Frames that look slightly off were checked with the computed-style comparison in
+      `references/real-app-mockups.md` ("The cascade order must match the app").
 - [ ] Everything a mockup is meant to show is fully visible: open dropdowns, menus, popovers and
       modals are not cut, and the fit check in `references/real-app-mockups.md` returns `[]`.
 - [ ] Every frame has `role="img"` and an `aria-label` that starts with "Captura de pantalla:".

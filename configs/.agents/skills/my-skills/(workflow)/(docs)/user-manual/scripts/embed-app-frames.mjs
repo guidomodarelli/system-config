@@ -14,7 +14,9 @@
  *   - a small runtime that renders every host inside its own shadow root, so the app's CSS and
  *     the manual's CSS never leak into each other.
  * Several exports can be combined; when two contain the same capture name, the later file wins.
- * Captures taken with `flattenMedia` (mobile) get their own stylesheet and keep their viewport width.
+ * Every capture gets its own stylesheet with its rules in the order the page applied them, so the
+ * cascade (which rule wins between equal specificities) matches the app. Captures taken with
+ * `flattenMedia` (mobile) also keep their viewport width.
  * No dependencies beyond Node's standard library.
  */
 import fs from 'node:fs';
@@ -66,14 +68,24 @@ if (missing.length) {
 }
 
 const usedCaptures = hosts.map((name) => captures.get(name));
-const cssOf = (indexes) => [...new Set(indexes)].sort((a, b) => a - b).map((index) => rules[index]).filter((rule) => !FOREIGN_RULE.test(rule));
-const allUsed = cssOf(usedCaptures.flatMap((capture) => capture.rules));
-const fontFaces = allUsed.filter((rule) => rule.startsWith('@font-face'));
-const withoutFonts = (list) => list.filter((rule) => !rule.startsWith('@font-face')).join('\n');
-// Desktop captures share one sheet; each fixed-viewport capture gets its own, because its flattened
-// mobile rules would otherwise restyle the desktop captures (and the other way round).
-const css = withoutFonts(cssOf(usedCaptures.filter((capture) => !capture.viewportWidth).flatMap((capture) => capture.rules)));
-const sheets = Object.fromEntries(usedCaptures.filter((capture) => capture.viewportWidth).map((capture) => [capture.name, withoutFonts(cssOf(capture.rules))]));
+const isForeign = (index) => FOREIGN_RULE.test(rules[index]);
+const isFontFace = (index) => rules[index].startsWith('@font-face');
+const fontFaces = [...new Set(usedCaptures.flatMap((capture) => capture.rules))].filter((index) => isFontFace(index) && !isForeign(index)).map((index) => rules[index]);
+// Rules are shared by index, but each capture keeps its own order: capture.rules lists them in the
+// order the page walked its stylesheets. Sorting them globally would break the cascade, for example
+// letting a design-system rule override an app rule of the same specificity that loaded after it.
+const payloadRules = [];
+const payloadIndex = new Map();
+const captureRules = Object.fromEntries(usedCaptures.map((capture) => [
+	capture.name,
+	capture.rules.filter((index) => !isFontFace(index) && !isForeign(index)).map((index) => {
+		if (!payloadIndex.has(index)) {
+			payloadIndex.set(index, payloadRules.length);
+			payloadRules.push(rules[index]);
+		}
+		return payloadIndex.get(index);
+	}),
+]));
 const widths = Object.fromEntries(usedCaptures.filter((capture) => capture.viewportWidth).map((capture) => [capture.name, capture.viewportWidth]));
 
 // Shells are layout wrappers copied only so descendant selectors match; they must not add layout,
@@ -85,7 +97,7 @@ const HOST_CSS = `
 [data-capture-root][style*="position: relative"]{inset:auto!important;transform:none!important;}
 `;
 
-const payload = JSON.stringify({ fontFaces, css, hostCss: HOST_CSS + extraHostCss, sheets, widths, templates: Object.fromEntries(hosts.map((name) => [name, captures.get(name).html])) })
+const payload = JSON.stringify({ fontFaces, rules: payloadRules, captureRules, hostCss: HOST_CSS + extraHostCss, widths, templates: Object.fromEntries(hosts.map((name) => [name, captures.get(name).html])) })
 	.replace(/<\//g, '<\\/')
 	.replace(/<!--/g, '<\\!--');
 
@@ -106,8 +118,10 @@ const block = `${START}
 		sheet.replaceSync(cssText);
 		return sheet;
 	}
-	var sharedSheet = toSheet(data.css);
 	var hostSheet = toSheet(data.hostCss);
+	function captureSheet(name) {
+		return toSheet((data.captureRules[name] || []).map(function (index) { return data.rules[index]; }).join('\\n'));
+	}
 	var hosts = Array.prototype.slice.call(document.querySelectorAll('.app-frame'));
 
 	function visibleBounds(content) {
@@ -177,7 +191,7 @@ const block = `${START}
 		if (host.shadowRoot) return;
 		var name = host.getAttribute('data-cap');
 		var root = host.attachShadow({ mode: 'open' });
-		root.adoptedStyleSheets = [data.sheets[name] !== undefined ? toSheet(data.sheets[name]) : sharedSheet, hostSheet];
+		root.adoptedStyleSheets = [captureSheet(name), hostSheet];
 		var page = document.createElement('div');
 		page.className = 'app-frame__page';
 		page.style.padding = MARGIN + 'px';
@@ -216,6 +230,15 @@ const block = `${START}
 	}
 	// Printing and PDF export must include every screen, even the ones never scrolled into view.
 	window.addEventListener('beforeprint', function () { hosts.forEach(render); });
+	// In-page navigation renders every frame above its target first, so their real heights do not
+	// push the target down while the page scrolls to it.
+	document.addEventListener('heritage:before-scroll', function (event) {
+		var target = event.detail && event.detail.target;
+		if (!target) return;
+		hosts.forEach(function (host) {
+			if (host.compareDocumentPosition(target) & Node.DOCUMENT_POSITION_FOLLOWING) render(host);
+		});
+	});
 })();
 </script>
 ${END}`;
@@ -231,4 +254,4 @@ if (meta.capturedAt) {
 manual = existing.test(manual) ? manual.replace(existing, block) : manual.replace(/<\/body>/i, `${block}\n</body>`);
 if (!manual.includes('.app-frame{')) manual = manual.replace(/<\/style>/i, '.app-frame{display:block;}\n</style>');
 fs.writeFileSync(manualPath, manual);
-console.log(`Embedded ${hosts.length} frames (${Object.keys(sheets).length} fixed-viewport), ${allUsed.length} CSS rules (${fontFaces.length} @font-face), ${Buffer.byteLength(manual)} bytes.`);
+console.log(`Embedded ${hosts.length} frames (${Object.keys(widths).length} fixed-viewport), ${payloadRules.length} CSS rules (${fontFaces.length} @font-face), ${Buffer.byteLength(manual)} bytes.`);

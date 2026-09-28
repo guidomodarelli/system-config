@@ -145,6 +145,10 @@ typography:
     fontSize: 13px
     fontWeight: 400
     lineHeight: 1.5
+  back-to-top:
+    fontFamily: DM Mono
+    fontSize: 12px
+    fontWeight: 500
 
 rounded:
   xs:   3px     # code inline
@@ -175,6 +179,14 @@ spacing:
 
 breakpoints:
   mobile: 720px   # por debajo: padding lateral 16px, tablas con scroll horizontal
+
+motion:
+  # Movimiento funcional: solo responde a una acción del lector. Con
+  # prefers-reduced-motion: reduce no hay transiciones y el scroll es instantáneo.
+  # Variables CSS: --motion-<token> (check-design-tokens.sh las verifica).
+  duration-fast:   120ms                          # hover, foco, subrayado de links
+  duration-base:   200ms                          # abrir un accordion, aparecer el botón "Inicio"
+  easing-standard: "cubic-bezier(0.2, 0, 0, 1)"   # entra rápido y se asienta, sin rebote
 
 components:
   # —— Layout raíz
@@ -430,6 +442,17 @@ components:
   accordion-body:
     textColor:       "{colors.body}"
     padding:         "12px 16px 4px"
+    # al abrir: fade + translateY(-4px → 0) en {motion.duration-base}
+
+  # —— Botón "Inicio" (volver al inicio, flotante)
+  back-to-top:
+    backgroundColor: "{colors.surface-dark}"
+    textColor:       "{colors.surface-card}"
+    typography:      "{typography.back-to-top}"
+    rounded:         "{rounded.full}"
+    padding:         "8px 16px"
+    # position: fixed, right/bottom 24px (16px en mobile); aparece después de 480px de scroll
+    # sombra mínima documentada; aparece con fade en {motion.duration-base}; oculto en impresión
 ---
 
 ## Overview
@@ -626,6 +649,39 @@ software". Si en algún caso muy puntual se necesita sombra, usar
 **Sin redondeos por encima de `10px`** salvo lo circular puro. Esto preserva
 el carácter editorial — nada de bubbles tipo dashboard SaaS.
 
+## Motion
+
+El movimiento sigue la misma regla que la profundidad: **funcional y casi
+imperceptible**. Un documento Heritage es papel; lo que se mueve solo confirma
+que el lector hizo algo, nunca decora.
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| `motion.duration-fast` | 120ms | Hover y foco: color, borde, grosor del subrayado |
+| `motion.duration-base` | 200ms | Abrir un accordion, aparecer el botón "Inicio" |
+| `motion.easing-standard` | `cubic-bezier(0.2, 0, 0, 1)` | Todas las transiciones: entra rápido y se asienta sin rebote |
+
+**Qué se anima**
+
+- Cambios de estado ante una acción: color, borde, opacidad y grosor del subrayado.
+- La apertura de un bloque (accordion): el cuerpo aparece con fade y un desplazamiento de 4px.
+- El scroll dentro de la página: índice y botón "Inicio" con scroll suave.
+
+**Qué no se anima**
+
+- Nada que el lector no haya pedido: sin entradas al scrollear, sin parallax, sin loops ni autoplay.
+- Sin rebotes, escalas, rotaciones ni `box-shadow`: rompen la estética de papel.
+- Sin `height` o `max-height` animados en contenido largo: provocan saltos de layout.
+- Mockups y su contenido quedan quietos: muestran una pantalla, no una demo.
+
+**Reglas**
+
+- Solo `opacity`, `transform: translateY()` de hasta 4px y propiedades de color.
+- Ninguna transición supera `motion.duration-base` (200ms).
+- Todo el movimiento va dentro de `@media (prefers-reduced-motion: no-preference)`: con
+  "reducir movimiento" activo no hay transiciones y el scroll es instantáneo.
+- En impresión no hay transiciones ni animaciones.
+
 ## Components
 
 Los snippets HTML de cada componente están en [Snippets de componentes](#snippets-de-componentes).
@@ -658,6 +714,10 @@ inmediatamente después del `doc-header`. Estructura:
 - `<nav class="toc" aria-labelledby="toc-label">` con una `<ol>` a dos columnas (una en mobile).
 - Cada entrada es un link al `id` del `section-title`, con el número en `toc-num` (mono, color `label`) y el título en `toc-item`.
 - Es navegación, no prosa: el link va sin subrayado en reposo y lo muestra en hover y foco.
+- **Scroll suave** hasta la sección con el script de navegación del boilerplate: alinea la
+  `<section>` completa (número incluido) 16px debajo del borde, mueve el foco al título y
+  actualiza el hash. Si el contenido de arriba cambia de alto mientras scrollea (imágenes o
+  capturas diferidas), corrige la posición hasta que el layout se asienta.
 - Si el documento tiene `part-header`, la parte se indica como un `toc-label` más dentro de la lista, sin link.
 - Sin borde ni fondo: el índice no es una pieza encajada, es parte del flujo.
 
@@ -796,8 +856,8 @@ Se intercalan con flechas mono (`→`, `aria-hidden="true"`) en color
 ### Link
 
 Color `{colors.link}`, subrayado `1px` con `text-underline-offset: 2px`; en
-hover el subrayado pasa a `2px`. Nunca quitar el subrayado en prosa: el color
-solo no distingue un link del texto. Única excepción: el índice (TOC), donde
+hover el subrayado pasa a `2px`, con transición de `motion.duration-fast`. Nunca
+quitar el subrayado en prosa: el color solo no distingue un link del texto. Única excepción: el índice (TOC), donde
 el contexto ya indica que todo es navegable. Links externos con texto descriptivo, no
 "click acá".
 
@@ -821,6 +881,8 @@ abrir/cerrar). Estructura:
 - Al abrir (`[open]`), el `summary` cierra con `border-bottom: 1px solid {colors.border}` para separar del cuerpo.
 - Opcional: un `accordion-num` (mono uppercase, color `label`) al inicio del summary como mini-etiqueta del bloque (`Reglas`, `Comportamiento`, `Checklist`), en el mismo espíritu que `section-num`.
 - El `summary` es focuseable con teclado: nunca quitarle el `:focus-visible`.
+- **Al abrir**, el `acc-body` aparece con fade y `translateY(-4px → 0)` en `motion.duration-base`.
+  `<details>` nativo no anima la altura, y no se fuerza: el cierre es instantáneo.
 
 **Regla de uso:** colapsar los bloques de **referencia** (reglas de negocio,
 comportamiento esperado, casos de error, checklist) y dejar **siempre abiertos**
@@ -828,13 +890,27 @@ los de **acción** (intro/objetivo, flujo en `steps`, mockups). No anidar
 accordions ni meter un mockup pesado adentro de uno cerrado. Si una sección no
 es densa, no la colapses — el accordion es para domar volumen, no decoración.
 
+### Botón "Inicio" (volver al inicio)
+
+Botón flotante para documentos largos: vuelve al principio sin que el lector
+tenga que scrollear todo de nuevo. Usarlo junto con el índice.
+
+- `<a class="back-to-top" href="#top" aria-label="Volver al inicio" hidden>` con `↑` decorativo (`aria-hidden="true"`) y el texto **Inicio**.
+- El `doc-header` lleva `id="top"` y `tabindex="-1"` para recibir el foco después del salto.
+- Fijo abajo a la derecha (24px; 16px en mobile), fondo `surface-dark`, texto `surface-card`, mono 12/500, radio circular y la sombra mínima documentada.
+- Está oculto (`hidden`) hasta los primeros 480px de scroll; aparece con fade en `motion.duration-base`. Al ocultarse desaparece sin transición, para no quedar clickeable mientras se desvanece.
+- Scroll suave hasta `0`, no hasta la posición del header, porque el header tiene margen superior.
+- Funciona dentro de visores embebidos que scrollean un iframe (por ejemplo Grid): usa `window` del propio documento.
+- No se imprime.
+
 ## Accesibilidad
 
 - **Contraste**: todo texto cumple ≥4.5:1 sobre su superficie; bordes con significado y el anillo de foco, ≥3:1. Valores medidos: `label` 4.56–5.33:1, `muted` ≥6.38:1, textos de callout 5.8–7.7:1, `syntax-comment` 4.93:1.
 - **Semántica**: `<header>` + `<h1>` para el doc-header, `<section>` + `<h2>` por sección, `<ol>` para steps, `<th scope="col">` en tablas, `<details>/<summary>` para accordions.
 - **Foco**: `:focus-visible` con `outline: 2px solid {colors.focus-ring}` y `outline-offset: 2px` en links y summaries. Nunca `outline: none` sin reemplazo.
 - **Color no es el único canal**: callouts con palabra clave inicial, badges con texto, links subrayados, estados viejos con `<del>`.
-- **Decoración oculta**: dots del mockup, flechas de flujo y números de step-circle llevan `aria-hidden="true"`.
+- **Decoración oculta**: dots del mockup, flechas de flujo, números de step-circle y la flecha del botón "Inicio" llevan `aria-hidden="true"`.
+- **Movimiento**: todo el motion va dentro de `@media (prefers-reduced-motion: no-preference)`; con "reducir movimiento" el scroll es instantáneo y no hay transiciones. Después de un salto por el índice o el botón "Inicio", el foco queda en el destino.
 - **Idioma**: `<html lang="es">`; fragmentos en otro idioma con `lang` propio si son prosa (no hace falta para código).
 
 ## Impresión
@@ -845,6 +921,7 @@ El documento debe imprimirse (o exportarse a PDF) sin perder jerarquía:
 - `break-inside: avoid` en callouts, example boxes, mockups, steps, code blocks y filas de tabla; `break-after: avoid` en títulos.
 - Los accordions se abren antes de imprimir (snippet `beforeprint` del boilerplate); el glifo `+/–` se oculta.
 - Los links muestran su URL entre paréntesis después del texto.
+- Sin transiciones ni animaciones, y sin botón "Inicio".
 
 ## Do's and Don'ts
 
@@ -859,6 +936,7 @@ El documento debe imprimirse (o exportarse a PDF) sin perder jerarquía:
 - **Envolvé toda tabla en `.table-wrap`** para que no desborde en mobile.
 - **Colapsá los bloques de referencia en docs densos** con `accordion` (reglas, comportamiento, errores, checklist) y dejá abiertos intro, flujo y mockups. Convertí listas largas de "comportamiento" en tablas `situación → comportamiento`.
 - **Referenciá colores por variable CSS** (`var(--label)`), no por hex suelto: así el documento sigue a la paleta si cambia.
+- **Animá solo respuestas a una acción del lector** (hover, foco, abrir, navegar), con los tokens `motion` y dentro de `prefers-reduced-motion: no-preference`.
 
 ### Don't
 
@@ -868,6 +946,7 @@ El documento debe imprimirse (o exportarse a PDF) sin perder jerarquía:
 - **No anides callouts dentro de callouts** ni callouts dentro de tablas.
 - **No uses iconos decorativos** (emojis, lucide a granel). El sistema confía en tipografía y color. Excepción: un emoji muy puntual dentro de un title de step (📦, 🎯) si suma información concreta.
 - **No agregues efectos hover llamativos** en documentos estáticos. Si el doc es interactivo, los hovers deben ser cambios sutiles de borde o fondo, nunca elevación dramática.
+- **No animes la entrada de contenido al scrollear**, ni uses rebotes, escalas, parallax o duraciones de más de 200ms.
 - **No uses fondos blancos puros para el body** en pantalla. El `#F8F7F4` está calibrado para que `surface-card` (blanco) destaque por encima. (En impresión sí se usa blanco.)
 - **No uses más de un `doc-title` por archivo.** Para sub-documentos, usar `part-header`.
 - **No uses grises más claros que `label`** para texto, ni los `*-border` como color de texto.
@@ -888,11 +967,19 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Sin sombras (salvo la mínima documentada) ni redondeos >10px no circulares.
 - [ ] Sin scroll horizontal de página a 360px de ancho.
 - [ ] Vista previa de impresión legible: accordions abiertos, bloques sin cortar.
+- [ ] Todo el movimiento está dentro de `prefers-reduced-motion: no-preference`, usa los tokens `motion` y ninguna transición dura más de 200ms.
+- [ ] Si hay índice, sus links llevan a la sección completa (número visible) también en el visor final; el botón "Inicio" vuelve a `scrollY` 0.
 
 ## Changelog
 
 Cambios que alteran cómo se ve o se escribe un documento. Los documentos
 viejos siguen funcionando: los nombres de clase no cambiaron.
+
+### 2026-09-28
+
+- **Motion:** nuevos tokens `motion` (`duration-fast`, `duration-base`, `easing-standard`) con sus variables `--motion-*`, verificadas por `check-design-tokens.sh`. Sección nueva con qué se anima y qué no.
+- **Componentes:** botón "Inicio" (volver al inicio) y script de navegación: scroll suave del índice y del botón, alineación de la sección completa y corrección por contenido diferido (evento `heritage:before-scroll`).
+- **Transiciones:** subrayado de links, apertura del accordion y aparición del botón "Inicio", todo bajo `prefers-reduced-motion: no-preference` y apagado en impresión.
 
 ### 2026-09-27
 
@@ -943,6 +1030,7 @@ el CSS de **todos** los componentes; los que no se usen pueden quedarse.
   --syntax-number:#fbbf24;--syntax-function:#c084fc;--syntax-tag:#f9a8d4;
   --sans:'DM Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --mono:'DM Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --motion-duration-fast:120ms;--motion-duration-base:200ms;--motion-easing-standard:cubic-bezier(0.2, 0, 0, 1);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:var(--sans);background:var(--background);color:var(--primary);padding:48px 24px 80px;max-width:860px;margin:0 auto;}
@@ -1032,8 +1120,20 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .acc[open]>summary::after{content:'–';}
 .acc>summary:focus-visible{outline-offset:-2px;}
 .acc-body{padding:12px 16px 4px;color:var(--body);}
+.back-to-top{position:fixed;right:24px;bottom:24px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-size:12px;font-weight:500;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,0.04);z-index:10;}
+.back-to-top:hover{text-decoration:underline;text-underline-offset:2px;}
+.back-to-top[hidden]{display:none;}
+@media (prefers-reduced-motion:no-preference){
+  html{scroll-behavior:smooth;}
+  a{transition:text-decoration-thickness var(--motion-duration-fast) var(--motion-easing-standard),color var(--motion-duration-fast) var(--motion-easing-standard);}
+  .acc[open]>.acc-body{animation:heritage-reveal var(--motion-duration-base) var(--motion-easing-standard);}
+  .back-to-top:not([hidden]){animation:heritage-fade-in var(--motion-duration-base) var(--motion-easing-standard);}
+  @keyframes heritage-reveal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+  @keyframes heritage-fade-in{from{opacity:0;}to{opacity:1;}}
+}
 @media (max-width:719px){
   body{padding-left:16px;padding-right:16px;}
+  .back-to-top{right:16px;bottom:16px;}
   .toc ol{columns:1;}
   .code-block{padding:16px;}
 }
@@ -1042,12 +1142,14 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
+  .back-to-top{display:none;}
+  *,*::before,*::after{transition:none!important;animation:none!important;}
   a[href^="http"]::after{content:" (" attr(href) ")";font-size:11px;color:var(--label);}
 }
 </style>
 </head>
 <body>
-<header class="doc-header">
+<header class="doc-header" id="top" tabindex="-1">
   <div class="doc-label">[Etiqueta — proyecto o área]</div>
   <h1 class="doc-title">[Título principal]</h1>
   <p class="doc-sub">[Subtítulo descriptivo]</p>
@@ -1060,6 +1162,87 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   <p>…</p>
 </section>
 
+<a class="back-to-top" href="#top" aria-label="Volver al inicio" hidden><span aria-hidden="true">↑</span> Inicio</a>
+<script>
+// Botón "Volver al inicio" y scroll suave del índice. Respeta "reducir movimiento".
+(function () {
+  var button = document.querySelector('.back-to-top');
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var SHOW_AFTER_PX = 480;
+  var TARGET_OFFSET_PX = 16;
+  var SETTLE_MS = 1500;
+  var FALLBACK_MS = 900;
+  var stopSettling = null;
+
+  if (button) {
+    var toggle = function () { button.hidden = window.scrollY < SHOW_AFTER_PX; };
+    window.addEventListener('scroll', toggle, { passive: true });
+    toggle();
+  }
+
+  // Inicio: arriba de todo (0). Entrada del índice: la sección completa, número incluido, con aire.
+  function targetTop(target) {
+    if (target.id === 'top') return 0;
+    var anchor = target.closest('section') || target;
+    return Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - TARGET_OFFSET_PX);
+  }
+  // 'instant' explícito: con html{scroll-behavior:smooth}, un scrollTo común también sería suave.
+  function jump(target) { window.scrollTo({ top: targetTop(target), behavior: 'instant' }); }
+
+  // El contenido de arriba puede cambiar de alto mientras se scrollea (imágenes o capturas diferidas):
+  // mantiene el destino alineado hasta que el layout se asienta, salvo que el lector scrollee por su cuenta.
+  function settleOn(target) {
+    if (stopSettling) stopSettling();
+    var observer = new ResizeObserver(function () { jump(target); });
+    var stop = function () {
+      observer.disconnect();
+      ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.removeEventListener(type, stop); });
+      stopSettling = null;
+    };
+    ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.addEventListener(type, stop, { passive: true }); });
+    observer.observe(document.body);
+    jump(target);
+    setTimeout(stop, SETTLE_MS);
+    stopSettling = stop;
+  }
+
+  function scrollToTarget(target, updateHash) {
+    // Avisa a los componentes diferidos que se rendericen antes de medir el destino.
+    document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: target } }));
+    setTimeout(function () {
+      var settled = false;
+      var finish = function () {
+        if (settled) return;
+        settled = true;
+        settleOn(target);
+      };
+      window.scrollTo({ top: targetTop(target), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+      // El navegador puede saltear o frenar el scroll suave (pestaña en segundo plano, visor embebido).
+      if ('onscrollend' in window) window.addEventListener('scrollend', finish, { once: true });
+      setTimeout(finish, FALLBACK_MS);
+    }, 50);
+    if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+    if (updateHash) history.replaceState(null, '', '#' + target.id);
+  }
+
+  document.querySelectorAll('.toc a[href^="#"]').forEach(function (link) {
+    link.addEventListener('click', function (event) {
+      var target = document.getElementById(link.getAttribute('href').slice(1));
+      if (!target) return;
+      event.preventDefault();
+      scrollToTarget(target, true);
+    });
+  });
+
+  if (button) {
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      scrollToTarget(document.getElementById('top'), false);
+    });
+  }
+})();
+</script>
 <script>
 // Abre los accordions al imprimir para que el PDF no oculte contenido.
 window.addEventListener('beforeprint', () => {
@@ -1144,4 +1327,19 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 
 <!-- Divider -->
 <hr class="divider">
+
+<!-- Botón "Inicio": justo antes de </body>, junto con el script de navegación del boilerplate.
+     El doc-header lleva id="top" y tabindex="-1". -->
+<a class="back-to-top" href="#top" aria-label="Volver al inicio" hidden><span aria-hidden="true">↑</span> Inicio</a>
+```
+
+Componentes que se cargan de forma diferida (imágenes, capturas embebidas) y
+cambian de alto al renderizarse escuchan `heritage:before-scroll`: el script de
+navegación lo dispara con `event.detail.target` antes de medir el destino, para
+que rendericen todo lo que está por encima.
+
+```js
+document.addEventListener('heritage:before-scroll', (event) => {
+  // renderizar los elementos diferidos que están antes de event.detail.target
+});
 ```
