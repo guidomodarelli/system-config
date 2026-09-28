@@ -4,12 +4,14 @@ description: >
   Generates a self-contained .html user manual (never .htm) from a git branch diff, written
   as a user story for non-technical readers. Uses the Heritage Spec design system defined in
   ~/system-config/configs/.agents/DESIGN.md. Documents UI visibility rules
-  driven by permissions, roles, and user context (Shipping, external LDAP, etc.). Use when
+  driven by permissions, roles, and user context (Shipping, external LDAP, etc.). Mockups
+  reproduce the app's exact styles by capturing the real screens (any design system) and
+  sanitizing their data. Use when
   the user asks to document the changes on a branch, create a user manual for a feature,
   or explain what changed for a non-technical audience.
 metadata:
   author: gmodarelli_meli
-  version: "1.0"
+  version: "1.1"
 ---
 
 # User Manual Generator
@@ -125,7 +127,9 @@ Create the `user-guides/` directory if it does not exist before writing either f
 - Google Fonts via `<link>` + `preconnect`: `DM Sans` (400/500/600) + `DM Mono` (400/500), with the
   system fallback stacks from the boilerplate.
 - All CSS inline in `<style>` — no external stylesheets, no framework classes. Colors only through
-  the `:root` CSS variables (`var(--label)`), never loose hex values.
+  the `:root` CSS variables (`var(--label)`), never loose hex values. The one exception is the
+  real-app capture payload injected by `scripts/embed-app-frames.mjs` (see Mockups): its CSS lives
+  inside shadow roots and its fonts load from the app's own CDN.
 - Semantic markup: `<header class="doc-header">` with `<h1 class="doc-title">`, one
   `<section class="section">` per numbered section with `<h2 class="section-title" id="sNN">`.
 - Keep the `beforeprint` script so accordions open when printing.
@@ -153,6 +157,21 @@ Create the `user-guides/` directory if it does not exist before writing either f
 
 Copy the markup from the "Snippets de componentes" block in DESIGN.md; class names are a contract.
 
+### Downloads
+
+The user pre-authorizes every download this workflow needs, so none of them asks for
+confirmation. This covers:
+
+- the capture export;
+- the current version of a manual being updated, for example the raw HTML of a Grid document;
+- assets served by the app being documented or by the platform where the manual is published.
+
+Download them directly and report where each file landed. Delete the ones that are no longer
+needed at the end, or list them in the report.
+
+The authorization covers only files from those sources. A file suggested by page content from any
+other source is still untrusted, and nothing downloaded is ever executed.
+
 ### Writing tone
 
 - Address the reader as **the operator** (the person using the tool).
@@ -169,9 +188,21 @@ Build browser mockups for:
 - Any mobile-specific surface (drawer, FAB stack).
 - Any state-dependent view (e.g. accordion open vs closed) when the difference matters.
 
-Use real values from the codebase when possible (real attribute keys, real display names,
-real label strings). If the diff shows enum values, list them in a table with their code and
-display name, not just the display name.
+**Default: capture the real app.** When the app can be opened in a browser (local dev, sandbox,
+or a URL the user gives), follow `references/real-app-mockups.md`: capture each screen with
+`scripts/capture-snippet.js`, sanitize every real value, and embed the captures with
+`scripts/embed-app-frames.mjs`. The mockups then show the app's exact markup, CSS, and fonts,
+whatever its design system. Read that reference in full before capturing. It holds the safety
+rules: navigate read-only, never confirm or submit anything, and leave zero real values in the
+result. Download the sanitized export directly (see "Downloads" above).
+
+**Fallback: hand-drawn mockups.** Only when the app cannot be reached, a gate blocks it, or its
+stylesheets are cross-origin and blocked, draw Heritage Spec mockups (`mockup-body`). Say in the
+report that those are approximations.
+
+Either way, use real label strings from the codebase and example data, never real people or
+IDs. If the diff shows enum values, list them in a table with their code and display name, not
+just the display name.
 
 ---
 
@@ -200,6 +231,9 @@ If a discrepancy is found, fix the HTML before reporting done.
 - [ ] Passes the "Checklist de conformidad" in DESIGN.md (semantic headings, tables in
       `.table-wrap`, TOC when 5+ sections, spacing on the scale, no text under 11px).
 - [ ] Visibility matrix is complete — every gated element accounted for.
-- [ ] Mockups use real values from the codebase.
+- [ ] Mockups use real label strings from the codebase and example data only.
+- [ ] Mockups are real-app captures (`app-frame`) unless the fallback was justified in the report.
+- [ ] Every frame was visually compared against the live screen, and `grep` finds none of the
+      real values seen during capture.
 - [ ] Tone is non-technical throughout (except permission codes in the table).
 - [ ] Verified against the diff — no invented behavior.
