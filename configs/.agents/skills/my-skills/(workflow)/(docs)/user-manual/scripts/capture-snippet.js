@@ -5,7 +5,7 @@
  * Paste the whole file into the page with the browser automation JavaScript tool, then call:
  *   __umCap(name, element, { pairs, transform })   capture one fragment
  *   __umCheck(forbiddenStrings)                     list captures that still contain real data
- *   __umExport(fileName)                            download { rules, fontFaces, caps } as JSON
+ *   __umExport(fileName, { appVersion })            download { meta, rules, caps } as JSON
  *   __umClear()                                     drop everything stored in sessionStorage
  *
  * Captures persist in sessionStorage, so navigating between pages of the same origin keeps them.
@@ -181,9 +181,11 @@
 	window.__umCheck = (forbidden) =>
 		read(CAPS_KEY).flatMap((capture) => forbidden.filter((value) => capture.html.includes(value)).map((value) => [capture.name, value]));
 
-	window.__umExport = (fileName = 'app-captures.json') => {
+	// meta travels with the captures so the manual can say when, and from which app version, its screens come.
+	window.__umExport = (fileName = 'app-captures.json', { appVersion = null } = {}) => {
 		const rules = read(RULES_KEY);
-		const payload = { rules, caps: read(CAPS_KEY) };
+		const meta = { capturedAt: new Date().toISOString().slice(0, 10), appVersion };
+		const payload = { meta, rules, caps: read(CAPS_KEY) };
 		const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
 		const link = document.createElement('a');
 		link.href = URL.createObjectURL(blob);
@@ -191,7 +193,7 @@
 		document.body.appendChild(link);
 		link.click();
 		link.remove();
-		return { rules: rules.length, caps: payload.caps.length, bytes: blob.size };
+		return { meta, rules: rules.length, caps: payload.caps.length, bytes: blob.size };
 	};
 
 	window.__umClear = () => {
