@@ -58,16 +58,18 @@ const payload = JSON.stringify({ fontFaces, css: css + HOST_CSS, templates: Obje
 const block = `${START}
 <script id="app-frames-data" type="application/json">${payload}</script>
 <script>
-// Renders each captured screen in its own shadow root and fits it so every visible layer
+// Renders each captured screen in its own shadow root, lazily, and fits it so every visible layer
 // (including popovers and dropdowns that float outside their parent) shows whole with 16px of air.
 (function () {
 	var MARGIN = 16;
+	var LAZY_ROOT_MARGIN = '800px 0px';
 	var data = JSON.parse(document.getElementById('app-frames-data').textContent);
 	var fonts = document.createElement('style');
 	fonts.textContent = data.fontFaces.join('\\n');
 	document.head.appendChild(fonts);
 	var sheet = new CSSStyleSheet();
 	sheet.replaceSync(data.css);
+	var hosts = Array.prototype.slice.call(document.querySelectorAll('.app-frame'));
 
 	function visibleBounds(content) {
 		var box = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
@@ -118,7 +120,19 @@ const block = `${START}
 		else if (rightOverflow > 0) content.style.marginLeft = -rightOverflow + 'px';
 	}
 
-	document.querySelectorAll('.app-frame').forEach(function (host) {
+	// Screen readers get the caption as the image description; the capture itself stays inert.
+	function describe(host) {
+		if (host.hasAttribute('aria-label')) return;
+		var mockup = host.closest('.mockup');
+		var caption = mockup && mockup.nextElementSibling && mockup.nextElementSibling.classList.contains('figcap')
+			? mockup.nextElementSibling.textContent.trim()
+			: '';
+		var title = mockup ? (mockup.querySelector('.mockup-url') || {}).textContent : '';
+		host.setAttribute('role', 'img');
+		host.setAttribute('aria-label', 'Captura de pantalla: ' + (caption || title || host.getAttribute('data-cap')));
+	}
+
+	function render(host) {
 		if (host.shadowRoot) return;
 		var root = host.attachShadow({ mode: 'open' });
 		root.adoptedStyleSheets = [sheet];
@@ -131,13 +145,35 @@ const block = `${START}
 		content.innerHTML = data.templates[host.getAttribute('data-cap')] || '';
 		content.querySelectorAll('a[href]').forEach(function (link) { link.removeAttribute('href'); });
 		page.setAttribute('inert', '');
+		page.setAttribute('aria-hidden', 'true');
 		page.appendChild(content);
 		root.appendChild(page);
+		host.style.minHeight = '';
 		var refit = function () { fit(page, content); };
 		// setTimeout instead of requestAnimationFrame: rAF does not fire in background tabs.
 		(document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { setTimeout(refit, 0); });
 		new ResizeObserver(refit).observe(host);
+	}
+
+	hosts.forEach(function (host) {
+		describe(host);
+		// Reserve space so the lazy frames do not collapse the page before they render.
+		if (!host.shadowRoot) host.style.minHeight = '240px';
 	});
+	if ('IntersectionObserver' in window) {
+		var observer = new IntersectionObserver(function (entries) {
+			entries.forEach(function (entry) {
+				if (!entry.isIntersecting) return;
+				observer.unobserve(entry.target);
+				render(entry.target);
+			});
+		}, { rootMargin: LAZY_ROOT_MARGIN });
+		hosts.forEach(function (host) { observer.observe(host); });
+	} else {
+		hosts.forEach(render);
+	}
+	// Printing and PDF export must include every screen, even the ones never scrolled into view.
+	window.addEventListener('beforeprint', function () { hosts.forEach(render); });
 })();
 </script>
 ${END}`;

@@ -76,7 +76,9 @@ Rules to follow when building the matrix:
 
 ## Step 3 — Structure the document
 
-Use this section order:
+Use this section order. Right after the doc header always goes the **table of contents**
+(`Contenido`), and the page always ends with the floating **Inicio** button. See "Table of
+contents (always)" and "Floating back to top button (always)" in Step 4.
 
 1. **¿Qué cambió y por qué?** — 1-paragraph executive summary for a non-technical reader.
 2. **Vista en computadora (escritorio)** — browser mockup + prose walkthrough.
@@ -185,6 +187,48 @@ sections, after all renumbering:
 After any edit that adds, removes, renames, or renumbers a section, regenerate the TOC so every
 link resolves and every title matches.
 
+### Floating "back to top" button (always)
+
+Every manual ends its `<body>` with a floating **Inicio** button that returns to the header. It
+appears once the reader has scrolled past the first screen, stays out of print, and works inside
+embedded viewers (Grid renders the manual in an iframe that scrolls internally).
+
+- Give the header `id="top"` and `tabindex="-1"` so focus lands there after the jump:
+  `<header class="doc-header" id="top" tabindex="-1">`.
+- Add this CSS to the `<style>` block. It uses only DESIGN.md tokens: `surface-dark`, mono,
+  circular radius, and the minimal allowed shadow.
+
+```css
+.back-to-top{position:fixed;right:24px;bottom:24px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-size:12px;font-weight:500;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,0.04);z-index:10;}
+.back-to-top:hover{text-decoration:underline;text-underline-offset:2px;}
+.back-to-top[hidden]{display:none;}
+@media (max-width:719px){.back-to-top{right:16px;bottom:16px;}}
+@media print{.back-to-top{display:none;}}
+```
+
+- Put this markup and script just before `</body>`, before any other trailing script:
+
+```html
+<a class="back-to-top" href="#top" aria-label="Volver al inicio" hidden><span aria-hidden="true">↑</span> Inicio</a>
+<script>
+// Muestra el botón "Volver al inicio" después del primer tramo de lectura y vuelve arriba sin cambiar la URL.
+(function () {
+  var button = document.querySelector('.back-to-top');
+  var toggle = function () { button.hidden = window.scrollY < 480; };
+  window.addEventListener('scroll', toggle, { passive: true });
+  toggle();
+  button.addEventListener('click', function (event) {
+    event.preventDefault();
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+    // Smooth scrolling can be skipped by the browser (background tab, embedded viewer): land at the top anyway.
+    setTimeout(function () { if (window.scrollY > 0) window.scrollTo(0, 0); }, 700);
+    document.getElementById('top').focus({ preventScroll: true });
+  });
+})();
+</script>
+```
+
 ### Downloads
 
 The user pre-authorizes every download this workflow needs, so none of them asks for
@@ -265,6 +309,8 @@ If a discrepancy is found, fix the HTML before reporting done.
       that differ from the spec).
 - [ ] Passes the "Checklist de conformidad" in DESIGN.md (semantic headings, tables in
       `.table-wrap`, spacing on the scale, no text under 11px).
+- [ ] Floating "Inicio" button present: hidden at the top, visible after scrolling, returns to the
+      header, and hidden in print.
 - [ ] TOC present right after the header, with one working link per section, titles identical to
       the `<h2>`, and a part label before each `part-header` group.
 - [ ] Visibility matrix is complete — every gated element accounted for.
