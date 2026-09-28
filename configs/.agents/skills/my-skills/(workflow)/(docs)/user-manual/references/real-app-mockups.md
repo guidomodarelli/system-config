@@ -93,6 +93,9 @@ __umCap('card-list', document.querySelector('.list'), {
   <div class="figcap">Panel “Filtrar” con los seis filtros (datos de ejemplo).</div>
   ```
 
+- The `mockup-url` holds only the path of the captured page (`/tools/user-management`) or the
+  dialog title, never the host of the environment it was captured from.
+
 - Embed:
 
   ```bash
@@ -102,7 +105,39 @@ __umCap('card-list', document.querySelector('.list'), {
   `--page-background` is the app's page color, so cards and modals sit on the same background as
   in the product. Read it from the app's `body` computed style.
 
-### 6. Verify visually
+### 6. Everything you want to show must be fully visible
+
+A capture that shows a dropdown, menu, popover, tooltip or modal is only useful if that layer is
+**entirely inside the frame**. The embed runtime fits each frame after rendering:
+
+- trims captured empty space above and below;
+- keeps floating layers (popovers, the modal ✕) inside with 16px of air;
+- narrows the content when a fixed-position layer sticks out of a fluid root;
+- scales down as a last resort.
+
+Still, measure every frame in the browser. The check must return `[]`:
+
+```js
+[...document.querySelectorAll('.app-frame')].flatMap((host) => {
+  const page = host.shadowRoot.querySelector('.app-frame__page');
+  const pageRect = page.getBoundingClientRect();
+  const box = { l: Infinity, t: Infinity, r: -Infinity, b: -Infinity };
+  page.querySelectorAll('[data-capture-root], [data-capture-root] *').forEach((element) => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    if (!rect.width || !rect.height || style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return;
+    box.l = Math.min(box.l, rect.left); box.t = Math.min(box.t, rect.top);
+    box.r = Math.max(box.r, rect.right); box.b = Math.max(box.b, rect.bottom);
+  });
+  const gaps = [box.t - pageRect.top, pageRect.bottom - box.b, box.l - pageRect.left, pageRect.right - box.r].map(Math.round);
+  return gaps.some((gap) => gap < 16) ? [[host.dataset.cap, gaps]] : [];
+});
+```
+
+Then look at a screenshot of each frame that shows an open layer. If a layer is cut, recapture it
+from a position where it opens inside its container, or trim the fragment with `transform`.
+
+### 7. Verify visually
 
 Serve the manual locally (`python3 -m http.server --bind 127.0.0.1`), open it in the browser and
 compare every frame against the live screen. Fix anything that differs: a floating layer still

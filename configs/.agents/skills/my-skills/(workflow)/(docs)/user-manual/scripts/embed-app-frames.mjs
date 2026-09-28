@@ -45,7 +45,7 @@ if (missing.length) {
 // Shells are layout wrappers copied only so descendant selectors match; they must not add layout,
 // overlays or viewport positioning. Floating roots (modals, popovers) are pinned in the flow.
 const HOST_CSS = `
-.app-frame__page{background:${pageBackground};padding:16px;overflow:hidden;text-align:left;}
+.app-frame__page{background:${pageBackground};overflow:hidden;text-align:left;}
 [data-shell]{position:relative!important;inset:auto!important;transform:none!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;margin:0!important;padding:0!important;background:transparent!important;display:block!important;box-shadow:none!important;border:0!important;opacity:1!important;visibility:visible!important;}
 [data-capture-root]{margin-left:auto!important;margin-right:auto!important;opacity:1!important;visibility:visible!important;}
 [data-capture-root][style*="position: relative"]{inset:auto!important;transform:none!important;}
@@ -58,24 +58,85 @@ const payload = JSON.stringify({ fontFaces, css: css + HOST_CSS, templates: Obje
 const block = `${START}
 <script id="app-frames-data" type="application/json">${payload}</script>
 <script>
-// Renders each captured screen in its own shadow root with the app's real CSS.
+// Renders each captured screen in its own shadow root and fits it so every visible layer
+// (including popovers and dropdowns that float outside their parent) shows whole with 16px of air.
 (function () {
+	var MARGIN = 16;
 	var data = JSON.parse(document.getElementById('app-frames-data').textContent);
 	var fonts = document.createElement('style');
 	fonts.textContent = data.fontFaces.join('\\n');
 	document.head.appendChild(fonts);
 	var sheet = new CSSStyleSheet();
 	sheet.replaceSync(data.css);
+
+	function visibleBounds(content) {
+		var box = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+		content.querySelectorAll('[data-capture-root], [data-capture-root] *').forEach(function (element) {
+			var rect = element.getBoundingClientRect();
+			if (!rect.width || !rect.height) return;
+			var style = getComputedStyle(element);
+			if (style.visibility === 'hidden' || style.display === 'none' || style.opacity === '0') return;
+			box.left = Math.min(box.left, rect.left);
+			box.top = Math.min(box.top, rect.top);
+			box.right = Math.max(box.right, rect.right);
+			box.bottom = Math.max(box.bottom, rect.bottom);
+		});
+		return box;
+	}
+
+	function fit(page, content) {
+		content.style.zoom = '';
+		content.style.margin = '0px';
+		content.style.width = '';
+		var pageRect = page.getBoundingClientRect();
+		var available = pageRect.width - MARGIN * 2;
+		var box = visibleBounds(content);
+		if (box.left === Infinity) return;
+		// Layers positioned in fixed pixels (popovers, menus) can stick out of a fluid root: narrow the
+		// content by that amount so the root shrinks and the layer lands inside it.
+		var rootRect = content.querySelector('[data-capture-root]').getBoundingClientRect();
+		var sticking = Math.max(0, box.right - rootRect.right);
+		if (sticking > 0) {
+			content.style.width = (content.getBoundingClientRect().width - sticking) + 'px';
+			box = visibleBounds(content);
+		}
+		// Anything still wider than the page scales down until the widest layer fits.
+		var scale = 1;
+		for (var attempt = 0; attempt < 4 && box.right - box.left > available + 0.5; attempt += 1) {
+			scale *= available / (box.right - box.left);
+			content.style.zoom = String(scale);
+			box = visibleBounds(content);
+		}
+		var contentRect = content.getBoundingClientRect();
+		content.style.marginTop = (contentRect.top - box.top) + 'px';
+		content.style.marginBottom = (box.bottom - contentRect.bottom) + 'px';
+		box = visibleBounds(content);
+		pageRect = page.getBoundingClientRect();
+		var leftOverflow = pageRect.left + MARGIN - box.left;
+		var rightOverflow = box.right - (pageRect.right - MARGIN);
+		if (leftOverflow > 0) content.style.marginLeft = leftOverflow + 'px';
+		else if (rightOverflow > 0) content.style.marginLeft = -rightOverflow + 'px';
+	}
+
 	document.querySelectorAll('.app-frame').forEach(function (host) {
 		if (host.shadowRoot) return;
 		var root = host.attachShadow({ mode: 'open' });
 		root.adoptedStyleSheets = [sheet];
 		var page = document.createElement('div');
 		page.className = 'app-frame__page';
-		page.innerHTML = data.templates[host.getAttribute('data-cap')] || '';
-		page.querySelectorAll('a[href]').forEach(function (link) { link.removeAttribute('href'); });
+		page.style.padding = MARGIN + 'px';
+		var content = document.createElement('div');
+		// flow-root keeps captured margins inside, so empty space above the screen can be trimmed.
+		content.style.display = 'flow-root';
+		content.innerHTML = data.templates[host.getAttribute('data-cap')] || '';
+		content.querySelectorAll('a[href]').forEach(function (link) { link.removeAttribute('href'); });
 		page.setAttribute('inert', '');
+		page.appendChild(content);
 		root.appendChild(page);
+		var refit = function () { fit(page, content); };
+		// setTimeout instead of requestAnimationFrame: rAF does not fire in background tabs.
+		(document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { setTimeout(refit, 0); });
+		new ResizeObserver(refit).observe(host);
 	});
 })();
 </script>

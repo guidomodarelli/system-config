@@ -140,7 +140,7 @@ Create the `user-guides/` directory if it does not exist before writing either f
 | Need | Component |
 |---|---|
 | Document header | `doc-header` + `doc-label` + `doc-title` + `doc-sub` + `doc-meta` |
-| Table of contents (5+ sections) | `toc` + `toc-label` + `toc-num`, right after the header |
+| Table of contents (**always**, whatever the section count) | `nav.toc` + `toc-label` + `toc-num`, right after the header (see below) |
 | Numbered section | `section` + `section-num` + `section-title` |
 | Major divider | `part-header` + `part-header-label` + `part-header-title` |
 | Info / warn / ok / error note | `callout` `.c-info` / `.c-warn` / `.c-ok` / `.c-red`, starting with a `<strong>` keyword |
@@ -156,6 +156,34 @@ Create the `user-guides/` directory if it does not exist before writing either f
 | Horizontal rule | `divider` |
 
 Copy the markup from the "Snippets de componentes" block in DESIGN.md; class names are a contract.
+
+### Table of contents (always)
+
+Every manual has a TOC right after `</header>`, even when it has fewer than 5 sections. This
+overrides the "5+ sections" guidance in DESIGN.md for user manuals. Build it from the final
+sections, after all renumbering:
+
+- One entry per numbered section, in order, linking to the `id` of its `<h2 class="section-title">`
+  (`s01`, `s02`, …), with the number in `toc-num` and the exact section title as the text.
+- Before the first section of each `part-header`, add a non-link entry with the part title in a
+  `toc-label` (for example "Quién ve qué: permisos y roles").
+- Two columns on desktop and one on mobile; the boilerplate CSS already handles this.
+
+```html
+<nav class="toc" aria-labelledby="toc-label">
+  <div class="toc-label" id="toc-label">Contenido</div>
+  <ol>
+    <li><a href="#s01"><span class="toc-num">01</span>¿Para qué sirve?</a></li>
+    <li><a href="#s02"><span class="toc-num">02</span>Cómo se entra desde el menú</a></li>
+    <!-- … -->
+    <li><div class="toc-label">Quién ve qué: permisos y roles</div></li>
+    <li><a href="#s10"><span class="toc-num">10</span>Tabla de visibilidad por permiso</a></li>
+  </ol>
+</nav>
+```
+
+After any edit that adds, removes, renames, or renumbers a section, regenerate the TOC so every
+link resolves and every title matches.
 
 ### Downloads
 
@@ -201,7 +229,14 @@ stylesheets are cross-origin and blocked, draw Heritage Spec mockups (`mockup-bo
 report that those are approximations.
 
 Either way, use real label strings from the codebase and example data, never real people or
-IDs. If the diff shows enum values, list them in a table with their code and display name, not
+IDs.
+
+**Mockup URL bar: path only, never the host.** The `mockup-url` shows the route the operator
+navigates to, e.g. `/tools/user-management/process-assignment`. Never show a scheme, host, or port
+(`https://`, `dev.adminml.com`, `xtools.adminml.com`, `localhost:8443`), even when the capture
+came from that environment. For a modal or panel with no route of its own, use its visible title
+(`Filtrar`, `Solicitar acceso`). The rule applies to prose as well: never name an environment host
+in the manual. If the diff shows enum values, list them in a table with their code and display name, not
 just the display name.
 
 ---
@@ -229,11 +264,17 @@ If a discrepancy is found, fix the HTML before reporting done.
 - [ ] Heritage Spec colors, fonts, and radii match DESIGN.md exactly (no hard-coded values
       that differ from the spec).
 - [ ] Passes the "Checklist de conformidad" in DESIGN.md (semantic headings, tables in
-      `.table-wrap`, TOC when 5+ sections, spacing on the scale, no text under 11px).
+      `.table-wrap`, spacing on the scale, no text under 11px).
+- [ ] TOC present right after the header, with one working link per section, titles identical to
+      the `<h2>`, and a part label before each `part-header` group.
 - [ ] Visibility matrix is complete — every gated element accounted for.
 - [ ] Mockups use real label strings from the codebase and example data only.
+- [ ] Every `mockup-url` is a path or a screen title; `grep -E 'https?://|[a-z0-9-]+\.(com|io|net)'`
+      over the mockup bars and prose finds no host.
 - [ ] Mockups are real-app captures (`app-frame`) unless the fallback was justified in the report.
 - [ ] Every frame was visually compared against the live screen, and `grep` finds none of the
       real values seen during capture.
+- [ ] Everything a mockup is meant to show is fully visible: open dropdowns, menus, popovers and
+      modals are not cut, and the fit check in `references/real-app-mockups.md` returns `[]`.
 - [ ] Tone is non-technical throughout (except permission codes in the table).
 - [ ] Verified against the diff — no invented behavior.
