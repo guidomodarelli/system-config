@@ -237,7 +237,9 @@ result. Download the sanitized export directly (see "Downloads" above).
 
 States that only exist after a mutation (a result screen, a failed row, a lock badge) are captured
 against the app running locally with HTTP mocks, never against a shared environment. Mobile
-screens are captured at 375 px with `flattenMedia`. Both techniques are in the reference.
+screens are captured at 375 px with `fixedWidth`, and desktop screens in a window at least 1280 px
+wide, because every capture keeps the layout of the viewport it was taken in. Both techniques
+are in the reference.
 
 **Fallback: hand-drawn mockups.** Only when the app cannot be reached, a gate blocks it, or its
 stylesheets are cross-origin and blocked, draw Heritage Spec mockups (`mockup-body`). Say in the

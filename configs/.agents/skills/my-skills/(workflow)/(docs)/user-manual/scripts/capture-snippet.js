@@ -3,7 +3,7 @@
  * being documented, so manual mockups render with the app's exact styles.
  *
  * Paste the whole file into the page with the browser automation JavaScript tool, then call:
- *   __umCap(name, element, { pairs, transform, floating, flattenMedia })   capture one fragment
+ *   __umCap(name, element, { pairs, transform, floating, fixedWidth })   capture one fragment
  *   __umCheck(forbiddenStrings)                     list captures that still contain real data
  *   __umExport(fileName, { appVersion })            download { meta, rules, caps } as JSON
  *   __umClear()                                     drop everything stored in sessionStorage
@@ -35,9 +35,11 @@
 			.replace(/(^|[\s,>+~(}])(html|body)(?=[\s,.:#[>+~{)]|$)/g, '$1[data-tag="$2"]')
 			.replace(/:root\b/g, '[data-tag="html"]');
 
-	// flattenMedia resolves @media against the capture viewport (for example a 375px iframe), so a
-	// mobile capture keeps its mobile layout even when the manual is read on a wide screen.
-	const collectRules = (elements, { flattenMedia = false } = {}) => {
+	// Dimension media queries (width, height, orientation, aspect ratio) are resolved against the capture
+	// viewport and flattened, so the frame shows the layout that was captured whatever the reader's screen
+	// is. Other media (hover, reduced motion, print) stay conditional and follow the reader.
+	const DIMENSION_MEDIA = /width|height|orientation|aspect-ratio/;
+	const collectRules = (elements) => {
 		const registry = read(RULES_KEY);
 		const index = new Map(registry.map((rule, position) => [rule, position]));
 		const used = new Set();
@@ -76,8 +78,15 @@
 						add(absolutize(wrap(`${retagSelector(rule.selectorText)}{${rule.style.cssText}}`), baseUrl));
 					}
 				} else if (rule instanceof CSSMediaRule) {
-					if (!flattenMedia) walk(rule.cssRules, (inner) => wrap(`@media ${rule.conditionText}{${inner}}`));
+					if (!DIMENSION_MEDIA.test(rule.conditionText)) walk(rule.cssRules, (inner) => wrap(`@media ${rule.conditionText}{${inner}}`));
 					else if (window.matchMedia(rule.conditionText).matches) walk(rule.cssRules, wrap);
+				} else if (typeof CSSContainerRule !== 'undefined' && rule instanceof CSSContainerRule) {
+					// Container queries keep their condition; they evaluate against the frame's own containers.
+					const condition = `${rule.containerName ? `${rule.containerName} ` : ''}${rule.containerQuery}`;
+					walk(rule.cssRules, (inner) => wrap(`@container ${condition}{${inner}}`));
+				} else if (typeof CSSLayerBlockRule !== 'undefined' && rule instanceof CSSLayerBlockRule) {
+					// Layered rules lose to unlayered ones; dropping the layer would change which rule wins.
+					walk(rule.cssRules, (inner) => wrap(`@layer ${rule.name}{${inner}}`));
 				} else if (typeof CSSSupportsRule !== 'undefined' && rule instanceof CSSSupportsRule) {
 					walk(rule.cssRules, (inner) => wrap(`@supports ${rule.conditionText}{${inner}}`));
 				} else if (rule instanceof CSSFontFaceRule || rule instanceof CSSKeyframesRule) {
@@ -159,10 +168,11 @@
 		element.style.margin = '0 auto';
 	};
 
-	window.__umCap = (name, element, { pairs = [], transform = null, floating = false, flattenMedia = false } = {}) => {
+	// fixedWidth renders the capture at its viewport width in the manual (mobile captures at 375 px).
+	window.__umCap = (name, element, { pairs = [], transform = null, floating = false, fixedWidth = false } = {}) => {
 		const ancestors = [];
 		for (let node = element.parentElement; node; node = node.parentElement) ancestors.unshift(node);
-		const { used, blockedSheets } = collectRules([...ancestors, element, ...element.querySelectorAll('*')], { flattenMedia });
+		const { used, blockedSheets } = collectRules([...ancestors, element, ...element.querySelectorAll('*')]);
 
 		const clone = element.cloneNode(true);
 		syncFormState(element, clone);
@@ -191,7 +201,8 @@
 		}
 
 		const caps = read(CAPS_KEY);
-		const record = flattenMedia ? { name, html, rules: used, viewportWidth: window.innerWidth } : { name, html, rules: used };
+		const record = { name, html, rules: used, captureViewportWidth: window.innerWidth };
+		if (fixedWidth) record.viewportWidth = window.innerWidth;
 		const existing = caps.findIndex((capture) => capture.name === name);
 		existing >= 0 ? (caps[existing] = record) : caps.push(record);
 		write(CAPS_KEY, caps);

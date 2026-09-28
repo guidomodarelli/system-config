@@ -16,7 +16,7 @@
  * Several exports can be combined; when two contain the same capture name, the later file wins.
  * Every capture gets its own stylesheet with its rules in the order the page applied them, so the
  * cascade (which rule wins between equal specificities) matches the app. Captures taken with
- * `flattenMedia` (mobile) also keep their viewport width.
+ * `fixedWidth` (mobile) also keep their viewport width.
  * No dependencies beyond Node's standard library.
  */
 import fs from 'node:fs';

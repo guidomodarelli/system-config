@@ -103,11 +103,36 @@ __umCap('card-list', document.querySelector('.list'), {
   content already fits (a modal body capped at `100vh - N`). Otherwise the manual cuts them at
   its own viewport height.
 
+#### Media queries resolve against the capture viewport
+
+`@media` queries evaluate against the **viewport**, and in the manual that is the reader's
+screen, not the frame. Real case: the filters panel switches its grid to one column under
+`@media (max-width: 1023px)`. It was captured in a window narrower than 1024 px, so the field and
+its open dropdown were 680 px wide. In the manual, read on a wider screen, the grid went back to
+two columns: the field shrank to 320 px while the dropdown kept the 680 px that the app had set
+inline, so the list looked wider than its field.
+
+So the snippet resolves every **dimension** query (width, height, orientation, aspect ratio)
+against the capture viewport and keeps only the matching rules, without their wrapper, in every
+capture. Queries that describe the reader (hover, reduced motion, print) stay conditional.
+`@container` and `@layer` keep their wrapper: container queries evaluate against the frame's own
+containers, and dropping a layer would change the cascade. Each record stores
+`captureViewportWidth`.
+
+Consequences:
+
+- Capture at the window width you want the manual to show. For desktop screens, use a window at
+  least 1280 px wide, so the layout is the desktop one and not a tablet breakpoint.
+- Inline pixel sizes that the app computed from the layout (a dropdown list as wide as its field,
+  a popover position) stay consistent only if the layout is the same as when they were measured.
+  If a floating layer does not line up with its anchor in the frame, check first whether a
+  breakpoint changed the layout.
+- Captures exported before this change keep their `@media` wrappers and follow the reader's
+  screen; recapture them if a breakpoint changes their layout.
+
 #### Mobile captures (375 px)
 
-When the mobile layout differs from desktop, capture it too. `@media` queries evaluate against
-the **viewport**, and in the manual that is the reader's screen, not the frame. So mobile rules
-must be resolved at capture time:
+When the mobile layout differs from desktop, capture it too, at 375 px:
 
 1. Load the same route in a same-origin iframe 375 px wide with `border:0`; a border shrinks
    `innerWidth`. Same origin means the iframe shares `sessionStorage` with the tab.
@@ -120,19 +145,19 @@ must be resolved at capture time:
    ```
 
 2. Inject the snippet into `frame.contentDocument` (with the nonce, as above), reach the state
-   inside the iframe, and capture with `flattenMedia: true`:
+   inside the iframe, and capture with `fixedWidth: true`:
 
    ```js
-   frame.contentWindow.__umCap('main-mobile', frame.contentDocument.querySelector('.page-root'), { pairs, flattenMedia: true });
+   frame.contentWindow.__umCap('main-mobile', frame.contentDocument.querySelector('.page-root'), { pairs, fixedWidth: true });
    ```
 
-   `flattenMedia` keeps the `@media` rules that match the 375 px viewport without their wrapper,
-   drops the ones that do not match, and records `viewportWidth`. Check it worked: the capture's
-   rules must contain no `@media` text.
+   The dimension queries resolve against the 375 px viewport, as in every capture. `fixedWidth`
+   also records `viewportWidth`, so the manual renders the capture 375 px wide. Check it worked:
+   no rule of the capture contains a width query.
 3. React-controlled inputs inside the iframe need the native setter plus an `input` event:
    `Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, 'value').set.call(input, value)`.
-4. `embed-app-frames.mjs` gives every fixed-viewport capture its own stylesheet, so its flattened
-   rules never restyle the desktop captures, and it renders the capture 375 px wide, centered.
+4. `embed-app-frames.mjs` gives every capture its own stylesheet, so mobile rules never restyle
+   the desktop captures, and it renders fixed-width captures 375 px wide, centered.
 
 ### 4. Sanitize: mandatory, no exceptions
 
