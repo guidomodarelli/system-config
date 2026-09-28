@@ -2,7 +2,10 @@
 /**
  * Embeds real-app captures (from capture-snippet.js) into a user manual.
  *
- * Usage: node embed-app-frames.mjs <captures.json> <manual.html> [--page-background=#ededed]
+ * Usage: node embed-app-frames.mjs <captures.json> [more-captures.json ...] <manual.html> [--page-background=#ededed] [--host-css=<file>]
+ *
+ * --host-css appends design-system rules to the host CSS, for example to release a modal's inner scroll
+ * area whose max-height depends on the viewport of the app.
  *
  * The manual marks each preview with an empty host element:
  *   <div class="app-frame" data-cap="<capture name>"></div>
@@ -10,37 +13,68 @@
  *   - a JSON payload with the used CSS, @font-face rules and one template per capture;
  *   - a small runtime that renders every host inside its own shadow root, so the app's CSS and
  *     the manual's CSS never leak into each other.
+ * Several exports can be combined; when two contain the same capture name, the later file wins.
+ * Captures taken with `flattenMedia` (mobile) get their own stylesheet and keep their viewport width.
  * No dependencies beyond Node's standard library.
  */
 import fs from 'node:fs';
 
-const [capturesPath, manualPath, ...flags] = process.argv.slice(2);
-if (!capturesPath || !manualPath) {
-	console.error('Usage: node embed-app-frames.mjs <captures.json> <manual.html> [--page-background=<css color>]');
+const positional = process.argv.slice(2).filter((argument) => !argument.startsWith('--'));
+const flags = process.argv.slice(2).filter((argument) => argument.startsWith('--'));
+const manualPath = positional.pop();
+const capturesPaths = positional;
+if (!capturesPaths.length || !manualPath) {
+	console.error('Usage: node embed-app-frames.mjs <captures.json> [more-captures.json ...] <manual.html> [--page-background=<css color>] [--host-css=<file>]');
 	process.exit(1);
 }
-const pageBackground = (flags.find((flag) => flag.startsWith('--page-background=')) || '').split('=')[1] || 'transparent';
+const flagValue = (name) => (flags.find((flag) => flag.startsWith(`--${name}=`)) || '').slice(name.length + 3);
+const pageBackground = flagValue('page-background') || 'transparent';
+const hostCssPath = flagValue('host-css');
+const extraHostCss = hostCssPath ? fs.readFileSync(hostCssPath, 'utf8') : '';
 
 const START = '<!-- app-frames:start -->';
 const END = '<!-- app-frames:end -->';
+const META_ATTRIBUTE = 'data-app-frames-meta';
 // Fonts injected by browser extensions or unrelated locales must not travel with the manual.
 const FOREIGN_RULE = /chrome-extension:|moz-extension:|safari-web-extension:/;
 
-const { rules, caps } = JSON.parse(fs.readFileSync(capturesPath, 'utf8'));
+// Every export has its own rule registry, so rule indexes are remapped into one merged registry.
+const rules = [];
+const ruleIndex = new Map();
+const captures = new Map();
+let meta = { capturedAt: null, appVersion: null };
+for (const path of capturesPaths) {
+	const exported = JSON.parse(fs.readFileSync(path, 'utf8'));
+	const remap = exported.rules.map((rule) => {
+		if (!ruleIndex.has(rule)) {
+			ruleIndex.set(rule, rules.length);
+			rules.push(rule);
+		}
+		return ruleIndex.get(rule);
+	});
+	for (const capture of exported.caps) captures.set(capture.name, { ...capture, rules: capture.rules.map((index) => remap[index]) });
+	if (exported.meta?.capturedAt && (!meta.capturedAt || exported.meta.capturedAt > meta.capturedAt)) meta = { ...meta, capturedAt: exported.meta.capturedAt };
+	if (exported.meta?.appVersion) meta = { ...meta, appVersion: exported.meta.appVersion };
+}
+
 let manual = fs.readFileSync(manualPath, 'utf8');
 const hosts = [...new Set([...manual.matchAll(/class="app-frame"[^>]*data-cap="([^"]+)"/g)].map((match) => match[1]))];
-// Only the CSS of the captures the manual actually shows is embedded.
-const usedIndexes = new Set(caps.filter((capture) => hosts.includes(capture.name)).flatMap((capture) => capture.rules));
-const usedRules = [...usedIndexes].sort((a, b) => a - b).map((index) => rules[index]).filter((rule) => !FOREIGN_RULE.test(rule));
-const fontFaces = usedRules.filter((rule) => rule.startsWith('@font-face'));
-const css = usedRules.filter((rule) => !rule.startsWith('@font-face')).join('\n');
-const templates = Object.fromEntries(caps.map((capture) => [capture.name, capture.html]));
-
-const missing = hosts.filter((name) => !templates[name]);
+const missing = hosts.filter((name) => !captures.has(name));
 if (missing.length) {
 	console.error(`Missing captures for: ${missing.join(', ')}`);
 	process.exit(1);
 }
+
+const usedCaptures = hosts.map((name) => captures.get(name));
+const cssOf = (indexes) => [...new Set(indexes)].sort((a, b) => a - b).map((index) => rules[index]).filter((rule) => !FOREIGN_RULE.test(rule));
+const allUsed = cssOf(usedCaptures.flatMap((capture) => capture.rules));
+const fontFaces = allUsed.filter((rule) => rule.startsWith('@font-face'));
+const withoutFonts = (list) => list.filter((rule) => !rule.startsWith('@font-face')).join('\n');
+// Desktop captures share one sheet; each fixed-viewport capture gets its own, because its flattened
+// mobile rules would otherwise restyle the desktop captures (and the other way round).
+const css = withoutFonts(cssOf(usedCaptures.filter((capture) => !capture.viewportWidth).flatMap((capture) => capture.rules)));
+const sheets = Object.fromEntries(usedCaptures.filter((capture) => capture.viewportWidth).map((capture) => [capture.name, withoutFonts(cssOf(capture.rules))]));
+const widths = Object.fromEntries(usedCaptures.filter((capture) => capture.viewportWidth).map((capture) => [capture.name, capture.viewportWidth]));
 
 // Shells are layout wrappers copied only so descendant selectors match; they must not add layout,
 // overlays or viewport positioning. Floating roots (modals, popovers) are pinned in the flow.
@@ -51,7 +85,7 @@ const HOST_CSS = `
 [data-capture-root][style*="position: relative"]{inset:auto!important;transform:none!important;}
 `;
 
-const payload = JSON.stringify({ fontFaces, css: css + HOST_CSS, templates: Object.fromEntries(hosts.map((name) => [name, templates[name]])) })
+const payload = JSON.stringify({ fontFaces, css, hostCss: HOST_CSS + extraHostCss, sheets, widths, templates: Object.fromEntries(hosts.map((name) => [name, captures.get(name).html])) })
 	.replace(/<\//g, '<\\/')
 	.replace(/<!--/g, '<\\!--');
 
@@ -67,8 +101,13 @@ const block = `${START}
 	var fonts = document.createElement('style');
 	fonts.textContent = data.fontFaces.join('\\n');
 	document.head.appendChild(fonts);
-	var sheet = new CSSStyleSheet();
-	sheet.replaceSync(data.css);
+	function toSheet(cssText) {
+		var sheet = new CSSStyleSheet();
+		sheet.replaceSync(cssText);
+		return sheet;
+	}
+	var sharedSheet = toSheet(data.css);
+	var hostSheet = toSheet(data.hostCss);
 	var hosts = Array.prototype.slice.call(document.querySelectorAll('.app-frame'));
 
 	function visibleBounds(content) {
@@ -86,10 +125,10 @@ const block = `${START}
 		return box;
 	}
 
-	function fit(page, content) {
+	function fit(page, content, fixedWidth) {
 		content.style.zoom = '';
 		content.style.margin = '0px';
-		content.style.width = '';
+		content.style.width = fixedWidth ? fixedWidth + 'px' : '';
 		var pageRect = page.getBoundingClientRect();
 		var available = pageRect.width - MARGIN * 2;
 		var box = visibleBounds(content);
@@ -118,6 +157,8 @@ const block = `${START}
 		var rightOverflow = box.right - (pageRect.right - MARGIN);
 		if (leftOverflow > 0) content.style.marginLeft = leftOverflow + 'px';
 		else if (rightOverflow > 0) content.style.marginLeft = -rightOverflow + 'px';
+		// Fixed-viewport (mobile) captures are centered, like a phone screen on the page.
+		else if (fixedWidth) content.style.marginLeft = Math.max(0, (available - (box.right - box.left)) / 2) + 'px';
 	}
 
 	// Screen readers get the caption as the image description; the capture itself stays inert.
@@ -134,22 +175,23 @@ const block = `${START}
 
 	function render(host) {
 		if (host.shadowRoot) return;
+		var name = host.getAttribute('data-cap');
 		var root = host.attachShadow({ mode: 'open' });
-		root.adoptedStyleSheets = [sheet];
+		root.adoptedStyleSheets = [data.sheets[name] !== undefined ? toSheet(data.sheets[name]) : sharedSheet, hostSheet];
 		var page = document.createElement('div');
 		page.className = 'app-frame__page';
 		page.style.padding = MARGIN + 'px';
 		var content = document.createElement('div');
 		// flow-root keeps captured margins inside, so empty space above the screen can be trimmed.
 		content.style.display = 'flow-root';
-		content.innerHTML = data.templates[host.getAttribute('data-cap')] || '';
+		content.innerHTML = data.templates[name] || '';
 		content.querySelectorAll('a[href]').forEach(function (link) { link.removeAttribute('href'); });
 		page.setAttribute('inert', '');
 		page.setAttribute('aria-hidden', 'true');
 		page.appendChild(content);
 		root.appendChild(page);
 		host.style.minHeight = '';
-		var refit = function () { fit(page, content); };
+		var refit = function () { fit(page, content, data.widths[name]); };
 		// setTimeout instead of requestAnimationFrame: rAF does not fire in background tabs.
 		(document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { setTimeout(refit, 0); });
 		new ResizeObserver(refit).observe(host);
@@ -179,7 +221,14 @@ const block = `${START}
 ${END}`;
 
 const existing = new RegExp(`${START}[\\s\\S]*?${END}`);
+// The header says when, and from which app version, the screens were captured.
+if (meta.capturedAt) {
+	const label = `Capturas: ${meta.capturedAt}${meta.appVersion ? ` · App v${meta.appVersion}` : ''}`;
+	const metaSpan = new RegExp(`<span ${META_ATTRIBUTE}>[^<]*</span>`);
+	if (metaSpan.test(manual)) manual = manual.replace(metaSpan, `<span ${META_ATTRIBUTE}>${label}</span>`);
+	else manual = manual.replace(/(<div class="doc-meta">[\s\S]*?)(\s*<\/div>)/, `$1\n    <span ${META_ATTRIBUTE}>${label}</span>$2`);
+}
 manual = existing.test(manual) ? manual.replace(existing, block) : manual.replace(/<\/body>/i, `${block}\n</body>`);
 if (!manual.includes('.app-frame{')) manual = manual.replace(/<\/style>/i, '.app-frame{display:block;}\n</style>');
 fs.writeFileSync(manualPath, manual);
-console.log(`Embedded ${hosts.length} frames, ${usedRules.length} CSS rules (${fontFaces.length} @font-face), ${Buffer.byteLength(manual)} bytes.`);
+console.log(`Embedded ${hosts.length} frames (${Object.keys(sheets).length} fixed-viewport), ${allUsed.length} CSS rules (${fontFaces.length} @font-face), ${Buffer.byteLength(manual)} bytes.`);

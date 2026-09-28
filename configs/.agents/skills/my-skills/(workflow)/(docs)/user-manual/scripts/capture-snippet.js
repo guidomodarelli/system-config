@@ -3,7 +3,7 @@
  * being documented, so manual mockups render with the app's exact styles.
  *
  * Paste the whole file into the page with the browser automation JavaScript tool, then call:
- *   __umCap(name, element, { pairs, transform })   capture one fragment
+ *   __umCap(name, element, { pairs, transform, floating, flattenMedia })   capture one fragment
  *   __umCheck(forbiddenStrings)                     list captures that still contain real data
  *   __umExport(fileName, { appVersion })            download { meta, rules, caps } as JSON
  *   __umClear()                                     drop everything stored in sessionStorage
@@ -35,7 +35,9 @@
 			.replace(/(^|[\s,>+~(}])(html|body)(?=[\s,.:#[>+~{)]|$)/g, '$1[data-tag="$2"]')
 			.replace(/:root\b/g, '[data-tag="html"]');
 
-	const collectRules = (elements) => {
+	// flattenMedia resolves @media against the capture viewport (for example a 375px iframe), so a
+	// mobile capture keeps its mobile layout even when the manual is read on a wide screen.
+	const collectRules = (elements, { flattenMedia = false } = {}) => {
 		const registry = read(RULES_KEY);
 		const index = new Map(registry.map((rule, position) => [rule, position]));
 		const used = new Set();
@@ -74,7 +76,8 @@
 						add(absolutize(wrap(`${retagSelector(rule.selectorText)}{${rule.style.cssText}}`), baseUrl));
 					}
 				} else if (rule instanceof CSSMediaRule) {
-					walk(rule.cssRules, (inner) => wrap(`@media ${rule.conditionText}{${inner}}`));
+					if (!flattenMedia) walk(rule.cssRules, (inner) => wrap(`@media ${rule.conditionText}{${inner}}`));
+					else if (window.matchMedia(rule.conditionText).matches) walk(rule.cssRules, wrap);
 				} else if (typeof CSSSupportsRule !== 'undefined' && rule instanceof CSSSupportsRule) {
 					walk(rule.cssRules, (inner) => wrap(`@supports ${rule.conditionText}{${inner}}`));
 				} else if (rule instanceof CSSFontFaceRule || rule instanceof CSSKeyframesRule) {
@@ -133,6 +136,20 @@
 		});
 	};
 
+	// Scroll areas inside floating layers usually cap their height with the viewport (100vh - N); when their
+	// content already fits, the cap is released so the manual does not cut them at its own viewport height.
+	const releaseViewportCaps = (live, clone) => {
+		const liveNodes = [live, ...live.querySelectorAll('*')];
+		const cloneNodes = [clone, ...clone.querySelectorAll('*')];
+		liveNodes.forEach((node, position) => {
+			const style = getComputedStyle(node);
+			const scrolls = ['auto', 'scroll'].includes(style.overflowY);
+			if (style.maxHeight === 'none' || !scrolls || node.scrollHeight > node.clientHeight + 1) return;
+			cloneNodes[position].style.maxHeight = 'none';
+			cloneNodes[position].style.overflowY = 'visible';
+		});
+	};
+
 	// Floating layers (modals, popovers) are captured in place; these neutralize viewport positioning.
 	const unfloat = (element) => {
 		element.style.position = 'relative';
@@ -142,15 +159,18 @@
 		element.style.margin = '0 auto';
 	};
 
-	window.__umCap = (name, element, { pairs = [], transform = null, floating = false } = {}) => {
+	window.__umCap = (name, element, { pairs = [], transform = null, floating = false, flattenMedia = false } = {}) => {
 		const ancestors = [];
 		for (let node = element.parentElement; node; node = node.parentElement) ancestors.unshift(node);
-		const { used, blockedSheets } = collectRules([...ancestors, element, ...element.querySelectorAll('*')]);
+		const { used, blockedSheets } = collectRules([...ancestors, element, ...element.querySelectorAll('*')], { flattenMedia });
 
 		const clone = element.cloneNode(true);
 		syncFormState(element, clone);
 		clone.setAttribute('data-capture-root', '');
-		if (floating) unfloat(clone);
+		if (floating) {
+			unfloat(clone);
+			releaseViewportCaps(element, clone);
+		}
 		if (transform) transform(clone);
 		sanitize(clone, pairs);
 		clone.querySelectorAll('script, noscript, iframe').forEach((node) => node.remove());
@@ -171,7 +191,7 @@
 		}
 
 		const caps = read(CAPS_KEY);
-		const record = { name, html, rules: used };
+		const record = flattenMedia ? { name, html, rules: used, viewportWidth: window.innerWidth } : { name, html, rules: used };
 		const existing = caps.findIndex((capture) => capture.name === name);
 		existing >= 0 ? (caps[existing] = record) : caps.push(record);
 		write(CAPS_KEY, caps);
