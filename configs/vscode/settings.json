@@ -279,7 +279,7 @@
       "text": "Always include a descriptive body after the title, separated by a blank line. Explain what changed and why, adding relevant implementation details and behavioral impacts when supported by the diff or provided context. Scale the detail to the complexity of the change. Do not merely repeat the title, list every modified file, or invent motivations, test results, or impacts. Use short paragraphs or bullets when they improve readability."
     },
     {
-      "text": "Return only the commit title and body, without introductory text, surrounding quotation marks, or Markdown code fences."
+      "text": "Devuelve únicamente el título y el cuerpo del commit. Empieza directamente con el título real: nunca antepongas 'commit message goes here', placeholders, etiquetas ni texto introductorio. No incluyas comillas envolventes ni bloques de código Markdown."
     }
   ],
   "github.copilot.chat.reviewSelection.instructions": [
