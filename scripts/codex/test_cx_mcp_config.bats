@@ -88,7 +88,7 @@ BASH
   [[ "$output" == *'mcp_servers.backend.enabled=false'* ]]
 }
 
-@test "cx usa gpt-6-luna con esfuerzo max por defecto" {
+@test "cx usa gpt-6.1-sol con esfuerzo medium por defecto" {
   run zsh -c '
     compdef() { :; }
     clear() { :; }
@@ -98,7 +98,7 @@ BASH
   '
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'-m\ngpt-6-luna\n-c\nmodel_reasoning_effort=max'* ]]
+  [[ "$output" == *$'-m\ngpt-6.1-sol\n-c\nmodel_reasoning_effort=medium'* ]]
 }
 
 @test "cx --commit usa gpt-6-luna con esfuerzo max por defecto" {
@@ -114,7 +114,7 @@ BASH
   [[ "$output" == *$'-m\ngpt-6-luna\n-c\nmodel_reasoning_effort=max'* ]]
 }
 
-@test "cxd conserva gpt-6-luna y max como defaults" {
+@test "cxd usa gpt-6.1-sol con esfuerzo medium por defecto" {
   run zsh -c '
     compdef() { :; }
     clear() { :; }
@@ -124,5 +124,5 @@ BASH
   '
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'-m\ngpt-6-luna\n-c\nmodel_reasoning_effort=max'* ]]
+  [[ "$output" == *$'-m\ngpt-6.1-sol\n-c\nmodel_reasoning_effort=medium'* ]]
 }

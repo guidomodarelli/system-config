@@ -229,7 +229,7 @@ cx() {
   clear
 
   # Added flag parsing: -m <model>, -re <reasoning_effort>, -c/--commit, --mcps
-  local model="gpt-6-sol"
+  local model="gpt-6.1-sol"
   local reasoning="medium"
   local model_overridden=""
   local reasoning_overridden=""
