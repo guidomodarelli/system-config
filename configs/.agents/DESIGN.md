@@ -222,6 +222,10 @@ components:
     textColor:       "{colors.label}"
     typography:      "{typography.doc-meta}"
     # display: flex, flex-wrap: wrap, gap: 24px, margin-top: 16px
+  doc-footer:
+    textColor:       "{colors.label}"
+    typography:      "{typography.doc-meta}"
+    # border-top: 1px {colors.border}, margin-top: 40px, padding-top: 16px; datos técnicos del documento
 
   # —— Part header (separa partes mayores A / B)
   part-header:
@@ -801,11 +805,21 @@ El primer bloque de todo documento. Estructura vertical:
 [doc-label]   ← contexto: proyecto, alcance, área (mono uppercase)
 [doc-title]   ← título principal (<h1>) — puede ocupar 2 líneas con <br>
 [doc-sub]     ← subtítulo descriptivo (1 línea)
-[doc-meta]    ← row horizontal de metadatos (fecha · prioridad · estado · estimado)
+[doc-meta]    ← row horizontal de metadatos (fecha · prioridad · estado · estimado), solo los que
+                 informan algo al lector: `Estado` solo si el documento tiene un ciclo real
+                 (borrador → aprobado); un manual publicado siempre está vigente y no lo lleva
 ```
 
 Cierra con `border-bottom: 2px solid {colors.border-ink}` y `margin-bottom: 40px`.
 Las fechas de `doc-meta` van en formato absoluto (`2026-09-27`), nunca relativas.
+Un documento que describe código lleva, al final y fuera del recorrido del lector, un
+`<footer class="doc-footer">` con la línea `Para el equipo técnico · Código: <rama> @ <commit corto>`
+(el dato solo le sirve a quien mantiene el documento; en el `doc-meta` distrae), con
+`<rama> @ <commit corto>` como link al commit (`https://github.com/<org>/<repo>/commit/<sha>`,
+`target="_blank" rel="noopener noreferrer"`), y, en el `<head>`, los metas `heritage:source-repo`,
+`heritage:source-ref`, `heritage:source-commit`, `heritage:source-files` (rutas leídas, separadas
+por espacio) y `heritage:source-commit-url`. Dicen
+contra qué versión del código se escribió y permiten saber qué cambió desde entonces.
 
 ### Índice (TOC)
 
@@ -1058,11 +1072,9 @@ queda a mano mientras se lee. Usarlo junto con el índice y el botón "Inicio".
   texto, y en impresión. Sin JavaScript no aparece.
 - **Progreso:** la marca de la sección actual se llena de `primary` de izquierda a derecha a medida
   que se lee (`--tick-progress`); lo que falta queda en `label`.
-- **Leídas:** una sección pasa a leída cuando se recorre el 90% siendo la actual, cuando se pasa
-  scrolleando a la siguiente, o al llegar al final del documento. Saltar con el índice o el mapa
-  no la marca. Su marca queda en `primary` (en reposo, `label`), su `aria-label` suma
-  "leída" y la vista previa muestra `Leída`. Se recuerda por documento en `localStorage`
-  (`heritage:visited:<ruta>|<título>`); si el visor lo bloquea, dura la visita.
+- **Sin estado de lectura:** el mapa no marca secciones como leídas ni guarda nada entre visitas.
+  Un documento publicado se actualiza en su lugar, así que una sección "leída" puede haber cambiado
+  desde entonces; el progreso de la sección actual alcanza para ubicarse.
 - **Atajos:** el pie de la vista previa los recuerda (`⌥ ↑ ↓ secciones · ⌥ I índice`, `Alt` fuera
   de Mac). Ver [Atajos de teclado](#atajos-de-teclado).
 
@@ -1157,6 +1169,13 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   captura no cambia de alto con la ventana: por eso, sobre capturas, se ancla.
 - Los pasos (`li.step-item`) y las referencias en el texto (`span.hotspot-ref`) llevan el mismo
   `data-hotspot`. El número del punto coincide con el del paso.
+- **Un número, un punto por sección:** los puntos viven en la misma sección que sus pasos y
+  referencias, y cada número aparece en un solo punto de la sección. Dos `1` en una sección (de
+  dos listas de pasos distintas) confunden al lector. Si un paso ocurre en una pantalla que ya se
+  mostró en otra sección, se repite la captura (mismo `data-cap`) en la sección del paso, con su
+  punto; la pantalla original queda sin puntos.
+- Tocar un paso o una referencia (o `Enter` sobre la referencia) trae su punto a la mitad de la
+  pantalla si no se ve, y lo resalta 2 s. Si ya se ve, solo lo resalta.
 - Al pasar por un paso, una referencia o un punto, se resaltan los que comparten número (anillo
   `focus-ring`) y los demás puntos de la sección bajan a 40% de opacidad.
 - Los puntos son `aria-hidden="true"`: el texto del paso lleva la información. En la referencia,
@@ -1272,12 +1291,13 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 ### 2026-10-01
 
 - **Componentes:** mapa de secciones (`section-rail`): marcas laterales fijas, una por sección, con vista previa al pasar el mouse o enfocar, efecto lupa sobre las marcas vecinas, sección actual resaltada y el mismo scroll que el índice. Lo arma el script de navegación.
-- **Mapa de secciones:** progreso de lectura en la marca actual, secciones leídas recordadas por documento y atajos al pie de la vista previa.
+- **Mapa de secciones:** progreso de lectura en la marca actual y atajos al pie de la vista previa (sin estado de lectura entre visitas).
 - **Componentes:** píldora de sección con índice en hoja inferior (todos los anchos), copiar enlace a una sección, glosario con tarjeta (`a.term` + `dl.glossary`), puntos sobre capturas (`hotspot`) y comparación antes / después (`compare`).
 - **Teclado:** `Alt`/`⌥` + `↑` `↓` cambia de sección, `Alt`/`⌥` + `I` va al índice, `Escape` cierra las vistas previas.
 - **Tokens:** tipografía `rail-preview-title` y breakpoint `rail` (1024px).
 - **Mockups:** modificador `.mockup--mobile` para capturas de celular y leyenda `.figcap`.
 - **Puntos sobre capturas:** `data-target` (+ `data-target-text`) los ancla a un elemento de la captura; el runtime los ubica después de cada ajuste y no se corren con el ancho del lector.
+- **Origen del código:** línea `Código: <rama> @ <commit>` en el pie del documento (`doc-footer`), con link al commit en GitHub, y metas `heritage:source-*` en documentos que describen código.
 - **Quitado:** marcas de novedad (`data-change`, badges "Nuevo" / "Actualizado", "Novedades" en el `doc-meta`). Los documentos no marcan cambios.
 
 ### 2026-09-28
@@ -1345,6 +1365,7 @@ h1,h2,th,strong{font-weight:600;}
 .doc-title{font-size:28px;line-height:1.2;margin-bottom:6px;}
 .doc-sub{font-size:14px;line-height:1.5;color:var(--muted);}
 .doc-meta{display:flex;flex-wrap:wrap;gap:8px 24px;margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--label);}
+.doc-footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--label);}
 .part-header{border-top:2px solid var(--border-ink);margin-top:56px;padding-top:32px;margin-bottom:40px;}
 .part-header-title{font-size:22px;line-height:1.2;}
 .section{margin-bottom:40px;}
@@ -1440,14 +1461,13 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .section-rail li{margin:0;}
 .section-rail-tick{display:flex;align-items:center;gap:4px;width:48px;padding:4px 0;}
 .section-rail-tick::before{content:'';flex-shrink:0;width:var(--tick-width,12px);height:2px;border-radius:9999px;background:var(--label);}
-.section-rail-tick.is-visited::before,.section-rail-tick:hover::before,.section-rail-tick:focus-visible::before{background:var(--primary);}
+.section-rail-tick:hover::before,.section-rail-tick:focus-visible::before{background:var(--primary);}
 .section-rail-tick[aria-current="location"]::before{width:var(--tick-width,24px);background:linear-gradient(90deg,var(--primary) var(--tick-progress,0%),var(--label) 0);}
 .section-rail-preview,.term-card{position:fixed;z-index:11;width:280px;max-width:calc(100vw - 32px);padding:12px 16px;background:var(--surface-card);border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
 .section-rail-preview{left:88px;pointer-events:none;}
 .section-rail-preview-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
 .section-rail-preview-meta:empty{display:none;}
 .section-rail-preview-num{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:var(--label);}
-.section-rail-preview-state{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--label);}
 .section-rail-preview-title,.term-card-title{font-size:13px;font-weight:600;line-height:1.4;color:var(--primary);}
 .section-rail-preview-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .section-rail-preview-summary,.term-card-text{margin-top:4px;font-size:13px;line-height:1.6;color:var(--muted);}
@@ -1480,6 +1500,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .hotspot-ref{width:20px;height:20px;font-size:11px;vertical-align:1px;}
 .hotspot.is-highlighted,.hotspot-ref.is-highlighted,.step-item.is-highlighted .step-circle{outline:2px solid var(--focus-ring);outline-offset:2px;}
 .has-hotspot-highlight .hotspot:not(.is-highlighted){opacity:0.4;}
+.step-item[data-hotspot],.hotspot-ref{cursor:pointer;}
 .compare{margin:16px 0;}
 .compare-stage{position:relative;isolation:isolate;display:grid;overflow:hidden;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--surface-card);}
 .compare-before,.compare-after{grid-area:1/1;min-width:0;}
@@ -1538,7 +1559,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   <div class="doc-label">[Etiqueta — proyecto o área]</div>
   <h1 class="doc-title">[Título principal]</h1>
   <p class="doc-sub">[Subtítulo descriptivo]</p>
-  <div class="doc-meta"><span>Fecha: …</span><span>Estado: …</span></div>
+  <div class="doc-meta"><span>Fecha: …</span></div>
 </header>
 
 <section class="section" aria-labelledby="s01">
@@ -1546,6 +1567,9 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   <h2 class="section-title" id="s01">[Título de la sección]</h2>
   <p>…</p>
 </section>
+
+<!-- Solo en documentos que describen código; lo escribe source-trace.py del skill user-manual. -->
+<footer class="doc-footer">Para el equipo técnico · Código: <a href="https://github.com/[org]/[repo]/commit/[sha]" target="_blank" rel="noopener noreferrer">[rama] @ [commit corto]</a></footer>
 
 <a class="back-to-top" href="#top" aria-label="Volver al inicio" hidden><span aria-hidden="true">↑</span> Inicio</a>
 <nav class="section-rail" aria-label="Mapa de secciones" hidden></nav>
@@ -1574,12 +1598,10 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var REST_TICK_WIDTH_PX = 12;
   var MAGNIFIED_TICK_WIDTH_PX = 40;
   var MAGNIFIER_RADIUS_PX = 48;
-  var VISITED_PROGRESS_RATIO = 0.9;
   var TERM_HIDE_DELAY_MS = 150;
   var COPY_FEEDBACK_MS = 1600;
-  var VISITED_STORAGE_PREFIX = 'heritage:visited:';
+  var HOTSPOT_REVEAL_MS = 2000;
   var stopSettling = null;
-  var isNavigating = false;
   var frameRequested = false;
   var currentEntry = null;
 
@@ -1602,7 +1624,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       observer.disconnect();
       ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.removeEventListener(type, stop); });
       stopSettling = null;
-      isNavigating = false;
     };
     ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.addEventListener(type, stop, { passive: true }); });
     observer.observe(document.body);
@@ -1612,8 +1633,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   }
 
   function scrollToTarget(target, updateHash) {
-    // Mientras dura el salto, las secciones que se cruzan no cuentan como leídas.
-    isNavigating = true;
     // Avisa a los componentes diferidos que se rendericen antes de medir el destino.
     document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: target } }));
     setTimeout(function () {
@@ -1667,38 +1686,10 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       number: numberElement ? numberElement.textContent.trim() : '',
       title: heading.textContent.trim(),
       summary: firstParagraph ? firstParagraph.textContent.replace(/\s+/g, ' ').trim() : '',
-      visited: false,
       link: null
     });
   });
   var toc = document.querySelector('.toc');
-
-  // Secciones leídas: se recuerdan por documento; si el visor bloquea el almacenamiento, duran la visita.
-  var storageKey = VISITED_STORAGE_PREFIX + location.pathname + '|' + document.title;
-  var visitedIds = [];
-  try { visitedIds = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch (storageError) { visitedIds = []; }
-  function saveVisited() {
-    try { localStorage.setItem(storageKey, JSON.stringify(visitedIds)); } catch (storageError) { /* fallback deliberado: progreso solo en memoria */ }
-  }
-
-  function tickLabel(entry) {
-    var parts = [(entry.number ? entry.number + ' ' : '') + entry.title];
-    if (entry.visited) parts.push('leída');
-    return parts.join(', ');
-  }
-  function renderVisited(entry) {
-    if (!entry.link) return;
-    entry.link.classList.toggle('is-visited', entry.visited);
-    entry.link.setAttribute('aria-label', tickLabel(entry));
-  }
-  function markVisited(entry) {
-    if (entry.visited) return;
-    entry.visited = true;
-    if (visitedIds.indexOf(entry.heading.id) === -1) visitedIds.push(entry.heading.id);
-    saveVisited();
-    renderVisited(entry);
-  }
-  entries.forEach(function (entry) { entry.visited = visitedIds.indexOf(entry.heading.id) !== -1; });
 
   // —— Copiar enlace a una sección. En visores embebidos, <meta name="heritage:share-url"> da la URL pública.
   var shareMeta = document.querySelector('meta[name="heritage:share-url"]');
@@ -1749,7 +1740,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     entry.numberElement.appendChild(copyButton);
   });
 
-  // —— Mapa de secciones: una marca por sección, lupa, vista previa, progreso y leídas.
+  // —— Mapa de secciones: una marca por sección, lupa, vista previa y progreso.
   var rail = document.querySelector('.section-rail');
   var preview = null;
   var hidePreview = function () { if (preview) preview.hidden = true; };
@@ -1760,12 +1751,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     preview = createElement('div', 'section-rail-preview');
     var previewMeta = createElement('div', 'section-rail-preview-meta');
     var previewNumber = createElement('span', 'section-rail-preview-num');
-    var previewState = createElement('span', 'section-rail-preview-state');
     var previewTitle = createElement('div', 'section-rail-preview-title');
     var previewSummary = createElement('div', 'section-rail-preview-summary');
     var previewHint = createElement('div', 'section-rail-preview-hint',
       modifierLabel + ' ↑ ↓ secciones' + (toc ? ' · ' + modifierLabel + ' I índice' : ''));
-    previewMeta.append(previewNumber, previewState);
+    previewMeta.append(previewNumber);
     preview.append(previewMeta, previewTitle, previewSummary, previewHint);
     preview.setAttribute('aria-hidden', 'true');
     preview.hidden = true;
@@ -1774,7 +1764,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       var item = createElement('li');
       entry.link = createElement('a', 'section-rail-tick');
       entry.link.href = '#' + entry.heading.id;
-      renderVisited(entry);
+      entry.link.setAttribute('aria-label', (entry.number ? entry.number + ' ' : '') + entry.title);
       item.appendChild(entry.link);
       railList.appendChild(item);
     });
@@ -1784,11 +1774,9 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 
     var showPreview = function (entry) {
       previewNumber.textContent = entry.number;
-      previewState.textContent = entry.visited ? 'Leída' : '';
       previewTitle.textContent = entry.title;
       previewSummary.textContent = entry.summary;
       previewNumber.hidden = !entry.number;
-      previewState.hidden = !entry.visited;
       previewSummary.hidden = !entry.summary;
       preview.hidden = false;
       var tick = entry.link.getBoundingClientRect();
@@ -1859,7 +1847,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     sheet.addEventListener('click', function (event) { if (event.target === sheet) sheet.close(); });
   }
 
-  // —— Sección actual: progreso de lectura, leídas, píldora y mapa
+  // —— Sección actual: progreso de lectura, píldora y mapa
   function renderCurrent(current, progress) {
     entries.forEach(function (entry) {
       if (!entry.link) return;
@@ -1889,11 +1877,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     if (atBottom) current = entries[entries.length - 1];
     var rect = current.section.getBoundingClientRect();
     var progress = atBottom ? 1 : Math.min(Math.max((activeLine - rect.top) / rect.height, 0), 1);
-    if (!isNavigating) {
-      if (progress >= VISITED_PROGRESS_RATIO) markVisited(current);
-      // Pasar scrolleando a la sección siguiente también cuenta como leída; saltar con el índice, no.
-      if (currentEntry && entries.indexOf(current) === entries.indexOf(currentEntry) + 1) markVisited(currentEntry);
-    }
     currentEntry = current;
     renderCurrent(current, progress);
   }
@@ -1990,16 +1973,48 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   });
 
   // —— Puntos sobre capturas: pasar por un paso o una referencia resalta su punto, y viceversa.
+  // Tocar un paso o una referencia trae su punto a la pantalla si no se ve, y lo resalta un momento.
   document.querySelectorAll('section.section').forEach(function (section) {
     if (!section.querySelector('.hotspot[data-hotspot]')) return;
     var linked = section.querySelectorAll('[data-hotspot]');
+    var revealTimer = null;
     var highlight = function (number) {
       linked.forEach(function (element) { element.classList.toggle('is-highlighted', element.dataset.hotspot === number); });
       section.classList.toggle('has-hotspot-highlight', Boolean(number));
     };
+    var reveal = function (number) {
+      var pin = section.querySelector('.hotspot[data-hotspot="' + number + '"]');
+      if (!pin) return;
+      highlight(number);
+      clearTimeout(revealTimer);
+      revealTimer = setTimeout(function () { revealTimer = null; highlight(''); }, HOTSPOT_REVEAL_MS);
+      var pinRect = pin.getBoundingClientRect();
+      if (pinRect.top >= 0 && pinRect.bottom <= window.innerHeight) return;
+      // Las capturas diferidas de arriba se renderizan antes de medir, para que el punto no se corra.
+      document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: pin } }));
+      var pinTop = function () { return Math.max(0, pin.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2); };
+      setTimeout(function () {
+        window.scrollTo({ top: pinTop(), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+        // El navegador puede saltear el scroll suave (pestaña en segundo plano, visor embebido).
+        setTimeout(function () {
+          var rect = pin.getBoundingClientRect();
+          if (rect.top < 0 || rect.bottom > window.innerHeight) window.scrollTo({ top: pinTop(), behavior: 'instant' });
+        }, FALLBACK_MS);
+      }, 50);
+    };
     linked.forEach(function (element) {
       element.addEventListener('mouseenter', function () { highlight(element.dataset.hotspot); });
-      element.addEventListener('mouseleave', function () { highlight(''); });
+      element.addEventListener('mouseleave', function () { if (!revealTimer) highlight(''); });
+      if (element.classList.contains('hotspot')) return;
+      element.addEventListener('click', function () { reveal(element.dataset.hotspot); });
+      if (!element.classList.contains('hotspot-ref')) return;
+      element.setAttribute('role', 'button');
+      element.setAttribute('tabindex', '0');
+      element.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        reveal(element.dataset.hotspot);
+      });
     });
   });
 

@@ -202,6 +202,10 @@ both, capture the screens whose mobile layout differs:
 - The snippet drops **hidden inputs** (CSRF tokens, session ids) and reduces absolute `href` and
   `action` values to their path, so environment hosts do not travel in the payload. Still check:
   the runtime removes `href` at render time, but the payload is in the manual's source.
+- Same-origin images (`<img src="/icon.webp">`) would resolve against the manual's host and show
+  empty, so the snippet inlines every **loaded** one as a data URI. `__umCap` lists the ones that were
+  not loaded yet (`unloadedImages`, lazy images below the fold): scroll them into view and capture
+  again. `check-manual.mjs` fails on any root-relative image left in the payload.
 - Before exporting, run `__umCheck([...all real values seen])` with the signed-in user's name, LDAP,
   user id and Groot ID among them. It must return `[]`. If not, recapture with more pairs, or
   post-process the stored HTML.
@@ -209,7 +213,7 @@ both, capture the screens whose mobile layout differs:
 
 ### 5. Export and embed
 
-- Prefer the bridge: `await __umExport('app-captures.json', { appVersion: '<version>', endpoint:
+- Prefer the bridge: `await __umExport('app-captures.json', { endpoint:
   'http://127.0.0.1:8767' })` writes it to the bridge's `--exports` directory, without browser
   downloads. Without `endpoint` it downloads to the browser's folder (see "Downloads" in `SKILL.md`).
 - **Verify the file on disk before `__umClear()`.** From the second download on a site, Chrome may
@@ -257,7 +261,7 @@ both, capture the screens whose mobile layout differs:
   [data-capture-root] .andes-modal__scroll,[data-capture-root] .andes-modal__content{max-height:none!important;overflow:visible!important;}
   ```
 
-- The script writes `<span data-app-frames-meta>Capturas: YYYY-MM-DD · App vX</span>` into the
+- The script writes `<span data-app-frames-meta>Capturas: YYYY-MM-DD</span>` into the
   header's `doc-meta` (and replaces it on re-runs), so readers know how current the screens are.
 - The runtime renders frames lazily (IntersectionObserver, 800 px ahead). Each host gets
   `role="img"` and `aria-label="Captura de pantalla: <figcap>"`, while the rendered capture is

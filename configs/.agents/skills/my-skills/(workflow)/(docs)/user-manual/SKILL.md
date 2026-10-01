@@ -10,7 +10,7 @@ description: >
   the changes on a branch, create or update a user manual, or explain a flow to non-technical users.
 metadata:
   author: gmodarelli_meli
-  version: "2.0"
+  version: "2.2"
 ---
 
 # User Manual Generator
@@ -64,6 +64,13 @@ git diff develop..HEAD -- <key files>
 **Updating an existing manual, or documenting a flow as it is today.** The source of truth is the
 code of the base branch, not the old manual:
 
+- **Start from the recorded source.** If the manual has `heritage:source-*` metas, run
+  `python3 scripts/source-trace.py diff <manual.html> --repo <repo>` (add `--patch` for the full
+  diff). It lists the commits and files of the documented paths changed since the recorded commit;
+  "No changes" means the content is still current (only design or capture updates remain). Then
+  read the whole flow anyway for new paths the old list did not cover. Manuals without the metas are
+  read from scratch.
+
 - If the user asks to ignore the current branch, or it has unrelated changes, read the base with
   `git show origin/<base>:<path>` and run the app from a **detached worktree** of the base
   (`git worktree add --detach /tmp/<name> origin/<base>`), never touching the user's checkout. Remove
@@ -87,6 +94,23 @@ From the code, extract:
 - **Limits and formats** — maximum counts, accepted input formats, timers (inactivity, polling).
 - **Mobile vs desktop differences** — responsive branches, FAB stacks, drawers.
 - **i18n strings** — labels visible to the end user.
+- **Entry points** — how the reader gets to the flow (see below).
+
+**Find how the reader enters the flow.** Search the code, never guess:
+
+- Grep the flow's route across the repo (`'/labour-share'`, `buildPath('…')`, `href=`, `navigate(`,
+  `router.push`) to find home/hub pages, cards, menus, tabs or buttons that link to it, and follow
+  redirects (index pages that send to a sub-route).
+- Look for menu or navigation configuration in the repo (sidebar items, nav JSON, `setPageSettings`
+  navigation, menu registries).
+- For each entry found, record its visible label (from the translations), the route of the screen
+  it lives on, and its visibility gates (permission flags, feature flags): an entry can be visible
+  to everyone while the flow itself checks a permission, or the other way around.
+- The outer menu often lives **outside the repo** (portal navigation, a microfrontend in another
+  repo, a configuration service). Document only the part confirmed in the code, starting at the
+  first screen that lives in the repo, and say in the report that the outer path could not be
+  verified. Do not describe menus you did not see in code; if the user knows the outer path, they
+  can provide it.
 
 ---
 
@@ -112,8 +136,25 @@ Right after the doc header always goes the **table of contents** (`Contenido`), 
 ends with the floating **Inicio** button, the **section map** and the **section pill**. See
 "Navigation (always)" in Step 4.
 
+**Audience, always.** Before writing, name the roles that use or take part in the flow, from the
+permission and role checks (Step 2) and from who acts on each screen (who operates the tool, who
+only shows a QR or approves). Then:
+
+- the `doc-meta` carries `Audiencia: <rol> / <rol>`;
+- section **01 Objetivo** says in one sentence what the manual helps to do and lists each role with
+  what it does in the flow (`<strong>Team Leader</strong>: opera la herramienta desde el celular…`);
+- the prose addresses the role that operates the tool, and calls the others by their role name.
+
+**Cómo se entra** goes in every manual where an entry point was found in the code (Step 1), right
+after the introduction: the screen that holds the entry (real capture, its route in the
+`mockup-url`, an anchored pin on the card/item/button), its exact label, who sees the entry, and
+what happens when the reader lacks access. When the outer menu lives outside the repo, start at
+the first screen that is in it, without inventing the steps before it. When no entry is found in
+the code, skip the section and say so in the report.
+
 For a branch diff:
 
+0. **Objetivo** — what the manual helps to do and the audience, role by role (see above).
 1. **¿Qué cambió y por qué?** — 1-paragraph executive summary. When a before capture exists, show
    the main screen as a before / after `compare`.
 2. **Vista en computadora (escritorio)** or **Pantalla principal** (mobile flows).
@@ -127,7 +168,7 @@ For a branch diff:
 10. **Glosario** — only when the manual uses domain terms a non-technical reader may not know.
 
 For a flow manual (or an update of one), keep the existing section order when it still fits and
-add what is missing: prerequisites, flow overview with every screen, each screen with all its
+add what is missing: Objetivo with the audience, prerequisites, flow overview with every screen, each screen with all its
 variants, messages and what to do, FAQ, glossary.
 
 Adjust sections when there is little to say — skip sections that have nothing to say.
@@ -229,6 +270,13 @@ dispatch scroll events: if "current section" checks fail in automation, check
   selector matches several elements. The capture runtime places it 14 px left of the element after
   every fit and resize, so it never drifts. Keep `--x`/`--y` as the initial position. Then check, at
   1280 px and 390 px, that every pin sits next to its element. Up to 6 pins per capture.
+- **Pins live with their steps, one per number per section.** A section never shows two pins with
+  the same number, and never pins a capture for steps written in another section. When a step
+  happens on a screen already shown elsewhere (the main screen in its own section, the steps in
+  "Cómo agregar…"), repeat that capture (same `data-cap`, no extra payload) inside the step's
+  section with its pin, and leave the original without pins. Write "en esta pantalla", never
+  "marcado en la sección NN". Tapping a step or a reference scrolls its pin into view (navigation
+  script).
 - **Before / after:** only when both captures have the same width and framing. Give each
   `app-frame` its own `aria-label`. Otherwise show two separate mockups.
 - **Glossary:** link only the first use of each term per section; every `a.term` points to an
@@ -284,7 +332,45 @@ downloaded is ever executed. Delete the files at the end or list them in the rep
 
 ## Step 5 — Verify alignment
 
-Cross-check against the code:
+**Record the source** the manual was written from, so the next update can start from a diff:
+
+```bash
+python3 scripts/source-trace.py record <manual.html> --repo <repo> --ref origin/<base> \
+  --files <every file or directory read: pages, components, hooks, API routes, validations, constants, translations>
+```
+
+It writes the `heritage:source-repo|ref|commit|files|commit-url` metas into the `<head>` and, at the
+end of the document, a `doc-footer` "Para el equipo técnico · Código: <base> @ <commit>" linked to the
+commit on GitHub (only maintainers need it, so it stays out of the header; new tab; inside
+Grid it opens because `github.com/melisource/` is on its allowlist). Prefer directories over single files where the
+flow lives in one, so files added later are covered.
+
+The `doc-meta` carries only what tells the reader something: `Fecha`, audience, device and
+`Capturas`. No `Estado` (a published manual is always the current one), no app version (the package
+version means nothing to the reader) and no `Código` (it lives in the `doc-footer`).
+
+**Run the checks** and fix everything they report before publishing:
+
+```bash
+node scripts/check-manual.mjs <manual.html> \
+  --translations <app>/i18n/<locale>/messages.po --translations <app>/app/translations/<locale>/messages.json \
+  --forbidden "<every real value seen while capturing, comma-separated>"
+```
+
+It fails on: TOC links or titles that do not match the sections, missing navigation pieces, glossary
+links without `<dt>`, pins on captures without `data-target`, a section with two pins of the same
+number or with steps/references whose pin is not in that section, hosts in `mockup-url`, any change
+marker, missing source metas, unexpected hosts or environment markers (`:8443`, `melioffice`, …),
+secrets (hidden inputs, CSRF, session ids), real values, and any text quoted between «…» that does
+not exist in the app's translations (obsolete or misquoted strings). It warns when a mockup has no
+`figcap`, the share URL is missing, or the embedded navigation script differs from the DESIGN.md
+boilerplate (the manual carries an outdated copy: replace it with the current one).
+
+Then serve the manual, inject `scripts/check-rendered.js` and run `await __umCheckRendered()` at
+1280 px and at 390 px (in Grid: `__umCheckRendered(iframe.contentWindow)`). It must return
+`ok: true`: every capture rendered, none cut, every anchored pin next to its element.
+
+Cross-check against the code what the scripts cannot see:
 
 - Every permission flag appears in the visibility matrix, with its exact identifier.
 - Every visible label, notice and error text appears in the prose or a table, and every one of them
@@ -300,7 +386,7 @@ Fix the HTML before reporting done.
 ## Step 6 — Publish (when the destination is Grid)
 
 Follow `references/grid-publishing.md`: pull the current version, strip Grid's injected scripts,
-publish with `__gridPublish` (lock, `if_version`, digest check, lock release, cache refresh) and
+re-run `check-manual.mjs` on the exact file to publish, publish with `__gridPublish` (lock, `if_version`, digest check, lock release, cache refresh) and
 verify in the viewer after a cache-busting reload. Publishing a new version of a document the user
 pointed to is authorized by the request; any other document needs confirmation.
 
@@ -314,6 +400,9 @@ pointed to is authorized by the request; any other document needs confirmation.
 | `scripts/frame-driver.js` | App page | `__umFrame({ width, height, snippetUrl })`: drives a same-origin iframe at the device width, reloads the snippet per navigation, fills React inputs, finds buttons/modals, captures with `fixedWidth` on mobile |
 | `scripts/capture-bridge.py` | Terminal | Serves files with CORS for one origin and stores POSTed JSON exports (127.0.0.1 only) |
 | `scripts/embed-app-frames.mjs` | Terminal | Embeds captures into the manual (lazy shadow-root frames, fit, fixed-layer containment, responsive layout, anchored pins) |
+| `scripts/check-manual.mjs` | Terminal | Static checks of the final HTML (structure, navigation, pins, hosts, secrets, real values, quoted texts vs translations, change markers, source metas, outdated navigation script) |
+| `scripts/check-rendered.js` | Manual page / Grid tab | `__umCheckRendered(view)`: captures rendered, fit, anchored pin distance |
+| `scripts/source-trace.py` | Terminal | `record` writes the source metas and "Código:" line; `diff` lists what changed in the documented paths since then |
 | `scripts/strip-grid-injections.py` | Terminal | Removes Grid's injected scripts from a downloaded `/raw` |
 | `scripts/grid-publish.js` | Grid tab | `__gridInfo`, `__gridPull`, `__gridPublish` |
 
@@ -325,6 +414,12 @@ add them to `scripts/`.
 ## Output checklist
 
 - [ ] Step 0 asked: captures and prose match the device the flow is used on.
+- [ ] Audience named: `Audiencia:` in the `doc-meta` and each role, with what it does, in 01 Objetivo.
+- [ ] `source-trace.py record` ran: source metas in the `<head>` and "Código: <base> @ <commit>" in
+      the `doc-footer`, linked to the commit on GitHub.
+- [ ] `check-manual.mjs` exits 0 with the app's translations and the real values seen, and its
+      warnings were resolved or explained in the report.
+- [ ] `__umCheckRendered()` returns `ok: true` at 1280 px and 390 px, locally and in the destination.
 - [ ] File is `.html`, under `user-guides/` (or `/tmp` for destination-only manuals), with
       `user-guides/.gitignore` = `*` when written in a repo.
 - [ ] All CSS inline; colors, fonts and radii from DESIGN.md; passes its "Checklist de conformidad".
@@ -334,12 +429,16 @@ add them to `scripts/`.
       also inside the destination viewer; shortcuts verified.
 - [ ] `heritage:share-url` set when the manual is published inside an iframe viewer.
 - [ ] No change markers: no `data-change`, "Nuevo", "Actualizado" or "Novedades".
+- [ ] "Cómo se entra" present when the code has an entry point: entry screen captured with an
+      anchored pin on the entry, exact label, visibility gates; the outer path not in the repo is
+      not invented and is flagged in the report.
 - [ ] Every screen of the flow is captured with **all its variants**, from temporary synthetic mocks.
 - [ ] Mobile flows: every capture at 375 px inside `.mockup--mobile`. Desktop flows: captures at
       ≥ 1280 px that reflow at 390 px.
 - [ ] Every pin is anchored (`data-target`) and sits next to its element at 1280 px and 390 px.
+- [ ] Each section has at most one pin per number, in the same section as its steps and references.
 - [ ] Every mockup has a `figcap`; every frame has `role="img"` and an `aria-label` starting with
-      "Captura de pantalla:"; the header shows "Capturas: YYYY-MM-DD · App vX".
+      "Captura de pantalla:"; the header shows "Capturas: YYYY-MM-DD".
 - [ ] The fit check in `references/real-app-mockups.md` returns `[]` and every frame was compared
       against the live screen.
 - [ ] `grep` over the final manual finds no real value seen during capture (names, LDAP, user and

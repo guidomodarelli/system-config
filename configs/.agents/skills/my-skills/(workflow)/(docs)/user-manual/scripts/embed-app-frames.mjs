@@ -44,7 +44,7 @@ const FOREIGN_RULE = /chrome-extension:|moz-extension:|safari-web-extension:/;
 const rules = [];
 const ruleIndex = new Map();
 const captures = new Map();
-let meta = { capturedAt: null, appVersion: null };
+let meta = { capturedAt: null };
 for (const path of capturesPaths) {
 	const exported = JSON.parse(fs.readFileSync(path, 'utf8'));
 	const remap = exported.rules.map((rule) => {
@@ -56,7 +56,6 @@ for (const path of capturesPaths) {
 	});
 	for (const capture of exported.caps) captures.set(capture.name, { ...capture, rules: capture.rules.map((index) => remap[index]) });
 	if (exported.meta?.capturedAt && (!meta.capturedAt || exported.meta.capturedAt > meta.capturedAt)) meta = { ...meta, capturedAt: exported.meta.capturedAt };
-	if (exported.meta?.appVersion) meta = { ...meta, appVersion: exported.meta.appVersion };
 }
 
 let manual = fs.readFileSync(manualPath, 'utf8');
@@ -286,9 +285,9 @@ const block = `${START}
 ${END}`;
 
 const existing = new RegExp(`${START}[\\s\\S]*?${END}`);
-// The header says when, and from which app version, the screens were captured.
+// The header says when the screens were captured; the "Código" line already says which code they show.
 if (meta.capturedAt) {
-	const label = `Capturas: ${meta.capturedAt}${meta.appVersion ? ` · App v${meta.appVersion}` : ''}`;
+	const label = `Capturas: ${meta.capturedAt}`;
 	const metaSpan = new RegExp(`<span ${META_ATTRIBUTE}>[^<]*</span>`);
 	if (metaSpan.test(manual)) manual = manual.replace(metaSpan, `<span ${META_ATTRIBUTE}>${label}</span>`);
 	else manual = manual.replace(/(<div class="doc-meta">[\s\S]*?)(\s*<\/div>)/, `$1\n    <span ${META_ATTRIBUTE}>${label}</span>$2`);

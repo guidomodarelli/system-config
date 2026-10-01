@@ -20,7 +20,9 @@ work from a signed-in tab with `scripts/grid-publish.js`.
 - **The viewer caches `/raw`.** Right after a save the viewer may still show the previous version
   (the version selector says "vN (latest)" with the old N). Refresh with
   `fetch('/d/<id>/raw', { cache: 'reload' })` and `fetch('/d/<id>/view', { cache: 'reload' })`, then
-  reload the page. `__gridPublish` does the first two.
+  reload the page. `__gridPublish` does the first two. Even then the version selector can keep the
+  old label for one more reload while the iframe already shows the new content: trust
+  `__gridInfo().latestVersion` (or the versions API), and reload again before taking screenshots.
 
 ## Workflow
 
@@ -32,7 +34,8 @@ work from a signed-in tab with `scripts/grid-publish.js`.
    https://grid.adminml.com --exports /tmp/<work>`, then `await __gridPull('<documentId>', { bridgeUrl:
    'http://127.0.0.1:<port>' })`. It writes `grid-<id>.json` with `{ version, html }`. Strip the
    injections from that `html` before using it as a base.
-4. **Write and verify the manual locally** (SKILL.md Steps 1–5), including the fit check and pins.
+4. **Write and verify the manual locally** (SKILL.md Steps 1–5): `source-trace.py record`,
+   `check-manual.mjs` exiting 0 and `__umCheckRendered()` returning `ok: true` at 1280 and 390 px.
 5. **Serve the final file** with `capture-bridge.py --origin https://grid.adminml.com --directory
    <dir-with-the-file>` and get its hash: `shasum -a 256 <file>`.
 6. **Publish:**
@@ -52,9 +55,10 @@ work from a signed-in tab with `scripts/grid-publish.js`.
    `x-csrf-token` from the page's `<meta name="csrf-token">`), always releases the lock, and refreshes
    the cache. The result has the new version number.
 7. **Verify in the viewer** after a reload: version selector shows the new version, Grid's scripts are
-   back (`iframe.contentWindow.GRID` exists), every `app-frame` renders (dispatch `beforeprint` in the
-   iframe and count hosts with a shadow root and height), pins sit next to their elements, the
-   section map and pill work, and the screenshot matches the local check.
+   back (`iframe.contentWindow.GRID` exists), the section map and pill work, and the screenshot matches
+   the local check. Inject `check-rendered.js` in the Grid tab and run
+   `await __umCheckRendered(document.querySelector('iframe').contentWindow)`: it must return
+   `ok: true` (every capture rendered, none cut, pins next to their elements).
 8. **Stop the bridge** and delete the pulled and staged files.
 
 ## Rules

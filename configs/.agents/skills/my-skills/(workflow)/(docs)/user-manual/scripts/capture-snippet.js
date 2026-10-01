@@ -5,7 +5,7 @@
  * Paste the whole file into the page with the browser automation JavaScript tool, then call:
  *   __umCap(name, element, { pairs, transform, floating, fixedWidth })   capture one fragment
  *   __umCheck(forbiddenStrings)                     list captures that still contain real data
- *   __umExport(fileName, { appVersion, endpoint })  download { meta, rules, caps } as JSON, or POST it
+ *   __umExport(fileName, { endpoint })  download { meta, rules, caps } as JSON, or POST it
  *                                                   to a local endpoint (scripts/capture-bridge.py)
  *   __umClear()                                     drop everything stored in sessionStorage
  *
@@ -193,6 +193,28 @@
 		});
 	};
 
+	// Same-origin images break in the manual (their paths resolve against the manual's host), so loaded
+	// ones travel as data URIs. Images not loaded yet (lazy, below the fold) are reported by path.
+	const inlineImages = (element, clone) => {
+		const copies = clone.querySelectorAll('img');
+		const unloaded = [];
+		element.querySelectorAll('img').forEach((image, index) => {
+			const source = image.currentSrc || image.src;
+			if (!source || source.startsWith('data:') || new URL(source, location.href).origin !== location.origin) return;
+			if (!image.complete || !image.naturalWidth) {
+				unloaded.push(new URL(source, location.href).pathname);
+				return;
+			}
+			const canvas = document.createElement('canvas');
+			canvas.width = image.naturalWidth;
+			canvas.height = image.naturalHeight;
+			canvas.getContext('2d').drawImage(image, 0, 0);
+			copies[index].setAttribute('src', canvas.toDataURL('image/png'));
+			['srcset', 'loading'].forEach((attribute) => copies[index].removeAttribute(attribute));
+		});
+		return unloaded;
+	};
+
 	// Floating layers (modals, popovers) are captured in place; these neutralize viewport positioning.
 	const unfloat = (element) => {
 		element.style.position = 'relative';
@@ -210,6 +232,7 @@
 
 		const clone = element.cloneNode(true);
 		syncFormState(element, clone);
+		const unloadedImages = inlineImages(element, clone);
 		clone.setAttribute('data-capture-root', '');
 		if (floating) {
 			unfloat(clone);
@@ -241,18 +264,18 @@
 		const existing = caps.findIndex((capture) => capture.name === name);
 		existing >= 0 ? (caps[existing] = record) : caps.push(record);
 		write(CAPS_KEY, caps);
-		return { name, htmlLength: html.length, rules: used.length, blockedSheets, storageBytes: JSON.stringify(caps).length };
+		return { name, htmlLength: html.length, rules: used.length, blockedSheets, unloadedImages, storageBytes: JSON.stringify(caps).length };
 	};
 
 	window.__umCheck = (forbidden) =>
 		read(CAPS_KEY).flatMap((capture) => forbidden.filter((value) => capture.html.includes(value)).map((value) => [capture.name, value]));
 
-	// meta travels with the captures so the manual can say when, and from which app version, its screens come.
+	// meta travels with the captures so the manual can say when its screens were taken.
 	// With `endpoint` the export is POSTed (for example to scripts/capture-bridge.py) instead of downloaded,
 	// which avoids the browser's "download multiple files" prompt. It returns a Promise in that case.
-	window.__umExport = (fileName = 'app-captures.json', { appVersion = null, endpoint = null } = {}) => {
+	window.__umExport = (fileName = 'app-captures.json', { endpoint = null } = {}) => {
 		const rules = read(RULES_KEY);
-		const meta = { capturedAt: new Date().toISOString().slice(0, 10), appVersion };
+		const meta = { capturedAt: new Date().toISOString().slice(0, 10) };
 		const payload = { meta, rules, caps: read(CAPS_KEY) };
 		if (endpoint) {
 			const body = JSON.stringify(payload);
