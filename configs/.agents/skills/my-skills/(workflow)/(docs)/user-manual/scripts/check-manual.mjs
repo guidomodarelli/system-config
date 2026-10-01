@@ -7,7 +7,9 @@
  *                         [--allow-host <host> ...]
  *
  *   --translations  .po or .json translation files of the documented app (reader's locale). Every
- *                   text quoted between «…» in the manual must exist in one of them.
+ *                   text quoted between «…» or “…” in the manual must exist in one of them.
+ *   --translations-pt  the app's pt-BR files, for a manual with a Portuguese version
+ *                   (<template id="lang-pt">). Each language is checked as its own document.
  *   --forbidden     real values seen while capturing (names, LDAP, user ids). Zero hits allowed.
  *   --allow-host    extra hosts allowed in the file besides fonts, the app CDN and the share URL.
  *   --design        DESIGN.md to compare the navigation script with (default ~/system-config/configs/.agents/DESIGN.md).
@@ -29,10 +31,11 @@ const HEADER_NOISE = [/<span>Estado:/, /Capturas: [0-9-]+ · App v/];
 const SOURCE_META_NAMES = ['heritage:source-repo', 'heritage:source-ref', 'heritage:source-commit', 'heritage:source-files', 'heritage:source-commit-url'];
 
 const parseArguments = (argv) => {
-	const options = { manual: null, translations: [], forbidden: [], allowHosts: [], design: DEFAULT_DESIGN_PATH };
+	const options = { manual: null, translations: [], translationsPt: [], forbidden: [], allowHosts: [], design: DEFAULT_DESIGN_PATH };
 	for (let index = 0; index < argv.length; index += 1) {
 		const argument = argv[index];
 		if (argument === '--translations') options.translations.push(argv[(index += 1)]);
+		else if (argument === '--translations-pt') options.translationsPt.push(argv[(index += 1)]);
 		else if (argument === '--forbidden') options.forbidden.push(...argv[(index += 1)].split(',').map((value) => value.trim()).filter(Boolean));
 		else if (argument === '--allow-host') options.allowHosts.push(argv[(index += 1)]);
 		else if (argument === '--design') options.design = argv[(index += 1)];
@@ -58,8 +61,8 @@ const metaContent = (html, name) => {
 	return match ? decodeEntities(match[1]) : null;
 };
 
-/** Reads every msgstr / JSON value of the translation files into one normalized set. */
-const loadTranslations = (files) => {
+/** Reads every msgid and msgstr / JSON key and value of the translation files (only msgids and keys with sourceOnly) into one normalized set. */
+const loadTranslations = (files, sourceOnly = false) => {
 	const texts = new Set();
 	const normalize = (text) => text.replace(/\s+/g, ' ').trim();
 	for (const file of files) {
@@ -68,11 +71,12 @@ const loadTranslations = (files) => {
 			const walk = (node) => {
 				if (typeof node === 'string') texts.add(normalize(node));
 				else if (Array.isArray(node)) node.forEach(walk);
-				else if (node && typeof node === 'object') Object.entries(node).forEach(([key, value]) => { texts.add(normalize(key)); walk(value); });
+				else if (node && typeof node === 'object') Object.entries(node).forEach(([key, value]) => { texts.add(normalize(key)); if (!sourceOnly) walk(value); });
 			};
 			walk(JSON.parse(content));
 		} else {
 			for (const match of content.matchAll(/^(msgid|msgstr) "((?:[^"\\]|\\.)*)"((?:\n"(?:[^"\\]|\\.)*")*)/gm)) {
+				if (sourceOnly && match[1] !== 'msgid') continue;
 				const continuation = match[3].split('\n').filter(Boolean).map((line) => line.slice(1, -1)).join('');
 				texts.add(normalize((match[2] + continuation).replace(/\\"/g, '"').replace(/\\n/g, ' ')));
 			}
@@ -81,18 +85,53 @@ const loadTranslations = (files) => {
 	return [...texts].filter(Boolean);
 };
 
-/** A quoted text matches when a translation contains it; «… » marks a truncated quote. */
+/** A quoted text matches when a translation contains it; «… » marks a truncated quote and [name] a value the app fills in. */
 const quoteExists = (quote, translations) => {
-	const fragments = quote.split('…').map((fragment) => fragment.trim().replace(/[.:]$/, '')).filter((fragment) => fragment.length > 2);
+	const fragments = quote.split(/…|\[[^\]]+\]/).map((fragment) => fragment.trim().replace(/[.:]$/, '')).filter((fragment) => fragment.length > 2);
 	if (!fragments.length) return true;
 	// Placeholders like {0} in translations stand for values the manual writes out (ARBA01, 50).
 	const asPattern = (translation) => new RegExp(translation.split(/\{\d+\}/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.+?'), 'i');
 	return fragments.every((fragment) => translations.some((translation) => translation.includes(fragment) || (/\{\d+\}/.test(translation) && asPattern(translation).test(fragment))));
 };
 
+// A manual with a Portuguese version keeps the Spanish content in #lang-region and the Portuguese one in
+// <template id="lang-pt">: each language becomes its own document for the checks.
+const LANGUAGE_REGION = /(<div id="lang-region">)([\s\S]*?)(<\/div>\s*<!-- \/lang-region -->)/;
+const PORTUGUESE_TEMPLATE = /<template id="lang-pt"[^>]*>([\s\S]*?)<\/template>/;
+const splitLanguages = (html, options) => {
+	const template = html.match(PORTUGUESE_TEMPLATE);
+	if (!template) return [{ label: '', html, translations: options.translations }];
+	const withoutTemplate = html.replace(PORTUGUESE_TEMPLATE, '');
+	if (!LANGUAGE_REGION.test(withoutTemplate)) throw new Error('check-manual: <template id="lang-pt"> found but no <div id="lang-region">…</div><!-- /lang-region -->');
+	const portuguese = withoutTemplate.replace(LANGUAGE_REGION, (match, open, content, close) => open + template[1] + close);
+	return [
+		// The msgids of the pt-BR files are the app's Spanish source texts: they also count for Spanish, since
+		// a string missing from the es-AR catalog is shown as its msgid.
+		{ label: 'es', html: withoutTemplate, translations: options.translations, sourceTranslations: options.translationsPt },
+		{ label: 'pt', html: portuguese, translations: options.translationsPt },
+	];
+};
+
 const main = () => {
 	const options = parseArguments(process.argv.slice(2));
-	const html = fs.readFileSync(options.manual, 'utf8');
+	const source = fs.readFileSync(options.manual, 'utf8');
+	const languages = splitLanguages(source, options);
+	let failed = 0;
+	// The language switch exists only with a Portuguese version, and a Portuguese version needs the switch.
+	const hasSwitch = /<div class="lang-switch"/.test(source);
+	if (hasSwitch !== (languages.length > 1)) {
+		console.log(hasSwitch ? '  ERROR languages: language switch without a Portuguese version (a Spanish-only manual has no switch)' : '  ERROR languages: Portuguese version without the language switch');
+		failed += 1;
+	}
+	for (const language of languages) failed += checkDocument(language.html, { ...options, translations: language.translations, sourceTranslations: language.sourceTranslations }, language.label, source);
+	if (languages.length > 1) {
+		const ids = languages.map((language) => [...language.html.matchAll(/<h2 class="section-title" id="(s\d+)">/g)].map((match) => match[1]).join(','));
+		if (ids[0] !== ids[1]) { console.log('  ERROR languages: the Spanish and Portuguese versions do not have the same sections'); failed += 1; }
+	}
+	process.exitCode = failed ? 1 : 0;
+};
+
+const checkDocument = (html, options, label, source) => {
 	const errors = [];
 	const warnings = [];
 	const payloadStart = html.indexOf('<!-- app-frames:start -->');
@@ -158,7 +197,7 @@ const main = () => {
 	// No change markers.
 	for (const marker of CHANGE_MARKERS) if (marker.test(visible)) errors.push(`change markers: found ${marker} (manuals never mark new or updated sections)`);
 	// The doc-meta carries only what tells the reader something.
-	if (!/<div class="doc-meta">[\s\S]*?<span>Audiencia: [^<]+<\/span>[\s\S]*?<\/div>/.test(visible)) errors.push('doc-meta: missing "Audiencia: <rol> / <rol>"');
+	if (!/<div class="doc-meta">[\s\S]*?<span>(?:Audiencia|Público): [^<]+<\/span>[\s\S]*?<\/div>/.test(visible)) errors.push('doc-meta: missing "Audiencia: <rol> / <rol>" ("Público:" in Portuguese)');
 	for (const noise of HEADER_NOISE) if (noise.test(visible)) errors.push(`doc-meta: found ${noise} (no "Estado" and no app version in a manual header)`);
 
 	// Source trace (where the content comes from).
@@ -185,8 +224,8 @@ const main = () => {
 
 	// Quoted texts must exist in the app's translations (catches obsolete strings).
 	if (options.translations.length) {
-		const translations = loadTranslations(options.translations);
-		const quotes = [...new Set([...visible.matchAll(/«([^»]+)»/g)].map((match) => stripTags(match[1])))];
+		const translations = [...loadTranslations(options.translations), ...loadTranslations(options.sourceTranslations || [], true)];
+		const quotes = [...new Set([...visible.matchAll(/«([^»]+)»|“([^”]+)”/g)].map((match) => stripTags(match[1] || match[2])))];
 		const missing = quotes.filter((quote) => !quoteExists(quote, translations));
 		for (const quote of missing) errors.push(`texts: «${quote}» is not in the translations (obsolete or misquoted)`);
 		console.log(`texts: ${quotes.length - missing.length}/${quotes.length} quoted texts found in ${options.translations.length} translation file(s)`);
@@ -194,10 +233,10 @@ const main = () => {
 		warnings.push('texts: no --translations given; quoted texts were not checked against the app');
 	}
 
-	console.log(`check-manual: ${path.basename(options.manual)} — ${titles.size} sections, ${mockups.length} mockups, ${errors.length} errors, ${warnings.length} warnings`);
+	console.log(`check-manual: ${path.basename(options.manual)}${label ? ` [${label}]` : ''} — ${titles.size} sections, ${mockups.length} mockups, ${errors.length} errors, ${warnings.length} warnings`);
 	warnings.forEach((warning) => console.log(`  warn  ${warning}`));
 	errors.forEach((error) => console.log(`  ERROR ${error}`));
-	process.exitCode = errors.length ? 1 : 0;
+	return errors.length;
 };
 
 try {

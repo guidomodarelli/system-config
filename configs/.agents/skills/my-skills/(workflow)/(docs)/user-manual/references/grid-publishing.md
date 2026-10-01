@@ -11,9 +11,11 @@ work from a signed-in tab with `scripts/grid-publish.js`.
   (`/* Grid: sync iframe URL mutations… */`). A downloaded `/raw` contains them; uploading it back
   stores copies that pile up version after version. Remove them with
   `scripts/strip-grid-injections.py` before every upload; Grid adds them again when serving.
-- **The iframe is same-origin with `allow-same-origin allow-scripts …`.** `localStorage` and the
-  clipboard work; Grid still warns on upload that browser storage "may silently fail". The navigation
-  script already falls back to memory, so the warning can be ignored.
+- **The iframe is same-origin with `allow-same-origin allow-scripts …`.** Storage and the clipboard
+  work; Grid still warns on upload that browser storage "may silently fail". The navigation script only
+  keeps the reading point of a language switch in `sessionStorage` for the next load, inside try/catch,
+  so the warning can be ignored. The language itself is never stored: it lives in the iframe URL
+  (`/raw?lang=pt`), so reloading the Grid page opens the manual in Spanish again.
 - **Deep links need the navigation script:** Grid keeps `…/view#s07` in its own address bar and loads
   the iframe without the hash, so the browser's native jump never happens. The navigation script reads
   the parent's hash (same origin) on load and on `hashchange`, and jumps to the section. Set

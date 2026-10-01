@@ -249,7 +249,9 @@ const block = `${START}
 			: '';
 		var title = mockup ? (mockup.querySelector('.mockup-url') || {}).textContent : '';
 		host.setAttribute('role', 'img');
-		host.setAttribute('aria-label', 'Captura de pantalla: ' + (caption || title || host.getAttribute('data-cap')));
+		// The Portuguese version (<html lang="pt-BR">, set by the language script) names it in Portuguese.
+		var prefix = /^pt/i.test(document.documentElement.lang) ? 'Captura de tela: ' : 'Captura de pantalla: ';
+		host.setAttribute('aria-label', prefix + (caption || title || host.getAttribute('data-cap')));
 	}
 
 	function render(host) {
@@ -324,7 +326,8 @@ const existing = new RegExp(`${START}[\\s\\S]*?${END}`);
 // The header says when the screens were captured; the "Código" line already says which code they show.
 if (meta.capturedAt) {
 	const label = `Capturas: ${meta.capturedAt}`;
-	const metaSpan = new RegExp(`<span ${META_ATTRIBUTE}>[^<]*</span>`);
+	// Global: a manual with a Portuguese version repeats the header inside <template id="lang-pt">.
+	const metaSpan = new RegExp(`<span ${META_ATTRIBUTE}>[^<]*</span>`, 'g');
 	if (metaSpan.test(manual)) manual = manual.replace(metaSpan, `<span ${META_ATTRIBUTE}>${label}</span>`);
 	else manual = manual.replace(/(<div class="doc-meta">[\s\S]*?)(\s*<\/div>)/, `$1\n    <span ${META_ATTRIBUTE}>${label}</span>$2`);
 }

@@ -769,14 +769,15 @@ que el lector hizo algo, nunca decora.
 **Qué se anima**
 
 - Cambios de estado ante una acción: color, borde, opacidad y grosor del subrayado.
-- La apertura de un bloque (accordion): el cuerpo aparece con fade y un desplazamiento de 4px.
+- La apertura y el cierre de un bloque (accordion): el cuerpo se despliega o se recoge (alto,
+  padding y opacidad) en `1,5 × motion.duration-base`.
 - El scroll dentro de la página: índice, mapa de secciones y botón "Inicio" con scroll suave.
 - La vista previa del mapa de secciones: aparece con fade en `motion.duration-fast`.
 - La lupa del mapa de secciones cambia el largo de las marcas sin transición: sigue al puntero
   cuadro a cuadro, así que es manipulación directa y no una animación. Lo mismo vale para el
   divisor de la comparación antes / después.
-- La hoja del índice (pantallas angostas) sube con fade y `translateY(4px → 0)` en
-  `motion.duration-base`.
+- La hoja del índice sube desde abajo al abrir y baja al cerrar (por "Cerrar", `Escape`, el fondo o
+  al elegir una entrada), con el fondo apareciendo y yéndose a la par, en `1,5 × motion.duration-base`.
 - **Latido de destino** (única escala del sistema): al tocar un paso, una referencia o un punto
   sobre una captura, el círculo de destino late 3 veces (`scale 1 → 1.25 → 1`, cada latido
   `2 × motion.duration-base`) cuando termina el scroll, para que se vea a qué apunta. Lo pidió el
@@ -788,15 +789,19 @@ que el lector hizo algo, nunca decora.
 - Sin rebotes, escalas, rotaciones ni `box-shadow`: rompen la estética de papel. La excepción es el
   latido de destino, el foco temporal, el crecimiento al pasar el puntero y la manito de los pasos con
   punto.
-- Sin `height` o `max-height` animados en contenido largo: provocan saltos de layout.
+- Sin `height` o `max-height` animados en contenido largo: provocan saltos de layout. La excepción
+  es el accordion, que el lector abre o cierra a propósito.
 - Mockups y su contenido quedan quietos: muestran una pantalla, no una demo.
 
 **Reglas**
 
-- Solo `opacity`, `transform: translateY()` de hasta 4px y propiedades de color.
+- Solo `opacity`, `transform: translateY()` de hasta 4px y propiedades de color. Excepciones: el alto
+  y el padding del cuerpo del accordion, la escala del latido y la manito, y el foco temporal.
 - Ninguna transición supera `motion.duration-base` (200ms). Las excepciones son el latido de destino
   (3 latidos de `2 × motion.duration-base`) y el toque de la manito al pasar el puntero
-  (`3 × motion.duration-base` por toque, en loop solo mientras el puntero sigue sobre el paso).
+  (`3 × motion.duration-base` por toque, en loop solo mientras el puntero sigue sobre el paso), el
+  foco temporal (que dura lo que el latido) y la apertura y el cierre del accordion
+  (`1,5 × motion.duration-base`).
 - Todo el movimiento va dentro de `@media (prefers-reduced-motion: no-preference)`: con
   "reducir movimiento" activo no hay transiciones y el scroll es instantáneo.
 - En impresión no hay transiciones ni animaciones.
@@ -1016,8 +1021,13 @@ abrir/cerrar). Estructura:
 - Al abrir (`[open]`), el `summary` cierra con `border-bottom: 1px solid {colors.border}` para separar del cuerpo.
 - Opcional: un `accordion-num` (mono uppercase, color `label`) al inicio del summary como mini-etiqueta del bloque (`Reglas`, `Comportamiento`, `Checklist`), en el mismo espíritu que `section-num`.
 - El `summary` es focuseable con teclado: nunca quitarle el `:focus-visible`.
-- **Al abrir**, el `acc-body` aparece con fade y `translateY(-4px → 0)` en `motion.duration-base`.
-  `<details>` nativo no anima la altura, y no se fuerza: el cierre es instantáneo.
+- **Al abrir y al cerrar**, el `acc-body` se despliega o se recoge (alto, padding y opacidad) en
+  `1,5 × motion.duration-base`, con `motion.easing-standard`. Lo hace el script con Web Animations
+  sobre el `<details>` nativo: el teclado, el lector de pantalla y la impresión (que abre todo) siguen
+  funcionando igual. Tocar de nuevo a mitad de camino invierte el movimiento. Con "reducir
+  movimiento", abre y cierra al instante.
+- **Uno abierto por sección:** abrir un accordion cierra, con la misma animación, los otros abiertos de
+  su sección. La impresión los abre todos igual.
 
 **Regla de uso:** colapsar los bloques de **referencia** (reglas de negocio,
 comportamiento esperado, casos de error, checklist) y dejar **siempre abiertos**
@@ -1115,7 +1125,8 @@ atajo de navegación.
   inicio (`#top`, la URL queda sin hash).
 - La hoja es un `<dialog>` modal: atrapa el foco, cierra con `Escape`, con "Cerrar" o tocando el
   fondo, y devuelve el foco a la píldora. La sección actual va en negrita
-  (`aria-current="location"`). Al elegir una entrada cierra y scrollea como el índice.
+  (`aria-current="location"`). Al elegir una entrada cierra y scrollea como el índice. Abre subiendo
+  desde abajo y cierra bajando (ver Motion).
 - `aria-label` de la píldora: "Sección actual: 03 Quién ve qué. Abrir índice".
 - No se imprime.
 
@@ -1136,6 +1147,39 @@ el link directo a la sección.
   visor embebido del mismo origen (Grid no pasa el hash al iframe), el de la página que lo envuelve,
   y salta como desde el índice, renderizando antes las capturas de arriba. Un hash nuevo pegado en
   la barra del visor también mueve el documento.
+
+### Selector de idioma
+
+Solo en documentos que tienen versión en portugués: un documento **solo en español no lleva
+selector**. Cuando la tiene, puede leerse en **español (por defecto) y portugués**. El lector elige con una píldora
+segmentada **fija arriba a la derecha** (`Español · Português`), visible en todo el recorrido como el
+botón "Inicio" y la píldora de sección; la opción activa lleva fondo `surface-card`, borde `1.5px` `link`
+y peso 600, y las demás quedan en `muted`. En pantallas angostas se achica y se acerca al borde
+(`top:12px`, `right:16px`), y el `doc-header` suma `28px` arriba para que no tape la etiqueta ni el título.
+
+- **Un solo archivo con los dos idiomas.** El contenido en español va dentro de
+  `<div id="lang-region">…</div><!-- /lang-region -->` (desde el `doc-header` hasta el `doc-footer`); el
+  portugués, completo y con
+  los mismos `id` de sección, en `<template id="lang-pt" data-html-lang="pt-BR" data-title="…">`.
+  Las capturas en portugués son otras (`data-cap="<nombre>--pt"`), con la app en pt-BR.
+- **Script de idioma**, justo antes del de navegación: lee `?lang=pt` y, si es portugués, reemplaza el
+  contenido por el de la plantilla, ajusta `lang` y el título. **Siempre abre en español**: la elección
+  no se guarda (ni `localStorage` ni cookies); vive solo en la URL, así que dura mientras se lee y viaja
+  en un enlace compartido.
+- **Al elegir**, la URL pasa a `?lang=pt` (o lo pierde para español) y conserva la sección actual (`#sNN`, también en la
+  barra de Grid) y el documento se abre en el otro idioma **al inicio de la sección que se leía**, como
+  un salto del índice (el número `16px` abajo del borde), sin volver arriba ni animar el scroll. No
+  conserva la posición exacta: el texto traducido tiene otro largo y la página quedaría desfasada. La
+  sección se guarda en `sessionStorage` `heritage:lang-restore` y se aplica en `pagereveal`, antes del
+  primer cuadro; la
+  URL viaja sin `#sNN` y lo recupera después de `load`, porque el salto nativo del navegador a ese
+  hash llegaría tarde y animado. La navegación es `location.replace`, no `reload`, para que el navegador funda los dos
+  idiomas en `1,5 × motion.duration-base` (300ms, `@view-transition`). Al hacer clic, la píldora marca enseguida el idioma elegido y el contenido se atenúa al 50% en `motion.duration-fast` mientras llega el documento nuevo (en Grid la red tarda ~300ms, sin caché): el lector ve la respuesta al instante y el fundido parte de ese estado; con "reducir movimiento" cambia sin fundido.
+- Los textos de la interfaz que arma el script (copiar enlace, tooltips, pista de las capturas, hoja
+  del índice, botón "Inicio") salen de un diccionario por idioma en el script de navegación.
+- `role="radiogroup"` con `aria-label` "Idioma"; cada opción es un `button` con `role="radio"` y
+  `aria-checked`. Cada opción se nombra en su propio idioma. No se imprime.
+- Sin banderas: un idioma no es un país.
 
 ### Sin marcas de novedad
 
@@ -1198,11 +1242,11 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   flecha curva de "deshacer" (la agrega el script). Aparece al pasar el puntero por el punto y, sola,
   cuando el lector llega al punto desde un paso, hasta el último latido: se va justo con él (con
   "reducir movimiento", al terminar el resaltado). En reposo no se ve y no se imprime.
-- **Foco temporal:** al llegar a un salto, la página se oscurece apenas (`surface-dark` al 20%) y se
-  desenfoca `6px`, y una burbuja nítida se cierra sobre el destino en `1,5 × motion.duration-base` (300ms)
-  hasta dejar `44px` libres alrededor del círculo
-  (`.hotspot-spotlight`, la agrega el script). Se va en `motion.duration-base` con el último latido,
-  o apenas el lector scrollea o toca la pantalla. Con "reducir movimiento" no aparece; no se imprime.
+- **Foco temporal:** al llegar a un salto, la página se oscurece apenas (`surface-dark` al 15%) y se
+  desenfoca `6px`, y una burbuja nítida se cierra sobre el destino hasta dejar `44px` libres alrededor
+  del círculo (`.hotspot-spotlight`, la agrega el script). Se abre en **500ms** y enseguida se va en
+  otros **500ms** (`2,5 × motion.duration-base` cada uno, 1s en total), mientras el
+  destino sigue latiendo; también se va apenas el lector scrollea o toca la pantalla. Con "reducir movimiento" no aparece; no se imprime.
 - **El destino conserva el resaltado durante el salto**, hasta su último latido: lo que pasa por
   debajo del puntero mientras la página scrollea (otro punto, otro paso) no se lo quita. Con el último
   latido termina el resaltado (con "reducir movimiento", a los 2,6 s) y vuelve a seguir al puntero.
@@ -1494,6 +1538,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .acc[open]>summary::after{content:'–';}
 .acc>summary:focus-visible{outline-offset:-2px;}
 .acc-body{padding:12px 16px 4px;color:var(--body);}
+/* Mientras el script anima la apertura o el cierre, el cuerpo recorta lo que todavía no entra. */
+.acc-body.is-animating{overflow:hidden;}
 .back-to-top{position:fixed;right:24px;bottom:24px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-size:12px;font-weight:500;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,0.04);z-index:10;}
 .back-to-top:hover{text-decoration:underline;text-underline-offset:2px;}
 .back-to-top[hidden]{display:none;}
@@ -1554,9 +1600,14 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 /* Se puede tocar: el círculo que está bajo el puntero o con foco crece apenas. */
 .hotspot:hover,.hotspot-ref:hover,.hotspot-ref:focus-visible,.step-item[data-hotspot]:hover .step-circle{scale:1.1;}
 .figcap+.figcap-hint{margin-top:-12px;}
+/* Selector de idioma: píldora segmentada fija arriba a la derecha, siempre a mano mientras se lee. */
+.lang-switch{position:fixed;top:16px;right:24px;z-index:10;display:inline-flex;gap:2px;padding:3px;border:1px solid var(--border-strong);border-radius:9999px;background:color-mix(in srgb,var(--surface-dark) 4%,var(--surface-card));box-shadow:0 1px 2px rgba(0,0,0,0.04);}
+.lang-switch button{padding:6px 14px;border:1.5px solid transparent;border-radius:9999px;background:none;font-family:var(--sans);font-size:13px;font-weight:500;line-height:1.2;color:var(--muted);cursor:pointer;}
+.lang-switch button:hover{color:var(--primary);}
+.lang-switch button[aria-checked="true"]{border-color:var(--link);background:var(--surface-card);color:var(--primary);font-weight:600;}
 /* Foco temporal: la página se desenfoca y una burbuja se cierra sobre el destino de un salto. */
 @property --spot-radius{syntax:'<length>';inherits:false;initial-value:0px;}
-.hotspot-spotlight{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:0;--spot-radius:150vmax;background:color-mix(in srgb,var(--surface-dark) 20%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));}
+.hotspot-spotlight{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:0;--spot-radius:150vmax;background:color-mix(in srgb,var(--surface-dark) 15%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));}
 .hotspot-spotlight.is-on{opacity:1;--spot-radius:var(--spot-target);}
 .hotspot-spotlight.is-leaving{opacity:0;--spot-radius:var(--spot-target);}
 .has-hotspot-highlight .hotspot:not(.is-highlighted),.has-hotspot-highlight .hotspot-ref:not(.is-highlighted),.has-hotspot-highlight .step-item[data-hotspot]:not(.is-highlighted) .step-circle{opacity:0.4;}
@@ -1585,17 +1636,30 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 @media (prefers-reduced-motion:no-preference){
   html{scroll-behavior:smooth;}
   a{transition:text-decoration-thickness var(--motion-duration-fast) var(--motion-easing-standard),color var(--motion-duration-fast) var(--motion-easing-standard);}
-  .acc[open]>.acc-body{animation:heritage-reveal var(--motion-duration-base) var(--motion-easing-standard);}
   .back-to-top:not([hidden]){animation:heritage-fade-in var(--motion-duration-base) var(--motion-easing-standard);}
   .section-rail-tick::before{transition:background-color var(--motion-duration-fast) var(--motion-easing-standard);}
   .section-rail-preview:not([hidden]),.term-card:not([hidden]){animation:heritage-fade-in var(--motion-duration-fast) var(--motion-easing-standard);}
   .section-pill:not([hidden]){animation:heritage-fade-in var(--motion-duration-base) var(--motion-easing-standard);}
-  .toc-sheet[open]{animation:heritage-rise var(--motion-duration-base) var(--motion-easing-standard);}
+  /* Hoja del índice: sube desde abajo al abrir y baja al cerrar; el fondo aparece y se va con ella. */
+  .toc-sheet[open]{animation:heritage-sheet-in calc(var(--motion-duration-base) * 1.5) var(--motion-easing-standard);}
+  .toc-sheet[open]::backdrop{animation:heritage-fade-in calc(var(--motion-duration-base) * 1.5) var(--motion-easing-standard);}
+  .toc-sheet.is-closing{animation:heritage-sheet-out calc(var(--motion-duration-base) * 1.5) var(--motion-easing-standard) forwards;}
+  .toc-sheet.is-closing::backdrop{animation:heritage-fade-out calc(var(--motion-duration-base) * 1.5) var(--motion-easing-standard) forwards;}
+  @keyframes heritage-sheet-in{from{transform:translateY(100%);}to{transform:none;}}
+  @keyframes heritage-sheet-out{from{transform:none;}to{transform:translateY(100%);}}
+  @keyframes heritage-fade-out{from{opacity:1;}to{opacity:0;}}
   .section-link,.hotspot{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
   .hotspot,.hotspot-ref,.step-circle{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard),scale var(--motion-duration-fast) var(--motion-easing-standard);}
   .hotspot-return{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
-  .hotspot-spotlight.is-on{transition:--spot-radius calc(var(--motion-duration-base) * 1.5) var(--motion-easing-standard),opacity var(--motion-duration-fast) var(--motion-easing-standard);}
-  .hotspot-spotlight.is-leaving{transition:opacity var(--motion-duration-base) var(--motion-easing-standard);}
+  /* Cambio de idioma: el navegador funde el documento anterior con el nuevo (navegación al mismo origen). */
+  @view-transition{navigation:auto;}
+  /* 1,5 × base, desde el contenido ya atenuado al hacer clic: se percibe aunque los dos idiomas queden en la misma posición. */
+  ::view-transition-old(root),::view-transition-new(root){animation-duration:calc(var(--motion-duration-base) * 1.5);animation-timing-function:var(--motion-easing-standard);}
+  .is-switching-language #lang-region{opacity:0.5;transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
+  .lang-switch button{transition:color var(--motion-duration-fast) var(--motion-easing-standard),background-color var(--motion-duration-fast) var(--motion-easing-standard),border-color var(--motion-duration-fast) var(--motion-easing-standard);}
+  /* Abre en 500ms y cierra en 500ms (2,5 × motion.duration-base cada uno). */
+  .hotspot-spotlight.is-on{transition:--spot-radius calc(var(--motion-duration-base) * 2.5) var(--motion-easing-standard),opacity calc(var(--motion-duration-base) * 2.5) var(--motion-easing-standard);}
+  .hotspot-spotlight.is-leaving{transition:opacity calc(var(--motion-duration-base) * 2.5) var(--motion-easing-standard);}
   .term{transition:text-decoration-color var(--motion-duration-fast) var(--motion-easing-standard);}
   @keyframes heritage-reveal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
   @keyframes heritage-fade-in{from{opacity:0;}to{opacity:1;}}
@@ -1610,6 +1674,9 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   @keyframes heritage-pulse{0%,100%{scale:1;}50%{scale:1.25;}}
 }
 @media (max-width:719px){
+  .lang-switch{top:12px;right:16px;}
+  .lang-switch ~ #lang-region > .doc-header{padding-top:28px;}
+  .lang-switch button{padding:5px 12px;font-size:12px;}
   body{padding-left:16px;padding-right:16px;}
   .back-to-top{right:16px;bottom:16px;}
   .section-pill{left:16px;bottom:16px;max-width:calc(100vw - 152px);}
@@ -1628,7 +1695,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return,.hotspot-spotlight{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return,.hotspot-spotlight,.lang-switch{display:none;}
   .term{text-decoration:none;}
   .compare-stage{grid-template-columns:1fr 1fr;gap:16px;border:0;}
   .compare-before,.compare-after{grid-area:auto;border:1.5px solid var(--border-strong);border-radius:10px;overflow:hidden;}
@@ -1670,6 +1737,77 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 (function () {
   var button = document.querySelector('.back-to-top');
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  // Idioma del documento (lo fija el script de idioma antes de este) y textos de la interfaz por idioma.
+  var language = document.documentElement.getAttribute('data-language') || 'es';
+  var UI_TEXT = {
+    es: {
+      copyLink: 'Copiar enlace', copyLinkTo: 'Copiar enlace a la sección ', linkCopied: 'Enlace copiado', copyFailed: 'No se pudo copiar',
+      shortcutSections: ' ↑ ↓ secciones', shortcutIndex: ' I índice', start: 'Inicio: ', currentSection: 'Sección actual: ', openIndex: '. Abrir índice',
+      hintSteps: 'Tocá un número para ir a su paso.', hintMentions: 'Tocá un número para ir a su mención en el texto.',
+      goToStep: 'Ir al paso ', goToMention: 'Ir a su mención en el texto', seeInCapture: 'Ver en la captura',
+      before: 'Antes ', after: '%, después ', backToTop: 'Volver al inicio', backToTopText: 'Inicio', sectionMap: 'Mapa de secciones',
+      contents: 'Contenido', close: 'Cerrar', languageLabel: 'Idioma'
+    },
+    pt: {
+      copyLink: 'Copiar link', copyLinkTo: 'Copiar link da seção ', linkCopied: 'Link copiado', copyFailed: 'Não foi possível copiar',
+      shortcutSections: ' ↑ ↓ seções', shortcutIndex: ' I índice', start: 'Início: ', currentSection: 'Seção atual: ', openIndex: '. Abrir índice',
+      hintSteps: 'Toque em um número para ir ao passo.', hintMentions: 'Toque em um número para ir à menção no texto.',
+      goToStep: 'Ir ao passo ', goToMention: 'Ir à menção no texto', seeInCapture: 'Ver na captura',
+      before: 'Antes ', after: '%, depois ', backToTop: 'Voltar ao início', backToTopText: 'Início', sectionMap: 'Mapa de seções',
+      contents: 'Conteúdo', close: 'Fechar', languageLabel: 'Idioma'
+    }
+  };
+  var ui = UI_TEXT[language] || UI_TEXT.es;
+  // Textos fijos fuera del contenido (botón Inicio, mapa, hoja del índice) en el idioma del documento.
+  if (button) {
+    button.setAttribute('aria-label', ui.backToTop);
+    if (button.lastChild && button.lastChild.nodeType === 3) button.lastChild.textContent = ' ' + ui.backToTopText;
+  }
+  var railLabelled = document.querySelector('.section-rail');
+  if (railLabelled) railLabelled.setAttribute('aria-label', ui.sectionMap);
+  var sheetLabel = document.getElementById('toc-sheet-label');
+  if (sheetLabel) sheetLabel.textContent = ui.contents;
+  var sheetClose = document.querySelector('.toc-sheet-close');
+  if (sheetClose) sheetClose.textContent = ui.close;
+
+  // —— Selector de idioma: guarda la elección, conserva la sección actual en la URL y recarga en ese idioma.
+  var languageSwitch = document.querySelector('.lang-switch');
+  if (languageSwitch) {
+    // Volver atrás puede restaurar esta página desde el bfcache: sin atenuar y con su idioma marcado.
+    window.addEventListener('pageshow', function (event) {
+      if (!event.persisted) return;
+      document.documentElement.classList.remove('is-switching-language');
+      languageSwitch.querySelectorAll('[data-lang]').forEach(function (option) { option.setAttribute('aria-checked', String(option.getAttribute('data-lang') === language)); });
+    });
+    languageSwitch.setAttribute('aria-label', ui.languageLabel);
+    languageSwitch.querySelectorAll('[data-lang]').forEach(function (option) {
+      option.setAttribute('aria-checked', String(option.getAttribute('data-lang') === language));
+      option.addEventListener('click', function () {
+        var chosen = option.getAttribute('data-lang');
+        if (chosen === language) return;
+        // Respuesta inmediata: el documento nuevo tarda lo que tarde la red (sin caché en Grid, ~300ms).
+        languageSwitch.querySelectorAll('[data-lang]').forEach(function (other) { other.setAttribute('aria-checked', String(other === option)); });
+        document.documentElement.classList.add('is-switching-language');
+        var query = new URLSearchParams(location.search);
+        if (chosen === 'es') query.delete('lang'); else query.set('lang', chosen);
+        var search = query.toString() ? '?' + query.toString() : '';
+        var hash = currentEntry && !currentEntry.isStart ? '#' + currentEntry.heading.id : '';
+        // El otro idioma abre al inicio de la sección actual, como un salto del índice: no la posición exacta,
+        // que se desfasa porque el texto traducido tiene otro largo.
+        // Guardada la sección, la URL va sin hash: el salto nativo al #sNN llegaría después y animado.
+        var restoreSaved = false;
+        if (hash) {
+          try {
+            sessionStorage.setItem(LANGUAGE_RESTORE_KEY, JSON.stringify({ id: currentEntry.heading.id }));
+            restoreSaved = true;
+          } catch (storageError) { /* fallback deliberado: abre al inicio de la sección por el hash */ }
+          setHash(currentEntry.heading.id);
+        }
+        // replace (no reload): navegación al mismo origen, así el navegador funde los dos idiomas (@view-transition).
+        location.replace(location.pathname + search + (restoreSaved ? '' : hash));
+      });
+    });
+  }
   var SHOW_AFTER_PX = 480;
   var TARGET_OFFSET_PX = 16;
   var SETTLE_MS = 1500;
@@ -1686,6 +1824,13 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var COPY_FEEDBACK_MS = 1600;
   var HOTSPOT_REVEAL_MS = 2600;
   var SPOTLIGHT_MARGIN_PX = 44;
+  // Vida total del foco temporal: 500ms de apertura + 500ms de cierre.
+  var SPOTLIGHT_LIFETIME_MS = 1000;
+  var spotlightTimer = null;
+  // Sección que se leía al cambiar de idioma (solo para la carga siguiente de esta pestaña).
+  var LANGUAGE_RESTORE_KEY = 'heritage:lang-restore';
+  // Apertura y cierre de accordions: 1,5 × motion.duration-base (300ms).
+  var ACCORDION_FACTOR = 1.5;
   // Manito de los pasos (trazo al estilo de Lucide "pointer", ISC): halo claro, relleno, destello y línea.
   var TAP_HAND_PATHS = '<path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>';
   // Vuelta al paso (trazo al estilo de Lucide "undo-2", ISC).
@@ -1837,8 +1982,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   }
   entries.forEach(function (entry) {
     if (!entry.numberElement) return;
-    var copyButton = createElement('button', 'section-link', 'Copiar enlace');
-    var restLabel = 'Copiar enlace a la sección ' + (entry.number || entry.title);
+    var copyButton = createElement('button', 'section-link', ui.copyLink);
+    var restLabel = ui.copyLinkTo + (entry.number || entry.title);
     copyButton.type = 'button';
     copyButton.setAttribute('aria-label', restLabel);
     copyButton.addEventListener('click', function () {
@@ -1851,13 +1996,13 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
         copyButton.focus({ preventScroll: true });
         announce(message);
         setTimeout(function () {
-          copyButton.textContent = 'Copiar enlace';
+          copyButton.textContent = ui.copyLink;
           copyButton.classList.remove('is-copied');
         }, COPY_FEEDBACK_MS);
       };
-      copyText(url).then(function () { showFeedback('Enlace copiado'); }, function (copyError) {
+      copyText(url).then(function () { showFeedback(ui.linkCopied); }, function (copyError) {
         console.warn('Heritage:copySectionLink failed', { sectionId: entry.heading.id, error: copyError });
-        showFeedback('No se pudo copiar');
+        showFeedback(ui.copyFailed);
       });
     });
     entry.numberElement.appendChild(copyButton);
@@ -1877,7 +2022,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     var previewTitle = createElement('div', 'section-rail-preview-title');
     var previewSummary = createElement('div', 'section-rail-preview-summary');
     var previewHint = createElement('div', 'section-rail-preview-hint',
-      modifierLabel + ' ↑ ↓ secciones' + (toc ? ' · ' + modifierLabel + ' I índice' : ''));
+      modifierLabel + ui.shortcutSections + (toc ? ' · ' + modifierLabel + ui.shortcutIndex : ''));
     previewMeta.append(previewNumber);
     preview.append(previewMeta, previewTitle, previewSummary, previewHint);
     preview.setAttribute('aria-hidden', 'true');
@@ -1887,7 +2032,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       var item = createElement('li');
       entry.link = createElement('a', entry.isStart ? 'section-rail-tick is-start' : 'section-rail-tick');
       entry.link.href = '#' + entry.heading.id;
-      entry.link.setAttribute('aria-label', (entry.isStart ? 'Inicio: ' : entry.number ? entry.number + ' ' : '') + entry.title);
+      entry.link.setAttribute('aria-label', (entry.isStart ? ui.start : entry.number ? entry.number + ' ' : '') + entry.title);
       item.appendChild(entry.link);
       railList.appendChild(item);
     });
@@ -1944,6 +2089,21 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var pill = document.querySelector('.section-pill');
   var sheet = document.querySelector('.toc-sheet');
   var sheetReady = Boolean(pill && sheet && sheet.showModal && entries.length >= MIN_RAIL_SECTIONS);
+  // Cierra la hoja bajándola; sin animación (o con "reducir movimiento") cierra al instante.
+  function closeSheet() {
+    if (!sheet || !sheet.open || sheet.classList.contains('is-closing')) return;
+    if (reduceMotion.matches) { sheet.close(); return; }
+    var finished = false;
+    var finish = function () {
+      if (finished) return;
+      finished = true;
+      sheet.classList.remove('is-closing');
+      sheet.close();
+    };
+    sheet.classList.add('is-closing');
+    sheet.addEventListener('animationend', function (event) { if (event.target === sheet) finish(); }, { once: true });
+    setTimeout(finish, (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-duration-base')) || 200) * 1.5 + 100);
+  }
   if (sheetReady) {
     var sheetBody = sheet.querySelector('.toc-sheet-body');
     var sheetList = toc ? toc.querySelector('ol').cloneNode(true) : createElement('ol');
@@ -1973,9 +2133,10 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       });
       sheet.showModal();
     });
-    sheet.querySelector('.toc-sheet-close').addEventListener('click', function () { sheet.close(); });
-    // Click en el fondo (fuera de .toc-sheet-body) cierra la hoja; Escape lo resuelve el <dialog>.
-    sheet.addEventListener('click', function (event) { if (event.target === sheet) sheet.close(); });
+    sheet.querySelector('.toc-sheet-close').addEventListener('click', closeSheet);
+    // Click en el fondo (fuera de .toc-sheet-body) cierra la hoja; Escape también, con la misma animación.
+    sheet.addEventListener('click', function (event) { if (event.target === sheet) closeSheet(); });
+    sheet.addEventListener('cancel', function (event) { event.preventDefault(); closeSheet(); });
   }
 
   // —— Sección actual: progreso de lectura, píldora y mapa
@@ -1995,7 +2156,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       pillNumber.textContent = current.number;
       pillNumber.hidden = !current.number;
       pill.querySelector('.section-pill-title').textContent = current.title;
-      pill.setAttribute('aria-label', (current.isStart ? 'Inicio: ' : 'Sección actual: ' + (current.number ? current.number + ' ' : '')) + current.title + '. Abrir índice');
+      pill.setAttribute('aria-label', (current.isStart ? ui.start : ui.currentSection + (current.number ? current.number + ' ' : '')) + current.title + ui.openIndex);
     }
   }
   function updateCurrent() {
@@ -2076,7 +2237,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       var target = document.getElementById(link.getAttribute('href').slice(1));
       if (!target) return;
       event.preventDefault();
-      if (sheet && sheet.open) sheet.close();
+      if (sheet && sheet.open) closeSheet();
       hideTermCard();
       scrollToTarget(target, true);
     });
@@ -2118,7 +2279,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       section.classList.toggle('has-hotspot-highlight', Boolean(number));
     };
     // Latido de destino: reinicia la animación si ya estaba latiendo; con "reducir movimiento" no late.
-    // Foco temporal sobre el destino: se cierra al llegar y se va con el último latido (o si el lector scrollea).
+    // Foco temporal sobre el destino: se abre al llegar y se va enseguida (vida total SPOTLIGHT_LIFETIME_MS), o si el lector scrollea.
     var spotlightOn = function (destination) {
       if (reduceMotion.matches) return;
       var spot = document.querySelector('.hotspot-spotlight');
@@ -2134,6 +2295,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       spot.classList.remove('is-on', 'is-leaving');
       void spot.offsetWidth;
       spot.classList.add('is-on');
+      clearTimeout(spotlightTimer);
+      spotlightTimer = setTimeout(spotlightOff, SPOTLIGHT_LIFETIME_MS / 2);
     };
     var spotlightOff = function () {
       var spot = document.querySelector('.hotspot-spotlight');
@@ -2201,7 +2364,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     // Va después del pie, no adentro: el pie es la descripción accesible de la captura.
     if (caption && caption.classList.contains('figcap') && !(caption.nextElementSibling && caption.nextElementSibling.classList.contains('figcap-hint'))) {
       var hasSteps = Boolean(section.querySelector('.step-item[data-hotspot]'));
-      var hint = createElement('div', 'figcap figcap-hint', hasSteps ? 'Tocá un número para ir a su paso.' : 'Tocá un número para ir a su mención en el texto.');
+      var hint = createElement('div', 'figcap figcap-hint', hasSteps ? ui.hintSteps : ui.hintMentions);
       hint.setAttribute('aria-hidden', 'true');
       caption.after(hint);
     }
@@ -2219,7 +2382,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       // Del punto se va al paso (o, sin pasos, a la primera referencia); del paso o la referencia, al punto.
       var destinationSelector = isPin ? (hasStep ? '.step-item' : '.hotspot-ref') : '.hotspot';
       // El tooltip dice qué pasa al tocar.
-      element.title = isPin ? (hasStep ? 'Ir al paso ' + element.dataset.hotspot : 'Ir a su mención en el texto') : 'Ver en la captura';
+      element.title = isPin ? (hasStep ? ui.goToStep + element.dataset.hotspot : ui.goToMention) : ui.seeInCapture;
       // Mientras dura un salto, el resaltado es del destino: lo que pasa por debajo del puntero al
       // scrollear (otro punto, otro paso) no lo cambia.
       element.addEventListener('mouseenter', function () { if (!revealTimer) highlight(element.dataset.hotspot); });
@@ -2236,6 +2399,51 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     });
   });
 
+  // —— Accordions: la apertura y el cierre deslizan el cuerpo (alto, padding y opacidad) en vez de saltar.
+  // Con "reducir movimiento" o sin Web Animations, el <details> nativo abre y cierra al instante.
+  var motionDurationMs = function (factor) {
+    var base = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--motion-duration-base')) || 200;
+    return base * factor;
+  };
+  var motionEasing = getComputedStyle(document.documentElement).getPropertyValue('--motion-easing-standard').trim() || 'ease';
+  // Abrir un accordion cierra los demás abiertos de la misma sección, con la misma animación.
+  var setAccordion = function (accordion, opening) {
+    var body = accordion.querySelector('.acc-body');
+    if (!body) return;
+    if (reduceMotion.matches || !body.animate) { accordion.open = opening; return; }
+    if (accordion.__accordionAnimation) accordion.__accordionAnimation.cancel();
+    if (opening) accordion.open = true;
+    accordion.classList.toggle('is-closing', !opening);
+    var style = getComputedStyle(body);
+    var expanded = { height: body.scrollHeight + 'px', paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, opacity: 1 };
+    var collapsed = { height: '0px', paddingTop: '0px', paddingBottom: '0px', opacity: 0 };
+    body.classList.add('is-animating');
+    var running = body.animate(opening ? [collapsed, expanded] : [expanded, collapsed], { duration: motionDurationMs(ACCORDION_FACTOR), easing: motionEasing });
+    accordion.__accordionAnimation = running;
+    running.onfinish = function () {
+      accordion.__accordionAnimation = null;
+      body.classList.remove('is-animating');
+      accordion.classList.remove('is-closing');
+      if (!opening) accordion.open = false;
+    };
+    running.oncancel = function () { body.classList.remove('is-animating'); };
+  };
+  document.querySelectorAll('details.acc').forEach(function (accordion) {
+    var summary = accordion.querySelector('summary');
+    if (!summary || !accordion.querySelector('.acc-body')) return;
+    summary.addEventListener('click', function (event) {
+      event.preventDefault();
+      var opening = !accordion.open || accordion.classList.contains('is-closing');
+      if (opening) {
+        var group = accordion.closest('section') || document;
+        group.querySelectorAll('details.acc[open]').forEach(function (other) {
+          if (other !== accordion && !other.classList.contains('is-closing')) setAccordion(other, false);
+        });
+      }
+      setAccordion(accordion, opening);
+    });
+  });
+
   // —— Comparación antes/después: un <input type="range"> nativo mueve el divisor (mouse, táctil y teclado).
   document.querySelectorAll('.compare').forEach(function (compare) {
     var range = compare.querySelector('.compare-range');
@@ -2243,7 +2451,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     var update = function () {
       var value = Number(range.value);
       compare.style.setProperty('--compare-position', value + '%');
-      range.setAttribute('aria-valuetext', 'Antes ' + value + '%, después ' + (100 - value) + '%');
+      range.setAttribute('aria-valuetext', ui.before + value + ui.after + (100 - value) + '%');
     };
     range.addEventListener('input', update);
     update();
@@ -2259,8 +2467,34 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     var target = hash && hash.length > 1 && document.getElementById(decodeURIComponent(hash.slice(1)));
     if (target) scrollToTarget(target, false);
   }
-  var openInitialLink = function () { openDeepLink(location.hash.length > 1 ? location.hash : parentHash()); };
+  // Después de un cambio de idioma abre, sin animar, al inicio de la sección que se leía; si no, sigue el hash.
+  var restoreReadingPoint = function () {
+    var saved = null;
+    try {
+      saved = JSON.parse(sessionStorage.getItem(LANGUAGE_RESTORE_KEY) || 'null');
+      sessionStorage.removeItem(LANGUAGE_RESTORE_KEY);
+    } catch (storageError) { saved = null; }
+    var heading = saved && document.getElementById(saved.id);
+    if (!heading) return false;
+    document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: heading } }));
+    // Sin animar y re-ubicándose si algo de arriba cambia de alto (capturas diferidas).
+    settleOn(heading);
+    // La URL recupera la sección (también en la barra del visor) recién después de load: antes, el navegador
+    // todavía haría su salto nativo al #sNN, animado.
+    var restoreHash = function () { setTimeout(function () { setHash(saved.id); }, 0); };
+    if (document.readyState === 'complete') restoreHash();
+    else window.addEventListener('load', restoreHash, { once: true });
+    return true;
+  };
+  var initialLinkOpened = false;
+  var openInitialLink = function () {
+    if (initialLinkOpened) return;
+    initialLinkOpened = true;
+    if (!restoreReadingPoint()) openDeepLink(location.hash.length > 1 ? location.hash : parentHash());
+  };
   // DOMContentLoaded: después de todos los scripts, así las capturas diferidas ya escuchan heritage:before-scroll.
+  // pagereveal llega antes del primer cuadro: la posición ya está puesta cuando el lector ve la página.
+  window.addEventListener('pagereveal', openInitialLink, { once: true });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', openInitialLink, { once: true });
   else setTimeout(openInitialLink, 0);
   window.addEventListener('hashchange', function () { openDeepLink(location.hash); });
@@ -2286,6 +2520,36 @@ Markup de referencia para cada componente. Los nombres de clase son contrato:
 otras skills (por ejemplo `user-manual`) dependen de ellos.
 
 ```html
+<!-- Selector de idioma: primer hijo del <body>, fuera de #lang-region -->
+<div class="lang-switch" role="radiogroup" aria-label="Idioma">
+  <button type="button" role="radio" data-lang="es" lang="es" aria-checked="true">Español</button>
+  <button type="button" role="radio" data-lang="pt" lang="pt-BR" aria-checked="false">Português</button>
+</div>
+<div id="lang-region">
+  <!-- doc-header … secciones … doc-footer en español -->
+</div><!-- /lang-region -->
+<template id="lang-pt" data-html-lang="pt-BR" data-title="[Título en portugués]">
+  <!-- el mismo contenido en portugués, con los mismos id de sección y capturas data-cap="…--pt" -->
+</template>
+<!-- …botón Inicio, mapa, píldora y hoja del índice… -->
+<script>
+// Idioma: siempre español por defecto; portugués solo si la URL lo pide (?lang=pt). No se guarda ninguna preferencia.
+(function () {
+  var language = new URLSearchParams(location.search).get('lang') || 'es';
+  var template = document.getElementById('lang-' + language);
+  var region = document.getElementById('lang-region');
+  if (language !== 'es' && template && region) {
+    region.replaceChildren(template.content.cloneNode(true));
+    document.documentElement.lang = template.getAttribute('data-html-lang') || language;
+    if (template.getAttribute('data-title')) document.title = template.getAttribute('data-title');
+  } else {
+    language = 'es';
+  }
+  document.documentElement.setAttribute('data-language', language);
+})();
+</script>
+<!-- …y después el script de navegación -->
+
 <!-- Índice (TOC): después del doc-header, solo con 5+ secciones -->
 <nav class="toc" aria-labelledby="toc-label">
   <div class="toc-label" id="toc-label">Contenido</div>

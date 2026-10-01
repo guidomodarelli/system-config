@@ -30,7 +30,7 @@ Helpers live in `scripts/` (see "Helpers" at the end). Use them instead of rewri
 
 ---
 
-## Step 0 — Ask which device the flow is used on
+## Step 0 — Ask the device and the languages
 
 Before reading code or opening the app, ask the user with the question tool of the agent
 (`AskUserQuestion` in Claude Code, `request_user_input` in Codex; if neither exists, ask in chat and
@@ -48,6 +48,27 @@ Desktop captures are always responsive: the capture snippet turns the app's widt
 into container queries and `vw` into container units, and the runtime lays each frame out at
 `min(capture width, reader width)`. A reader on a phone sees the app's mobile layout of that same
 screen, as the app itself would show it. Nothing else is needed for that.
+
+**Languages — ask, never decide.** In the same round of questions, ask:
+
+> ¿Querés incluir también una versión en portugués? (Si no, el manual queda solo en español.)
+
+Only if the answer is yes, ask a second question:
+
+> ¿Traduzco también las capturas al portugués (la app en pt-BR), o quedan en español?
+
+| Answers | Result |
+|---|---|
+| No portuguese (default) | Spanish only. **No language switch**: no `.lang-switch`, no `#lang-region`, no `<template id="lang-pt">`. |
+| Portuguese, captures in Spanish | Spanish and Portuguese text with the switch ("Selector de idioma" in DESIGN.md); the Portuguese version reuses the Spanish captures. |
+| Portuguese, captures in Portuguese | Same, plus Portuguese captures (`data-cap="<name>--pt"`) with the app in pt-BR. |
+
+Never add Portuguese, the switch or translated captures on your own, also when updating a manual:
+an existing manual keeps its languages unless the user asks to change them. When there is a
+Portuguese version, read `references/portuguese-version.md` before translating: it says which texts
+stay in Spanish (strings the app does not translate), how quotes, pins and captures are translated,
+and how to verify both languages. `check-manual.mjs` runs with `--translations-pt`. The manual always
+opens in Spanish; the reader's choice is never stored.
 
 ---
 
@@ -450,6 +471,12 @@ add them to `scripts/`.
 ## Output checklist
 
 - [ ] Step 0 asked: captures and prose match the device the flow is used on.
+- [ ] Step 0 asked about Portuguese (and, if yes, about translating the captures); a Spanish-only
+      manual has no language switch.
+- [ ] With Portuguese: every quote («…» or “…») is the exact app string of its language, texts the
+      app does not translate stay in Spanish, pin selectors point at the pt capture texts, and
+      `__umCheckRendered` passes with `?lang=pt` at desktop and 390 px.
+- [ ] Quotes only hold app texts; values the operator types go in `<em>`.
 - [ ] Audience named: `Audiencia:` in the `doc-meta` and each role, with what it does, in 01 Objetivo.
 - [ ] `source-trace.py record` ran: source metas in the `<head>` and "Código: <base> @ <commit>" in
       the `doc-footer`, linked to the commit on GitHub.
