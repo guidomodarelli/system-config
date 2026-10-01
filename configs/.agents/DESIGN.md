@@ -778,7 +778,7 @@ que el lector hizo algo, nunca decora.
 - La hoja del índice (pantallas angostas) sube con fade y `translateY(4px → 0)` en
   `motion.duration-base`.
 - **Latido de destino** (única escala del sistema): al tocar un paso, una referencia o un punto
-  sobre una captura, el círculo de destino late 2 veces (`scale 1 → 1.25 → 1`, cada latido
+  sobre una captura, el círculo de destino late 3 veces (`scale 1 → 1.25 → 1`, cada latido
   `2 × motion.duration-base`) cuando termina el scroll, para que se vea a qué apunta. Lo pidió el
   lector y termina solo; con "reducir movimiento" queda solo el anillo de resaltado.
 
@@ -794,7 +794,7 @@ que el lector hizo algo, nunca decora.
 
 - Solo `opacity`, `transform: translateY()` de hasta 4px y propiedades de color.
 - Ninguna transición supera `motion.duration-base` (200ms). Las excepciones son el latido de destino
-  (2 latidos de `2 × motion.duration-base`) y el toque de la manito al pasar el puntero
+  (3 latidos de `2 × motion.duration-base`) y el toque de la manito al pasar el puntero
   (`3 × motion.duration-base` por toque, en loop solo mientras el puntero sigue sobre el paso).
 - Todo el movimiento va dentro de `@media (prefers-reduced-motion: no-preference)`: con
   "reducir movimiento" activo no hay transiciones y el scroll es instantáneo.
@@ -1195,8 +1195,8 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   punto; la pantalla original queda sin puntos.
 - **Vuelta al paso:** cada punto lleva una burbuja de `16px` en su esquina inferior derecha con la
   flecha curva de "deshacer" (la agrega el script). Aparece al pasar el puntero por el punto y, sola,
-  cuando el lector llega al punto desde un paso, mientras dura el resaltado. En reposo no se ve y no
-  se imprime.
+  cuando el lector llega al punto desde un paso, hasta el último latido: se va justo con él (con
+  "reducir movimiento", al terminar el resaltado). En reposo no se ve y no se imprime.
 - **El destino conserva el resaltado durante el salto** (2,6 s): lo que pasa por debajo del puntero
   mientras la página scrollea (otro punto, otro paso) no se lo quita. Después, el resaltado vuelve a
   seguir al puntero.
@@ -1211,7 +1211,7 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   primera captura con puntos de cada sección suma «Tocá un número para ir a su paso.» (`.figcap-hint`,
   lo agrega el script; no se imprime).
 - Tocar un paso o una referencia (o `Enter` sobre la referencia) centra su punto en la pantalla,
-  siempre, lo resalta y, al llegar, lo hace latir 2 veces. Tocar el punto hace el camino inverso: centra el círculo de su paso (o,
+  siempre, lo resalta y, al llegar, lo hace latir 3 veces. Tocar el punto hace el camino inverso: centra el círculo de su paso (o,
   si la sección no tiene pasos con ese número, la primera referencia).
 - Al pasar por un paso, una referencia o un punto, se resaltan los que comparten número (anillo
   `focus-ring`) y los demás puntos de la sección bajan a 40% de opacidad.
@@ -1587,7 +1587,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   @keyframes heritage-fade-in{from{opacity:0;}to{opacity:1;}}
   @keyframes heritage-rise{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
   /* Latido de destino: `scale` (no `transform`) para no pisar el translate que centra el punto. */
-  .is-pulsing{animation:heritage-pulse calc(var(--motion-duration-base) * 2) var(--motion-easing-standard) 2;}
+  .is-pulsing{animation:heritage-pulse calc(var(--motion-duration-base) * 2) var(--motion-easing-standard) 3;}
   /* Gesto de toque: se repite mientras el puntero sigue sobre el paso; el índice baja y destella. */
   .step-item[data-hotspot]:hover .tap-hand{animation:heritage-tap-press calc(var(--motion-duration-base) * 3) var(--motion-easing-standard) infinite;}
   .step-item[data-hotspot]:hover .tap-hand-rays{animation:heritage-tap-rays calc(var(--motion-duration-base) * 3) var(--motion-easing-standard) infinite;}

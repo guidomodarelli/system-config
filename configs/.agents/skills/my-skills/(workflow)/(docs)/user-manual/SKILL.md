@@ -305,7 +305,7 @@ dispatch scroll events: if "current section" checks fail in automation, check
   section with its pin, and leave the original without pins. Write "en esta pantalla", never
   "marcado en la sección NN". The navigation script links them both ways, always scrolling: tapping a
   step or a reference centers its pin, and tapping the pin centers its step's circle; the destination
-  then pulses 3 times so the reader sees what it points to. Check both directions in the browser, in
+  then pulses 3 times so the reader sees what it points to (a pin's "back" bubble leaves with the last beat). Check both directions in the browser, in
   a section with pins on several captures: after the jump, only the destination stays highlighted.
   The script also signals that the circles can be tapped (a small hand on each step circle that keeps
   tapping while the pointer is on the step, a "back" bubble on each pin shown on hover and on arrival, hover growth, a tooltip with the action and,
