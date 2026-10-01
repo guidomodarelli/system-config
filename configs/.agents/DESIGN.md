@@ -487,6 +487,68 @@ components:
     textColor:       "{colors.muted}"
     typography:      "{typography.body-callout}"
     # primer párrafo de la sección, máximo 3 líneas
+  section-rail-preview-hint:
+    textColor:       "{colors.label}"
+    typography:      "{typography.doc-meta}"
+    # atajos de teclado al pie de la vista previa
+
+  # —— Píldora de sección + índice en hoja inferior (<1024px)
+  section-pill:
+    backgroundColor: "{colors.surface-card}"
+    textColor:       "{colors.primary}"
+    typography:      "{typography.toc-item}"
+    rounded:         "{rounded.full}"
+    padding:         "8px 16px"
+    # border: 1px solid {colors.border-strong}; fija abajo a la izquierda, 24px (16px en mobile)
+  toc-sheet:
+    backgroundColor: "{colors.surface-card}"
+    padding:         "20px 24px 24px"
+    # <dialog> modal pegado abajo, radio 10px arriba, max-height 70vh; fondo surface-dark al 32%
+
+  # —— Copiar enlace a una sección
+  section-link:
+    textColor:       "{colors.link}"
+    typography:      "{typography.doc-meta}"
+    # dentro del section-num; visible al pasar por la sección, al enfocarlo y en pantallas táctiles
+
+  # —— Novedades (sección nueva o actualizada)
+  change-badge:
+    # badge-amber con texto "Nuevo" / "Actualizado"; en el mapa, punto 4px {colors.warn-border}
+
+  # —— Glosario
+  term:
+    # hereda el color del texto; subrayado punteado 1px {colors.label}, offset 3px
+  term-card:
+    backgroundColor: "{colors.surface-card}"
+    rounded:         "{rounded.lg}"
+    padding:         "12px 16px"
+    # igual que section-rail-preview: título rail-preview-title, texto body-callout muted
+
+  # —— Puntos sobre capturas
+  hotspot:
+    backgroundColor: "{colors.surface-dark}"
+    textColor:       "{colors.surface-card}"
+    typography:      "{typography.step-num}"
+    rounded:         "{rounded.full}"
+    width:           "24px"
+    height:          "24px"
+    # border: 2px solid {colors.surface-card} para separarse de cualquier captura
+  hotspot-ref:
+    backgroundColor: "{colors.surface-dark}"
+    textColor:       "{colors.surface-card}"
+    typography:      "{typography.badge}"
+    rounded:         "{rounded.full}"
+    width:           "20px"
+    height:          "20px"
+
+  # —— Comparación antes / después
+  compare:
+    backgroundColor: "{colors.surface-card}"
+    rounded:         "{rounded.xl}"
+    # border 1.5px {colors.border-strong}; divisor 2px {colors.surface-dark} con perilla circular 32px
+  compare-labels:
+    textColor:       "{colors.label}"
+    typography:      "{typography.doc-label}"
 ---
 
 ## Overview
@@ -643,6 +705,7 @@ Un documento típico se estructura así, de arriba a abajo:
 doc-header           ← encabezado completo del documento (<header>, título en <h1>)
 [toc]                ← (opcional, 5+ secciones) índice con links a cada sección
 [section-rail]       ← (opcional, va con el índice) mapa lateral fijo, lo arma el script
+[section-pill]       ← (opcional, va con el mapa) sección actual + índice en hoja, <1024px
 section 01           ← cada sección numerada (<section>, título en <h2>)
 section 02
 section 03
@@ -704,7 +767,10 @@ que el lector hizo algo, nunca decora.
 - El scroll dentro de la página: índice, mapa de secciones y botón "Inicio" con scroll suave.
 - La vista previa del mapa de secciones: aparece con fade en `motion.duration-fast`.
 - La lupa del mapa de secciones cambia el largo de las marcas sin transición: sigue al puntero
-  cuadro a cuadro, así que es manipulación directa y no una animación.
+  cuadro a cuadro, así que es manipulación directa y no una animación. Lo mismo vale para el
+  divisor de la comparación antes / después.
+- La hoja del índice (pantallas angostas) sube con fade y `translateY(4px → 0)` en
+  `motion.duration-base`.
 
 **Qué no se anima**
 
@@ -982,6 +1048,134 @@ queda a mano mientras se lee. Usarlo junto con el índice y el botón "Inicio".
   nombre accesible ya está en el link. Se centra en la marca y no se sale de la ventana.
 - Se oculta por debajo de `1024px` (breakpoint `rail`), donde no queda margen al costado del
   texto, y en impresión. Sin JavaScript no aparece.
+- **Progreso:** la marca de la sección actual se llena de `primary` de izquierda a derecha a medida
+  que se lee (`--tick-progress`); lo que falta queda en `label`.
+- **Leídas:** una sección pasa a leída cuando se recorre el 90% siendo la actual, cuando se pasa
+  scrolleando a la siguiente, o al llegar al final del documento. Saltar con el índice o el mapa
+  no la marca. Su marca queda en `primary` (en reposo, `label`), su `aria-label` suma
+  "leída" y la vista previa muestra `Leída`. Se recuerda por documento en `localStorage`
+  (`heritage:visited:<ruta>|<título>`); si el visor lo bloquea, dura la visita.
+- **Novedades:** una sección con `data-change` lleva un punto `4px` `warn-border` al lado de la
+  marca, y el badge en la vista previa (ver [Novedades](#novedades)).
+- **Atajos:** el pie de la vista previa los recuerda (`⌥ ↑ ↓ secciones · ⌥ I índice`, `Alt` fuera
+  de Mac). Ver [Atajos de teclado](#atajos-de-teclado).
+
+### Píldora de sección (pantallas angostas)
+
+Reemplaza al mapa donde el mapa no entra (`<1024px`, incluido el iframe angosto de Grid): una
+píldora fija abajo a la izquierda con la sección actual (`03 · Quién ve qué`). Al tocarla abre el
+índice en una hoja inferior.
+
+```
+┌─────────────────────────────────────┐
+│ …                                   │
+│ ╭──────────────────╮   ╭──────────╮ │
+│ │ 03  Quién ve qué │   │ ↑ Inicio │ │
+│ ╰──────────────────╯   ╰──────────╯ │
+└─────────────────────────────────────┘
+```
+
+- Markup fijo (`button.section-pill` + `dialog.toc-sheet`, ver snippets); el script completa la
+  sección actual y copia el índice adentro de la hoja, con sus etiquetas de parte y novedades. Si
+  no hay índice, arma la lista desde las secciones.
+- Aparece junto con el botón "Inicio" (después de 480px de scroll) y deja lugar para él: el título
+  se corta con ellipsis.
+- La hoja es un `<dialog>` modal: atrapa el foco, cierra con `Escape`, con "Cerrar" o tocando el
+  fondo, y devuelve el foco a la píldora. La sección actual va en negrita
+  (`aria-current="location"`). Al elegir una entrada cierra y scrollea como el índice.
+- `aria-label` de la píldora: "Sección actual: 03 Quién ve qué. Abrir índice".
+- Desde `1024px` desaparece (está el mapa) y no se imprime.
+
+### Copiar enlace a una sección
+
+Cada `section-num` suma un botón "Copiar enlace" a la derecha. Sirve para responder un ticket con
+el link directo a la sección.
+
+- Lo agrega el script; no se escribe a mano. Visible al pasar por la sección o al enfocarlo, y
+  siempre en pantallas táctiles (`hover: none`).
+- Copia `<URL base>#<id del section-title>`. En visores embebidos (Grid) la URL del iframe no es
+  la que ve el lector: declarar la pública con `<meta name="heritage:share-url" content="…">`.
+- Confirma con "Enlace copiado" en el botón y en una región `role="status"`. Si el visor bloquea
+  el portapapeles, dice "No se pudo copiar" y deja un `console.warn` con el `id` de la sección.
+
+### Novedades
+
+Cuando un documento se actualiza, marca qué cambió para que el lector recurrente vaya directo a eso.
+
+- Se declara **una vez**, en la sección: `<section class="section" data-change="new">` (Nuevo) o
+  `data-change="updated"` (Actualizado). El script pone el badge `b-amber` junto al `section-num` y
+  lo replica en el índice, la hoja, el mapa y la vista previa.
+- Solo para cambios que el lector necesita ver; una corrección de tipeo no es novedad.
+- En la primera versión de un documento no se usa: todo sería nuevo.
+- Conviene resumirlas en el `doc-meta` (`Novedades: 2 secciones`).
+
+### Glosario
+
+Términos del dominio con su definición a mano, sin salir del párrafo.
+
+```html
+<p>Los usuarios con <a class="term" href="#g-ldap-externo">LDAP externo</a> no ven …</p>
+…
+<dl class="glossary">
+  <dt id="g-ldap-externo">LDAP externo</dt>
+  <dd>Cuenta de una persona que no es empleada; empieza con <code>ext_</code>.</dd>
+</dl>
+```
+
+- La definición vive **una sola vez**, en la `<dl class="glossary">` (normalmente una sección
+  "Glosario" al final). El término es un link a su `<dt>`: sin JavaScript igual lleva a la
+  definición.
+- Con JavaScript, al pasar o enfocar el término aparece una tarjeta con el término y la definición,
+  debajo (o arriba si no entra). Se puede recorrer con el puntero sin que se cierre y `Escape` la
+  cierra (WCAG 1.4.13). El término recibe `aria-describedby` hacia su `<dd>`.
+- Estilo: hereda el color del texto, subrayado punteado `label`; así no se confunde con un link
+  común. Marcar solo la primera aparición de cada término por sección.
+- Ids con prefijo `g-` en kebab-case.
+
+### Puntos sobre capturas
+
+Círculos numerados encima de una captura o mockup que conectan la imagen con los pasos.
+
+```
+┌ mockup ─────────────────────────┐      ①  Abrí el menú
+│  [≡]①        Buscar …   [⚙]②   │      ②  Elegí "Filtrar"
+└─────────────────────────────────┘
+```
+
+- `div.hotspot-stage` envuelve el contenido de la captura (`app-frame` o `mockup-body`) y lleva
+  los `span.hotspot` con `data-hotspot="1"` y posición en porcentaje (`style="--x:12%;--y:30%"`).
+  Ajustar las posiciones mirando la captura renderizada.
+- Los pasos (`li.step-item`) y las referencias en el texto (`span.hotspot-ref`) llevan el mismo
+  `data-hotspot`. El número del punto coincide con el del paso.
+- Al pasar por un paso, una referencia o un punto, se resaltan los que comparten número (anillo
+  `focus-ring`) y los demás puntos de la sección bajan a 40% de opacidad.
+- Los puntos son `aria-hidden="true"`: el texto del paso lleva la información. En la referencia,
+  el texto oculto `punto` le da contexto al lector de pantalla.
+- Máximo 6 puntos por captura; más, y la captura deja de leerse.
+- Se imprimen.
+
+### Comparación antes / después
+
+Dos capturas superpuestas con un divisor que se arrastra. Para "¿Qué cambió?".
+
+- `div.compare` > `div.compare-stage` con `div.compare-before`, `div.compare-after`,
+  `div.compare-handle` y un `input.compare-range` nativo (0–100) que cubre la imagen; debajo,
+  `div.compare-labels` con "Antes" y "Después".
+- El divisor sigue al puntero o al dedo; con teclado se mueve con las flechas del range, que
+  anuncia `aria-valuetext` ("Antes 50%, después 50%"). El foco muestra el anillo alrededor.
+- Las dos capturas deben tener el mismo ancho y encuadre; si no, no se pueden comparar y van como
+  dos mockups.
+- Cada `app-frame` dentro de una comparación lleva su `aria-label` ("Captura de pantalla: antes,
+  …"), porque no tiene mockup del que tomarlo.
+- En impresión se ven lado a lado, sin divisor.
+
+### Atajos de teclado
+
+- `Alt` + `↓` / `↑` (`⌥` en Mac): sección siguiente / anterior. `Alt` + `I`: índice.
+- Llevan modificador para no chocar con lectores de pantalla ni con la escritura (WCAG 2.1.4), y
+  se ignoran dentro de campos, con la hoja del índice abierta o con otro modificador.
+- `Escape` cierra la vista previa del mapa y la tarjeta del glosario.
+- Usan el mismo scroll que el índice.
 
 ## Accesibilidad
 
@@ -990,6 +1184,8 @@ queda a mano mientras se lee. Usarlo junto con el índice y el botón "Inicio".
 - **Foco**: `:focus-visible` con `outline: 2px solid {colors.focus-ring}` y `outline-offset: 2px` en links y summaries. Nunca `outline: none` sin reemplazo.
 - **Color no es el único canal**: callouts con palabra clave inicial, badges con texto, links subrayados, estados viejos con `<del>`.
 - **Decoración oculta**: dots del mockup, flechas de flujo, números de step-circle, la flecha del botón "Inicio" y la vista previa del mapa de secciones llevan `aria-hidden="true"`.
+- **Contenido al pasar el mouse**: la tarjeta del glosario se puede recorrer con el puntero, cierra con `Escape` y su contenido también existe en la página (WCAG 1.4.13). La vista previa del mapa es decorativa y cierra con `Escape`.
+- **Atajos**: siempre con modificador (`Alt`/`⌥`), nunca una tecla sola (WCAG 2.1.4).
 - **Movimiento**: todo el motion va dentro de `@media (prefers-reduced-motion: no-preference)`; con "reducir movimiento" el scroll es instantáneo y no hay transiciones. Después de un salto por el índice o el botón "Inicio", el foco queda en el destino.
 - **Idioma**: `<html lang="es">`; fragmentos en otro idioma con `lang` propio si son prosa (no hace falta para código).
 
@@ -1001,7 +1197,8 @@ El documento debe imprimirse (o exportarse a PDF) sin perder jerarquía:
 - `break-inside: avoid` en callouts, example boxes, mockups, steps, code blocks y filas de tabla; `break-after: avoid` en títulos.
 - Los accordions se abren antes de imprimir (snippet `beforeprint` del boilerplate); el glifo `+/–` se oculta.
 - Los links muestran su URL entre paréntesis después del texto.
-- Sin transiciones ni animaciones, sin botón "Inicio" y sin mapa de secciones.
+- Sin transiciones ni animaciones, sin botón "Inicio", mapa de secciones, píldora, botones de copiar enlace ni tarjetas del glosario.
+- Las comparaciones antes / después se imprimen lado a lado; los puntos sobre capturas, sí.
 
 ## Do's and Don'ts
 
@@ -1050,6 +1247,11 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Todo el movimiento está dentro de `prefers-reduced-motion: no-preference`, usa los tokens `motion` y ninguna transición dura más de 200ms.
 - [ ] Si hay índice, sus links llevan a la sección completa (número visible) también en el visor final; el botón "Inicio" vuelve a `scrollY` 0.
 - [ ] Si hay mapa de secciones: una marca por sección a 1024px o más, la lupa agranda la marca bajo el puntero y achica en forma gradual a las vecinas, la vista previa muestra número, título y primer párrafo sin salirse de la ventana, la marca actual sigue al scroll y el click lleva a la sección completa.
+- [ ] Por debajo de 1024px, la píldora muestra la sección actual y abre la hoja con el índice; la hoja cierra con `Escape` y devuelve el foco.
+- [ ] `data-change` solo en secciones que cambiaron desde la versión anterior; el badge aparece en sección, índice y mapa.
+- [ ] Cada `a.term` apunta a un `<dt>` existente y su tarjeta muestra la definición.
+- [ ] Los `data-hotspot` de puntos, pasos y referencias coinciden, y cada punto cae sobre el elemento correcto de la captura renderizada.
+- [ ] Las comparaciones usan capturas del mismo ancho y encuadre, y el divisor se mueve con mouse y teclado.
 
 ## Changelog
 
@@ -1059,6 +1261,9 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 ### 2026-10-01
 
 - **Componentes:** mapa de secciones (`section-rail`): marcas laterales fijas, una por sección, con vista previa al pasar el mouse o enfocar, efecto lupa sobre las marcas vecinas, sección actual resaltada y el mismo scroll que el índice. Lo arma el script de navegación.
+- **Mapa de secciones:** progreso de lectura en la marca actual, secciones leídas recordadas por documento y atajos al pie de la vista previa.
+- **Componentes:** píldora de sección con índice en hoja inferior (`<1024px`), copiar enlace a una sección, novedades (`data-change`), glosario con tarjeta (`a.term` + `dl.glossary`), puntos sobre capturas (`hotspot`) y comparación antes / después (`compare`).
+- **Teclado:** `Alt`/`⌥` + `↑` `↓` cambia de sección, `Alt`/`⌥` + `I` va al índice, `Escape` cierra las vistas previas.
 - **Tokens:** tipografía `rail-preview-title` y breakpoint `rail` (1024px).
 
 ### 2026-09-28
@@ -1209,43 +1414,110 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .back-to-top{position:fixed;right:24px;bottom:24px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-size:12px;font-weight:500;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,0.04);z-index:10;}
 .back-to-top:hover{text-decoration:underline;text-underline-offset:2px;}
 .back-to-top[hidden]{display:none;}
+.section-num{display:flex;align-items:center;gap:8px;}
+.change-badge{text-transform:none;}
+.toc a .change-badge{margin-left:4px;}
+.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+.section-link{margin-left:auto;padding:2px 4px;border:0;background:none;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.05em;text-transform:none;color:var(--link);text-decoration:underline;text-underline-offset:2px;cursor:pointer;opacity:0;}
+.section:hover .section-link,.section-link:focus-visible,.section-link.is-copied{opacity:1;}
 .section-rail{position:fixed;left:24px;top:50%;transform:translateY(-50%);z-index:10;}
-.section-rail[hidden],.section-rail-preview[hidden]{display:none;}
+.section-rail[hidden],.section-rail-preview[hidden],.term-card[hidden],.section-pill[hidden]{display:none;}
 .section-rail ol{list-style:none;padding:0;margin:0;}
 .section-rail li{margin:0;}
-.section-rail-tick{display:block;width:48px;padding:4px 0;}
-.section-rail-tick::before{content:'';display:block;width:var(--tick-width,12px);height:2px;border-radius:9999px;background:var(--label);}
-.section-rail-tick:hover::before,.section-rail-tick:focus-visible::before{background:var(--primary);}
-.section-rail-tick[aria-current="location"]::before{width:var(--tick-width,24px);background:var(--primary);}
-.section-rail-preview{position:fixed;left:88px;z-index:11;width:280px;padding:12px 16px;background:var(--surface-card);border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04);pointer-events:none;}
-.section-rail-preview-num{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:var(--label);margin-bottom:4px;}
-.section-rail-preview-title{font-size:13px;font-weight:600;line-height:1.4;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.section-rail-preview-summary{margin-top:4px;font-size:13px;line-height:1.6;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.section-rail-tick{display:flex;align-items:center;gap:4px;width:48px;padding:4px 0;}
+.section-rail-tick::before{content:'';flex-shrink:0;width:var(--tick-width,12px);height:2px;border-radius:9999px;background:var(--label);}
+.section-rail-tick.is-visited::before,.section-rail-tick:hover::before,.section-rail-tick:focus-visible::before{background:var(--primary);}
+.section-rail-tick[aria-current="location"]::before{width:var(--tick-width,24px);background:linear-gradient(90deg,var(--primary) var(--tick-progress,0%),var(--label) 0);}
+.section-rail-tick[data-change]::after{content:'';flex-shrink:0;width:4px;height:4px;border-radius:9999px;background:var(--warn-border);}
+.section-rail-preview,.term-card{position:fixed;z-index:11;width:280px;max-width:calc(100vw - 32px);padding:12px 16px;background:var(--surface-card);border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
+.section-rail-preview{left:88px;pointer-events:none;}
+.section-rail-preview-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.section-rail-preview-meta:empty{display:none;}
+.section-rail-preview-num{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:var(--label);}
+.section-rail-preview-state{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--label);}
+.section-rail-preview-title,.term-card-title{font-size:13px;font-weight:600;line-height:1.4;color:var(--primary);}
+.section-rail-preview-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.section-rail-preview-summary,.term-card-text{margin-top:4px;font-size:13px;line-height:1.6;color:var(--muted);}
+.section-rail-preview-summary{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.section-rail-preview-hint{margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--label);}
+.section-pill{position:fixed;left:24px;bottom:24px;z-index:10;display:inline-flex;align-items:center;gap:8px;max-width:calc(100vw - 168px);padding:8px 16px;border:1px solid var(--border-strong);border-radius:9999px;background:var(--surface-card);color:var(--primary);font-family:var(--sans);font-size:13px;line-height:1.4;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
+.section-pill-num{flex-shrink:0;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.12em;color:var(--label);}
+.section-pill-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.toc-sheet{position:fixed;inset:auto 0 0 0;width:100%;max-width:none;max-height:70vh;margin:0;padding:0;border:0;border-top:1px solid var(--border-strong);border-radius:10px 10px 0 0;background:var(--surface-card);color:var(--primary);}
+.toc-sheet::backdrop{background:rgba(26,26,46,0.32);}
+.toc-sheet-body{max-height:70vh;overflow-y:auto;padding:20px 24px 24px;}
+.toc-sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.toc-sheet-head .toc-label{margin:0;}
+.toc-sheet-close{padding:4px 8px;border:0;background:none;font-family:var(--mono);font-size:12px;font-weight:500;color:var(--link);text-decoration:underline;text-underline-offset:2px;cursor:pointer;}
+.toc-sheet ol{list-style:none;padding:0;margin:0;}
+.toc-sheet li{margin:0;}
+.toc-sheet li .toc-label{margin:16px 0 4px;}
+.toc-sheet a{display:flex;align-items:baseline;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;line-height:1.5;color:var(--primary);text-decoration:none;}
+.toc-sheet a[aria-current="location"]{font-weight:600;}
+.term{color:inherit;text-decoration:underline dotted;text-decoration-color:var(--label);text-decoration-thickness:1px;text-underline-offset:3px;cursor:help;}
+.term:hover{text-decoration-color:var(--primary);}
+.term-card{pointer-events:auto;}
+.glossary{margin:16px 0;}
+.glossary dt{margin-top:12px;font-size:14px;font-weight:600;color:var(--primary);}
+.glossary dt:first-child{margin-top:0;}
+.glossary dd{margin:4px 0 0;font-size:14px;line-height:1.7;color:var(--body);}
+.hotspot-stage{position:relative;}
+.hotspot,.hotspot-ref{display:inline-flex;align-items:center;justify-content:center;border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-weight:500;}
+.hotspot{position:absolute;left:var(--x);top:var(--y);z-index:1;width:24px;height:24px;transform:translate(-50%,-50%);border:2px solid var(--surface-card);font-size:12px;}
+.hotspot-ref{width:20px;height:20px;font-size:11px;vertical-align:1px;}
+.hotspot.is-highlighted,.hotspot-ref.is-highlighted,.step-item.is-highlighted .step-circle{outline:2px solid var(--focus-ring);outline-offset:2px;}
+.has-hotspot-highlight .hotspot:not(.is-highlighted){opacity:0.4;}
+.compare{margin:16px 0;}
+.compare-stage{position:relative;display:grid;overflow:hidden;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--surface-card);}
+.compare-before,.compare-after{grid-area:1/1;min-width:0;}
+.compare-after{clip-path:inset(0 0 0 var(--compare-position,50%));}
+.compare-handle{position:absolute;top:0;bottom:0;left:var(--compare-position,50%);width:2px;margin-left:-1px;background:var(--surface-dark);pointer-events:none;}
+.compare-handle::after{content:'‹ ›';position:absolute;top:50%;left:50%;display:flex;align-items:center;justify-content:center;width:32px;height:32px;transform:translate(-50%,-50%);border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-size:12px;}
+.compare-range{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize;}
+.compare-stage:has(.compare-range:focus-visible){outline:2px solid var(--focus-ring);outline-offset:2px;}
+.compare-labels{display:flex;justify-content:space-between;margin-top:8px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--label);}
 @media (prefers-reduced-motion:no-preference){
   html{scroll-behavior:smooth;}
   a{transition:text-decoration-thickness var(--motion-duration-fast) var(--motion-easing-standard),color var(--motion-duration-fast) var(--motion-easing-standard);}
   .acc[open]>.acc-body{animation:heritage-reveal var(--motion-duration-base) var(--motion-easing-standard);}
   .back-to-top:not([hidden]){animation:heritage-fade-in var(--motion-duration-base) var(--motion-easing-standard);}
   .section-rail-tick::before{transition:background-color var(--motion-duration-fast) var(--motion-easing-standard);}
-  .section-rail-preview:not([hidden]){animation:heritage-fade-in var(--motion-duration-fast) var(--motion-easing-standard);}
+  .section-rail-preview:not([hidden]),.term-card:not([hidden]){animation:heritage-fade-in var(--motion-duration-fast) var(--motion-easing-standard);}
+  .section-pill:not([hidden]){animation:heritage-fade-in var(--motion-duration-base) var(--motion-easing-standard);}
+  .toc-sheet[open]{animation:heritage-rise var(--motion-duration-base) var(--motion-easing-standard);}
+  .section-link,.hotspot{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
+  .term{transition:text-decoration-color var(--motion-duration-fast) var(--motion-easing-standard);}
   @keyframes heritage-reveal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
   @keyframes heritage-fade-in{from{opacity:0;}to{opacity:1;}}
+  @keyframes heritage-rise{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
 }
 @media (max-width:719px){
   body{padding-left:16px;padding-right:16px;}
   .back-to-top{right:16px;bottom:16px;}
+  .section-pill{left:16px;bottom:16px;max-width:calc(100vw - 152px);}
+  .toc-sheet-body{padding:20px 16px 24px;}
   .toc ol{columns:1;}
   .code-block{padding:16px;}
 }
 @media (max-width:1023px){
   .section-rail,.section-rail-preview{display:none;}
 }
+@media (min-width:1024px){
+  .section-pill{display:none;}
+}
+@media (hover:none){
+  .section-link{opacity:1;}
+}
 @media print{
   body{background:#fff;padding:0;max-width:none;}
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top,.section-rail,.section-rail-preview{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range{display:none;}
+  .term{text-decoration:none;}
+  .compare-stage{grid-template-columns:1fr 1fr;gap:16px;border:0;}
+  .compare-before,.compare-after{grid-area:auto;border:1.5px solid var(--border-strong);border-radius:10px;overflow:hidden;}
+  .compare-after{clip-path:none;}
   *,*::before,*::after{transition:none!important;animation:none!important;}
   a[href^="http"]::after{content:" (" attr(href) ")";font-size:11px;color:var(--label);}
 }
@@ -1267,8 +1539,16 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 
 <a class="back-to-top" href="#top" aria-label="Volver al inicio" hidden><span aria-hidden="true">↑</span> Inicio</a>
 <nav class="section-rail" aria-label="Mapa de secciones" hidden></nav>
+<button class="section-pill" type="button" aria-haspopup="dialog" aria-controls="toc-sheet" hidden><span class="section-pill-num"></span><span class="section-pill-title"></span></button>
+<dialog class="toc-sheet" id="toc-sheet" aria-labelledby="toc-sheet-label">
+  <div class="toc-sheet-body">
+    <div class="toc-sheet-head"><div class="toc-label" id="toc-sheet-label">Contenido</div><button class="toc-sheet-close" type="button">Cerrar</button></div>
+  </div>
+</dialog>
 <script>
-// Botón "Volver al inicio", mapa de secciones y scroll suave del índice. Respeta "reducir movimiento".
+// Navegación e interacciones Heritage: índice, mapa de secciones, píldora de sección, botón "Inicio",
+// atajos, copiar enlace, novedades, glosario, puntos sobre capturas y comparación antes/después.
+// Respeta "reducir movimiento". Sin JavaScript el documento se lee completo: solo faltan los atajos.
 (function () {
   var button = document.querySelector('.back-to-top');
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -1278,23 +1558,27 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var FALLBACK_MS = 900;
   var ACTIVE_LINE_RATIO = 0.3;
   var VIEWPORT_MARGIN_PX = 16;
+  var POPOVER_GAP_PX = 8;
   var MIN_RAIL_SECTIONS = 2;
   var CURRENT_TICK_WIDTH_PX = 24;
   var REST_TICK_WIDTH_PX = 12;
   var MAGNIFIED_TICK_WIDTH_PX = 40;
   var MAGNIFIER_RADIUS_PX = 48;
+  var VISITED_PROGRESS_RATIO = 0.9;
+  var TERM_HIDE_DELAY_MS = 150;
+  var COPY_FEEDBACK_MS = 1600;
+  var VISITED_STORAGE_PREFIX = 'heritage:visited:';
+  var CHANGE_LABELS = { new: 'Nuevo', updated: 'Actualizado' };
   var stopSettling = null;
+  var isNavigating = false;
+  var frameRequested = false;
+  var currentEntry = null;
 
-  if (button) {
-    var toggle = function () { button.hidden = window.scrollY < SHOW_AFTER_PX; };
-    window.addEventListener('scroll', toggle, { passive: true });
-    toggle();
-  }
-
-  // Inicio: arriba de todo (0). Entrada del índice: la sección completa, número incluido, con aire.
+  // —— Scroll a un destino
+  // Inicio: arriba de todo (0). Título de sección: la sección completa, número incluido, con aire.
   function targetTop(target) {
     if (target.id === 'top') return 0;
-    var anchor = target.closest('section') || target;
+    var anchor = (target.matches('.section-title') && target.closest('section')) || target;
     return Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - TARGET_OFFSET_PX);
   }
   // 'instant' explícito: con html{scroll-behavior:smooth}, un scrollTo común también sería suave.
@@ -1309,6 +1593,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       observer.disconnect();
       ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.removeEventListener(type, stop); });
       stopSettling = null;
+      isNavigating = false;
     };
     ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.addEventListener(type, stop, { passive: true }); });
     observer.observe(document.body);
@@ -1318,6 +1603,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   }
 
   function scrollToTarget(target, updateHash) {
+    // Mientras dura el salto, las secciones que se cruzan no cuentan como leídas.
+    isNavigating = true;
     // Avisa a los componentes diferidos que se rendericen antes de medir el destino.
     document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: target } }));
     setTimeout(function () {
@@ -1334,129 +1621,353 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     }, 50);
     if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
-    if (updateHash) history.replaceState(null, '', '#' + target.id);
+    if (updateHash && target.id) history.replaceState(null, '', '#' + target.id);
   }
 
-  // Mapa de secciones: una marca por sección, vista previa al pasar o enfocar y sección actual resaltada.
+  // —— Utilidades
+  function createElement(tagName, className, text) {
+    var element = document.createElement(tagName);
+    if (className) element.className = className;
+    if (text) element.textContent = text;
+    return element;
+  }
+  function createChangeBadge(change) {
+    return createElement('span', 'badge b-amber change-badge', CHANGE_LABELS[change]);
+  }
+  // Ubica una tarjeta debajo del ancla (o arriba si no entra) sin salirse de la ventana.
+  function placeNear(card, anchorRect) {
+    var top = anchorRect.bottom + POPOVER_GAP_PX;
+    if (top + card.offsetHeight > window.innerHeight - VIEWPORT_MARGIN_PX) top = anchorRect.top - POPOVER_GAP_PX - card.offsetHeight;
+    var left = Math.min(anchorRect.left, window.innerWidth - card.offsetWidth - VIEWPORT_MARGIN_PX);
+    card.style.top = Math.max(VIEWPORT_MARGIN_PX, top) + 'px';
+    card.style.left = Math.max(VIEWPORT_MARGIN_PX, left) + 'px';
+  }
+  var liveRegion = createElement('div', 'visually-hidden');
+  liveRegion.setAttribute('role', 'status');
+  document.body.appendChild(liveRegion);
+  function announce(message) { liveRegion.textContent = message; }
+
+  // —— Secciones: fuente única para índice, mapa, píldora, atajos y novedades
+  var entries = [];
+  document.querySelectorAll('section.section').forEach(function (section) {
+    var heading = section.querySelector('.section-title');
+    if (!heading || !heading.id) return;
+    var numberElement = section.querySelector('.section-num');
+    var firstParagraph = section.querySelector('p');
+    entries.push({
+      section: section,
+      heading: heading,
+      numberElement: numberElement,
+      number: numberElement ? numberElement.textContent.trim() : '',
+      title: heading.textContent.trim(),
+      summary: firstParagraph ? firstParagraph.textContent.replace(/\s+/g, ' ').trim() : '',
+      change: CHANGE_LABELS[section.dataset.change] ? section.dataset.change : '',
+      visited: false,
+      link: null
+    });
+  });
+  var toc = document.querySelector('.toc');
+
+  // Novedades: el badge se escribe una vez (data-change en la sección) y se replica en el índice.
+  entries.forEach(function (entry) {
+    if (!entry.change) return;
+    (entry.numberElement || entry.heading).appendChild(createChangeBadge(entry.change));
+    var tocLink = toc && toc.querySelector('a[href="#' + entry.heading.id + '"]');
+    if (tocLink) tocLink.appendChild(createChangeBadge(entry.change));
+  });
+
+  // Secciones leídas: se recuerdan por documento; si el visor bloquea el almacenamiento, duran la visita.
+  var storageKey = VISITED_STORAGE_PREFIX + location.pathname + '|' + document.title;
+  var visitedIds = [];
+  try { visitedIds = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch (storageError) { visitedIds = []; }
+  function saveVisited() {
+    try { localStorage.setItem(storageKey, JSON.stringify(visitedIds)); } catch (storageError) { /* fallback deliberado: progreso solo en memoria */ }
+  }
+
+  function tickLabel(entry) {
+    var parts = [(entry.number ? entry.number + ' ' : '') + entry.title];
+    if (entry.change) parts.push(CHANGE_LABELS[entry.change]);
+    if (entry.visited) parts.push('leída');
+    return parts.join(', ');
+  }
+  function renderVisited(entry) {
+    if (!entry.link) return;
+    entry.link.classList.toggle('is-visited', entry.visited);
+    entry.link.setAttribute('aria-label', tickLabel(entry));
+  }
+  function markVisited(entry) {
+    if (entry.visited) return;
+    entry.visited = true;
+    if (visitedIds.indexOf(entry.heading.id) === -1) visitedIds.push(entry.heading.id);
+    saveVisited();
+    renderVisited(entry);
+  }
+  entries.forEach(function (entry) { entry.visited = visitedIds.indexOf(entry.heading.id) !== -1; });
+
+  // —— Copiar enlace a una sección. En visores embebidos, <meta name="heritage:share-url"> da la URL pública.
+  var shareMeta = document.querySelector('meta[name="heritage:share-url"]');
+  var shareBase = (shareMeta && shareMeta.content) || location.href.split('#')[0];
+  function copyWithSelection(text) {
+    return new Promise(function (resolve, reject) {
+      var field = createElement('textarea', 'visually-hidden');
+      field.value = text;
+      field.setAttribute('readonly', '');
+      document.body.appendChild(field);
+      field.select();
+      var copied = false;
+      try { copied = document.execCommand('copy'); } catch (copyError) { copied = false; }
+      field.remove();
+      if (copied) resolve();
+      else reject(new Error('Heritage:copyText failed: clipboard unavailable in this viewer'));
+    });
+  }
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).catch(function () { return copyWithSelection(text); });
+    }
+    return copyWithSelection(text);
+  }
+  entries.forEach(function (entry) {
+    if (!entry.numberElement) return;
+    var copyButton = createElement('button', 'section-link', 'Copiar enlace');
+    var restLabel = 'Copiar enlace a la sección ' + (entry.number || entry.title);
+    copyButton.type = 'button';
+    copyButton.setAttribute('aria-label', restLabel);
+    copyButton.addEventListener('click', function () {
+      var url = shareBase + '#' + entry.heading.id;
+      var showFeedback = function (message) {
+        copyButton.textContent = message;
+        copyButton.classList.add('is-copied');
+        copyButton.focus({ preventScroll: true });
+        announce(message);
+        setTimeout(function () {
+          copyButton.textContent = 'Copiar enlace';
+          copyButton.classList.remove('is-copied');
+        }, COPY_FEEDBACK_MS);
+      };
+      copyText(url).then(function () { showFeedback('Enlace copiado'); }, function (copyError) {
+        console.warn('Heritage:copySectionLink failed', { sectionId: entry.heading.id, error: copyError });
+        showFeedback('No se pudo copiar');
+      });
+    });
+    entry.numberElement.appendChild(copyButton);
+  });
+
+  // —— Mapa de secciones: una marca por sección, lupa, vista previa, progreso, leídas y novedades.
   var rail = document.querySelector('.section-rail');
-  var railEntries = [];
-  if (rail) {
-    var railList = document.createElement('ol');
-    var preview = document.createElement('div');
-    var previewNumber = document.createElement('div');
-    var previewTitle = document.createElement('div');
-    var previewSummary = document.createElement('div');
-    preview.className = 'section-rail-preview';
-    previewNumber.className = 'section-rail-preview-num';
-    previewTitle.className = 'section-rail-preview-title';
-    previewSummary.className = 'section-rail-preview-summary';
+  var preview = null;
+  var hidePreview = function () { if (preview) preview.hidden = true; };
+  var isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  var modifierLabel = isMac ? '⌥' : 'Alt';
+  if (rail && entries.length >= MIN_RAIL_SECTIONS) {
+    var railList = createElement('ol');
+    preview = createElement('div', 'section-rail-preview');
+    var previewMeta = createElement('div', 'section-rail-preview-meta');
+    var previewNumber = createElement('span', 'section-rail-preview-num');
+    var previewState = createElement('span', 'section-rail-preview-state');
+    var previewBadge = createElement('span', 'badge b-amber change-badge');
+    var previewTitle = createElement('div', 'section-rail-preview-title');
+    var previewSummary = createElement('div', 'section-rail-preview-summary');
+    var previewHint = createElement('div', 'section-rail-preview-hint',
+      modifierLabel + ' ↑ ↓ secciones' + (toc ? ' · ' + modifierLabel + ' I índice' : ''));
+    previewMeta.append(previewNumber, previewBadge, previewState);
+    preview.append(previewMeta, previewTitle, previewSummary, previewHint);
     preview.setAttribute('aria-hidden', 'true');
     preview.hidden = true;
-    preview.append(previewNumber, previewTitle, previewSummary);
 
-    document.querySelectorAll('section.section').forEach(function (section) {
-      var title = section.querySelector('.section-title');
-      if (!title || !title.id) return;
-      var number = section.querySelector('.section-num');
-      var firstParagraph = section.querySelector('p');
-      var entry = {
-        section: section,
-        number: number ? number.textContent.trim() : '',
-        title: title.textContent.trim(),
-        summary: firstParagraph ? firstParagraph.textContent.replace(/\s+/g, ' ').trim() : '',
-        link: document.createElement('a')
-      };
-      var item = document.createElement('li');
-      entry.link.className = 'section-rail-tick';
-      entry.link.href = '#' + title.id;
-      entry.link.setAttribute('aria-label', (entry.number ? entry.number + ' ' : '') + entry.title);
+    entries.forEach(function (entry) {
+      var item = createElement('li');
+      entry.link = createElement('a', 'section-rail-tick');
+      entry.link.href = '#' + entry.heading.id;
+      if (entry.change) entry.link.dataset.change = entry.change;
+      renderVisited(entry);
       item.appendChild(entry.link);
       railList.appendChild(item);
-      railEntries.push(entry);
     });
+    rail.appendChild(railList);
+    document.body.appendChild(preview);
+    rail.hidden = false;
 
-    if (railEntries.length >= MIN_RAIL_SECTIONS) {
-      rail.appendChild(railList);
-      document.body.appendChild(preview);
-      rail.hidden = false;
+    var showPreview = function (entry) {
+      previewNumber.textContent = entry.number;
+      previewState.textContent = entry.visited ? 'Leída' : '';
+      previewBadge.textContent = entry.change ? CHANGE_LABELS[entry.change] : '';
+      previewTitle.textContent = entry.title;
+      previewSummary.textContent = entry.summary;
+      previewNumber.hidden = !entry.number;
+      previewState.hidden = !entry.visited;
+      previewBadge.hidden = !entry.change;
+      previewSummary.hidden = !entry.summary;
+      preview.hidden = false;
+      var tick = entry.link.getBoundingClientRect();
+      var centeredTop = tick.top + tick.height / 2 - preview.offsetHeight / 2;
+      var maxTop = window.innerHeight - preview.offsetHeight - VIEWPORT_MARGIN_PX;
+      preview.style.top = Math.max(VIEWPORT_MARGIN_PX, Math.min(centeredTop, maxTop)) + 'px';
+    };
 
-      var showPreview = function (entry) {
-        previewNumber.textContent = entry.number;
-        previewTitle.textContent = entry.title;
-        previewSummary.textContent = entry.summary;
-        previewNumber.hidden = !entry.number;
-        previewSummary.hidden = !entry.summary;
-        preview.hidden = false;
+    // Lupa: cada marca crece según su distancia vertical al puntero (o a la marca enfocada).
+    var magnify = function (pointerY) {
+      entries.forEach(function (entry) {
         var tick = entry.link.getBoundingClientRect();
-        var centeredTop = tick.top + tick.height / 2 - preview.offsetHeight / 2;
-        var maxTop = window.innerHeight - preview.offsetHeight - VIEWPORT_MARGIN_PX;
-        preview.style.top = Math.max(VIEWPORT_MARGIN_PX, Math.min(centeredTop, maxTop)) + 'px';
-      };
-      var hidePreview = function () { preview.hidden = true; };
-
-      // Lupa: cada marca crece según su distancia vertical al puntero (o a la marca enfocada).
-      var magnify = function (pointerY) {
-        railEntries.forEach(function (entry) {
-          var tick = entry.link.getBoundingClientRect();
-          var distance = Math.min(Math.abs(tick.top + tick.height / 2 - pointerY) / MAGNIFIER_RADIUS_PX, 1);
-          var influence = (1 + Math.cos(Math.PI * distance)) / 2;
-          var width = REST_TICK_WIDTH_PX + (MAGNIFIED_TICK_WIDTH_PX - REST_TICK_WIDTH_PX) * influence;
-          if (entry.link.hasAttribute('aria-current')) width = Math.max(width, CURRENT_TICK_WIDTH_PX);
-          entry.link.style.setProperty('--tick-width', width.toFixed(1) + 'px');
-        });
-      };
-      var resetMagnifier = function () {
-        railEntries.forEach(function (entry) { entry.link.style.removeProperty('--tick-width'); });
-      };
-      rail.addEventListener('pointermove', function (event) { magnify(event.clientY); });
-      rail.addEventListener('pointerleave', resetMagnifier);
-
-      railEntries.forEach(function (entry) {
-        entry.link.addEventListener('mouseenter', function () { showPreview(entry); });
-        entry.link.addEventListener('focus', function () {
-          showPreview(entry);
-          var tick = entry.link.getBoundingClientRect();
-          magnify(tick.top + tick.height / 2);
-        });
-        entry.link.addEventListener('mouseleave', hidePreview);
-        entry.link.addEventListener('blur', function () {
-          hidePreview();
-          if (!rail.matches(':hover')) resetMagnifier();
-        });
+        var distance = Math.min(Math.abs(tick.top + tick.height / 2 - pointerY) / MAGNIFIER_RADIUS_PX, 1);
+        var influence = (1 + Math.cos(Math.PI * distance)) / 2;
+        var width = REST_TICK_WIDTH_PX + (MAGNIFIED_TICK_WIDTH_PX - REST_TICK_WIDTH_PX) * influence;
+        if (entry.link.hasAttribute('aria-current')) width = Math.max(width, CURRENT_TICK_WIDTH_PX);
+        entry.link.style.setProperty('--tick-width', width.toFixed(1) + 'px');
       });
+    };
+    var resetMagnifier = function () {
+      entries.forEach(function (entry) { entry.link.style.removeProperty('--tick-width'); });
+    };
+    rail.addEventListener('pointermove', function (event) { magnify(event.clientY); });
+    rail.addEventListener('pointerleave', resetMagnifier);
 
-      var frameRequested = false;
-      var updateCurrent = function () {
-        frameRequested = false;
-        var activeLine = window.innerHeight * ACTIVE_LINE_RATIO;
-        var atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 1;
-        var current = railEntries[0];
-        railEntries.forEach(function (entry) {
-          if (entry.section.getBoundingClientRect().top <= activeLine) current = entry;
-        });
-        if (atBottom) current = railEntries[railEntries.length - 1];
-        railEntries.forEach(function (entry) {
-          if (entry === current) entry.link.setAttribute('aria-current', 'location');
-          else entry.link.removeAttribute('aria-current');
-        });
-      };
-      var requestUpdate = function () {
-        if (frameRequested) return;
-        frameRequested = true;
-        window.requestAnimationFrame(updateCurrent);
-      };
-      window.addEventListener('scroll', requestUpdate, { passive: true });
-      window.addEventListener('scroll', hidePreview, { passive: true });
-      window.addEventListener('resize', requestUpdate);
-      updateCurrent();
-    }
+    entries.forEach(function (entry) {
+      entry.link.addEventListener('mouseenter', function () { showPreview(entry); });
+      entry.link.addEventListener('focus', function () {
+        showPreview(entry);
+        var tick = entry.link.getBoundingClientRect();
+        magnify(tick.top + tick.height / 2);
+      });
+      entry.link.addEventListener('mouseleave', hidePreview);
+      entry.link.addEventListener('blur', function () {
+        hidePreview();
+        if (!rail.matches(':hover')) resetMagnifier();
+      });
+    });
   }
 
-  document.querySelectorAll('.toc a[href^="#"], .section-rail a[href^="#"]').forEach(function (link) {
+  // —— Píldora de sección + índice en hoja inferior (pantallas angostas, donde el mapa no entra)
+  var pill = document.querySelector('.section-pill');
+  var sheet = document.querySelector('.toc-sheet');
+  var sheetReady = Boolean(pill && sheet && sheet.showModal && entries.length >= MIN_RAIL_SECTIONS);
+  if (sheetReady) {
+    var sheetBody = sheet.querySelector('.toc-sheet-body');
+    var sheetList = toc ? toc.querySelector('ol').cloneNode(true) : createElement('ol');
+    if (!toc) {
+      entries.forEach(function (entry) {
+        var item = createElement('li');
+        var link = createElement('a', '', entry.title);
+        link.href = '#' + entry.heading.id;
+        link.prepend(createElement('span', 'toc-num', entry.number));
+        item.appendChild(link);
+        sheetList.appendChild(item);
+      });
+    }
+    sheetBody.appendChild(sheetList);
+    pill.addEventListener('click', function () {
+      sheetList.querySelectorAll('a').forEach(function (link) {
+        if (currentEntry && link.getAttribute('href') === '#' + currentEntry.heading.id) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      });
+      sheet.showModal();
+    });
+    sheet.querySelector('.toc-sheet-close').addEventListener('click', function () { sheet.close(); });
+    // Click en el fondo (fuera de .toc-sheet-body) cierra la hoja; Escape lo resuelve el <dialog>.
+    sheet.addEventListener('click', function (event) { if (event.target === sheet) sheet.close(); });
+  }
+
+  // —— Sección actual: progreso de lectura, leídas, píldora y mapa
+  function renderCurrent(current, progress) {
+    entries.forEach(function (entry) {
+      if (!entry.link) return;
+      if (entry === current) {
+        entry.link.setAttribute('aria-current', 'location');
+        entry.link.style.setProperty('--tick-progress', Math.round(progress * 100) + '%');
+      } else {
+        entry.link.removeAttribute('aria-current');
+        entry.link.style.removeProperty('--tick-progress');
+      }
+    });
+    if (sheetReady) {
+      pill.querySelector('.section-pill-num').textContent = current.number;
+      pill.querySelector('.section-pill-title').textContent = current.title;
+      pill.setAttribute('aria-label', 'Sección actual: ' + (current.number ? current.number + ' ' : '') + current.title + '. Abrir índice');
+    }
+  }
+  function updateCurrent() {
+    frameRequested = false;
+    if (!entries.length) return;
+    var activeLine = window.innerHeight * ACTIVE_LINE_RATIO;
+    var atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 1;
+    var current = entries[0];
+    entries.forEach(function (entry) {
+      if (entry.section.getBoundingClientRect().top <= activeLine) current = entry;
+    });
+    if (atBottom) current = entries[entries.length - 1];
+    var rect = current.section.getBoundingClientRect();
+    var progress = atBottom ? 1 : Math.min(Math.max((activeLine - rect.top) / rect.height, 0), 1);
+    if (!isNavigating) {
+      if (progress >= VISITED_PROGRESS_RATIO) markVisited(current);
+      // Pasar scrolleando a la sección siguiente también cuenta como leída; saltar con el índice, no.
+      if (currentEntry && entries.indexOf(current) === entries.indexOf(currentEntry) + 1) markVisited(currentEntry);
+    }
+    currentEntry = current;
+    renderCurrent(current, progress);
+  }
+  function requestUpdate() {
+    if (frameRequested) return;
+    frameRequested = true;
+    window.requestAnimationFrame(updateCurrent);
+  }
+  function toggleFloating() {
+    var scrolled = window.scrollY >= SHOW_AFTER_PX;
+    if (button) button.hidden = !scrolled;
+    if (sheetReady) pill.hidden = !scrolled;
+  }
+  window.addEventListener('scroll', requestUpdate, { passive: true });
+  window.addEventListener('scroll', toggleFloating, { passive: true });
+  window.addEventListener('scroll', hidePreview, { passive: true });
+  window.addEventListener('resize', requestUpdate);
+  toggleFloating();
+  updateCurrent();
+
+  // —— Glosario: el término enlaza a su <dt>; la definición se lee con aria-describedby y se ve al pasar o enfocar.
+  var termCard = createElement('div', 'term-card');
+  var termCardTitle = createElement('div', 'term-card-title');
+  var termCardText = createElement('div', 'term-card-text');
+  var termHideTimer = null;
+  termCard.append(termCardTitle, termCardText);
+  termCard.setAttribute('aria-hidden', 'true');
+  termCard.hidden = true;
+  var hideTermCard = function () { clearTimeout(termHideTimer); termCard.hidden = true; };
+  var scheduleHideTermCard = function () {
+    clearTimeout(termHideTimer);
+    termHideTimer = setTimeout(hideTermCard, TERM_HIDE_DELAY_MS);
+  };
+  var terms = document.querySelectorAll('a.term[href^="#"]');
+  if (terms.length) document.body.appendChild(termCard);
+  terms.forEach(function (term) {
+    var definitionTerm = document.getElementById(term.getAttribute('href').slice(1));
+    var definition = definitionTerm && definitionTerm.nextElementSibling;
+    if (!definition || definition.tagName !== 'DD') return;
+    if (!definition.id) definition.id = definitionTerm.id + '-definition';
+    term.setAttribute('aria-describedby', definition.id);
+    var showTermCard = function () {
+      clearTimeout(termHideTimer);
+      termCardTitle.textContent = definitionTerm.textContent.trim();
+      termCardText.textContent = definition.textContent.replace(/\s+/g, ' ').trim();
+      termCard.hidden = false;
+      placeNear(termCard, term.getBoundingClientRect());
+    };
+    term.addEventListener('mouseenter', showTermCard);
+    term.addEventListener('focus', showTermCard);
+    term.addEventListener('mouseleave', scheduleHideTermCard);
+    term.addEventListener('blur', hideTermCard);
+  });
+  // La tarjeta se puede recorrer con el puntero sin que desaparezca (WCAG 1.4.13).
+  termCard.addEventListener('mouseenter', function () { clearTimeout(termHideTimer); });
+  termCard.addEventListener('mouseleave', scheduleHideTermCard);
+  window.addEventListener('scroll', hideTermCard, { passive: true });
+
+  // —— Links internos: índice, mapa, hoja inferior y términos del glosario usan el mismo scroll.
+  document.querySelectorAll('.toc a[href^="#"], .section-rail a[href^="#"], .toc-sheet a[href^="#"], a.term[href^="#"]').forEach(function (link) {
     link.addEventListener('click', function (event) {
       var target = document.getElementById(link.getAttribute('href').slice(1));
       if (!target) return;
       event.preventDefault();
+      if (sheet && sheet.open) sheet.close();
+      hideTermCard();
       scrollToTarget(target, true);
     });
   });
@@ -1467,6 +1978,50 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       scrollToTarget(document.getElementById('top'), false);
     });
   }
+
+  // —— Atajos: Alt+↓ / Alt+↑ cambian de sección, Alt+I va al índice, Escape cierra las vistas previas.
+  // Con modificador para no chocar con lectores de pantalla ni con la escritura (WCAG 2.1.4).
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') { hidePreview(); hideTermCard(); return; }
+    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.target.closest && event.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (sheet && sheet.open) return;
+    var currentIndex = entries.indexOf(currentEntry);
+    var destination = null;
+    if (event.key === 'ArrowDown' && entries[currentIndex + 1]) destination = entries[currentIndex + 1].heading;
+    else if (event.key === 'ArrowUp' && entries[currentIndex - 1]) destination = entries[currentIndex - 1].heading;
+    else if (event.code === 'KeyI' && toc) destination = toc;
+    if (!destination) return;
+    event.preventDefault();
+    scrollToTarget(destination, destination !== toc);
+  });
+
+  // —— Puntos sobre capturas: pasar por un paso o una referencia resalta su punto, y viceversa.
+  document.querySelectorAll('section.section').forEach(function (section) {
+    if (!section.querySelector('.hotspot[data-hotspot]')) return;
+    var linked = section.querySelectorAll('[data-hotspot]');
+    var highlight = function (number) {
+      linked.forEach(function (element) { element.classList.toggle('is-highlighted', element.dataset.hotspot === number); });
+      section.classList.toggle('has-hotspot-highlight', Boolean(number));
+    };
+    linked.forEach(function (element) {
+      element.addEventListener('mouseenter', function () { highlight(element.dataset.hotspot); });
+      element.addEventListener('mouseleave', function () { highlight(''); });
+    });
+  });
+
+  // —— Comparación antes/después: un <input type="range"> nativo mueve el divisor (mouse, táctil y teclado).
+  document.querySelectorAll('.compare').forEach(function (compare) {
+    var range = compare.querySelector('.compare-range');
+    if (!range) return;
+    var update = function () {
+      var value = Number(range.value);
+      compare.style.setProperty('--compare-position', value + '%');
+      range.setAttribute('aria-valuetext', 'Antes ' + value + '%, después ' + (100 - value) + '%');
+    };
+    range.addEventListener('input', update);
+    update();
+  });
 })();
 </script>
 <script>
@@ -1561,6 +2116,51 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 <!-- Mapa de secciones: vacío, junto al botón "Inicio". El script de navegación lo arma
      con una marca por cada section.section que tenga section-title con id. -->
 <nav class="section-rail" aria-label="Mapa de secciones" hidden></nav>
+
+<!-- Píldora de sección + hoja del índice: junto al mapa. El script completa ambas. -->
+<button class="section-pill" type="button" aria-haspopup="dialog" aria-controls="toc-sheet" hidden><span class="section-pill-num"></span><span class="section-pill-title"></span></button>
+<dialog class="toc-sheet" id="toc-sheet" aria-labelledby="toc-sheet-label">
+  <div class="toc-sheet-body">
+    <div class="toc-sheet-head"><div class="toc-label" id="toc-sheet-label">Contenido</div><button class="toc-sheet-close" type="button">Cerrar</button></div>
+  </div>
+</dialog>
+
+<!-- URL pública para "Copiar enlace" cuando el documento se ve dentro de un iframe (en <head>) -->
+<meta name="heritage:share-url" content="[URL del documento en el visor]">
+
+<!-- Novedades: solo el atributo; el script pone los badges -->
+<section class="section" aria-labelledby="s04" data-change="updated">…</section>
+
+<!-- Glosario: término en la prosa + definición única -->
+<a class="term" href="#g-termino">término</a>
+<dl class="glossary">
+  <dt id="g-termino">Término</dt>
+  <dd>[Definición en una o dos oraciones]</dd>
+</dl>
+
+<!-- Puntos sobre una captura + pasos y referencia vinculados -->
+<div class="mockup">
+  <div class="mockup-bar">…</div>
+  <div class="hotspot-stage">
+    <div class="app-frame" data-cap="[captura]"></div>
+    <span class="hotspot" data-hotspot="1" style="--x:12%;--y:30%" aria-hidden="true">1</span>
+  </div>
+</div>
+<ol class="steps">
+  <li class="step-item" data-hotspot="1">…</li>
+</ol>
+<p>Tocá el botón <span class="hotspot-ref" data-hotspot="1"><span class="visually-hidden">punto </span>1</span>.</p>
+
+<!-- Comparación antes / después -->
+<div class="compare">
+  <div class="compare-stage">
+    <div class="compare-before"><div class="app-frame" data-cap="[antes]" aria-label="Captura de pantalla: antes, …"></div></div>
+    <div class="compare-after"><div class="app-frame" data-cap="[después]" aria-label="Captura de pantalla: después, …"></div></div>
+    <div class="compare-handle" aria-hidden="true"></div>
+    <input class="compare-range" type="range" min="0" max="100" value="50" aria-label="Comparar antes y después">
+  </div>
+  <div class="compare-labels"><span>Antes</span><span>Después</span></div>
+</div>
 ```
 
 Componentes que se cargan de forma diferida (imágenes, capturas embebidas) y

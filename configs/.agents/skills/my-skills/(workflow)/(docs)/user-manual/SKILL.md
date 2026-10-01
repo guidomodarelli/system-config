@@ -11,7 +11,7 @@ description: >
   or explain what changed for a non-technical audience.
 metadata:
   author: gmodarelli_meli
-  version: "1.2"
+  version: "1.3"
 ---
 
 # User Manual Generator
@@ -77,19 +77,24 @@ Rules to follow when building the matrix:
 ## Step 3 — Structure the document
 
 Use this section order. Right after the doc header always goes the **table of contents**
-(`Contenido`), and the page always ends with the floating **Inicio** button and the **section
-map** (side ticks with a preview of each section). See "Table of contents, section map and
-"Inicio" button (always)" in Step 4.
+(`Contenido`), and the page always ends with the floating **Inicio** button, the **section
+map** (side ticks with a preview of each section) and the **section pill** (current section +
+TOC sheet on narrow screens). See "Navigation (always)" in Step 4.
 
-1. **¿Qué cambió y por qué?** — 1-paragraph executive summary for a non-technical reader.
+1. **¿Qué cambió y por qué?** — 1-paragraph executive summary for a non-technical reader. When
+   a before capture exists (old manual, `develop`, or a capture taken before the change), show the
+   main screen as a before / after `compare`.
 2. **Vista en computadora (escritorio)** — browser mockup + prose walkthrough.
 3. One section per **major new UI surface** (accordion, drawer, badge group, etc.).
 4. **Experiencia en celular** — if the mobile flow differs.
 5. `part-header` separator **"Quién ve qué: permisos y roles"**
 6. **Tabla de visibilidad por permiso** — the full matrix from Step 2.
 7. **Escenarios de ejemplo** — 3–5 concrete user/operator combinations.
-8. **Guía paso a paso** — numbered steps with the `steps` component.
+8. **Guía paso a paso** — numbered steps with the `steps` component, linked to `hotspot` pins
+   on the capture of the screen where the steps happen.
 9. **Preguntas frecuentes** — answer the questions a non-technical user would actually ask.
+10. **Glosario** — only when the manual uses domain terms a non-technical reader may not know
+    (`LDAP externo`, `división`, a role name). One `dl.glossary` entry per term.
 
 Adjust sections when the diff is small — skip sections that have nothing to say.
 
@@ -155,17 +160,24 @@ Create the `user-guides/` directory if it does not exist before writing either f
 | Concrete scenario | `example-box` + `example-label` |
 | Value transition (`$15 → $20`) | `flow` + `pill-stale` / `pill-neutral` / `pill-success` |
 | Reference block (rules, errors, checklist) | `details.acc` + `summary` (+ `acc-num`) + `acc-body` |
+| Section pill + TOC sheet (**always**) | `button.section-pill` + `dialog.toc-sheet`, next to the section map |
+| Numbered pins on a capture, tied to steps | `div.hotspot-stage` + `span.hotspot`; `data-hotspot` on `step-item` and `span.hotspot-ref` |
+| Before / after of one screen | `div.compare` (`compare-before` / `compare-after` / `compare-handle` / `compare-range`) |
+| Domain term with its definition | `a.term` → `dl.glossary` (`dt` + `dd`) |
+| Section new or changed since the last version | `data-change="new"` / `"updated"` on the `<section>` |
 | Inline identifier | `<code>` |
 | Link | plain `<a>` (the boilerplate styles it) |
 | Horizontal rule | `divider` |
 
 Copy the markup from the "Snippets de componentes" block in DESIGN.md; class names are a contract.
 
-### Table of contents, section map and "Inicio" button (always)
+### Navigation (always)
 
-The three components, their markup, CSS, motion and the navigation script are defined in DESIGN.md
-("Índice (TOC)", "Mapa de secciones", "Botón Inicio", "Motion" and the boilerplate). Copy them from
-there; this skill only adds when to use them:
+The TOC, section map, section pill, "Inicio" button, copy-link buttons and keyboard shortcuts,
+their markup, CSS, motion and the navigation script are defined in DESIGN.md ("Índice (TOC)",
+"Mapa de secciones", "Píldora de sección", "Copiar enlace a una sección", "Atajos de teclado",
+"Botón Inicio", "Motion" and the boilerplate). Copy them from there; this skill only adds when to
+use them:
 
 - **TOC always**, right after `</header>`, even with fewer than 5 sections. This overrides the
   "5+ sections" guidance in DESIGN.md for user manuals. One entry per numbered section, in order,
@@ -177,8 +189,12 @@ there; this skill only adds when to use them:
 - **Section map always**: the empty `<nav class="section-rail" …>` next to the button. Never
   write its ticks by hand; the script builds one per section from the `section-title` and the
   first paragraph, so it stays in sync after every edit. Start each section with a paragraph that
-  works as a one-line summary, because the preview shows it. The map hides below 1024 px, so
-  narrow viewers only show the TOC.
+  works as a one-line summary, because the preview shows it. The map hides below 1024 px.
+- **Section pill and TOC sheet always**, next to the map: they replace the map below 1024 px,
+  which includes the narrow Grid viewer. The script fills both.
+- **Share URL** when the manual is published in a viewer that wraps it in an iframe (Grid): add
+  `<meta name="heritage:share-url" content="<public document URL>">` to `<head>` so "Copiar
+  enlace" copies a link the reader can open. Without it the button copies the iframe URL.
 - **Lazy screenshots:** the `embed-app-frames.mjs` runtime listens to `heritage:before-scroll`
   (fired by the navigation script) and renders every frame above the target, so their real
   heights do not push the section down while scrolling.
@@ -188,9 +204,30 @@ viewer: click TOC links to sections below several screenshots and check that the
 16 px below the top (`section.getBoundingClientRect().top` ≈ 16 about 2 s later), and that the
 button brings `scrollY` back to `0`. At 1024 px or wider, hover a section map tick: the ticks
 around the pointer grow like a magnifier, the preview shows that section's number, title and first
-paragraph, and clicking it lands like a TOC link.
+paragraph, and clicking it lands like a TOC link. At 375 px, the pill shows the current section
+and opens the sheet; picking an entry closes it and lands like a TOC link. `Alt`+`↓` moves to the
+next section.
 Scroll with `behavior: 'instant'` before screenshots, because
 `html{scroll-behavior:smooth}` makes `scrollIntoView` animate.
+
+### Pins, before / after, glossary and updates
+
+Markup and behavior are in DESIGN.md ("Puntos sobre capturas", "Comparación antes / después",
+"Glosario", "Novedades"). When to use them in a manual:
+
+- **Pins:** on the capture of every screen with a `steps` walkthrough, one pin per step that
+  touches a visible element, same number as the step. Place them on the **rendered** capture (open
+  the manual, read the element's position relative to the `hotspot-stage`, write `--x`/`--y` in
+  %), then check each pin lands on its element at desktop width. Up to 6 pins per capture.
+- **Before / after:** only when both captures have the same width and framing (same viewport and
+  route). Sanitize the before capture like any other. Give each `app-frame` its own `aria-label`.
+  Otherwise show two separate mockups.
+- **Glossary:** link only the first use of each term per section. Every `a.term` must point to an
+  existing `<dt>`; define terms in plain words, without code.
+- **Updates (`data-change`):** only when updating an existing manual. Compare the previous version
+  (downloaded from the destination, see "Downloads") section by section: `new` for sections that
+  did not exist, `updated` when what the reader sees or does changed. Never on a first version.
+  Add `Novedades: N secciones` to the `doc-meta`.
 
 ### Downloads
 
@@ -298,6 +335,13 @@ If a discrepancy is found, fix the HTML before reporting done.
       the `<h2>`, and a part label before each `part-header` group.
 - [ ] Section map present (`nav.section-rail`, built by the script): one tick per section, the
       current one highlighted while scrolling, and a preview that fits in the viewport.
+- [ ] Section pill and TOC sheet present; at 375 px the pill opens the sheet and its links land
+      on the section.
+- [ ] `heritage:share-url` meta set when the manual is published inside an iframe viewer.
+- [ ] Steps on a captured screen have matching pins that land on their elements.
+- [ ] Every `compare` uses captures with the same width and framing.
+- [ ] Every `a.term` resolves to a `<dt>` in the glossary.
+- [ ] `data-change` used only on an updated manual, and only on sections that changed.
 - [ ] Visibility matrix is complete — every gated element accounted for.
 - [ ] Mockups use real label strings from the codebase and example data only.
 - [ ] Every `mockup-url` is a path or a screen title; `grep -E 'https?://|[a-z0-9-]+\.(com|io|net)'`
