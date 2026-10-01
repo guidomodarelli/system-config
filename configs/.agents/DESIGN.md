@@ -786,15 +786,16 @@ que el lector hizo algo, nunca decora.
 
 - Nada que el lector no haya pedido: sin entradas al scrollear, sin parallax, sin loops ni autoplay.
 - Sin rebotes, escalas, rotaciones ni `box-shadow`: rompen la estética de papel. La excepción es el
-  latido de destino y el crecimiento al pasar el puntero de los puntos sobre capturas.
+  latido de destino, el crecimiento al pasar el puntero y la manito de los pasos con punto.
 - Sin `height` o `max-height` animados en contenido largo: provocan saltos de layout.
 - Mockups y su contenido quedan quietos: muestran una pantalla, no una demo.
 
 **Reglas**
 
 - Solo `opacity`, `transform: translateY()` de hasta 4px y propiedades de color.
-- Ninguna transición supera `motion.duration-base` (200ms). El latido de destino es una animación
-  de 3 latidos de `2 × motion.duration-base`, y es la única que lo supera.
+- Ninguna transición supera `motion.duration-base` (200ms). Las excepciones son el latido de destino
+  (3 latidos de `2 × motion.duration-base`) y el toque de la manito al pasar el puntero
+  (`3 × motion.duration-base` por toque, en loop solo mientras el puntero sigue sobre el paso).
 - Todo el movimiento va dentro de `@media (prefers-reduced-motion: no-preference)`: con
   "reducir movimiento" activo no hay transiciones y el scroll es instantáneo.
 - En impresión no hay transiciones ni animaciones.
@@ -1192,6 +1193,14 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   dos listas de pasos distintas) confunden al lector. Si un paso ocurre en una pantalla que ya se
   mostró en otra sección, se repite la captura (mismo `data-cap`) en la sección del paso, con su
   punto; la pantalla original queda sin puntos.
+- **El destino conserva el resaltado durante el salto** (2,6 s): lo que pasa por debajo del puntero
+  mientras la página scrollea (otro punto, otro paso) no se lo quita. Después, el resaltado vuelve a
+  seguir al puntero.
+- **Manito en los pasos:** cada `step-item` con punto lleva una manito (la agrega el script) en la
+  esquina inferior derecha del círculo, inclinada `-35°` y con el índice adentro. Quieta en reposo;
+  mientras el puntero está sobre el paso repite el toque, y para al salir: el índice baja `2px` y destella
+  (`3 × motion.duration-base`). Solo en los círculos grandes: sobre los puntos de las capturas
+  taparía lo que señalan. Con "reducir movimiento" no se anima.
 - **Se nota que se pueden tocar,** sin movimiento que el lector no pidió: el círculo bajo el puntero
   o con foco crece a `1.1` (en `motion.duration-fast`) y se resalta con su par; el tooltip dice qué
   pasa al tocar («Ir al paso 2», «Ver en la captura»), y, para pantallas táctiles, el pie de la
@@ -1534,6 +1543,14 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .figcap+.figcap-hint{margin-top:-12px;}
 .has-hotspot-highlight .hotspot:not(.is-highlighted){opacity:0.4;}
 .step-item[data-hotspot],.hotspot-ref,.hotspot{cursor:pointer;}
+/* Manito de los pasos con punto: indica que el círculo se toca. Inclinada -35°, con el índice adentro del círculo. */
+.step-circle{position:relative;}
+.tap-hand{position:absolute;right:-7px;bottom:-8px;width:18px;height:18px;overflow:visible;pointer-events:none;rotate:-35deg;transform-origin:30% 20%;}
+.tap-hand g{fill:none;stroke-linecap:round;stroke-linejoin:round;}
+.tap-hand-halo{stroke:var(--surface-card);stroke-width:5;}
+.tap-hand-fill path{fill:var(--surface-card);}
+.tap-hand-line{stroke:var(--surface-dark);stroke-width:1.8;}
+.tap-hand-rays{stroke:var(--surface-card);stroke-width:1.6;opacity:0;}
 .compare{margin:16px 0;}
 .compare-stage{position:relative;isolation:isolate;display:grid;overflow:hidden;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--surface-card);}
 .compare-before,.compare-after{grid-area:1/1;min-width:0;}
@@ -1560,6 +1577,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   @keyframes heritage-rise{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
   /* Latido de destino: `scale` (no `transform`) para no pisar el translate que centra el punto. */
   .is-pulsing{animation:heritage-pulse calc(var(--motion-duration-base) * 2) var(--motion-easing-standard) 3;}
+  /* Gesto de toque: se repite mientras el puntero sigue sobre el paso; el índice baja y destella. */
+  .step-item[data-hotspot]:hover .tap-hand{animation:heritage-tap-press calc(var(--motion-duration-base) * 3) var(--motion-easing-standard) infinite;}
+  .step-item[data-hotspot]:hover .tap-hand-rays{animation:heritage-tap-rays calc(var(--motion-duration-base) * 3) var(--motion-easing-standard) infinite;}
+  @keyframes heritage-tap-press{0%,60%,100%{translate:0 0;}30%{translate:-2px -2px;}}
+  @keyframes heritage-tap-rays{0%,20%{opacity:0;}35%{opacity:1;}70%,100%{opacity:0;}}
   @keyframes heritage-pulse{0%,100%{scale:1;}50%{scale:1.25;}}
 }
 @media (max-width:719px){
@@ -1581,7 +1603,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand{display:none;}
   .term{text-decoration:none;}
   .compare-stage{grid-template-columns:1fr 1fr;gap:16px;border:0;}
   .compare-before,.compare-after{grid-area:auto;border:1.5px solid var(--border-strong);border-radius:10px;overflow:hidden;}
@@ -1638,6 +1660,13 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var TERM_HIDE_DELAY_MS = 150;
   var COPY_FEEDBACK_MS = 1600;
   var HOTSPOT_REVEAL_MS = 2600;
+  // Manito de los pasos (trazo al estilo de Lucide "pointer", ISC): halo claro, relleno, destello y línea.
+  var TAP_HAND_PATHS = '<path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>';
+  var TAP_HAND_SVG = '<svg class="tap-hand" viewBox="-2 -4 28 30" aria-hidden="true" focusable="false">' +
+    '<g class="tap-hand-halo">' + TAP_HAND_PATHS + '</g>' +
+    '<g class="tap-hand-fill"><path d="M8 2.6a1.5 1.5 0 0 1 1.5 1.5V9.6l.6-.3a1.6 1.6 0 0 1 3.4.4l.4-.2a1.6 1.6 0 0 1 3.6 1l.6-.1a1.5 1.5 0 0 1 3.4.9v2.8a7.5 7.5 0 0 1-7.5 7.4h-2c-2.6 0-4.2-.8-5.6-2.2L3.2 16a1.5 1.5 0 0 1 2.2-2.1L6.5 15V4.1A1.5 1.5 0 0 1 8 2.6z"/></g>' +
+    '<g class="tap-hand-rays"><path d="M4.6 0.4 3.2-1"/><path d="M8 -0.6V-2.6"/><path d="M11.4 0.4 12.8-1"/></g>' +
+    '<g class="tap-hand-line">' + TAP_HAND_PATHS + '</g></svg>';
   var stopSettling = null;
   var frameRequested = false;
   var currentEntry = null;
@@ -2107,6 +2136,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       hint.setAttribute('aria-hidden', 'true');
       caption.after(hint);
     }
+    section.querySelectorAll('.step-item[data-hotspot]').forEach(function (step) {
+      var circle = step.querySelector('.step-circle');
+      if (!circle || circle.querySelector('.tap-hand')) return;
+      circle.insertAdjacentHTML('beforeend', TAP_HAND_SVG);
+    });
     linked.forEach(function (element) {
       var isPin = element.classList.contains('hotspot');
       var hasStep = Boolean(section.querySelector('.step-item[data-hotspot="' + element.dataset.hotspot + '"]'));
@@ -2114,7 +2148,9 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       var destinationSelector = isPin ? (hasStep ? '.step-item' : '.hotspot-ref') : '.hotspot';
       // El tooltip dice qué pasa al tocar.
       element.title = isPin ? (hasStep ? 'Ir al paso ' + element.dataset.hotspot : 'Ir a su mención en el texto') : 'Ver en la captura';
-      element.addEventListener('mouseenter', function () { highlight(element.dataset.hotspot); });
+      // Mientras dura un salto, el resaltado es del destino: lo que pasa por debajo del puntero al
+      // scrollear (otro punto, otro paso) no lo cambia.
+      element.addEventListener('mouseenter', function () { if (!revealTimer) highlight(element.dataset.hotspot); });
       element.addEventListener('mouseleave', function () { if (!revealTimer) highlight(''); });
       element.addEventListener('click', function () { reveal(element.dataset.hotspot, destinationSelector); });
       if (!element.classList.contains('hotspot-ref')) return;
