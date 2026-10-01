@@ -87,17 +87,24 @@ const captureRules = Object.fromEntries(usedCaptures.map((capture) => [
 	}),
 ]));
 const widths = Object.fromEntries(usedCaptures.filter((capture) => capture.viewportWidth).map((capture) => [capture.name, capture.viewportWidth]));
+// Responsive captures lay out at min(capture viewport, reader viewport), so their container queries
+// (converted from the app's width media queries) pick the layout the app would show on the reader's screen.
+const viewports = Object.fromEntries(usedCaptures.filter((capture) => !capture.viewportWidth && capture.captureViewportWidth).map((capture) => [capture.name, capture.captureViewportWidth]));
 
 // Shells are layout wrappers copied only so descendant selectors match; they must not add layout,
 // overlays or viewport positioning. Floating roots (modals, popovers) are pinned in the flow.
+// Layout containment makes each capture's content the containing block of `position: fixed`
+// descendants (app headers and action bars), so they keep the captured width instead of following the
+// reader's viewport or the frame padding.
 const HOST_CSS = `
 .app-frame__page{background:${pageBackground};overflow:hidden;text-align:left;}
+.app-frame__content{position:relative;contain:layout;container:um-viewport / inline-size;}
 [data-shell]{position:relative!important;inset:auto!important;transform:none!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;margin:0!important;padding:0!important;background:transparent!important;display:block!important;box-shadow:none!important;border:0!important;opacity:1!important;visibility:visible!important;}
 [data-capture-root]{margin-left:auto!important;margin-right:auto!important;opacity:1!important;visibility:visible!important;}
 [data-capture-root][style*="position: relative"]{inset:auto!important;transform:none!important;}
 `;
 
-const payload = JSON.stringify({ fontFaces, rules: payloadRules, captureRules, hostCss: HOST_CSS + extraHostCss, widths, templates: Object.fromEntries(hosts.map((name) => [name, captures.get(name).html])) })
+const payload = JSON.stringify({ fontFaces, rules: payloadRules, captureRules, hostCss: HOST_CSS + extraHostCss, widths, viewports: viewports, templates: Object.fromEntries(hosts.map((name) => [name, captures.get(name).html])) })
 	.replace(/<\//g, '<\\/')
 	.replace(/<!--/g, '<\\!--');
 
@@ -139,10 +146,12 @@ const block = `${START}
 		return box;
 	}
 
-	function fit(page, content, fixedWidth) {
+	function fit(page, content, fixedWidth, captureViewportWidth) {
 		content.style.zoom = '';
 		content.style.margin = '0px';
-		content.style.width = fixedWidth ? fixedWidth + 'px' : '';
+		if (fixedWidth) content.style.width = fixedWidth + 'px';
+		else if (captureViewportWidth) content.style.width = Math.min(captureViewportWidth, window.innerWidth) + 'px';
+		else content.style.width = '';
 		var pageRect = page.getBoundingClientRect();
 		var available = pageRect.width - MARGIN * 2;
 		var box = visibleBounds(content);
@@ -175,6 +184,27 @@ const block = `${START}
 		else if (fixedWidth) content.style.marginLeft = Math.max(0, (available - (box.right - box.left)) / 2) + 'px';
 	}
 
+	// Pins with data-target follow their element after every fit, so they never drift with the reader's
+	// width or a capture's height. --x/--y stay as the fallback until the frame renders.
+	var PIN_GAP_PX = 14;
+	function placeHotspots(host) {
+		var stage = host.closest('.hotspot-stage');
+		if (!stage || !host.shadowRoot) return;
+		var stageRect = stage.getBoundingClientRect();
+		stage.querySelectorAll('.hotspot[data-target]').forEach(function (pin) {
+			var candidates = Array.prototype.slice.call(host.shadowRoot.querySelectorAll(pin.getAttribute('data-target')));
+			var text = pin.getAttribute('data-target-text');
+			var target = text
+				? candidates.filter(function (element) { return element.textContent.trim() === text; })[0]
+				: candidates[0];
+			if (!target) return;
+			var rect = target.getBoundingClientRect();
+			if (!rect.width || !rect.height) return;
+			pin.style.left = (rect.left - stageRect.left - PIN_GAP_PX) + 'px';
+			pin.style.top = (rect.top + rect.height / 2 - stageRect.top) + 'px';
+		});
+	}
+
 	// Screen readers get the caption as the image description; the capture itself stays inert.
 	function describe(host) {
 		if (host.hasAttribute('aria-label')) return;
@@ -196,6 +226,7 @@ const block = `${START}
 		page.className = 'app-frame__page';
 		page.style.padding = MARGIN + 'px';
 		var content = document.createElement('div');
+		content.className = 'app-frame__content';
 		// flow-root keeps captured margins inside, so empty space above the screen can be trimmed.
 		content.style.display = 'flow-root';
 		content.innerHTML = data.templates[name] || '';
@@ -205,11 +236,22 @@ const block = `${START}
 		page.appendChild(content);
 		root.appendChild(page);
 		host.style.minHeight = '';
-		var refit = function () { fit(page, content, data.widths[name]); };
+		var refit = function () { fit(page, content, data.widths[name], (data.viewports || {})[name]); placeHotspots(host); };
+		host.__umRefit = refit;
 		// setTimeout instead of requestAnimationFrame: rAF does not fire in background tabs.
 		(document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { setTimeout(refit, 0); });
 		new ResizeObserver(refit).observe(host);
 	}
+
+	// The reader's viewport decides the layout of responsive captures, so a window resize refits them even
+	// when the frame keeps its width.
+	var resizeTimer = null;
+	window.addEventListener('resize', function () {
+		clearTimeout(resizeTimer);
+		resizeTimer = setTimeout(function () {
+			hosts.forEach(function (host) { if (host.__umRefit) host.__umRefit(); });
+		}, 150);
+	});
 
 	hosts.forEach(function (host) {
 		describe(host);

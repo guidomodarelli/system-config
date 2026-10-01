@@ -390,6 +390,12 @@ components:
   mockup-body:
     backgroundColor: "{colors.surface-card}"
     padding:         "20px"
+  mockup-mobile:
+    # modificador .mockup--mobile: max-width 410px (captura de 375px + 16px de aire por lado + bordes), centrado
+  figcap:
+    textColor:       "{colors.label}"
+    typography:      "{typography.doc-meta}"
+    # leyenda bajo el mockup, centrada; margin -8px 0 16px; da el aria-label de la captura
 
   # —— Example box (cita destacada con label mono)
   example-box:
@@ -510,10 +516,6 @@ components:
     textColor:       "{colors.link}"
     typography:      "{typography.doc-meta}"
     # dentro del section-num; visible al pasar por la sección, al enfocarlo y en pantallas táctiles
-
-  # —— Novedades (sección nueva o actualizada)
-  change-badge:
-    # badge-amber con texto "Nuevo" / "Actualizado"; en el mapa, punto 4px {colors.warn-border}
 
   # —— Glosario
   term:
@@ -928,6 +930,11 @@ Ventana de navegador estilizada (tres dots tipo macOS + URL bar). Usar
 [mockup-body]  contenido real del mockup (puede ser un layout multi-columna)
 ```
 
+- **Celular:** `.mockup.mockup--mobile` limita el mockup a `410px` y lo centra, para capturas de
+  375px. Así los puntos sobre la captura (`hotspot`) quedan en su lugar en cualquier ancho.
+- **Leyenda:** `div.figcap` justo después del mockup, en mono 11px color `label`. Describe la
+  pantalla con datos de ejemplo; el runtime de capturas la usa como `aria-label`.
+
 Border `1.5px solid {colors.border-strong}`, radius `10px`, fondo
 `{colors.surface-card}`. Lleva `isolation: isolate`: las capturas reales traen capas con `z-index`
 alto (modales, menús) que, sin aislar, taparían el botón "Inicio", la píldora y el mapa. Los dots usan `red-border`, `warn-border` y
@@ -1056,8 +1063,6 @@ queda a mano mientras se lee. Usarlo junto con el índice y el botón "Inicio".
   no la marca. Su marca queda en `primary` (en reposo, `label`), su `aria-label` suma
   "leída" y la vista previa muestra `Leída`. Se recuerda por documento en `localStorage`
   (`heritage:visited:<ruta>|<título>`); si el visor lo bloquea, dura la visita.
-- **Novedades:** una sección con `data-change` lleva un punto `4px` `warn-border` al lado de la
-  marca, y el badge en la vista previa (ver [Novedades](#novedades)).
 - **Atajos:** el pie de la vista previa los recuerda (`⌥ ↑ ↓ secciones · ⌥ I índice`, `Alt` fuera
   de Mac). Ver [Atajos de teclado](#atajos-de-teclado).
 
@@ -1078,7 +1083,7 @@ atajo de navegación.
 ```
 
 - Markup fijo (`button.section-pill` + `dialog.toc-sheet`, ver snippets); el script completa la
-  sección actual y copia el índice adentro de la hoja, con sus etiquetas de parte y novedades. Si
+  sección actual y copia el índice adentro de la hoja, con sus etiquetas de parte. Si
   no hay índice, arma la lista desde las secciones.
 - Aparece junto con el botón "Inicio" (después de 480px de scroll) y deja lugar para él: el título
   se corta con ellipsis (máximo `360px`).
@@ -1100,16 +1105,12 @@ el link directo a la sección.
 - Confirma con "Enlace copiado" en el botón y en una región `role="status"`. Si el visor bloquea
   el portapapeles, dice "No se pudo copiar" y deja un `console.warn` con el `id` de la sección.
 
-### Novedades
+### Sin marcas de novedad
 
-Cuando un documento se actualiza, marca qué cambió para que el lector recurrente vaya directo a eso.
-
-- Se declara **una vez**, en la sección: `<section class="section" data-change="new">` (Nuevo) o
-  `data-change="updated"` (Actualizado). El script pone el badge `b-amber` junto al `section-num` y
-  lo replica en el índice, la hoja, el mapa y la vista previa.
-- Solo para cambios que el lector necesita ver; una corrección de tipeo no es novedad.
-- En la primera versión de un documento no se usa: todo sería nuevo.
-- Conviene resumirlas en el `doc-meta` (`Novedades: 2 secciones`).
+Los documentos **no marcan secciones nuevas ni actualizadas**: nada de badges "Nuevo" /
+"Actualizado", puntos de color en el mapa ni "Novedades: N secciones" en el `doc-meta`. Cada
+versión se lee como el documento completo y vigente; el historial de cambios queda en la
+herramienta donde se publica (por ejemplo, las versiones de Grid).
 
 ### Glosario
 
@@ -1145,8 +1146,15 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
 ```
 
 - `div.hotspot-stage` envuelve el contenido de la captura (`app-frame` o `mockup-body`) y lleva
-  los `span.hotspot` con `data-hotspot="1"` y posición en porcentaje (`style="--x:12%;--y:30%"`).
-  Ajustar las posiciones mirando la captura renderizada.
+  los `span.hotspot` con `data-hotspot="1"`.
+- **Sobre una captura real, anclar siempre el punto a su elemento:** `data-target` es un selector
+  CSS dentro de la captura y `data-target-text`, opcional, el texto exacto cuando el selector
+  matchea varios (`data-target="button" data-target-text="Confirmar"`). El runtime de capturas
+  ubica el punto 14px a la izquierda del elemento, centrado en alto, después de cada ajuste del
+  frame y de cada resize. No se corre con el ancho ni el alto del lector.
+- `--x` / `--y` (porcentaje del stage) quedan como posición inicial hasta que el frame renderiza, y
+  como única posición sobre un `mockup-body` dibujado a mano. Un porcentaje solo es estable si la
+  captura no cambia de alto con la ventana: por eso, sobre capturas, se ancla.
 - Los pasos (`li.step-item`) y las referencias en el texto (`span.hotspot-ref`) llevan el mismo
   `data-hotspot`. El número del punto coincide con el del paso.
 - Al pasar por un paso, una referencia o un punto, se resaltan los que comparten número (anillo
@@ -1251,7 +1259,7 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Si hay índice, sus links llevan a la sección completa (número visible) también en el visor final; el botón "Inicio" vuelve a `scrollY` 0.
 - [ ] Si hay mapa de secciones: una marca por sección a 1024px o más, la lupa agranda la marca bajo el puntero y achica en forma gradual a las vecinas, la vista previa muestra número, título y primer párrafo sin salirse de la ventana, la marca actual sigue al scroll y el click lleva a la sección completa.
 - [ ] La píldora muestra la sección actual y abre la hoja con el índice; la hoja cierra con `Escape` y devuelve el foco.
-- [ ] `data-change` solo en secciones que cambiaron desde la versión anterior; el badge aparece en sección, índice y mapa.
+- [ ] Ninguna marca de novedad: sin badges "Nuevo" / "Actualizado" ni "Novedades" en el `doc-meta`.
 - [ ] Cada `a.term` apunta a un `<dt>` existente y su tarjeta muestra la definición.
 - [ ] Los `data-hotspot` de puntos, pasos y referencias coinciden, y cada punto cae sobre el elemento correcto de la captura renderizada.
 - [ ] Las comparaciones usan capturas del mismo ancho y encuadre, y el divisor se mueve con mouse y teclado.
@@ -1265,9 +1273,12 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 - **Componentes:** mapa de secciones (`section-rail`): marcas laterales fijas, una por sección, con vista previa al pasar el mouse o enfocar, efecto lupa sobre las marcas vecinas, sección actual resaltada y el mismo scroll que el índice. Lo arma el script de navegación.
 - **Mapa de secciones:** progreso de lectura en la marca actual, secciones leídas recordadas por documento y atajos al pie de la vista previa.
-- **Componentes:** píldora de sección con índice en hoja inferior (todos los anchos), copiar enlace a una sección, novedades (`data-change`), glosario con tarjeta (`a.term` + `dl.glossary`), puntos sobre capturas (`hotspot`) y comparación antes / después (`compare`).
+- **Componentes:** píldora de sección con índice en hoja inferior (todos los anchos), copiar enlace a una sección, glosario con tarjeta (`a.term` + `dl.glossary`), puntos sobre capturas (`hotspot`) y comparación antes / después (`compare`).
 - **Teclado:** `Alt`/`⌥` + `↑` `↓` cambia de sección, `Alt`/`⌥` + `I` va al índice, `Escape` cierra las vistas previas.
 - **Tokens:** tipografía `rail-preview-title` y breakpoint `rail` (1024px).
+- **Mockups:** modificador `.mockup--mobile` para capturas de celular y leyenda `.figcap`.
+- **Puntos sobre capturas:** `data-target` (+ `data-target-text`) los ancla a un elemento de la captura; el runtime los ubica después de cada ajuste y no se corren con el ancho del lector.
+- **Quitado:** marcas de novedad (`data-change`, badges "Nuevo" / "Actualizado", "Novedades" en el `doc-meta`). Los documentos no marcan cambios.
 
 ### 2026-09-28
 
@@ -1388,6 +1399,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .mockup-dots span:nth-child(3){background:var(--ok-border);}
 .mockup-url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .mockup-body{padding:20px;}
+.mockup--mobile{max-width:410px;margin-left:auto;margin-right:auto;}
+.figcap{margin:-8px 0 16px;font-family:var(--mono);font-size:11px;line-height:1.5;color:var(--label);text-align:center;}
 .example-box{background:var(--surface-card);border:1.5px solid var(--border-strong);border-radius:10px;padding:16px 20px;margin:16px 0;}
 .example-box>:last-child{margin-bottom:0;}
 .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:16px 0;}
@@ -1418,8 +1431,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .back-to-top:hover{text-decoration:underline;text-underline-offset:2px;}
 .back-to-top[hidden]{display:none;}
 .section-num{display:flex;align-items:center;gap:8px;}
-.change-badge{text-transform:none;}
-.toc a .change-badge{margin-left:4px;}
 .visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
 .section-link{margin-left:auto;padding:2px 4px;border:0;background:none;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.05em;text-transform:none;color:var(--link);text-decoration:underline;text-underline-offset:2px;cursor:pointer;opacity:0;}
 .section:hover .section-link,.section-link:focus-visible,.section-link.is-copied{opacity:1;}
@@ -1431,7 +1442,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .section-rail-tick::before{content:'';flex-shrink:0;width:var(--tick-width,12px);height:2px;border-radius:9999px;background:var(--label);}
 .section-rail-tick.is-visited::before,.section-rail-tick:hover::before,.section-rail-tick:focus-visible::before{background:var(--primary);}
 .section-rail-tick[aria-current="location"]::before{width:var(--tick-width,24px);background:linear-gradient(90deg,var(--primary) var(--tick-progress,0%),var(--label) 0);}
-.section-rail-tick[data-change]::after{content:'';flex-shrink:0;width:4px;height:4px;border-radius:9999px;background:var(--warn-border);}
 .section-rail-preview,.term-card{position:fixed;z-index:11;width:280px;max-width:calc(100vw - 32px);padding:12px 16px;background:var(--surface-card);border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
 .section-rail-preview{left:88px;pointer-events:none;}
 .section-rail-preview-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
@@ -1547,7 +1557,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 </dialog>
 <script>
 // Navegación e interacciones Heritage: índice, mapa de secciones, píldora de sección, botón "Inicio",
-// atajos, copiar enlace, novedades, glosario, puntos sobre capturas y comparación antes/después.
+// atajos, copiar enlace, glosario, puntos sobre capturas y comparación antes/después.
 // Respeta "reducir movimiento". Sin JavaScript el documento se lee completo: solo faltan los atajos.
 (function () {
   var button = document.querySelector('.back-to-top');
@@ -1568,7 +1578,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var TERM_HIDE_DELAY_MS = 150;
   var COPY_FEEDBACK_MS = 1600;
   var VISITED_STORAGE_PREFIX = 'heritage:visited:';
-  var CHANGE_LABELS = { new: 'Nuevo', updated: 'Actualizado' };
   var stopSettling = null;
   var isNavigating = false;
   var frameRequested = false;
@@ -1631,9 +1640,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     if (text) element.textContent = text;
     return element;
   }
-  function createChangeBadge(change) {
-    return createElement('span', 'badge b-amber change-badge', CHANGE_LABELS[change]);
-  }
   // Ubica una tarjeta debajo del ancla (o arriba si no entra) sin salirse de la ventana.
   function placeNear(card, anchorRect) {
     var top = anchorRect.bottom + POPOVER_GAP_PX;
@@ -1647,7 +1653,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   document.body.appendChild(liveRegion);
   function announce(message) { liveRegion.textContent = message; }
 
-  // —— Secciones: fuente única para índice, mapa, píldora, atajos y novedades
+  // —— Secciones: fuente única para índice, mapa, píldora y atajos
   var entries = [];
   document.querySelectorAll('section.section').forEach(function (section) {
     var heading = section.querySelector('.section-title');
@@ -1661,20 +1667,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       number: numberElement ? numberElement.textContent.trim() : '',
       title: heading.textContent.trim(),
       summary: firstParagraph ? firstParagraph.textContent.replace(/\s+/g, ' ').trim() : '',
-      change: CHANGE_LABELS[section.dataset.change] ? section.dataset.change : '',
       visited: false,
       link: null
     });
   });
   var toc = document.querySelector('.toc');
-
-  // Novedades: el badge se escribe una vez (data-change en la sección) y se replica en el índice.
-  entries.forEach(function (entry) {
-    if (!entry.change) return;
-    (entry.numberElement || entry.heading).appendChild(createChangeBadge(entry.change));
-    var tocLink = toc && toc.querySelector('a[href="#' + entry.heading.id + '"]');
-    if (tocLink) tocLink.appendChild(createChangeBadge(entry.change));
-  });
 
   // Secciones leídas: se recuerdan por documento; si el visor bloquea el almacenamiento, duran la visita.
   var storageKey = VISITED_STORAGE_PREFIX + location.pathname + '|' + document.title;
@@ -1686,7 +1683,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 
   function tickLabel(entry) {
     var parts = [(entry.number ? entry.number + ' ' : '') + entry.title];
-    if (entry.change) parts.push(CHANGE_LABELS[entry.change]);
     if (entry.visited) parts.push('leída');
     return parts.join(', ');
   }
@@ -1753,7 +1749,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     entry.numberElement.appendChild(copyButton);
   });
 
-  // —— Mapa de secciones: una marca por sección, lupa, vista previa, progreso, leídas y novedades.
+  // —— Mapa de secciones: una marca por sección, lupa, vista previa, progreso y leídas.
   var rail = document.querySelector('.section-rail');
   var preview = null;
   var hidePreview = function () { if (preview) preview.hidden = true; };
@@ -1765,12 +1761,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     var previewMeta = createElement('div', 'section-rail-preview-meta');
     var previewNumber = createElement('span', 'section-rail-preview-num');
     var previewState = createElement('span', 'section-rail-preview-state');
-    var previewBadge = createElement('span', 'badge b-amber change-badge');
     var previewTitle = createElement('div', 'section-rail-preview-title');
     var previewSummary = createElement('div', 'section-rail-preview-summary');
     var previewHint = createElement('div', 'section-rail-preview-hint',
       modifierLabel + ' ↑ ↓ secciones' + (toc ? ' · ' + modifierLabel + ' I índice' : ''));
-    previewMeta.append(previewNumber, previewBadge, previewState);
+    previewMeta.append(previewNumber, previewState);
     preview.append(previewMeta, previewTitle, previewSummary, previewHint);
     preview.setAttribute('aria-hidden', 'true');
     preview.hidden = true;
@@ -1779,7 +1774,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       var item = createElement('li');
       entry.link = createElement('a', 'section-rail-tick');
       entry.link.href = '#' + entry.heading.id;
-      if (entry.change) entry.link.dataset.change = entry.change;
       renderVisited(entry);
       item.appendChild(entry.link);
       railList.appendChild(item);
@@ -1791,12 +1785,10 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     var showPreview = function (entry) {
       previewNumber.textContent = entry.number;
       previewState.textContent = entry.visited ? 'Leída' : '';
-      previewBadge.textContent = entry.change ? CHANGE_LABELS[entry.change] : '';
       previewTitle.textContent = entry.title;
       previewSummary.textContent = entry.summary;
       previewNumber.hidden = !entry.number;
       previewState.hidden = !entry.visited;
-      previewBadge.hidden = !entry.change;
       previewSummary.hidden = !entry.summary;
       preview.hidden = false;
       var tick = entry.link.getBoundingClientRect();
@@ -2129,9 +2121,6 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 <!-- URL pública para "Copiar enlace" cuando el documento se ve dentro de un iframe (en <head>) -->
 <meta name="heritage:share-url" content="[URL del documento en el visor]">
 
-<!-- Novedades: solo el atributo; el script pone los badges -->
-<section class="section" aria-labelledby="s04" data-change="updated">…</section>
-
 <!-- Glosario: término en la prosa + definición única -->
 <a class="term" href="#g-termino">término</a>
 <dl class="glossary">
@@ -2144,7 +2133,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
   <div class="mockup-bar">…</div>
   <div class="hotspot-stage">
     <div class="app-frame" data-cap="[captura]"></div>
-    <span class="hotspot" data-hotspot="1" style="--x:12%;--y:30%" aria-hidden="true">1</span>
+    <span class="hotspot" data-hotspot="1" data-target="button" data-target-text="[Texto del botón]" style="--x:12%;--y:30%" aria-hidden="true">1</span>
   </div>
 </div>
 <ol class="steps">

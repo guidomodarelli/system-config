@@ -5,7 +5,8 @@
  * Paste the whole file into the page with the browser automation JavaScript tool, then call:
  *   __umCap(name, element, { pairs, transform, floating, fixedWidth })   capture one fragment
  *   __umCheck(forbiddenStrings)                     list captures that still contain real data
- *   __umExport(fileName, { appVersion })            download { meta, rules, caps } as JSON
+ *   __umExport(fileName, { appVersion, endpoint })  download { meta, rules, caps } as JSON, or POST it
+ *                                                   to a local endpoint (scripts/capture-bridge.py)
  *   __umClear()                                     drop everything stored in sessionStorage
  *
  * Captures persist in sessionStorage, so navigating between pages of the same origin keeps them.
@@ -35,10 +36,24 @@
 			.replace(/(^|[\s,>+~(}])(html|body)(?=[\s,.:#[>+~{)]|$)/g, '$1[data-tag="$2"]')
 			.replace(/:root\b/g, '[data-tag="html"]');
 
-	// Dimension media queries (width, height, orientation, aspect ratio) are resolved against the capture
-	// viewport and flattened, so the frame shows the layout that was captured whatever the reader's screen
-	// is. Other media (hover, reduced motion, print) stay conditional and follow the reader.
+	// Width media queries become container queries on the frame (container `um-viewport`), so a capture
+	// reflows like the app when the reader's screen is narrower than the capture viewport. Queries that
+	// also depend on height, orientation or aspect ratio cannot follow a frame: they are resolved against
+	// the capture viewport and flattened. Reader media (hover, reduced motion, print) stay conditional.
 	const DIMENSION_MEDIA = /width|height|orientation|aspect-ratio/;
+	const VIEWPORT_CONTAINER = 'um-viewport';
+	const NON_CONTAINER_FEATURES = /height|orientation|aspect-ratio|hover|pointer|resolution|prefers|color|print|\bnot\b/i;
+	const toContainerCondition = (conditionText) => {
+		const parts = conditionText.split(',').map((part) => part.trim().replace(/^(only\s+)?(screen|all)\s+and\s+/i, ''));
+		if (!parts.every((part) => part.startsWith('(') && !NON_CONTAINER_FEATURES.test(part))) return null;
+		return parts.length === 1 ? parts[0] : parts.map((part) => `(${part})`).join(' or ');
+	};
+	// Viewport units follow the same split: vw becomes container width (cqw) and vh is resolved to the
+	// capture viewport height, because a frame has no height of its own to follow.
+	const resolveViewportUnits = (cssText) =>
+		cssText
+			.replace(/(-?\d*\.?\d+)(?:s|l|d)?vw\b/g, '$1cqw')
+			.replace(/(-?\d*\.?\d+)(?:s|l|d)?vh\b/g, (match, value) => `${Math.round(Number(value) * window.innerHeight) / 100}px`);
 	const collectRules = (elements) => {
 		const registry = read(RULES_KEY);
 		const index = new Map(registry.map((rule, position) => [rule, position]));
@@ -75,10 +90,12 @@
 				if (rule instanceof CSSStyleRule) {
 					// Only the selector is retagged; declarations are copied verbatim.
 					if (rule.selectorText.split(',').some(matches)) {
-						add(absolutize(wrap(`${retagSelector(rule.selectorText)}{${rule.style.cssText}}`), baseUrl));
+						add(absolutize(wrap(`${retagSelector(rule.selectorText)}{${resolveViewportUnits(rule.style.cssText)}}`), baseUrl));
 					}
 				} else if (rule instanceof CSSMediaRule) {
+					const containerCondition = DIMENSION_MEDIA.test(rule.conditionText) ? toContainerCondition(rule.conditionText) : null;
 					if (!DIMENSION_MEDIA.test(rule.conditionText)) walk(rule.cssRules, (inner) => wrap(`@media ${rule.conditionText}{${inner}}`));
+					else if (containerCondition) walk(rule.cssRules, (inner) => wrap(`@container ${VIEWPORT_CONTAINER} ${containerCondition}{${inner}}`));
 					else if (window.matchMedia(rule.conditionText).matches) walk(rule.cssRules, wrap);
 				} else if (typeof CSSContainerRule !== 'undefined' && rule instanceof CSSContainerRule) {
 					// Container queries keep their condition; they evaluate against the frame's own containers.
@@ -159,6 +176,23 @@
 		});
 	};
 
+	// Secrets and environment hosts must never reach the manual: hidden inputs (CSRF tokens, session ids)
+	// are dropped and absolute links keep only their path.
+	const stripEnvironmentData = (root) => {
+		root.querySelectorAll('input[type="hidden"]').forEach((input) => input.remove());
+		[root, ...root.querySelectorAll('[href], [src], [action]')].forEach((element) => {
+			['href', 'src', 'action'].forEach((attribute) => {
+				const value = element.getAttribute && element.getAttribute(attribute);
+				if (!value || !/^https?:\/\//i.test(value) || attribute === 'src') return;
+				try {
+					element.setAttribute(attribute, new URL(value).pathname);
+				} catch (error) {
+					element.removeAttribute(attribute);
+				}
+			});
+		});
+	};
+
 	// Floating layers (modals, popovers) are captured in place; these neutralize viewport positioning.
 	const unfloat = (element) => {
 		element.style.position = 'relative';
@@ -183,6 +217,7 @@
 		}
 		if (transform) transform(clone);
 		sanitize(clone, pairs);
+		stripEnvironmentData(clone);
 		clone.querySelectorAll('script, noscript, iframe').forEach((node) => node.remove());
 
 		// Ancestors are kept as empty shells so descendant selectors (.page .card) still match.
@@ -201,7 +236,7 @@
 		}
 
 		const caps = read(CAPS_KEY);
-		const record = { name, html, rules: used, captureViewportWidth: window.innerWidth };
+		const record = { name, html, rules: used, captureViewportWidth: window.innerWidth, captureViewportHeight: window.innerHeight };
 		if (fixedWidth) record.viewportWidth = window.innerWidth;
 		const existing = caps.findIndex((capture) => capture.name === name);
 		existing >= 0 ? (caps[existing] = record) : caps.push(record);
@@ -213,10 +248,17 @@
 		read(CAPS_KEY).flatMap((capture) => forbidden.filter((value) => capture.html.includes(value)).map((value) => [capture.name, value]));
 
 	// meta travels with the captures so the manual can say when, and from which app version, its screens come.
-	window.__umExport = (fileName = 'app-captures.json', { appVersion = null } = {}) => {
+	// With `endpoint` the export is POSTed (for example to scripts/capture-bridge.py) instead of downloaded,
+	// which avoids the browser's "download multiple files" prompt. It returns a Promise in that case.
+	window.__umExport = (fileName = 'app-captures.json', { appVersion = null, endpoint = null } = {}) => {
 		const rules = read(RULES_KEY);
 		const meta = { capturedAt: new Date().toISOString().slice(0, 10), appVersion };
 		const payload = { meta, rules, caps: read(CAPS_KEY) };
+		if (endpoint) {
+			const body = JSON.stringify(payload);
+			return fetch(`${endpoint.replace(/\/$/, '')}/${fileName}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+				.then((response) => ({ status: response.status, meta, rules: rules.length, caps: payload.caps.length, bytes: body.length }));
+		}
 		const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
 		const link = document.createElement('a');
 		link.href = URL.createObjectURL(blob);

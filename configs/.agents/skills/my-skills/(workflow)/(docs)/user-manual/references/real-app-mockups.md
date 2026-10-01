@@ -21,12 +21,21 @@ or custom CSS, because it copies whatever markup and stylesheets the page actual
   installs `__umCap`, `__umCheck`, `__umExport` and `__umClear`, and stores captures in
   `sessionStorage` so they survive navigation within the same origin. Re-paste it after each
   navigation.
-- If the page's Content Security Policy blocks evaluated code, serve the snippet from a local
-  server that binds to `127.0.0.1` and sends CORS headers, then inject it as a `<script>` carrying
-  the page's own nonce:
+- `scripts/capture-bridge.py` — local server (127.0.0.1 only) that serves the snippet and the
+  frame driver with CORS for **one** origin and stores POSTed exports:
+  `python3 capture-bridge.py --origin https://<app-origin> --directory <skill>/scripts --exports /tmp/um-exports --port 8767`.
+  Pick a free port first (`lsof -iTCP:<port> -sTCP:LISTEN`): other local apps squat ports (Okta
+  Verify listens on 8769).
+- `scripts/frame-driver.js` — `__umFrame({ width, height, snippetUrl })` drives a same-origin iframe
+  at the device width chosen in Step 0 (375 × 812 for mobile, ≥ 1280 for desktop): `load(path,
+  readySelector)`, `capture(name, element, { floating })`, `fill(input, value)`, `textInput(root)`,
+  `button(root, text)`, `modal(text)`, `waitFor(selector)`. It re-injects the snippet after each
+  navigation and captures with `fixedWidth` when the width is a phone's.
+- If the page's Content Security Policy blocks evaluated code, inject scripts served by the bridge as
+  a `<script>` carrying the page's own nonce:
 
   ```js
-  const source = await fetch('http://localhost:8767/capture-snippet.js').then((response) => response.text());
+  const source = await fetch('http://127.0.0.1:8767/capture-snippet.js').then((response) => response.text());
   const script = document.createElement('script');
   script.nonce = [...document.scripts].map((existing) => existing.nonce).find(Boolean);
   script.textContent = source;
@@ -34,8 +43,9 @@ or custom CSS, because it copies whatever markup and stylesheets the page actual
   ```
 
 - Keep each browser JavaScript call under the tool timeout (about 45 s). Split long flows (open,
-  fill, confirm, wait for polling, capture) into several calls; a timed-out call can stop halfway
-  and leave the page in an intermediate state.
+  fill, confirm, wait for polling, capture) into several calls, and wait for long timers (polling
+  retries, inactivity modals) with `sleep` in the shell between calls; a timed-out call can stop
+  halfway and leave the page in an intermediate state.
 - `scripts/embed-app-frames.mjs` — Node, no dependencies. Injects the captures into the manual
   and is safe to re-run.
 
@@ -51,6 +61,13 @@ or custom CSS, because it copies whatever markup and stylesheets the page actual
 
 List every mockup the manual needs, with a stable `name` and the state to reach. For example:
 `main`, `filters`, `filters-experience`, `bulk-step1`, `modal-default`, `session-queue`.
+
+**Cover every variant of every screen**, not only the happy path. Derive the list from the code:
+each branch of the view (empty, loading, list), each modal, each notice/snackbar, each validation
+error the server can return, each limit, each creation error, each result screen (successes,
+failures, empty, pending, polling that ends in error) and each guard page (invalid configuration,
+forbidden). If a variant cannot be reached with the existing fixtures, create a temporary mock for it
+(next section).
 
 Reach each state **from the UI** the way a user would: open menus, modals, dropdowns, toggles,
 and fill fields locally.
@@ -79,6 +96,30 @@ machine:
    example in `/tmp/um-temp-fixtures.txt`) and delete them all when the captures are done.
 5. Report any real personal data found in committed fixtures; do not copy it into the manual.
 
+#### Temporary mocks for every variant
+
+- **Map the upstreams first.** Read the REST clients the flow uses (base URL config key + path) and
+  compare them with the interceptors the mock layer registers. Add the missing interceptors before
+  opening the app — in a worktree or temporary branch, never in the user's checkout. A confirmation
+  through an unintercepted path creates real data in the shared environment.
+- **One synthetic persona per variant**, reused across screens: for example a valid collaborator, an
+  inactive account, another site, a position not allowed, an activity already in progress. Reuse the
+  example people the project fixtures already use (`Ada Lovelace`, `Grace Hopper`) when they exist.
+- **Fixtures keyed on the signed-in user** (their attributes, their permissions) need the real ID in
+  the path. Read it from the page (SSR props), pass it to the shell through the bridge, write the
+  fixture with synthetic content, and never print the ID in the manual. Create it **before** the
+  first request that needs it.
+- **Sequences:** polling endpoints take an outer array (`[pending, done]`). The mock layer keeps a
+  per-file counter that wraps around and survives page loads, so give each scenario its own ID
+  (`900011` result, `900012` empty, `900013` failure) instead of reusing one file.
+- **Error variants of the same request:** swap the fixture content (for example a 403 for the create
+  call), capture, and restore it right away. Modify shared fixtures only through a backup you
+  restore and check with `git status`.
+- **Verify after every flow** that nothing was recorded: `git status --short --untracked-files=all
+  mocks/` must list only your temporary files, and the dev log must not say "Writing the mock".
+- **Mock debug logs (`DEBUG=mock:*`) print request headers**, session ids included. Never dump them;
+  grep only the lines you need and delete the log at the end.
+
 ### 3. Capture
 
 ```js
@@ -103,61 +144,51 @@ __umCap('card-list', document.querySelector('.list'), {
   content already fits (a modal body capped at `100vh - N`). Otherwise the manual cuts them at
   its own viewport height.
 
-#### Media queries resolve against the capture viewport
+#### Responsive captures: media queries become container queries
 
-`@media` queries evaluate against the **viewport**, and in the manual that is the reader's
-screen, not the frame. Real case: the filters panel switches its grid to one column under
-`@media (max-width: 1023px)`. It was captured in a window narrower than 1024 px, so the field and
-its open dropdown were 680 px wide. In the manual, read on a wider screen, the grid went back to
-two columns: the field shrank to 320 px while the dropdown kept the 680 px that the app had set
-inline, so the list looked wider than its field.
+`@media` queries evaluate against the **viewport**, and in the manual that is the reader's screen,
+not the frame. Copied as they are, a breakpoint fires in the frame for the wrong width.
 
-So the snippet resolves every **dimension** query (width, height, orientation, aspect ratio)
-against the capture viewport and keeps only the matching rules, without their wrapper, in every
-capture. Queries that describe the reader (hover, reduced motion, print) stay conditional.
-`@container` and `@layer` keep their wrapper: container queries evaluate against the frame's own
-containers, and dropping a layer would change the cascade. Each record stores
-`captureViewportWidth`.
+So the snippet rewrites them:
+
+- **Width-only queries** (`(max-width: 719px)`, `screen and (min-width: 1200px)`, comma lists)
+  become `@container um-viewport (…)`. The runtime makes each capture's content that container and
+  sizes it at `min(capture viewport width, reader viewport width)` (fixed-width mobile captures stay
+  at their width). A desktop capture shows the desktop layout on a desktop reader and the app's own
+  mobile layout on a phone, and it re-lays out when the window is resized.
+- **`vw`** becomes `cqw` (container width) and **`vh`** is resolved to pixels against the capture
+  viewport height (`captureViewportHeight`): a frame has no height of its own, and leaving `vh` live
+  makes captures as tall as the reader's window, which moves everything positioned in them.
+- **Queries that also use height, orientation or aspect ratio** are resolved against the capture
+  viewport and flattened, as before. Queries about the reader (hover, reduced motion, print) stay
+  conditional. `@container`, `@layer` and `@supports` keep their wrapper.
 
 Consequences:
 
-- Capture at the window width you want the manual to show. For desktop screens, use a window at
-  least 1280 px wide, so the layout is the desktop one and not a tablet breakpoint.
-- Inline pixel sizes that the app computed from the layout (a dropdown list as wide as its field,
-  a popover position) stay consistent only if the layout is the same as when they were measured.
-  If a floating layer does not line up with its anchor in the frame, check first whether a
-  breakpoint changed the layout.
-- Captures exported before this change keep their `@media` wrappers and follow the reader's
-  screen; recapture them if a breakpoint changes their layout.
+- Capture desktop screens in a window at least 1280 px wide; the narrower layouts come from the
+  app's own breakpoints at reading time.
+- Inline pixel sizes the app computed from the layout (a dropdown as wide as its field, a popover
+  position) only match the layout they were measured in; if a floating layer does not line up in a
+  narrow reader, capture that state on mobile too.
+- Exports made before this change keep flattened queries; recapture them to get responsive frames.
 
 #### Mobile captures (375 px)
 
-When the mobile layout differs from desktop, capture it too, at 375 px:
+When the flow is used on mobile (Step 0), capture **every** screen at 375 px; when it is used on
+both, capture the screens whose mobile layout differs:
 
-1. Load the same route in a same-origin iframe 375 px wide with `border:0`; a border shrinks
-   `innerWidth`. Same origin means the iframe shares `sessionStorage` with the tab.
-
-   ```js
-   const frame = document.createElement('iframe');
-   frame.style.cssText = 'position:fixed;top:0;left:0;width:375px;height:812px;z-index:99999;background:#fff;border:0';
-   frame.src = location.pathname;
-   document.body.appendChild(frame);
-   ```
-
-2. Inject the snippet into `frame.contentDocument` (with the nonce, as above), reach the state
-   inside the iframe, and capture with `fixedWidth: true`:
-
-   ```js
-   frame.contentWindow.__umCap('main-mobile', frame.contentDocument.querySelector('.page-root'), { pairs, fixedWidth: true });
-   ```
-
-   The dimension queries resolve against the 375 px viewport, as in every capture. `fixedWidth`
-   also records `viewportWidth`, so the manual renders the capture 375 px wide. Check it worked:
-   no rule of the capture contains a width query.
-3. React-controlled inputs inside the iframe need the native setter plus an `input` event:
-   `Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, 'value').set.call(input, value)`.
+1. Inject `frame-driver.js` in any page of the app and create the driver:
+   `const driver = __umFrame({ width: 375, height: 812, snippetUrl: 'http://127.0.0.1:8767/capture-snippet.js' })`.
+   The iframe is same-origin and borderless (a border shrinks `innerWidth`), so it shares
+   `sessionStorage` with the tab and its viewport is exactly 375 px.
+2. Navigate with `await driver.load(path, readySelector)` and reach each state inside the iframe.
+   React-controlled inputs need `await driver.fill(input, value)` (native setter + `input` event).
+   Pick the field with `driver.textInput(dialog)`: the first `input` of a form is often a **hidden
+   CSRF field**, and writing there silently does nothing.
+3. Capture with `await driver.capture(name, element, { floating })`; on mobile it passes
+   `fixedWidth`, so the manual renders the capture 375 px wide inside `.mockup--mobile`.
 4. `embed-app-frames.mjs` gives every capture its own stylesheet, so mobile rules never restyle
-   the desktop captures, and it renders fixed-width captures 375 px wide, centered.
+   desktop captures.
 
 ### 4. Sanitize: mandatory, no exceptions
 
@@ -168,15 +199,19 @@ When the mobile layout differs from desktop, capture it too, at 375 px:
 - `pairs` also cover `aria-label`, `title`, `alt`, `value`, `placeholder`, `href`, `id`, `for` and
   ancestor attributes, not just visible text.
 - Replace longer strings first (a full name before a first name).
-- Before exporting, run `__umCheck([...all real values seen])`. It must return `[]`. If not,
-  recapture with more pairs, or post-process the stored HTML.
+- The snippet drops **hidden inputs** (CSRF tokens, session ids) and reduces absolute `href` and
+  `action` values to their path, so environment hosts do not travel in the payload. Still check:
+  the runtime removes `href` at render time, but the payload is in the manual's source.
+- Before exporting, run `__umCheck([...all real values seen])` with the signed-in user's name, LDAP,
+  user id and Groot ID among them. It must return `[]`. If not, recapture with more pairs, or
+  post-process the stored HTML.
 - After embedding, `grep` the final manual for the same values. Zero hits is the requirement.
 
 ### 5. Export and embed
 
-- Download without asking (see "Downloads" in `SKILL.md`). Run
-  `__umExport('app-captures.json', { appVersion: '<version from package.json>' })`, which saves
-  it to the browser's downloads folder with `meta { capturedAt, appVersion }`.
+- Prefer the bridge: `await __umExport('app-captures.json', { appVersion: '<version>', endpoint:
+  'http://127.0.0.1:8767' })` writes it to the bridge's `--exports` directory, without browser
+  downloads. Without `endpoint` it downloads to the browser's folder (see "Downloads" in `SKILL.md`).
 - **Verify the file on disk before `__umClear()`.** From the second download on a site, Chrome may
   block it silently or show a "download multiple files" prompt that only the user can accept
   (**Allow** / **Permitir**). If the file does not appear within a few seconds, ask the user about
@@ -227,6 +262,17 @@ When the mobile layout differs from desktop, capture it too, at 375 px:
 - The runtime renders frames lazily (IntersectionObserver, 800 px ahead). Each host gets
   `role="img"` and `aria-label="Captura de pantalla: <figcap>"`, while the rendered capture is
   `inert` and `aria-hidden`. `beforeprint` renders everything for print and PDF.
+
+- Every mockup is followed by a `div.figcap`; the runtime uses it as the frame's `aria-label`.
+  Mobile captures go in `.mockup.mockup--mobile` (410 px, centered), which keeps pins in place.
+- App pages often have `position: fixed` headers or action bars. The runtime makes each capture's
+  content their containing block, so they stay inside the frame at the captured width; without it
+  the fit step would scale the whole capture down to a sliver.
+- Pages with `min-height: 100vh` keep the captured height (vh resolved), which can leave a lot of
+  empty space. Release it per manual with `--host-css`
+  (`[data-capture-root] .page-wrapper{min-height:0!important}`) when the empty area adds nothing.
+- Pins on captures use `data-target` (DESIGN.md, "Puntos sobre capturas"); the runtime places them
+  after every fit and resize. Verify the distance pin → element at 1280 px and 390 px.
 
 ### 6. Everything you want to show must be fully visible
 
@@ -310,3 +356,19 @@ the user where it is.
 Use hand-drawn Heritage Spec mockups (`mockup-body`) only when the app cannot be opened, a gate
 blocks access, or stylesheets are cross-origin and blocked. In that case, say in the report that
 the mockups are approximations.
+
+## Troubleshooting
+
+- **Dev server does not start:** use the Node version in `.nvmrc` (Nordic rejects unsupported
+  majors), run `npm ci` in a worktree instead of reusing another branch's `node_modules`, and build
+  the artifacts the dev server expects (for example the remote-modules manifest produced by the
+  project's `postbuild` webpack config).
+- **A lookup says "invalid" but no request reached the server:** the value never got into React
+  state; fill the visible input with the native setter (`driver.fill`).
+- **A modal title is missing from `innerText`:** some design systems render the title outside the
+  visible text; find the modal by its class or body text instead.
+- **The viewer shows an old version** right after publishing: refresh the cache (see
+  `grid-publishing.md`).
+- **Checks of the current section or scroll fail only in automation:** the tab is in the background
+  (`document.visibilityState === 'hidden'`), where `requestAnimationFrame` and scroll events do not
+  run. Bring the tab to the front or dispatch the event manually.
