@@ -246,7 +246,12 @@ DESIGN.md ("Índice (TOC)", "Mapa de secciones", "Píldora de sección", "Copiar
 - **"Inicio" button always**, with the navigation script just before `</body>`.
 - **Section map always**: never write its ticks by hand. Start each section with a paragraph that
   works as a one-line summary, because the map preview shows it. The map hides below 1024 px.
-- **Section pill and TOC sheet always**: visible at every width, the only shortcut below 1024 px.
+- **Section pill and TOC sheet always**: visible at every width and from the first screen (at the top
+  it shows the document title), the only shortcut below 1024 px. The map, the sheet and the pill
+  start with the document title, which leads back to the start. The header needs `id="top"` and a
+  `.doc-title`, as in the boilerplate.
+- **The URL follows the reader:** jumps and "Copiar enlace" write `#sNN` (the start clears it), also in
+  Grid's address bar, so a reload lands on the same section.
 - **Keyboard shortcuts** come with the script and are listed at the foot of the map preview:
   `⌥`/`Alt` + `↑` `↓` previous / next section, `⌥`/`Alt` + `I` table of contents, `Escape` closes
   previews. Nothing to add per manual; verify them.
@@ -257,7 +262,8 @@ DESIGN.md ("Índice (TOC)", "Mapa de secciones", "Píldora de sección", "Copiar
 Verify on a **fresh load** and in the destination viewer: TOC links land with the section 16 px
 below the top about 2 s later; the button brings `scrollY` to `0`; at ≥ 1024 px a map tick magnifies
 its neighbours and its preview shows number, title and first paragraph; at 375 px the pill opens the
-sheet and its links land; `Alt`+`↓` moves to the next section. Scroll with `behavior: 'instant'`
+sheet and its links land; `Alt`+`↓` moves to the next section; opening a copied section link
+(`…/view#s08`) in a new tab, and reloading it, lands on that section in the viewer. Scroll with `behavior: 'instant'`
 before screenshots. A browser tab in the background does not run `requestAnimationFrame` nor
 dispatch scroll events: if "current section" checks fail in automation, check
 `document.visibilityState` before blaming the script.
@@ -270,13 +276,21 @@ dispatch scroll events: if "current section" checks fail in automation, check
   selector matches several elements. The capture runtime places it 14 px left of the element after
   every fit and resize, so it never drifts. Keep `--x`/`--y` as the initial position. Then check, at
   1280 px and 390 px, that every pin sits next to its element. Up to 6 pins per capture.
+- **Anchor to a compact element** (icon, button, input, a short label), never to a full-width cell or
+  row: the pin sits 14 px left of the element, so on a cell that starts at the frame's edge it ends up
+  cut or outside the capture. For repeated elements without own text, use a structural selector
+  (`.card:first-of-type .card__icon`).
 - **Pins live with their steps, one per number per section.** A section never shows two pins with
   the same number, and never pins a capture for steps written in another section. When a step
   happens on a screen already shown elsewhere (the main screen in its own section, the steps in
   "Cómo agregar…"), repeat that capture (same `data-cap`, no extra payload) inside the step's
   section with its pin, and leave the original without pins. Write "en esta pantalla", never
-  "marcado en la sección NN". Tapping a step or a reference scrolls its pin into view (navigation
-  script).
+  "marcado en la sección NN". The navigation script links them both ways, always scrolling: tapping a
+  step or a reference centers its pin, and tapping the pin centers its step's circle; the destination
+  then pulses 3 times so the reader sees what it points to. Check both directions in the browser.
+  The script also signals that the circles can be tapped (hover growth, a tooltip with the action and,
+  for touch screens, «Tocá un número para ir a su paso.» under the first capture with pins of each
+  section), so never write that hint by hand.
 - **Before / after:** only when both captures have the same width and framing. Give each
   `app-frame` its own `aria-label`. Otherwise show two separate mockups.
 - **Glossary:** link only the first use of each term per section; every `a.term` points to an
@@ -368,7 +382,9 @@ boilerplate (the manual carries an outdated copy: replace it with the current on
 
 Then serve the manual, inject `scripts/check-rendered.js` and run `await __umCheckRendered()` at
 1280 px and at 390 px (in Grid: `__umCheckRendered(iframe.contentWindow)`). It must return
-`ok: true`: every capture rendered, none cut, every anchored pin next to its element.
+`ok: true`: every capture rendered, none cut, every anchored pin next to its element, inside the
+capture and within 24 px of what the reader sees in it (a pin on a wide cell fails: anchor it to the
+icon, text or button inside). Also look at each pin: it must read as pointing at its element.
 
 Cross-check against the code what the scripts cannot see:
 

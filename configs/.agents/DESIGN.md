@@ -777,18 +777,24 @@ que el lector hizo algo, nunca decora.
   divisor de la comparación antes / después.
 - La hoja del índice (pantallas angostas) sube con fade y `translateY(4px → 0)` en
   `motion.duration-base`.
+- **Latido de destino** (única escala del sistema): al tocar un paso, una referencia o un punto
+  sobre una captura, el círculo de destino late 3 veces (`scale 1 → 1.25 → 1`, cada latido
+  `2 × motion.duration-base`) cuando termina el scroll, para que se vea a qué apunta. Lo pidió el
+  lector y termina solo; con "reducir movimiento" queda solo el anillo de resaltado.
 
 **Qué no se anima**
 
 - Nada que el lector no haya pedido: sin entradas al scrollear, sin parallax, sin loops ni autoplay.
-- Sin rebotes, escalas, rotaciones ni `box-shadow`: rompen la estética de papel.
+- Sin rebotes, escalas, rotaciones ni `box-shadow`: rompen la estética de papel. La excepción es el
+  latido de destino y el crecimiento al pasar el puntero de los puntos sobre capturas.
 - Sin `height` o `max-height` animados en contenido largo: provocan saltos de layout.
 - Mockups y su contenido quedan quietos: muestran una pantalla, no una demo.
 
 **Reglas**
 
 - Solo `opacity`, `transform: translateY()` de hasta 4px y propiedades de color.
-- Ninguna transición supera `motion.duration-base` (200ms).
+- Ninguna transición supera `motion.duration-base` (200ms). El latido de destino es una animación
+  de 3 latidos de `2 × motion.duration-base`, y es la única que lo supera.
 - Todo el movimiento va dentro de `@media (prefers-reduced-motion: no-preference)`: con
   "reducir movimiento" activo no hay transiciones y el scroll es instantáneo.
 - En impresión no hay transiciones ni animaciones.
@@ -1053,6 +1059,9 @@ queda a mano mientras se lee. Usarlo junto con el índice y el botón "Inicio".
   `</body>`. El script de navegación del boilerplate lo arma: una marca por cada `section.section`
   con `section-title` e `id`, y lo muestra si hay 2 o más. **No se escribe a mano**, así que no se
   desalinea cuando cambian las secciones.
+- La primera marca es el **inicio del documento** (`#top`): un punto de `6px`, separado `8px` de las
+  rayas para que la primera raya siga siendo la sección 01. No crece con la lupa. Su vista previa
+  muestra el título y el subtítulo, sin número, y su `aria-label` es "Inicio: <título>".
 - Cada marca es un link al `id` del `section-title`, con `aria-label` "número + título". Usa el
   mismo scroll que el índice: sección completa 16px debajo del borde, foco en el título, hash
   actualizado y `heritage:before-scroll`.
@@ -1097,8 +1106,11 @@ atajo de navegación.
 - Markup fijo (`button.section-pill` + `dialog.toc-sheet`, ver snippets); el script completa la
   sección actual y copia el índice adentro de la hoja, con sus etiquetas de parte. Si
   no hay índice, arma la lista desde las secciones.
-- Aparece junto con el botón "Inicio" (después de 480px de scroll) y deja lugar para él: el título
-  se corta con ellipsis (máximo `360px`).
+- **Se ve siempre**, también arriba de todo, donde muestra el título del documento sin número. Deja
+  lugar para el botón "Inicio" (que sigue apareciendo después de 480px de scroll): el título se
+  corta con ellipsis (máximo `360px`).
+- La hoja suma, antes de la primera sección, el título del documento como entrada que lleva al
+  inicio (`#top`, la URL queda sin hash).
 - La hoja es un `<dialog>` modal: atrapa el foco, cierra con `Escape`, con "Cerrar" o tocando el
   fondo, y devuelve el foco a la píldora. La sección actual va en negrita
   (`aria-current="location"`). Al elegir una entrada cierra y scrollea como el índice.
@@ -1116,6 +1128,12 @@ el link directo a la sección.
   la que ve el lector: declarar la pública con `<meta name="heritage:share-url" content="…">`.
 - Confirma con "Enlace copiado" en el botón y en una región `role="status"`. Si el visor bloquea
   el portapapeles, dice "No se pudo copiar" y deja un `console.warn` con el `id` de la sección.
+- Al copiar, la URL de la barra también pasa a `#<id>` (sin agregar una entrada al historial); en
+  Grid llega a su barra por su script de sincronización de URL.
+- **Abrir el enlace lleva a la sección**, también al recargar: el script lee el hash propio o, en un
+  visor embebido del mismo origen (Grid no pasa el hash al iframe), el de la página que lo envuelve,
+  y salta como desde el índice, renderizando antes las capturas de arriba. Un hash nuevo pegado en
+  la barra del visor también mueve el documento.
 
 ### Sin marcas de novedad
 
@@ -1174,8 +1192,14 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   dos listas de pasos distintas) confunden al lector. Si un paso ocurre en una pantalla que ya se
   mostró en otra sección, se repite la captura (mismo `data-cap`) en la sección del paso, con su
   punto; la pantalla original queda sin puntos.
-- Tocar un paso o una referencia (o `Enter` sobre la referencia) trae su punto a la mitad de la
-  pantalla si no se ve, y lo resalta 2 s. Si ya se ve, solo lo resalta.
+- **Se nota que se pueden tocar,** sin movimiento que el lector no pidió: el círculo bajo el puntero
+  o con foco crece a `1.1` (en `motion.duration-fast`) y se resalta con su par; el tooltip dice qué
+  pasa al tocar («Ir al paso 2», «Ver en la captura»), y, para pantallas táctiles, el pie de la
+  primera captura con puntos de cada sección suma «Tocá un número para ir a su paso.» (`.figcap-hint`,
+  lo agrega el script; no se imprime).
+- Tocar un paso o una referencia (o `Enter` sobre la referencia) centra su punto en la pantalla,
+  siempre, lo resalta y, al llegar, lo hace latir 3 veces. Tocar el punto hace el camino inverso: centra el círculo de su paso (o,
+  si la sección no tiene pasos con ese número, la primera referencia).
 - Al pasar por un paso, una referencia o un punto, se resaltan los que comparten número (anillo
   `focus-ring`) y los demás puntos de la sección bajan a 40% de opacidad.
 - Los puntos son `aria-hidden="true"`: el texto del paso lleva la información. En la referencia,
@@ -1463,6 +1487,10 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .section-rail-tick::before{content:'';flex-shrink:0;width:var(--tick-width,12px);height:2px;border-radius:9999px;background:var(--label);}
 .section-rail-tick:hover::before,.section-rail-tick:focus-visible::before{background:var(--primary);}
 .section-rail-tick[aria-current="location"]::before{width:var(--tick-width,24px);background:linear-gradient(90deg,var(--primary) var(--tick-progress,0%),var(--label) 0);}
+/* Inicio del documento: un punto separado de las marcas, para que la primera sección siga siendo la primera raya. */
+.section-rail li:has(.is-start){margin-bottom:8px;}
+.section-rail-tick.is-start::before{width:6px!important;height:6px;}
+.section-rail-tick.is-start[aria-current="location"]::before{background:var(--primary);}
 .section-rail-preview,.term-card{position:fixed;z-index:11;width:280px;max-width:calc(100vw - 32px);padding:12px 16px;background:var(--surface-card);border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
 .section-rail-preview{left:88px;pointer-events:none;}
 .section-rail-preview-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
@@ -1487,6 +1515,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .toc-sheet li .toc-label{margin:16px 0 4px;}
 .toc-sheet a{display:flex;align-items:baseline;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;line-height:1.5;color:var(--primary);text-decoration:none;}
 .toc-sheet a[aria-current="location"]{font-weight:600;}
+.toc-sheet-start{font-weight:500;}
+.section-pill-num[hidden]{display:none;}
 .term{color:inherit;text-decoration:underline dotted;text-decoration-color:var(--label);text-decoration-thickness:1px;text-underline-offset:3px;cursor:help;}
 .term:hover{text-decoration-color:var(--primary);}
 .term-card{pointer-events:auto;}
@@ -1499,8 +1529,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .hotspot{position:absolute;left:var(--x);top:var(--y);z-index:1;width:24px;height:24px;transform:translate(-50%,-50%);border:2px solid var(--surface-card);font-size:12px;}
 .hotspot-ref{width:20px;height:20px;font-size:11px;vertical-align:1px;}
 .hotspot.is-highlighted,.hotspot-ref.is-highlighted,.step-item.is-highlighted .step-circle{outline:2px solid var(--focus-ring);outline-offset:2px;}
+/* Se puede tocar: el círculo que está bajo el puntero o con foco crece apenas. */
+.hotspot:hover,.hotspot-ref:hover,.hotspot-ref:focus-visible,.step-item[data-hotspot]:hover .step-circle{scale:1.1;}
+.figcap+.figcap-hint{margin-top:-12px;}
 .has-hotspot-highlight .hotspot:not(.is-highlighted){opacity:0.4;}
-.step-item[data-hotspot],.hotspot-ref{cursor:pointer;}
+.step-item[data-hotspot],.hotspot-ref,.hotspot{cursor:pointer;}
 .compare{margin:16px 0;}
 .compare-stage{position:relative;isolation:isolate;display:grid;overflow:hidden;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--surface-card);}
 .compare-before,.compare-after{grid-area:1/1;min-width:0;}
@@ -1520,10 +1553,14 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .section-pill:not([hidden]){animation:heritage-fade-in var(--motion-duration-base) var(--motion-easing-standard);}
   .toc-sheet[open]{animation:heritage-rise var(--motion-duration-base) var(--motion-easing-standard);}
   .section-link,.hotspot{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
+  .hotspot,.hotspot-ref,.step-circle{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard),scale var(--motion-duration-fast) var(--motion-easing-standard);}
   .term{transition:text-decoration-color var(--motion-duration-fast) var(--motion-easing-standard);}
   @keyframes heritage-reveal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
   @keyframes heritage-fade-in{from{opacity:0;}to{opacity:1;}}
   @keyframes heritage-rise{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  /* Latido de destino: `scale` (no `transform`) para no pisar el translate que centra el punto. */
+  .is-pulsing{animation:heritage-pulse calc(var(--motion-duration-base) * 2) var(--motion-easing-standard) 3;}
+  @keyframes heritage-pulse{0%,100%{scale:1;}50%{scale:1.25;}}
 }
 @media (max-width:719px){
   body{padding-left:16px;padding-right:16px;}
@@ -1544,7 +1581,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint{display:none;}
   .term{text-decoration:none;}
   .compare-stage{grid-template-columns:1fr 1fr;gap:16px;border:0;}
   .compare-before,.compare-after{grid-area:auto;border:1.5px solid var(--border-strong);border-radius:10px;overflow:hidden;}
@@ -1600,7 +1637,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var MAGNIFIER_RADIUS_PX = 48;
   var TERM_HIDE_DELAY_MS = 150;
   var COPY_FEEDBACK_MS = 1600;
-  var HOTSPOT_REVEAL_MS = 2000;
+  var HOTSPOT_REVEAL_MS = 2600;
   var stopSettling = null;
   var frameRequested = false;
   var currentEntry = null;
@@ -1632,6 +1669,17 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     stopSettling = stop;
   }
 
+  // La URL sigue a la sección: el inicio la deja sin hash. En un visor del mismo origen (Grid) también se
+  // actualiza su barra, porque su script de sincronización recibe el hash pero no lo escribe.
+  function setHash(id) {
+    var hash = id === 'top' ? '' : '#' + id;
+    history.replaceState(null, '', location.pathname + location.search + hash);
+    try {
+      var viewer = window.parent !== window ? window.parent : null;
+      if (viewer && viewer.location.hash !== hash) viewer.history.replaceState(viewer.history.state, '', viewer.location.pathname + viewer.location.search + hash);
+    } catch (crossOriginError) { /* fallback deliberado: visor de otro origen, solo la URL propia */ }
+  }
+
   function scrollToTarget(target, updateHash) {
     // Avisa a los componentes diferidos que se rendericen antes de medir el destino.
     document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: target } }));
@@ -1649,7 +1697,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     }, 50);
     if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
-    if (updateHash && target.id) history.replaceState(null, '', '#' + target.id);
+    if (updateHash && target.id) setHash(target.id);
   }
 
   // —— Utilidades
@@ -1689,6 +1737,22 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       link: null
     });
   });
+  // El inicio del documento es la primera entrada del mapa, de la hoja y de la píldora (sin número).
+  var docHeader = document.getElementById('top');
+  var docTitle = docHeader && docHeader.querySelector('.doc-title');
+  if (docTitle) {
+    var docSub = docHeader.querySelector('.doc-sub');
+    entries.unshift({
+      section: docHeader,
+      heading: docHeader,
+      numberElement: null,
+      number: '',
+      title: docTitle.textContent.replace(/\s+/g, ' ').trim(),
+      summary: docSub ? docSub.textContent.replace(/\s+/g, ' ').trim() : '',
+      isStart: true,
+      link: null
+    });
+  }
   var toc = document.querySelector('.toc');
 
   // —— Copiar enlace a una sección. En visores embebidos, <meta name="heritage:share-url"> da la URL pública.
@@ -1722,6 +1786,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     copyButton.setAttribute('aria-label', restLabel);
     copyButton.addEventListener('click', function () {
       var url = shareBase + '#' + entry.heading.id;
+      // La barra de direcciones también pasa a la sección, también la del visor.
+      setHash(entry.heading.id);
       var showFeedback = function (message) {
         copyButton.textContent = message;
         copyButton.classList.add('is-copied');
@@ -1762,9 +1828,9 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 
     entries.forEach(function (entry) {
       var item = createElement('li');
-      entry.link = createElement('a', 'section-rail-tick');
+      entry.link = createElement('a', entry.isStart ? 'section-rail-tick is-start' : 'section-rail-tick');
       entry.link.href = '#' + entry.heading.id;
-      entry.link.setAttribute('aria-label', (entry.number ? entry.number + ' ' : '') + entry.title);
+      entry.link.setAttribute('aria-label', (entry.isStart ? 'Inicio: ' : entry.number ? entry.number + ' ' : '') + entry.title);
       item.appendChild(entry.link);
       railList.appendChild(item);
     });
@@ -1834,6 +1900,14 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
         sheetList.appendChild(item);
       });
     }
+    var startEntry = entries[0] && entries[0].isStart ? entries[0] : null;
+    if (startEntry && toc) {
+      var startItem = createElement('li');
+      var startLink = createElement('a', 'toc-sheet-start', startEntry.title);
+      startLink.href = '#top';
+      startItem.appendChild(startLink);
+      sheetList.prepend(startItem);
+    }
     sheetBody.appendChild(sheetList);
     pill.addEventListener('click', function () {
       sheetList.querySelectorAll('a').forEach(function (link) {
@@ -1860,9 +1934,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       }
     });
     if (sheetReady) {
-      pill.querySelector('.section-pill-num').textContent = current.number;
+      var pillNumber = pill.querySelector('.section-pill-num');
+      pillNumber.textContent = current.number;
+      pillNumber.hidden = !current.number;
       pill.querySelector('.section-pill-title').textContent = current.title;
-      pill.setAttribute('aria-label', 'Sección actual: ' + (current.number ? current.number + ' ' : '') + current.title + '. Abrir índice');
+      pill.setAttribute('aria-label', (current.isStart ? 'Inicio: ' : 'Sección actual: ' + (current.number ? current.number + ' ' : '')) + current.title + '. Abrir índice');
     }
   }
   function updateCurrent() {
@@ -1889,7 +1965,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   function toggleFloating() {
     var scrolled = window.scrollY >= SHOW_AFTER_PX;
     if (button) button.hidden = !scrolled;
-    if (sheetReady) pill.hidden = !scrolled;
+    // La píldora se ve siempre: arriba de todo muestra el título del documento.
+    if (sheetReady) pill.hidden = false;
   }
   window.addEventListener('scroll', requestUpdate, { passive: true });
   window.addEventListener('scroll', toggleFloating, { passive: true });
@@ -1951,7 +2028,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   if (button) {
     button.addEventListener('click', function (event) {
       event.preventDefault();
-      scrollToTarget(document.getElementById('top'), false);
+      // true: volver al inicio también limpia el hash de la URL.
+      scrollToTarget(document.getElementById('top'), true);
     });
   }
 
@@ -1973,7 +2051,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   });
 
   // —— Puntos sobre capturas: pasar por un paso o una referencia resalta su punto, y viceversa.
-  // Tocar un paso o una referencia trae su punto a la pantalla si no se ve, y lo resalta un momento.
+  // Tocar un paso o una referencia lleva a su punto; tocar el punto lleva a su paso. Ambos quedan resaltados un momento.
   document.querySelectorAll('section.section').forEach(function (section) {
     if (!section.querySelector('.hotspot[data-hotspot]')) return;
     var linked = section.querySelectorAll('[data-hotspot]');
@@ -1982,38 +2060,70 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       linked.forEach(function (element) { element.classList.toggle('is-highlighted', element.dataset.hotspot === number); });
       section.classList.toggle('has-hotspot-highlight', Boolean(number));
     };
-    var reveal = function (number) {
-      var pin = section.querySelector('.hotspot[data-hotspot="' + number + '"]');
-      if (!pin) return;
+    // Latido de destino: reinicia la animación si ya estaba latiendo; con "reducir movimiento" no late.
+    var pulse = function (destination) {
+      if (reduceMotion.matches) return;
+      destination.classList.remove('is-pulsing');
+      void destination.offsetWidth;
+      destination.classList.add('is-pulsing');
+      destination.addEventListener('animationend', function () { destination.classList.remove('is-pulsing'); }, { once: true });
+    };
+    // Centra el destino en la pantalla, aunque ya se vea, y lo hace latir al llegar.
+    var centerOn = function (destination) {
+      var destinationTop = function () { return Math.max(0, destination.getBoundingClientRect().top + window.scrollY - (window.innerHeight - destination.offsetHeight) / 2); };
+      // Las capturas diferidas de arriba se renderizan antes de medir, para que el destino no se corra.
+      document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: destination } }));
+      setTimeout(function () {
+        var arrived = false;
+        // Al terminar el scroll (o si el navegador lo salteó: pestaña en segundo plano, visor embebido).
+        var arrive = function () {
+          if (arrived) return;
+          arrived = true;
+          if (Math.abs(window.scrollY - destinationTop()) > 1) window.scrollTo({ top: destinationTop(), behavior: 'instant' });
+          pulse(destination);
+        };
+        if (Math.abs(window.scrollY - destinationTop()) <= 1) { arrive(); return; }
+        window.scrollTo({ top: destinationTop(), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+        if ('onscrollend' in window) window.addEventListener('scrollend', arrive, { once: true });
+        setTimeout(arrive, FALLBACK_MS);
+      }, 50);
+    };
+    var reveal = function (number, selector) {
+      var destination = section.querySelector(selector + '[data-hotspot="' + number + '"]');
+      if (!destination) return;
       highlight(number);
       clearTimeout(revealTimer);
       revealTimer = setTimeout(function () { revealTimer = null; highlight(''); }, HOTSPOT_REVEAL_MS);
-      var pinRect = pin.getBoundingClientRect();
-      if (pinRect.top >= 0 && pinRect.bottom <= window.innerHeight) return;
-      // Las capturas diferidas de arriba se renderizan antes de medir, para que el punto no se corra.
-      document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: pin } }));
-      var pinTop = function () { return Math.max(0, pin.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2); };
-      setTimeout(function () {
-        window.scrollTo({ top: pinTop(), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
-        // El navegador puede saltear el scroll suave (pestaña en segundo plano, visor embebido).
-        setTimeout(function () {
-          var rect = pin.getBoundingClientRect();
-          if (rect.top < 0 || rect.bottom > window.innerHeight) window.scrollTo({ top: pinTop(), behavior: 'instant' });
-        }, FALLBACK_MS);
-      }, 50);
+      centerOn(destination.querySelector('.step-circle') || destination);
     };
+    // Pista para pantallas táctiles (sin hover): una línea en el pie de la primera captura con puntos.
+    var firstStage = section.querySelector('.hotspot-stage');
+    var caption = firstStage && firstStage.closest('.mockup, .compare');
+    caption = caption && caption.nextElementSibling;
+    // Va después del pie, no adentro: el pie es la descripción accesible de la captura.
+    if (caption && caption.classList.contains('figcap') && !(caption.nextElementSibling && caption.nextElementSibling.classList.contains('figcap-hint'))) {
+      var hasSteps = Boolean(section.querySelector('.step-item[data-hotspot]'));
+      var hint = createElement('div', 'figcap figcap-hint', hasSteps ? 'Tocá un número para ir a su paso.' : 'Tocá un número para ir a su mención en el texto.');
+      hint.setAttribute('aria-hidden', 'true');
+      caption.after(hint);
+    }
     linked.forEach(function (element) {
+      var isPin = element.classList.contains('hotspot');
+      var hasStep = Boolean(section.querySelector('.step-item[data-hotspot="' + element.dataset.hotspot + '"]'));
+      // Del punto se va al paso (o, sin pasos, a la primera referencia); del paso o la referencia, al punto.
+      var destinationSelector = isPin ? (hasStep ? '.step-item' : '.hotspot-ref') : '.hotspot';
+      // El tooltip dice qué pasa al tocar.
+      element.title = isPin ? (hasStep ? 'Ir al paso ' + element.dataset.hotspot : 'Ir a su mención en el texto') : 'Ver en la captura';
       element.addEventListener('mouseenter', function () { highlight(element.dataset.hotspot); });
       element.addEventListener('mouseleave', function () { if (!revealTimer) highlight(''); });
-      if (element.classList.contains('hotspot')) return;
-      element.addEventListener('click', function () { reveal(element.dataset.hotspot); });
+      element.addEventListener('click', function () { reveal(element.dataset.hotspot, destinationSelector); });
       if (!element.classList.contains('hotspot-ref')) return;
       element.setAttribute('role', 'button');
       element.setAttribute('tabindex', '0');
       element.addEventListener('keydown', function (event) {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        reveal(element.dataset.hotspot);
+        reveal(element.dataset.hotspot, destinationSelector);
       });
     });
   });
@@ -2030,6 +2140,26 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     range.addEventListener('input', update);
     update();
   });
+
+  // —— Enlace directo al cargar: "Copiar enlace" da …#s05, pero al abrirlo o recargarlo el salto nativo
+  // ocurre antes de que se rendericen las capturas de arriba, y en visores embebidos (Grid) el hash queda
+  // en la página que envuelve al iframe. Se lee de los dos lados y se salta como desde el índice.
+  function parentHash() {
+    try { return window.parent !== window ? window.parent.location.hash : ''; } catch (crossOriginError) { return ''; }
+  }
+  function openDeepLink(hash) {
+    var target = hash && hash.length > 1 && document.getElementById(decodeURIComponent(hash.slice(1)));
+    if (target) scrollToTarget(target, false);
+  }
+  var openInitialLink = function () { openDeepLink(location.hash.length > 1 ? location.hash : parentHash()); };
+  // DOMContentLoaded: después de todos los scripts, así las capturas diferidas ya escuchan heritage:before-scroll.
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', openInitialLink, { once: true });
+  else setTimeout(openInitialLink, 0);
+  window.addEventListener('hashchange', function () { openDeepLink(location.hash); });
+  // El visor copia a su barra el hash que deja el índice; solo un hash distinto (pegado por el lector) mueve el documento.
+  try {
+    if (window.parent !== window) window.parent.addEventListener('hashchange', function () { if (parentHash() !== location.hash) openDeepLink(parentHash()); });
+  } catch (crossOriginError) { /* fallback deliberado: visor de otro origen, solo el hash propio */ }
 })();
 </script>
 <script>

@@ -130,7 +130,8 @@ const main = () => {
 	for (const [, target] of visible.matchAll(/class="term" href="#([^"]+)"/g)) if (!definitions.has(target)) errors.push(`glossary: term link #${target} has no <dt>`);
 
 	// Mockups: caption after each one, url bar without host, pins anchored on captures.
-	const mockups = [...visible.matchAll(/<div class="mockup[^"]*">[\s\S]*?<span class="mockup-url">([^<]*)<\/span>/g)];
+	// The url bar is a <span> in the current snippets and a <div> in older manuals.
+	const mockups = [...visible.matchAll(/<div class="mockup(?: [^"]*)?">[\s\S]*?<(?:span|div) class="mockup-url">([^<]*)<\/(?:span|div)>/g)];
 	for (const [, url] of mockups) if (/https?:\/\/|[a-z0-9-]+\.(com|io|net|ar|br)\b|:\d{2,5}/i.test(url)) errors.push(`mockup-url: "${url}" shows a host`);
 	const figcapCount = (visible.match(/class="figcap"/g) || []).length;
 	if (figcapCount < mockups.length) warnings.push(`figcap: ${mockups.length} mockups but ${figcapCount} captions`);

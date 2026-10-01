@@ -14,15 +14,20 @@ work from a signed-in tab with `scripts/grid-publish.js`.
 - **The iframe is same-origin with `allow-same-origin allow-scripts …`.** `localStorage` and the
   clipboard work; Grid still warns on upload that browser storage "may silently fail". The navigation
   script already falls back to memory, so the warning can be ignored.
-- **Deep links work:** `…/view#s07` passes the hash to the iframe and opens that section. Set
+- **Deep links need the navigation script:** Grid keeps `…/view#s07` in its own address bar and loads
+  the iframe without the hash, so the browser's native jump never happens. The navigation script reads
+  the parent's hash (same origin) on load and on `hashchange`, and jumps to the section. Set
   `<meta name="heritage:share-url" content="https://grid.adminml.com/d/<documentId>/view">` so "Copiar
-  enlace" copies that URL. Hash changes inside the iframe do not show in the address bar.
+  enlace" copies that URL. The script's `replaceState` inside the iframe reaches Grid's address bar
+  through Grid's URL-sync script.
 - **The viewer caches `/raw`.** Right after a save the viewer may still show the previous version
   (the version selector says "vN (latest)" with the old N). Refresh with
   `fetch('/d/<id>/raw', { cache: 'reload' })` and `fetch('/d/<id>/view', { cache: 'reload' })`, then
   reload the page. `__gridPublish` does the first two. Even then the version selector can keep the
   old label for one more reload while the iframe already shows the new content: trust
   `__gridInfo().latestVersion` (or the versions API), and reload again before taking screenshots.
+  If the iframe still shows the old content after reloading the page, reload the iframe itself
+  (`iframe.contentWindow.location.reload()`, waiting for its `load` event) before checking.
 
 ## Workflow
 
