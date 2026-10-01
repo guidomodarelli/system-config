@@ -149,6 +149,11 @@ typography:
     fontFamily: DM Mono
     fontSize: 12px
     fontWeight: 500
+  rail-preview-title:
+    fontFamily: DM Sans
+    fontSize: 13px
+    fontWeight: 600
+    lineHeight: 1.4
 
 rounded:
   xs:   3px     # code inline
@@ -179,6 +184,7 @@ spacing:
 
 breakpoints:
   mobile: 720px   # por debajo: padding lateral 16px, tablas con scroll horizontal
+  rail:   1024px  # por debajo no hay margen lateral para el mapa de secciones: se oculta
 
 motion:
   # Movimiento funcional: solo responde a una acción del lector. Con
@@ -453,6 +459,34 @@ components:
     padding:         "8px 16px"
     # position: fixed, right/bottom 24px (16px en mobile); aparece después de 480px de scroll
     # sombra mínima documentada; aparece con fade en {motion.duration-base}; oculto en impresión
+
+  # —— Mapa de secciones (marcas laterales con vista previa)
+  section-rail:
+    padding:         "0"
+    # position: fixed, left 24px, centrado vertical; <1024px e impresión: oculto
+  section-rail-tick:
+    backgroundColor: "{colors.label}"
+    rounded:         "{rounded.full}"
+    width:           "12px"
+    height:          "2px"
+    # área clickeable 48×10px; sección actual (aria-current): 24px y {colors.primary}
+    # lupa: bajo el puntero o el foco llega a 40px y las vecinas crecen menos cuanto más lejos (radio 48px)
+  section-rail-preview:
+    backgroundColor: "{colors.surface-card}"
+    rounded:         "{rounded.lg}"
+    padding:         "12px 16px"
+    # border: 1px solid {colors.border-strong}, width 280px, sombra mínima documentada
+  section-rail-preview-num:
+    textColor:       "{colors.label}"
+    typography:      "{typography.section-num}"
+  section-rail-preview-title:
+    textColor:       "{colors.primary}"
+    typography:      "{typography.rail-preview-title}"
+    # una línea, ellipsis
+  section-rail-preview-summary:
+    textColor:       "{colors.muted}"
+    typography:      "{typography.body-callout}"
+    # primer párrafo de la sección, máximo 3 líneas
 ---
 
 ## Overview
@@ -558,6 +592,7 @@ navegador; el boilerplate los fija en 600.
 | `step-desc` | 13px | 400 | Descripción bajo la etiqueta del paso |
 | `accordion-title` | 16px | 600 | Título del `summary` de un accordion |
 | `toc-item` | 13px | 400 | Entradas del índice |
+| `rail-preview-title` | 13px | 600 | Título en la vista previa del mapa de secciones |
 
 Line-height: **1.7** para body, **1.6** para callouts, **1.5** para celdas.
 Esto da espacio para leer páginas largas sin agotar la vista.
@@ -607,6 +642,7 @@ Un documento típico se estructura así, de arriba a abajo:
 ```
 doc-header           ← encabezado completo del documento (<header>, título en <h1>)
 [toc]                ← (opcional, 5+ secciones) índice con links a cada sección
+[section-rail]       ← (opcional, va con el índice) mapa lateral fijo, lo arma el script
 section 01           ← cada sección numerada (<section>, título en <h2>)
 section 02
 section 03
@@ -665,7 +701,10 @@ que el lector hizo algo, nunca decora.
 
 - Cambios de estado ante una acción: color, borde, opacidad y grosor del subrayado.
 - La apertura de un bloque (accordion): el cuerpo aparece con fade y un desplazamiento de 4px.
-- El scroll dentro de la página: índice y botón "Inicio" con scroll suave.
+- El scroll dentro de la página: índice, mapa de secciones y botón "Inicio" con scroll suave.
+- La vista previa del mapa de secciones: aparece con fade en `motion.duration-fast`.
+- La lupa del mapa de secciones cambia el largo de las marcas sin transición: sigue al puntero
+  cuadro a cuadro, así que es manipulación directa y no una animación.
 
 **Qué no se anima**
 
@@ -903,13 +942,54 @@ tenga que scrollear todo de nuevo. Usarlo junto con el índice.
 - Funciona dentro de visores embebidos que scrollean un iframe (por ejemplo Grid): usa `window` del propio documento.
 - No se imprime.
 
+### Mapa de secciones
+
+Atajo lateral para documentos largos: una marca corta por sección, fija a la
+izquierda de la página. Al pasar el mouse o enfocar una marca aparece una vista
+previa con el número, el título y el comienzo de la sección; al hacer click,
+salta a ella. Complementa al índice: el índice se lee una vez arriba, el mapa
+queda a mano mientras se lee. Usarlo junto con el índice y el botón "Inicio".
+
+```
+ ─
+ ──
+ ───            ┌──────────────────────────────────┐
+ ━━━━━  ←────── │ 03                               │
+ ───            │ Quién ve qué                     │
+ ──             │ La sección muestra a cada        │
+ ─              │ operador solo lo que …           │
+ ─              └──────────────────────────────────┘
+```
+
+- Markup: solo `<nav class="section-rail" aria-label="Mapa de secciones" hidden></nav>` antes de
+  `</body>`. El script de navegación del boilerplate lo arma: una marca por cada `section.section`
+  con `section-title` e `id`, y lo muestra si hay 2 o más. **No se escribe a mano**, así que no se
+  desalinea cuando cambian las secciones.
+- Cada marca es un link al `id` del `section-title`, con `aria-label` "número + título". Usa el
+  mismo scroll que el índice: sección completa 16px debajo del borde, foco en el título, hash
+  actualizado y `heritage:before-scroll`.
+- Marca en reposo: `12×2px`, color `label`. **Sección actual** (`aria-current="location"`, la
+  última cuyo borde superior pasó el 30% de la ventana, o la última al llegar al final): `24px` y
+  color `primary`. El largo marca el estado, no solo el color.
+- **Lupa:** con el puntero sobre el mapa, la marca más cercana llega a `40px` y color `primary`, y
+  las vecinas crecen menos cuanto más lejos están, hasta volver a `12px` a `48px` del puntero (unas
+  4 marcas por lado, caída en coseno). Sigue la posición vertical del puntero, no solo la marca
+  bajo él. Con el foco del teclado la lupa se centra en la marca enfocada. La sección actual nunca
+  baja de `24px`. Al salir del mapa todo vuelve al reposo.
+- Vista previa: `surface-card`, borde `1px` `border-strong`, radio `8px`, `280px` de ancho, la
+  sombra mínima documentada. Muestra `section-num`, el título en una línea y el primer párrafo de
+  la sección (hasta 3 líneas). Es decorativa (`aria-hidden="true"`, sin eventos del puntero): el
+  nombre accesible ya está en el link. Se centra en la marca y no se sale de la ventana.
+- Se oculta por debajo de `1024px` (breakpoint `rail`), donde no queda margen al costado del
+  texto, y en impresión. Sin JavaScript no aparece.
+
 ## Accesibilidad
 
 - **Contraste**: todo texto cumple ≥4.5:1 sobre su superficie; bordes con significado y el anillo de foco, ≥3:1. Valores medidos: `label` 4.56–5.33:1, `muted` ≥6.38:1, textos de callout 5.8–7.7:1, `syntax-comment` 4.93:1.
 - **Semántica**: `<header>` + `<h1>` para el doc-header, `<section>` + `<h2>` por sección, `<ol>` para steps, `<th scope="col">` en tablas, `<details>/<summary>` para accordions.
 - **Foco**: `:focus-visible` con `outline: 2px solid {colors.focus-ring}` y `outline-offset: 2px` en links y summaries. Nunca `outline: none` sin reemplazo.
 - **Color no es el único canal**: callouts con palabra clave inicial, badges con texto, links subrayados, estados viejos con `<del>`.
-- **Decoración oculta**: dots del mockup, flechas de flujo, números de step-circle y la flecha del botón "Inicio" llevan `aria-hidden="true"`.
+- **Decoración oculta**: dots del mockup, flechas de flujo, números de step-circle, la flecha del botón "Inicio" y la vista previa del mapa de secciones llevan `aria-hidden="true"`.
 - **Movimiento**: todo el motion va dentro de `@media (prefers-reduced-motion: no-preference)`; con "reducir movimiento" el scroll es instantáneo y no hay transiciones. Después de un salto por el índice o el botón "Inicio", el foco queda en el destino.
 - **Idioma**: `<html lang="es">`; fragmentos en otro idioma con `lang` propio si son prosa (no hace falta para código).
 
@@ -921,7 +1001,7 @@ El documento debe imprimirse (o exportarse a PDF) sin perder jerarquía:
 - `break-inside: avoid` en callouts, example boxes, mockups, steps, code blocks y filas de tabla; `break-after: avoid` en títulos.
 - Los accordions se abren antes de imprimir (snippet `beforeprint` del boilerplate); el glifo `+/–` se oculta.
 - Los links muestran su URL entre paréntesis después del texto.
-- Sin transiciones ni animaciones, y sin botón "Inicio".
+- Sin transiciones ni animaciones, sin botón "Inicio" y sin mapa de secciones.
 
 ## Do's and Don'ts
 
@@ -969,11 +1049,17 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Vista previa de impresión legible: accordions abiertos, bloques sin cortar.
 - [ ] Todo el movimiento está dentro de `prefers-reduced-motion: no-preference`, usa los tokens `motion` y ninguna transición dura más de 200ms.
 - [ ] Si hay índice, sus links llevan a la sección completa (número visible) también en el visor final; el botón "Inicio" vuelve a `scrollY` 0.
+- [ ] Si hay mapa de secciones: una marca por sección a 1024px o más, la lupa agranda la marca bajo el puntero y achica en forma gradual a las vecinas, la vista previa muestra número, título y primer párrafo sin salirse de la ventana, la marca actual sigue al scroll y el click lleva a la sección completa.
 
 ## Changelog
 
 Cambios que alteran cómo se ve o se escribe un documento. Los documentos
 viejos siguen funcionando: los nombres de clase no cambiaron.
+
+### 2026-10-01
+
+- **Componentes:** mapa de secciones (`section-rail`): marcas laterales fijas, una por sección, con vista previa al pasar el mouse o enfocar, efecto lupa sobre las marcas vecinas, sección actual resaltada y el mismo scroll que el índice. Lo arma el script de navegación.
+- **Tokens:** tipografía `rail-preview-title` y breakpoint `rail` (1024px).
 
 ### 2026-09-28
 
@@ -1123,11 +1209,25 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .back-to-top{position:fixed;right:24px;bottom:24px;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-size:12px;font-weight:500;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,0.04);z-index:10;}
 .back-to-top:hover{text-decoration:underline;text-underline-offset:2px;}
 .back-to-top[hidden]{display:none;}
+.section-rail{position:fixed;left:24px;top:50%;transform:translateY(-50%);z-index:10;}
+.section-rail[hidden],.section-rail-preview[hidden]{display:none;}
+.section-rail ol{list-style:none;padding:0;margin:0;}
+.section-rail li{margin:0;}
+.section-rail-tick{display:block;width:48px;padding:4px 0;}
+.section-rail-tick::before{content:'';display:block;width:var(--tick-width,12px);height:2px;border-radius:9999px;background:var(--label);}
+.section-rail-tick:hover::before,.section-rail-tick:focus-visible::before{background:var(--primary);}
+.section-rail-tick[aria-current="location"]::before{width:var(--tick-width,24px);background:var(--primary);}
+.section-rail-preview{position:fixed;left:88px;z-index:11;width:280px;padding:12px 16px;background:var(--surface-card);border:1px solid var(--border-strong);border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04);pointer-events:none;}
+.section-rail-preview-num{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:var(--label);margin-bottom:4px;}
+.section-rail-preview-title{font-size:13px;font-weight:600;line-height:1.4;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.section-rail-preview-summary{margin-top:4px;font-size:13px;line-height:1.6;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
 @media (prefers-reduced-motion:no-preference){
   html{scroll-behavior:smooth;}
   a{transition:text-decoration-thickness var(--motion-duration-fast) var(--motion-easing-standard),color var(--motion-duration-fast) var(--motion-easing-standard);}
   .acc[open]>.acc-body{animation:heritage-reveal var(--motion-duration-base) var(--motion-easing-standard);}
   .back-to-top:not([hidden]){animation:heritage-fade-in var(--motion-duration-base) var(--motion-easing-standard);}
+  .section-rail-tick::before{transition:background-color var(--motion-duration-fast) var(--motion-easing-standard);}
+  .section-rail-preview:not([hidden]){animation:heritage-fade-in var(--motion-duration-fast) var(--motion-easing-standard);}
   @keyframes heritage-reveal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
   @keyframes heritage-fade-in{from{opacity:0;}to{opacity:1;}}
 }
@@ -1137,12 +1237,15 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .toc ol{columns:1;}
   .code-block{padding:16px;}
 }
+@media (max-width:1023px){
+  .section-rail,.section-rail-preview{display:none;}
+}
 @media print{
   body{background:#fff;padding:0;max-width:none;}
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview{display:none;}
   *,*::before,*::after{transition:none!important;animation:none!important;}
   a[href^="http"]::after{content:" (" attr(href) ")";font-size:11px;color:var(--label);}
 }
@@ -1163,8 +1266,9 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 </section>
 
 <a class="back-to-top" href="#top" aria-label="Volver al inicio" hidden><span aria-hidden="true">↑</span> Inicio</a>
+<nav class="section-rail" aria-label="Mapa de secciones" hidden></nav>
 <script>
-// Botón "Volver al inicio" y scroll suave del índice. Respeta "reducir movimiento".
+// Botón "Volver al inicio", mapa de secciones y scroll suave del índice. Respeta "reducir movimiento".
 (function () {
   var button = document.querySelector('.back-to-top');
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -1172,6 +1276,13 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var TARGET_OFFSET_PX = 16;
   var SETTLE_MS = 1500;
   var FALLBACK_MS = 900;
+  var ACTIVE_LINE_RATIO = 0.3;
+  var VIEWPORT_MARGIN_PX = 16;
+  var MIN_RAIL_SECTIONS = 2;
+  var CURRENT_TICK_WIDTH_PX = 24;
+  var REST_TICK_WIDTH_PX = 12;
+  var MAGNIFIED_TICK_WIDTH_PX = 40;
+  var MAGNIFIER_RADIUS_PX = 48;
   var stopSettling = null;
 
   if (button) {
@@ -1226,7 +1337,122 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     if (updateHash) history.replaceState(null, '', '#' + target.id);
   }
 
-  document.querySelectorAll('.toc a[href^="#"]').forEach(function (link) {
+  // Mapa de secciones: una marca por sección, vista previa al pasar o enfocar y sección actual resaltada.
+  var rail = document.querySelector('.section-rail');
+  var railEntries = [];
+  if (rail) {
+    var railList = document.createElement('ol');
+    var preview = document.createElement('div');
+    var previewNumber = document.createElement('div');
+    var previewTitle = document.createElement('div');
+    var previewSummary = document.createElement('div');
+    preview.className = 'section-rail-preview';
+    previewNumber.className = 'section-rail-preview-num';
+    previewTitle.className = 'section-rail-preview-title';
+    previewSummary.className = 'section-rail-preview-summary';
+    preview.setAttribute('aria-hidden', 'true');
+    preview.hidden = true;
+    preview.append(previewNumber, previewTitle, previewSummary);
+
+    document.querySelectorAll('section.section').forEach(function (section) {
+      var title = section.querySelector('.section-title');
+      if (!title || !title.id) return;
+      var number = section.querySelector('.section-num');
+      var firstParagraph = section.querySelector('p');
+      var entry = {
+        section: section,
+        number: number ? number.textContent.trim() : '',
+        title: title.textContent.trim(),
+        summary: firstParagraph ? firstParagraph.textContent.replace(/\s+/g, ' ').trim() : '',
+        link: document.createElement('a')
+      };
+      var item = document.createElement('li');
+      entry.link.className = 'section-rail-tick';
+      entry.link.href = '#' + title.id;
+      entry.link.setAttribute('aria-label', (entry.number ? entry.number + ' ' : '') + entry.title);
+      item.appendChild(entry.link);
+      railList.appendChild(item);
+      railEntries.push(entry);
+    });
+
+    if (railEntries.length >= MIN_RAIL_SECTIONS) {
+      rail.appendChild(railList);
+      document.body.appendChild(preview);
+      rail.hidden = false;
+
+      var showPreview = function (entry) {
+        previewNumber.textContent = entry.number;
+        previewTitle.textContent = entry.title;
+        previewSummary.textContent = entry.summary;
+        previewNumber.hidden = !entry.number;
+        previewSummary.hidden = !entry.summary;
+        preview.hidden = false;
+        var tick = entry.link.getBoundingClientRect();
+        var centeredTop = tick.top + tick.height / 2 - preview.offsetHeight / 2;
+        var maxTop = window.innerHeight - preview.offsetHeight - VIEWPORT_MARGIN_PX;
+        preview.style.top = Math.max(VIEWPORT_MARGIN_PX, Math.min(centeredTop, maxTop)) + 'px';
+      };
+      var hidePreview = function () { preview.hidden = true; };
+
+      // Lupa: cada marca crece según su distancia vertical al puntero (o a la marca enfocada).
+      var magnify = function (pointerY) {
+        railEntries.forEach(function (entry) {
+          var tick = entry.link.getBoundingClientRect();
+          var distance = Math.min(Math.abs(tick.top + tick.height / 2 - pointerY) / MAGNIFIER_RADIUS_PX, 1);
+          var influence = (1 + Math.cos(Math.PI * distance)) / 2;
+          var width = REST_TICK_WIDTH_PX + (MAGNIFIED_TICK_WIDTH_PX - REST_TICK_WIDTH_PX) * influence;
+          if (entry.link.hasAttribute('aria-current')) width = Math.max(width, CURRENT_TICK_WIDTH_PX);
+          entry.link.style.setProperty('--tick-width', width.toFixed(1) + 'px');
+        });
+      };
+      var resetMagnifier = function () {
+        railEntries.forEach(function (entry) { entry.link.style.removeProperty('--tick-width'); });
+      };
+      rail.addEventListener('pointermove', function (event) { magnify(event.clientY); });
+      rail.addEventListener('pointerleave', resetMagnifier);
+
+      railEntries.forEach(function (entry) {
+        entry.link.addEventListener('mouseenter', function () { showPreview(entry); });
+        entry.link.addEventListener('focus', function () {
+          showPreview(entry);
+          var tick = entry.link.getBoundingClientRect();
+          magnify(tick.top + tick.height / 2);
+        });
+        entry.link.addEventListener('mouseleave', hidePreview);
+        entry.link.addEventListener('blur', function () {
+          hidePreview();
+          if (!rail.matches(':hover')) resetMagnifier();
+        });
+      });
+
+      var frameRequested = false;
+      var updateCurrent = function () {
+        frameRequested = false;
+        var activeLine = window.innerHeight * ACTIVE_LINE_RATIO;
+        var atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 1;
+        var current = railEntries[0];
+        railEntries.forEach(function (entry) {
+          if (entry.section.getBoundingClientRect().top <= activeLine) current = entry;
+        });
+        if (atBottom) current = railEntries[railEntries.length - 1];
+        railEntries.forEach(function (entry) {
+          if (entry === current) entry.link.setAttribute('aria-current', 'location');
+          else entry.link.removeAttribute('aria-current');
+        });
+      };
+      var requestUpdate = function () {
+        if (frameRequested) return;
+        frameRequested = true;
+        window.requestAnimationFrame(updateCurrent);
+      };
+      window.addEventListener('scroll', requestUpdate, { passive: true });
+      window.addEventListener('scroll', hidePreview, { passive: true });
+      window.addEventListener('resize', requestUpdate);
+      updateCurrent();
+    }
+  }
+
+  document.querySelectorAll('.toc a[href^="#"], .section-rail a[href^="#"]').forEach(function (link) {
     link.addEventListener('click', function (event) {
       var target = document.getElementById(link.getAttribute('href').slice(1));
       if (!target) return;
@@ -1331,6 +1557,10 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 <!-- Botón "Inicio": justo antes de </body>, junto con el script de navegación del boilerplate.
      El doc-header lleva id="top" y tabindex="-1". -->
 <a class="back-to-top" href="#top" aria-label="Volver al inicio" hidden><span aria-hidden="true">↑</span> Inicio</a>
+
+<!-- Mapa de secciones: vacío, junto al botón "Inicio". El script de navegación lo arma
+     con una marca por cada section.section que tenga section-title con id. -->
+<nav class="section-rail" aria-label="Mapa de secciones" hidden></nav>
 ```
 
 Componentes que se cargan de forma diferida (imágenes, capturas embebidas) y

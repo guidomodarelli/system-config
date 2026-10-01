@@ -11,7 +11,7 @@ description: >
   or explain what changed for a non-technical audience.
 metadata:
   author: gmodarelli_meli
-  version: "1.1"
+  version: "1.2"
 ---
 
 # User Manual Generator
@@ -77,8 +77,9 @@ Rules to follow when building the matrix:
 ## Step 3 — Structure the document
 
 Use this section order. Right after the doc header always goes the **table of contents**
-(`Contenido`), and the page always ends with the floating **Inicio** button. See "Table of
-contents (always)" and "Floating back to top button (always)" in Step 4.
+(`Contenido`), and the page always ends with the floating **Inicio** button and the **section
+map** (side ticks with a preview of each section). See "Table of contents, section map and
+"Inicio" button (always)" in Step 4.
 
 1. **¿Qué cambió y por qué?** — 1-paragraph executive summary for a non-technical reader.
 2. **Vista en computadora (escritorio)** — browser mockup + prose walkthrough.
@@ -143,6 +144,7 @@ Create the `user-guides/` directory if it does not exist before writing either f
 |---|---|
 | Document header | `doc-header` + `doc-label` + `doc-title` + `doc-sub` + `doc-meta` |
 | Table of contents (**always**, whatever the section count) | `nav.toc` + `toc-label` + `toc-num`, right after the header (see below) |
+| Section map (**always**) | empty `nav.section-rail`, next to the "Inicio" button; the navigation script builds it |
 | Numbered section | `section` + `section-num` + `section-title` |
 | Major divider | `part-header` + `part-header-label` + `part-header-title` |
 | Info / warn / ok / error note | `callout` `.c-info` / `.c-warn` / `.c-ok` / `.c-red`, starting with a `<strong>` keyword |
@@ -159,11 +161,11 @@ Create the `user-guides/` directory if it does not exist before writing either f
 
 Copy the markup from the "Snippets de componentes" block in DESIGN.md; class names are a contract.
 
-### Table of contents and "Inicio" button (always)
+### Table of contents, section map and "Inicio" button (always)
 
-Both components, their markup, CSS, motion and the navigation script are defined in DESIGN.md
-("Índice (TOC)", "Botón Inicio", "Motion" and the boilerplate). Copy them from there; this skill
-only adds when to use them:
+The three components, their markup, CSS, motion and the navigation script are defined in DESIGN.md
+("Índice (TOC)", "Mapa de secciones", "Botón Inicio", "Motion" and the boilerplate). Copy them from
+there; this skill only adds when to use them:
 
 - **TOC always**, right after `</header>`, even with fewer than 5 sections. This overrides the
   "5+ sections" guidance in DESIGN.md for user manuals. One entry per numbered section, in order,
@@ -172,6 +174,11 @@ only adds when to use them:
   resolves and every title matches.
 - **"Inicio" button always**, with the navigation script of the boilerplate just before
   `</body>`. The manual scrolls inside an iframe in Grid; the script already handles it.
+- **Section map always**: the empty `<nav class="section-rail" …>` next to the button. Never
+  write its ticks by hand; the script builds one per section from the `section-title` and the
+  first paragraph, so it stays in sync after every edit. Start each section with a paragraph that
+  works as a one-line summary, because the preview shows it. The map hides below 1024 px, so
+  narrow viewers only show the TOC.
 - **Lazy screenshots:** the `embed-app-frames.mjs` runtime listens to `heritage:before-scroll`
   (fired by the navigation script) and renders every frame above the target, so their real
   heights do not push the section down while scrolling.
@@ -179,7 +186,10 @@ only adds when to use them:
 Verify both in the browser **on a fresh load** (no frame rendered yet) and in the destination
 viewer: click TOC links to sections below several screenshots and check that the section ends
 16 px below the top (`section.getBoundingClientRect().top` ≈ 16 about 2 s later), and that the
-button brings `scrollY` back to `0`. Scroll with `behavior: 'instant'` before screenshots, because
+button brings `scrollY` back to `0`. At 1024 px or wider, hover a section map tick: the ticks
+around the pointer grow like a magnifier, the preview shows that section's number, title and first
+paragraph, and clicking it lands like a TOC link.
+Scroll with `behavior: 'instant'` before screenshots, because
 `html{scroll-behavior:smooth}` makes `scrollIntoView` animate.
 
 ### Downloads
@@ -286,6 +296,8 @@ If a discrepancy is found, fix the HTML before reporting done.
       conformidad" item about them passes on a fresh load, also inside the destination viewer.
 - [ ] TOC present right after the header, with one working link per section, titles identical to
       the `<h2>`, and a part label before each `part-header` group.
+- [ ] Section map present (`nav.section-rail`, built by the script): one tick per section, the
+      current one highlighted while scrolling, and a preview that fits in the viewport.
 - [ ] Visibility matrix is complete — every gated element accounted for.
 - [ ] Mockups use real label strings from the codebase and example data only.
 - [ ] Every `mockup-url` is a path or a screen title; `grep -E 'https?://|[a-z0-9-]+\.(com|io|net)'`
