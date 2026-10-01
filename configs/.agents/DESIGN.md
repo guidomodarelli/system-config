@@ -492,14 +492,14 @@ components:
     typography:      "{typography.doc-meta}"
     # atajos de teclado al pie de la vista previa
 
-  # —— Píldora de sección + índice en hoja inferior (<1024px)
+  # —— Píldora de sección + índice en hoja inferior (todos los anchos)
   section-pill:
     backgroundColor: "{colors.surface-card}"
     textColor:       "{colors.primary}"
     typography:      "{typography.toc-item}"
     rounded:         "{rounded.full}"
     padding:         "8px 16px"
-    # border: 1px solid {colors.border-strong}; fija abajo a la izquierda, 24px (16px en mobile)
+    # border: 1px solid {colors.border-strong}; fija abajo a la izquierda, 24px (16px en mobile); max-width 360px
   toc-sheet:
     backgroundColor: "{colors.surface-card}"
     padding:         "20px 24px 24px"
@@ -705,7 +705,7 @@ Un documento típico se estructura así, de arriba a abajo:
 doc-header           ← encabezado completo del documento (<header>, título en <h1>)
 [toc]                ← (opcional, 5+ secciones) índice con links a cada sección
 [section-rail]       ← (opcional, va con el índice) mapa lateral fijo, lo arma el script
-[section-pill]       ← (opcional, va con el mapa) sección actual + índice en hoja, <1024px
+[section-pill]       ← (opcional, va con el mapa) sección actual + índice en hoja
 section 01           ← cada sección numerada (<section>, título en <h2>)
 section 02
 section 03
@@ -929,7 +929,8 @@ Ventana de navegador estilizada (tres dots tipo macOS + URL bar). Usar
 ```
 
 Border `1.5px solid {colors.border-strong}`, radius `10px`, fondo
-`{colors.surface-card}`. Los dots usan `red-border`, `warn-border` y
+`{colors.surface-card}`. Lleva `isolation: isolate`: las capturas reales traen capas con `z-index`
+alto (modales, menús) que, sin aislar, taparían el botón "Inicio", la píldora y el mapa. Los dots usan `red-border`, `warn-border` y
 `ok-border` (10×10px) y son decorativos (`aria-hidden="true"`). Agregar
 `role="img"` + `aria-label` con una descripción breve de la pantalla cuando
 el mockup es un dibujo y no contenido legible.
@@ -1060,11 +1061,12 @@ queda a mano mientras se lee. Usarlo junto con el índice y el botón "Inicio".
 - **Atajos:** el pie de la vista previa los recuerda (`⌥ ↑ ↓ secciones · ⌥ I índice`, `Alt` fuera
   de Mac). Ver [Atajos de teclado](#atajos-de-teclado).
 
-### Píldora de sección (pantallas angostas)
+### Píldora de sección
 
-Reemplaza al mapa donde el mapa no entra (`<1024px`, incluido el iframe angosto de Grid): una
-píldora fija abajo a la izquierda con la sección actual (`03 · Quién ve qué`). Al tocarla abre el
-índice en una hoja inferior.
+Píldora fija abajo a la izquierda con la sección actual (`03 · Quién ve qué`); al tocarla abre el
+índice en una hoja inferior. Se ve en todos los anchos: en desktop acompaña al mapa (dice dónde
+estás sin pasar el mouse) y por debajo de `1024px`, incluido el iframe angosto de Grid, es el único
+atajo de navegación.
 
 ```
 ┌─────────────────────────────────────┐
@@ -1079,12 +1081,12 @@ píldora fija abajo a la izquierda con la sección actual (`03 · Quién ve qué
   sección actual y copia el índice adentro de la hoja, con sus etiquetas de parte y novedades. Si
   no hay índice, arma la lista desde las secciones.
 - Aparece junto con el botón "Inicio" (después de 480px de scroll) y deja lugar para él: el título
-  se corta con ellipsis.
+  se corta con ellipsis (máximo `360px`).
 - La hoja es un `<dialog>` modal: atrapa el foco, cierra con `Escape`, con "Cerrar" o tocando el
   fondo, y devuelve el foco a la píldora. La sección actual va en negrita
   (`aria-current="location"`). Al elegir una entrada cierra y scrollea como el índice.
 - `aria-label` de la píldora: "Sección actual: 03 Quién ve qué. Abrir índice".
-- Desde `1024px` desaparece (está el mapa) y no se imprime.
+- No se imprime.
 
 ### Copiar enlace a una sección
 
@@ -1163,6 +1165,7 @@ Dos capturas superpuestas con un divisor que se arrastra. Para "¿Qué cambió?"
   `div.compare-labels` con "Antes" y "Después".
 - El divisor sigue al puntero o al dedo; con teclado se mueve con las flechas del range, que
   anuncia `aria-valuetext` ("Antes 50%, después 50%"). El foco muestra el anillo alrededor.
+- `compare-stage` también lleva `isolation: isolate`, como el mockup.
 - Las dos capturas deben tener el mismo ancho y encuadre; si no, no se pueden comparar y van como
   dos mockups.
 - Cada `app-frame` dentro de una comparación lleva su `aria-label` ("Captura de pantalla: antes,
@@ -1247,7 +1250,7 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Todo el movimiento está dentro de `prefers-reduced-motion: no-preference`, usa los tokens `motion` y ninguna transición dura más de 200ms.
 - [ ] Si hay índice, sus links llevan a la sección completa (número visible) también en el visor final; el botón "Inicio" vuelve a `scrollY` 0.
 - [ ] Si hay mapa de secciones: una marca por sección a 1024px o más, la lupa agranda la marca bajo el puntero y achica en forma gradual a las vecinas, la vista previa muestra número, título y primer párrafo sin salirse de la ventana, la marca actual sigue al scroll y el click lleva a la sección completa.
-- [ ] Por debajo de 1024px, la píldora muestra la sección actual y abre la hoja con el índice; la hoja cierra con `Escape` y devuelve el foco.
+- [ ] La píldora muestra la sección actual y abre la hoja con el índice; la hoja cierra con `Escape` y devuelve el foco.
 - [ ] `data-change` solo en secciones que cambiaron desde la versión anterior; el badge aparece en sección, índice y mapa.
 - [ ] Cada `a.term` apunta a un `<dt>` existente y su tarjeta muestra la definición.
 - [ ] Los `data-hotspot` de puntos, pasos y referencias coinciden, y cada punto cae sobre el elemento correcto de la captura renderizada.
@@ -1262,7 +1265,7 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 - **Componentes:** mapa de secciones (`section-rail`): marcas laterales fijas, una por sección, con vista previa al pasar el mouse o enfocar, efecto lupa sobre las marcas vecinas, sección actual resaltada y el mismo scroll que el índice. Lo arma el script de navegación.
 - **Mapa de secciones:** progreso de lectura en la marca actual, secciones leídas recordadas por documento y atajos al pie de la vista previa.
-- **Componentes:** píldora de sección con índice en hoja inferior (`<1024px`), copiar enlace a una sección, novedades (`data-change`), glosario con tarjeta (`a.term` + `dl.glossary`), puntos sobre capturas (`hotspot`) y comparación antes / después (`compare`).
+- **Componentes:** píldora de sección con índice en hoja inferior (todos los anchos), copiar enlace a una sección, novedades (`data-change`), glosario con tarjeta (`a.term` + `dl.glossary`), puntos sobre capturas (`hotspot`) y comparación antes / después (`compare`).
 - **Teclado:** `Alt`/`⌥` + `↑` `↓` cambia de sección, `Alt`/`⌥` + `I` va al índice, `Escape` cierra las vistas previas.
 - **Tokens:** tipografía `rail-preview-title` y breakpoint `rail` (1024px).
 
@@ -1376,7 +1379,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .code-block pre{font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--on-dark);white-space:pre;}
 .c-comment{color:var(--syntax-comment);} .c-key{color:var(--syntax-keyword);} .c-str{color:var(--syntax-string);}
 .c-num{color:var(--syntax-number);} .c-fn{color:var(--syntax-function);} .c-tag{color:var(--syntax-tag);}
-.mockup{background:var(--surface-card);border:1.5px solid var(--border-strong);border-radius:10px;overflow:hidden;margin:16px 0;}
+.mockup{background:var(--surface-card);border:1.5px solid var(--border-strong);border-radius:10px;overflow:hidden;margin:16px 0;isolation:isolate;}
 .mockup-bar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface-alt);border-bottom:1px solid var(--border-strong);font-family:var(--mono);font-size:11px;color:var(--label);}
 .mockup-dots{display:flex;gap:6px;flex-shrink:0;}
 .mockup-dots span{width:10px;height:10px;border-radius:50%;}
@@ -1421,7 +1424,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .section-link{margin-left:auto;padding:2px 4px;border:0;background:none;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.05em;text-transform:none;color:var(--link);text-decoration:underline;text-underline-offset:2px;cursor:pointer;opacity:0;}
 .section:hover .section-link,.section-link:focus-visible,.section-link.is-copied{opacity:1;}
 .section-rail{position:fixed;left:24px;top:50%;transform:translateY(-50%);z-index:10;}
-.section-rail[hidden],.section-rail-preview[hidden],.term-card[hidden],.section-pill[hidden]{display:none;}
+.section-rail[hidden],.section-rail-preview[hidden],.section-rail-preview [hidden],.term-card[hidden],.section-pill[hidden]{display:none;}
 .section-rail ol{list-style:none;padding:0;margin:0;}
 .section-rail li{margin:0;}
 .section-rail-tick{display:flex;align-items:center;gap:4px;width:48px;padding:4px 0;}
@@ -1440,7 +1443,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .section-rail-preview-summary,.term-card-text{margin-top:4px;font-size:13px;line-height:1.6;color:var(--muted);}
 .section-rail-preview-summary{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
 .section-rail-preview-hint{margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--label);}
-.section-pill{position:fixed;left:24px;bottom:24px;z-index:10;display:inline-flex;align-items:center;gap:8px;max-width:calc(100vw - 168px);padding:8px 16px;border:1px solid var(--border-strong);border-radius:9999px;background:var(--surface-card);color:var(--primary);font-family:var(--sans);font-size:13px;line-height:1.4;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
+.section-pill{position:fixed;left:24px;bottom:24px;z-index:10;display:inline-flex;align-items:center;gap:8px;max-width:min(360px, calc(100vw - 168px));padding:8px 16px;border:1px solid var(--border-strong);border-radius:9999px;background:var(--surface-card);color:var(--primary);font-family:var(--sans);font-size:13px;line-height:1.4;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.04);}
 .section-pill-num{flex-shrink:0;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.12em;color:var(--label);}
 .section-pill-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .toc-sheet{position:fixed;inset:auto 0 0 0;width:100%;max-width:none;max-height:70vh;margin:0;padding:0;border:0;border-top:1px solid var(--border-strong);border-radius:10px 10px 0 0;background:var(--surface-card);color:var(--primary);}
@@ -1468,7 +1471,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .hotspot.is-highlighted,.hotspot-ref.is-highlighted,.step-item.is-highlighted .step-circle{outline:2px solid var(--focus-ring);outline-offset:2px;}
 .has-hotspot-highlight .hotspot:not(.is-highlighted){opacity:0.4;}
 .compare{margin:16px 0;}
-.compare-stage{position:relative;display:grid;overflow:hidden;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--surface-card);}
+.compare-stage{position:relative;isolation:isolate;display:grid;overflow:hidden;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--surface-card);}
 .compare-before,.compare-after{grid-area:1/1;min-width:0;}
 .compare-after{clip-path:inset(0 0 0 var(--compare-position,50%));}
 .compare-handle{position:absolute;top:0;bottom:0;left:var(--compare-position,50%);width:2px;margin-left:-1px;background:var(--surface-dark);pointer-events:none;}
@@ -1501,9 +1504,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 }
 @media (max-width:1023px){
   .section-rail,.section-rail-preview{display:none;}
-}
-@media (min-width:1024px){
-  .section-pill{display:none;}
 }
 @media (hover:none){
   .section-link{opacity:1;}
@@ -1905,10 +1905,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     currentEntry = current;
     renderCurrent(current, progress);
   }
+  // setTimeout y no requestAnimationFrame: rAF no corre en pestañas en segundo plano ni en algunos visores.
   function requestUpdate() {
     if (frameRequested) return;
     frameRequested = true;
-    window.requestAnimationFrame(updateCurrent);
+    setTimeout(updateCurrent, 16);
   }
   function toggleFloating() {
     var scrolled = window.scrollY >= SHOW_AFTER_PX;

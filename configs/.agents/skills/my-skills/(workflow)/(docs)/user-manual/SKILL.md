@@ -79,7 +79,7 @@ Rules to follow when building the matrix:
 Use this section order. Right after the doc header always goes the **table of contents**
 (`Contenido`), and the page always ends with the floating **Inicio** button, the **section
 map** (side ticks with a preview of each section) and the **section pill** (current section +
-TOC sheet on narrow screens). See "Navigation (always)" in Step 4.
+TOC sheet, at every width). See "Navigation (always)" in Step 4.
 
 1. **¿Qué cambió y por qué?** — 1-paragraph executive summary for a non-technical reader. When
    a before capture exists (old manual, `develop`, or a capture taken before the change), show the
@@ -190,8 +190,8 @@ use them:
   write its ticks by hand; the script builds one per section from the `section-title` and the
   first paragraph, so it stays in sync after every edit. Start each section with a paragraph that
   works as a one-line summary, because the preview shows it. The map hides below 1024 px.
-- **Section pill and TOC sheet always**, next to the map: they replace the map below 1024 px,
-  which includes the narrow Grid viewer. The script fills both.
+- **Section pill and TOC sheet always**, next to the map: visible at every width, and the only
+  shortcut below 1024 px, which includes the narrow Grid viewer. The script fills both.
 - **Share URL** when the manual is published in a viewer that wraps it in an iframe (Grid): add
   `<meta name="heritage:share-url" content="<public document URL>">` to `<head>` so "Copiar
   enlace" copies a link the reader can open. Without it the button copies the iframe URL.
