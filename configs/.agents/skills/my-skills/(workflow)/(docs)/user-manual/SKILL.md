@@ -270,16 +270,34 @@ dispatch scroll events: if "current section" checks fail in automation, check
 
 ### Pins, before / after and glossary
 
-- **Pins:** on the capture of every screen with a `steps` walkthrough, one pin per step that
+- **Pins, as many as make sense — always.** A manual is a practical guide: every element the text
+  tells the reader to look at, tap, fill or read on a capture gets a pin, not only the ones in a
+  `steps` list. On each capture, pin every button, field, tab, filter, badge, message or value the
+  prose names, and put the matching `hotspot-ref` where the prose names it ("Tocá «Confirmar» (2)").
+  When a section describes a screen element by element, turn that description into a short `steps`
+  list or a list of references, so each pin has its text. Only skip a pin when it would point at
+  nothing the reader acts on or reads (decoration, layout). Before closing a manual, walk every
+  capture and ask "what does the text ask the reader to find here?"; each answer needs a pin.
+- **Pins on steps:** on the capture of every screen with a `steps` walkthrough, one pin per step that
   touches a visible element, same number as the step. On real captures **always anchor the pin**:
   `data-target="<selector inside the capture>"` plus `data-target-text="<exact text>"` when the
   selector matches several elements. The capture runtime places it 14 px left of the element after
   every fit and resize, so it never drifts. Keep `--x`/`--y` as the initial position. Then check, at
-  1280 px and 390 px, that every pin sits next to its element. Up to 6 pins per capture.
+  1280 px and 390 px, that every pin sits next to its element. Up to 6 pins per capture: when a
+  screen needs more, split the text in two groups and repeat the capture for the second one.
 - **Anchor to a compact element** (icon, button, input, a short label), never to a full-width cell or
   row: the pin sits 14 px left of the element, so on a cell that starts at the frame's edge it ends up
   cut or outside the capture. For repeated elements without own text, use a structural selector
   (`.card:first-of-type .card__icon`).
+- The runtime places the pin next to what the reader **sees** of the target: its text and media, or
+  the whole box when it has a visible background or border (a button, a chip, a message). So a
+  centered title or a transparent link works as a target. When a row starts with a badge or an icon,
+  anchor to that first item (the pin would otherwise sit on top of it), and to the whole message box
+  rather than its title (the icon inside would be covered).
+- When there is no room on the left (the target starts at the capture's edge) the runtime puts the pin
+  on the right, or just inside a full-width button. When the target is glued to text on its left (a
+  "+2" right after a value), add `data-side="right"`. Switches and checkboxes: anchor to the control
+  (`.andes-switch` with its text), not to its label, or the pin covers the toggle.
 - **Pins live with their steps, one per number per section.** A section never shows two pins with
   the same number, and never pins a capture for steps written in another section. When a step
   happens on a screen already shown elsewhere (the main screen in its own section, the steps in
@@ -290,7 +308,7 @@ dispatch scroll events: if "current section" checks fail in automation, check
   then pulses 3 times so the reader sees what it points to. Check both directions in the browser, in
   a section with pins on several captures: after the jump, only the destination stays highlighted.
   The script also signals that the circles can be tapped (a small hand on each step circle that keeps
-  tapping while the pointer is on the step, hover growth, a tooltip with the action and,
+  tapping while the pointer is on the step, a "back" bubble on each pin shown on hover and on arrival, hover growth, a tooltip with the action and,
   for touch screens, «Tocá un número para ir a su paso.» under the first capture with pins of each
   section), so never write that hint by hand.
 - **Before / after:** only when both captures have the same width and framing. Give each
@@ -455,6 +473,7 @@ add them to `scripts/`.
       ≥ 1280 px that reflow at 390 px.
 - [ ] Every pin is anchored (`data-target`) and sits next to its element at 1280 px and 390 px.
 - [ ] Each section has at most one pin per number, in the same section as its steps and references.
+- [ ] Every element the text names on a capture has a pin and a reference (as many pins as make sense).
 - [ ] Every mockup has a `figcap`; every frame has `role="img"` and an `aria-label` starting with
       "Captura de pantalla:"; the header shows "Capturas: YYYY-MM-DD".
 - [ ] The fit check in `references/real-app-mockups.md` returns `[]` and every frame was compared

@@ -186,6 +186,36 @@ const block = `${START}
 	// Pins with data-target follow their element after every fit, so they never drift with the reader's
 	// width or a capture's height. --x/--y stay as the fallback until the frame renders.
 	var PIN_GAP_PX = 14;
+	var PIN_RADIUS_PX = 12;
+	var PIN_INSET_PX = 4;
+	// What the reader sees of a target: a filled or bordered box (a button, a chip) counts whole; otherwise
+	// only its text and media, so a pin on a wide or centered block lands next to the words, not the block.
+	// Transparent colors (a box shadow or border kept for focus rings) do not make a box visible.
+	var TRANSPARENT = /^transparent$|rgba\\([^)]*,\\s*0\\)$/;
+	function visibleBox(target) {
+		var style = getComputedStyle(target);
+		var background = style.backgroundColor;
+		var filled = background && background !== 'transparent' && !TRANSPARENT.test(background);
+		var bordered = parseFloat(style.borderLeftWidth) > 0 && !TRANSPARENT.test(style.borderLeftColor);
+		if (filled || bordered) return target.getBoundingClientRect();
+		var box = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+		var add = function (rect) {
+			if (!rect.width || !rect.height) return;
+			box.left = Math.min(box.left, rect.left); box.top = Math.min(box.top, rect.top);
+			box.right = Math.max(box.right, rect.right); box.bottom = Math.max(box.bottom, rect.bottom);
+		};
+		var range = target.ownerDocument.createRange();
+		var walker = target.ownerDocument.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+		for (var node = walker.nextNode(); node; node = walker.nextNode()) {
+			if (!node.textContent.trim()) continue;
+			range.selectNodeContents(node);
+			Array.prototype.forEach.call(range.getClientRects(), add);
+		}
+		target.querySelectorAll('img, svg, picture, canvas, input, button, textarea, select').forEach(function (media) { add(media.getBoundingClientRect()); });
+		if (box.left === Infinity) return target.getBoundingClientRect();
+		return { left: box.left, top: box.top, width: box.right - box.left, height: box.bottom - box.top };
+	}
+
 	function placeHotspots(host) {
 		var stage = host.closest('.hotspot-stage');
 		if (!stage || !host.shadowRoot) return;
@@ -197,9 +227,15 @@ const block = `${START}
 				? candidates.filter(function (element) { return element.textContent.trim() === text; })[0]
 				: candidates[0];
 			if (!target) return;
-			var rect = target.getBoundingClientRect();
+			var rect = visibleBox(target);
 			if (!rect.width || !rect.height) return;
-			pin.style.left = (rect.left - stageRect.left - PIN_GAP_PX) + 'px';
+			// Without room on the left (the target starts at the capture's edge), the pin goes to its right.
+			// data-side="right" puts it on the right, for targets glued to text on their left (a "+2" after a value).
+			var left = rect.left - stageRect.left - PIN_GAP_PX;
+			if (pin.getAttribute('data-side') === 'right' || left < PIN_RADIUS_PX) left = rect.left + rect.width - stageRect.left + PIN_GAP_PX;
+			// No room on either side (a full-width button): inside its left edge, over its padding.
+			if (left > stageRect.width - PIN_RADIUS_PX) left = rect.left - stageRect.left + PIN_RADIUS_PX + PIN_INSET_PX;
+			pin.style.left = left + 'px';
 			pin.style.top = (rect.top + rect.height / 2 - stageRect.top) + 'px';
 		});
 	}

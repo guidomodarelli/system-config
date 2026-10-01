@@ -778,7 +778,7 @@ que el lector hizo algo, nunca decora.
 - La hoja del índice (pantallas angostas) sube con fade y `translateY(4px → 0)` en
   `motion.duration-base`.
 - **Latido de destino** (única escala del sistema): al tocar un paso, una referencia o un punto
-  sobre una captura, el círculo de destino late 3 veces (`scale 1 → 1.25 → 1`, cada latido
+  sobre una captura, el círculo de destino late 2 veces (`scale 1 → 1.25 → 1`, cada latido
   `2 × motion.duration-base`) cuando termina el scroll, para que se vea a qué apunta. Lo pidió el
   lector y termina solo; con "reducir movimiento" queda solo el anillo de resaltado.
 
@@ -794,7 +794,7 @@ que el lector hizo algo, nunca decora.
 
 - Solo `opacity`, `transform: translateY()` de hasta 4px y propiedades de color.
 - Ninguna transición supera `motion.duration-base` (200ms). Las excepciones son el latido de destino
-  (3 latidos de `2 × motion.duration-base`) y el toque de la manito al pasar el puntero
+  (2 latidos de `2 × motion.duration-base`) y el toque de la manito al pasar el puntero
   (`3 × motion.duration-base` por toque, en loop solo mientras el puntero sigue sobre el paso).
 - Todo el movimiento va dentro de `@media (prefers-reduced-motion: no-preference)`: con
   "reducir movimiento" activo no hay transiciones y el scroll es instantáneo.
@@ -1193,6 +1193,10 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   dos listas de pasos distintas) confunden al lector. Si un paso ocurre en una pantalla que ya se
   mostró en otra sección, se repite la captura (mismo `data-cap`) en la sección del paso, con su
   punto; la pantalla original queda sin puntos.
+- **Vuelta al paso:** cada punto lleva una burbuja de `16px` en su esquina inferior derecha con la
+  flecha curva de "deshacer" (la agrega el script). Aparece al pasar el puntero por el punto y, sola,
+  cuando el lector llega al punto desde un paso, mientras dura el resaltado. En reposo no se ve y no
+  se imprime.
 - **El destino conserva el resaltado durante el salto** (2,6 s): lo que pasa por debajo del puntero
   mientras la página scrollea (otro punto, otro paso) no se lo quita. Después, el resaltado vuelve a
   seguir al puntero.
@@ -1207,13 +1211,15 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   primera captura con puntos de cada sección suma «Tocá un número para ir a su paso.» (`.figcap-hint`,
   lo agrega el script; no se imprime).
 - Tocar un paso o una referencia (o `Enter` sobre la referencia) centra su punto en la pantalla,
-  siempre, lo resalta y, al llegar, lo hace latir 3 veces. Tocar el punto hace el camino inverso: centra el círculo de su paso (o,
+  siempre, lo resalta y, al llegar, lo hace latir 2 veces. Tocar el punto hace el camino inverso: centra el círculo de su paso (o,
   si la sección no tiene pasos con ese número, la primera referencia).
 - Al pasar por un paso, una referencia o un punto, se resaltan los que comparten número (anillo
   `focus-ring`) y los demás puntos de la sección bajan a 40% de opacidad.
 - Los puntos son `aria-hidden="true"`: el texto del paso lleva la información. En la referencia,
   el texto oculto `punto` le da contexto al lector de pantalla.
-- Máximo 6 puntos por captura; más, y la captura deja de leerse.
+- **Tantos puntos como tenga sentido:** todo elemento que el texto nombra sobre una captura (botón,
+  campo, pestaña, mensaje, valor) lleva su punto y su referencia. Máximo 6 por captura; si hacen
+  falta más, se divide el texto en dos grupos y se repite la captura.
 - Se imprimen.
 
 ### Comparación antes / después
@@ -1551,6 +1557,10 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .tap-hand-fill path{fill:var(--surface-card);}
 .tap-hand-line{stroke:var(--surface-dark);stroke-width:1.8;}
 .tap-hand-rays{stroke:var(--surface-card);stroke-width:1.6;opacity:0;}
+/* Vuelta al paso: burbuja en la esquina inferior derecha del punto, al pasar el puntero o al llegar desde un paso. */
+.hotspot-return{position:absolute;right:-7px;bottom:-7px;width:16px;height:16px;border-radius:9999px;background:var(--surface-card);border:1px solid var(--border-strong);color:var(--surface-dark);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;}
+.hotspot-return svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+.hotspot:hover .hotspot-return,.hotspot.is-revealed .hotspot-return{opacity:1;}
 .compare{margin:16px 0;}
 .compare-stage{position:relative;isolation:isolate;display:grid;overflow:hidden;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--surface-card);}
 .compare-before,.compare-after{grid-area:1/1;min-width:0;}
@@ -1571,12 +1581,13 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .toc-sheet[open]{animation:heritage-rise var(--motion-duration-base) var(--motion-easing-standard);}
   .section-link,.hotspot{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
   .hotspot,.hotspot-ref,.step-circle{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard),scale var(--motion-duration-fast) var(--motion-easing-standard);}
+  .hotspot-return{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
   .term{transition:text-decoration-color var(--motion-duration-fast) var(--motion-easing-standard);}
   @keyframes heritage-reveal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
   @keyframes heritage-fade-in{from{opacity:0;}to{opacity:1;}}
   @keyframes heritage-rise{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
   /* Latido de destino: `scale` (no `transform`) para no pisar el translate que centra el punto. */
-  .is-pulsing{animation:heritage-pulse calc(var(--motion-duration-base) * 2) var(--motion-easing-standard) 3;}
+  .is-pulsing{animation:heritage-pulse calc(var(--motion-duration-base) * 2) var(--motion-easing-standard) 2;}
   /* Gesto de toque: se repite mientras el puntero sigue sobre el paso; el índice baja y destella. */
   .step-item[data-hotspot]:hover .tap-hand{animation:heritage-tap-press calc(var(--motion-duration-base) * 3) var(--motion-easing-standard) infinite;}
   .step-item[data-hotspot]:hover .tap-hand-rays{animation:heritage-tap-rays calc(var(--motion-duration-base) * 3) var(--motion-easing-standard) infinite;}
@@ -1603,7 +1614,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return{display:none;}
   .term{text-decoration:none;}
   .compare-stage{grid-template-columns:1fr 1fr;gap:16px;border:0;}
   .compare-before,.compare-after{grid-area:auto;border:1.5px solid var(--border-strong);border-radius:10px;overflow:hidden;}
@@ -1662,6 +1673,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var HOTSPOT_REVEAL_MS = 2600;
   // Manito de los pasos (trazo al estilo de Lucide "pointer", ISC): halo claro, relleno, destello y línea.
   var TAP_HAND_PATHS = '<path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>';
+  // Vuelta al paso (trazo al estilo de Lucide "undo-2", ISC).
+  var RETURN_SVG = '<span class="hotspot-return" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></span>';
   var TAP_HAND_SVG = '<svg class="tap-hand" viewBox="-2 -4 28 30" aria-hidden="true" focusable="false">' +
     '<g class="tap-hand-halo">' + TAP_HAND_PATHS + '</g>' +
     '<g class="tap-hand-fill"><path d="M8 2.6a1.5 1.5 0 0 1 1.5 1.5V9.6l.6-.3a1.6 1.6 0 0 1 3.4.4l.4-.2a1.6 1.6 0 0 1 3.6 1l.6-.1a1.5 1.5 0 0 1 3.4.9v2.8a7.5 7.5 0 0 1-7.5 7.4h-2c-2.6 0-4.2-.8-5.6-2.2L3.2 16a1.5 1.5 0 0 1 2.2-2.1L6.5 15V4.1A1.5 1.5 0 0 1 8 2.6z"/></g>' +
@@ -2095,7 +2108,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       destination.classList.remove('is-pulsing');
       void destination.offsetWidth;
       destination.classList.add('is-pulsing');
-      destination.addEventListener('animationend', function () { destination.classList.remove('is-pulsing'); }, { once: true });
+      // La burbuja de vuelta se va justo con el último latido (sin animación, la quita el fin del resaltado).
+      destination.addEventListener('animationend', function () {
+        destination.classList.remove('is-pulsing');
+        destination.classList.remove('is-revealed');
+      }, { once: true });
     };
     // Centra el destino en la pantalla, aunque ya se vea, y lo hace latir al llegar.
     var centerOn = function (destination) {
@@ -2121,8 +2138,15 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       var destination = section.querySelector(selector + '[data-hotspot="' + number + '"]');
       if (!destination) return;
       highlight(number);
+      // Al llegar a un punto desde un paso, el punto muestra cómo volver mientras dura el resaltado.
+      section.querySelectorAll('.hotspot.is-revealed').forEach(function (pin) { pin.classList.remove('is-revealed'); });
+      if (destination.classList.contains('hotspot')) destination.classList.add('is-revealed');
       clearTimeout(revealTimer);
-      revealTimer = setTimeout(function () { revealTimer = null; highlight(''); }, HOTSPOT_REVEAL_MS);
+      revealTimer = setTimeout(function () {
+        revealTimer = null;
+        highlight('');
+        destination.classList.remove('is-revealed');
+      }, HOTSPOT_REVEAL_MS);
       centerOn(destination.querySelector('.step-circle') || destination);
     };
     // Pista para pantallas táctiles (sin hover): una línea en el pie de la primera captura con puntos.
@@ -2136,6 +2160,9 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       hint.setAttribute('aria-hidden', 'true');
       caption.after(hint);
     }
+    section.querySelectorAll('.hotspot[data-hotspot]').forEach(function (pin) {
+      if (!pin.querySelector('.hotspot-return')) pin.insertAdjacentHTML('beforeend', RETURN_SVG);
+    });
     section.querySelectorAll('.step-item[data-hotspot]').forEach(function (step) {
       var circle = step.querySelector('.step-circle');
       if (!circle || circle.querySelector('.tap-hand')) return;
