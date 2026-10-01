@@ -786,7 +786,8 @@ que el lector hizo algo, nunca decora.
 
 - Nada que el lector no haya pedido: sin entradas al scrollear, sin parallax, sin loops ni autoplay.
 - Sin rebotes, escalas, rotaciones ni `box-shadow`: rompen la estética de papel. La excepción es el
-  latido de destino, el crecimiento al pasar el puntero y la manito de los pasos con punto.
+  latido de destino, el foco temporal, el crecimiento al pasar el puntero y la manito de los pasos con
+  punto.
 - Sin `height` o `max-height` animados en contenido largo: provocan saltos de layout.
 - Mockups y su contenido quedan quietos: muestran una pantalla, no una demo.
 
@@ -1197,9 +1198,14 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   flecha curva de "deshacer" (la agrega el script). Aparece al pasar el puntero por el punto y, sola,
   cuando el lector llega al punto desde un paso, hasta el último latido: se va justo con él (con
   "reducir movimiento", al terminar el resaltado). En reposo no se ve y no se imprime.
-- **El destino conserva el resaltado durante el salto** (2,6 s): lo que pasa por debajo del puntero
-  mientras la página scrollea (otro punto, otro paso) no se lo quita. Después, el resaltado vuelve a
-  seguir al puntero.
+- **Foco temporal:** al llegar a un salto, la página se oscurece apenas (`surface-dark` al 20%) y se
+  desenfoca `6px`, y una burbuja nítida se cierra sobre el destino en `1,5 × motion.duration-base` (300ms)
+  hasta dejar `44px` libres alrededor del círculo
+  (`.hotspot-spotlight`, la agrega el script). Se va en `motion.duration-base` con el último latido,
+  o apenas el lector scrollea o toca la pantalla. Con "reducir movimiento" no aparece; no se imprime.
+- **El destino conserva el resaltado durante el salto**, hasta su último latido: lo que pasa por
+  debajo del puntero mientras la página scrollea (otro punto, otro paso) no se lo quita. Con el último
+  latido termina el resaltado (con "reducir movimiento", a los 2,6 s) y vuelve a seguir al puntero.
 - **Manito en los pasos:** cada `step-item` con punto lleva una manito (la agrega el script) en la
   esquina inferior derecha del círculo, inclinada `-35°` y con el índice adentro. Quieta en reposo;
   mientras el puntero está sobre el paso repite el toque, y para al salir: el índice baja `2px` y destella
@@ -1214,7 +1220,8 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   siempre, lo resalta y, al llegar, lo hace latir 3 veces. Tocar el punto hace el camino inverso: centra el círculo de su paso (o,
   si la sección no tiene pasos con ese número, la primera referencia).
 - Al pasar por un paso, una referencia o un punto, se resaltan los que comparten número (anillo
-  `focus-ring`) y los demás puntos de la sección bajan a 40% de opacidad.
+  `focus-ring`) y todos los demás círculos de la sección (puntos, referencias y pasos) bajan a 40% de
+  opacidad, también mientras late el destino de un salto.
 - Los puntos son `aria-hidden="true"`: el texto del paso lleva la información. En la referencia,
   el texto oculto `punto` le da contexto al lector de pantalla.
 - **Tantos puntos como tenga sentido:** todo elemento que el texto nombra sobre una captura (botón,
@@ -1547,7 +1554,12 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 /* Se puede tocar: el círculo que está bajo el puntero o con foco crece apenas. */
 .hotspot:hover,.hotspot-ref:hover,.hotspot-ref:focus-visible,.step-item[data-hotspot]:hover .step-circle{scale:1.1;}
 .figcap+.figcap-hint{margin-top:-12px;}
-.has-hotspot-highlight .hotspot:not(.is-highlighted){opacity:0.4;}
+/* Foco temporal: la página se desenfoca y una burbuja se cierra sobre el destino de un salto. */
+@property --spot-radius{syntax:'<length>';inherits:false;initial-value:0px;}
+.hotspot-spotlight{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:0;--spot-radius:150vmax;background:color-mix(in srgb,var(--surface-dark) 20%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));}
+.hotspot-spotlight.is-on{opacity:1;--spot-radius:var(--spot-target);}
+.hotspot-spotlight.is-leaving{opacity:0;--spot-radius:var(--spot-target);}
+.has-hotspot-highlight .hotspot:not(.is-highlighted),.has-hotspot-highlight .hotspot-ref:not(.is-highlighted),.has-hotspot-highlight .step-item[data-hotspot]:not(.is-highlighted) .step-circle{opacity:0.4;}
 .step-item[data-hotspot],.hotspot-ref,.hotspot{cursor:pointer;}
 /* Manito de los pasos con punto: indica que el círculo se toca. Inclinada -35°, con el índice adentro del círculo. */
 .step-circle{position:relative;}
@@ -1582,6 +1594,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .section-link,.hotspot{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
   .hotspot,.hotspot-ref,.step-circle{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard),scale var(--motion-duration-fast) var(--motion-easing-standard);}
   .hotspot-return{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
+  .hotspot-spotlight.is-on{transition:--spot-radius calc(var(--motion-duration-base) * 1.5) var(--motion-easing-standard),opacity var(--motion-duration-fast) var(--motion-easing-standard);}
+  .hotspot-spotlight.is-leaving{transition:opacity var(--motion-duration-base) var(--motion-easing-standard);}
   .term{transition:text-decoration-color var(--motion-duration-fast) var(--motion-easing-standard);}
   @keyframes heritage-reveal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
   @keyframes heritage-fade-in{from{opacity:0;}to{opacity:1;}}
@@ -1614,7 +1628,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return,.hotspot-spotlight{display:none;}
   .term{text-decoration:none;}
   .compare-stage{grid-template-columns:1fr 1fr;gap:16px;border:0;}
   .compare-before,.compare-after{grid-area:auto;border:1.5px solid var(--border-strong);border-radius:10px;overflow:hidden;}
@@ -1671,6 +1685,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   var TERM_HIDE_DELAY_MS = 150;
   var COPY_FEEDBACK_MS = 1600;
   var HOTSPOT_REVEAL_MS = 2600;
+  var SPOTLIGHT_MARGIN_PX = 44;
   // Manito de los pasos (trazo al estilo de Lucide "pointer", ISC): halo claro, relleno, destello y línea.
   var TAP_HAND_PATHS = '<path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>';
   // Vuelta al paso (trazo al estilo de Lucide "undo-2", ISC).
@@ -2103,15 +2118,44 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       section.classList.toggle('has-hotspot-highlight', Boolean(number));
     };
     // Latido de destino: reinicia la animación si ya estaba latiendo; con "reducir movimiento" no late.
+    // Foco temporal sobre el destino: se cierra al llegar y se va con el último latido (o si el lector scrollea).
+    var spotlightOn = function (destination) {
+      if (reduceMotion.matches) return;
+      var spot = document.querySelector('.hotspot-spotlight');
+      if (!spot) {
+        spot = createElement('div', 'hotspot-spotlight');
+        spot.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(spot);
+      }
+      var rect = destination.getBoundingClientRect();
+      spot.style.setProperty('--spot-x', (rect.left + rect.width / 2) + 'px');
+      spot.style.setProperty('--spot-y', (rect.top + rect.height / 2) + 'px');
+      spot.style.setProperty('--spot-target', (Math.max(rect.width, rect.height) / 2 + SPOTLIGHT_MARGIN_PX) + 'px');
+      spot.classList.remove('is-on', 'is-leaving');
+      void spot.offsetWidth;
+      spot.classList.add('is-on');
+    };
+    var spotlightOff = function () {
+      var spot = document.querySelector('.hotspot-spotlight');
+      if (!spot || !spot.classList.contains('is-on')) return;
+      spot.classList.remove('is-on');
+      spot.classList.add('is-leaving');
+    };
+    window.addEventListener('wheel', spotlightOff, { passive: true });
+    window.addEventListener('touchstart', spotlightOff, { passive: true });
     var pulse = function (destination) {
       if (reduceMotion.matches) return;
       destination.classList.remove('is-pulsing');
       void destination.offsetWidth;
       destination.classList.add('is-pulsing');
-      // La burbuja de vuelta se va justo con el último latido (sin animación, la quita el fin del resaltado).
+      // El resaltado y la burbuja de vuelta terminan justo con el último latido (sin animación, a los HOTSPOT_REVEAL_MS).
       destination.addEventListener('animationend', function () {
         destination.classList.remove('is-pulsing');
         destination.classList.remove('is-revealed');
+        clearTimeout(revealTimer);
+        revealTimer = null;
+        highlight('');
+        spotlightOff();
       }, { once: true });
     };
     // Centra el destino en la pantalla, aunque ya se vea, y lo hace latir al llegar.
@@ -2126,6 +2170,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
           if (arrived) return;
           arrived = true;
           if (Math.abs(window.scrollY - destinationTop()) > 1) window.scrollTo({ top: destinationTop(), behavior: 'instant' });
+          spotlightOn(destination);
           pulse(destination);
         };
         if (Math.abs(window.scrollY - destinationTop()) <= 1) { arrive(); return; }
