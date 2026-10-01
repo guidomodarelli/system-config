@@ -14,6 +14,8 @@
  *   - a small runtime that renders every host inside its own shadow root, so the app's CSS and
  *     the manual's CSS never leak into each other.
  * Several exports can be combined; when two contain the same capture name, the later file wins.
+ * A manual with a Portuguese version embeds only the Spanish captures: the runtime translates them with
+ * the "captures" table of the language script (DESIGN.md, "Selector de idioma").
  * Every capture gets its own stylesheet with its rules in the order the page applied them, so the
  * cascade (which rule wins between equal specificities) matches the app. Captures taken with
  * `fixedWidth` (mobile) also keep their viewport width.
@@ -241,8 +243,10 @@ const block = `${START}
 	}
 
 	// Screen readers get the caption as the image description; the capture itself stays inert.
+	// A label written by hand in the manual is kept; the one written here follows the language.
 	function describe(host) {
-		if (host.hasAttribute('aria-label')) return;
+		if (host.hasAttribute('aria-label') && !host.__umDescribed) return;
+		host.__umDescribed = true;
 		var mockup = host.closest('.mockup');
 		var caption = mockup && mockup.nextElementSibling && mockup.nextElementSibling.classList.contains('figcap')
 			? mockup.nextElementSibling.textContent.trim()
@@ -252,6 +256,20 @@ const block = `${START}
 		// The Portuguese version (<html lang="pt-BR">, set by the language script) names it in Portuguese.
 		var prefix = /^pt/i.test(document.documentElement.lang) ? 'Captura de tela: ' : 'Captura de pantalla: ';
 		host.setAttribute('aria-label', prefix + (caption || title || host.getAttribute('data-cap')));
+	}
+
+	// The capture in the reader's language: the Spanish template translated in place with the "captures"
+	// table of the language script, or a full Portuguese copy (captureTemplates) when its structure differs.
+	function fill(host, content, name) {
+		var language = window.HeritageLanguage;
+		var override = language && language.captureTemplate(name);
+		if (!host.__umFilled || override || host.__umOverridden) {
+			content.innerHTML = override || data.templates[name] || '';
+			content.querySelectorAll('a[href]').forEach(function (link) { link.removeAttribute('href'); });
+		}
+		host.__umFilled = true;
+		host.__umOverridden = Boolean(override);
+		if (language && !override) language.translate(content, 'captures');
 	}
 
 	function render(host) {
@@ -266,8 +284,8 @@ const block = `${START}
 		content.className = 'app-frame__content';
 		// flow-root keeps captured margins inside, so empty space above the screen can be trimmed.
 		content.style.display = 'flow-root';
-		content.innerHTML = data.templates[name] || '';
-		content.querySelectorAll('a[href]').forEach(function (link) { link.removeAttribute('href'); });
+		fill(host, content, name);
+		host.__umContent = content;
 		page.setAttribute('inert', '');
 		page.setAttribute('aria-hidden', 'true');
 		page.appendChild(content);
@@ -311,6 +329,16 @@ const block = `${START}
 	window.addEventListener('beforeprint', function () { hosts.forEach(render); });
 	// In-page navigation renders every frame above its target first, so their real heights do not
 	// push the target down while the page scrolls to it.
+	// Language switch in the same page: the document is already translated (captions, pin targets), so
+	// every rendered capture is translated and fitted again, and its pins follow their elements.
+	document.addEventListener('heritage:language-change', function () {
+		hosts.forEach(function (host) {
+			describe(host);
+			if (!host.__umContent) return;
+			fill(host, host.__umContent, host.getAttribute('data-cap'));
+			host.__umRefit();
+		});
+	});
 	document.addEventListener('heritage:before-scroll', function (event) {
 		var target = event.detail && event.detail.target;
 		if (!target) return;

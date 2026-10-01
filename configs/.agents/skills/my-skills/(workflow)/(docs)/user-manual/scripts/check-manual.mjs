@@ -8,8 +8,10 @@
  *
  *   --translations  .po or .json translation files of the documented app (reader's locale). Every
  *                   text quoted between «…» or “…” in the manual must exist in one of them.
- *   --translations-pt  the app's pt-BR files, for a manual with a Portuguese version
- *                   (<template id="lang-pt">). Each language is checked as its own document.
+ *   --translations-pt  the app's pt-BR files, for a manual with a Portuguese version (translation table
+ *                   #heritage-translations), plus an optional JSON {"<es>": "<pt>"} of library texts
+ *                   verified at their source. Each language is checked as its own document, and the
+ *                   table's app texts must hold the catalogs' msgstr.
  *   --forbidden     real values seen while capturing (names, LDAP, user ids). Zero hits allowed.
  *   --allow-host    extra hosts allowed in the file besides fonts, the app CDN and the share URL.
  *   --design        DESIGN.md to compare the navigation script with (default ~/system-config/configs/.agents/DESIGN.md).
@@ -94,29 +96,157 @@ const quoteExists = (quote, translations) => {
 	return fragments.every((fragment) => translations.some((translation) => translation.includes(fragment) || (/\{\d+\}/.test(translation) && asPattern(translation).test(fragment))));
 };
 
-// A manual with a Portuguese version keeps the Spanish content in #lang-region and the Portuguese one in
-// <template id="lang-pt">: each language becomes its own document for the checks.
-const LANGUAGE_REGION = /(<div id="lang-region">)([\s\S]*?)(<\/div>\s*<!-- \/lang-region -->)/;
-const PORTUGUESE_TEMPLATE = /<template id="lang-pt"[^>]*>([\s\S]*?)<\/template>/;
+/** msgid → msgstr of .po / .json translation files (first plural form; empty when untranslated). */
+const loadPairs = (files) => {
+	const pairs = new Map();
+	const unquote = (first, rest) => (first + rest.split('\n').filter(Boolean).map((line) => line.slice(1, -1)).join('')).replace(/\\"/g, '"').replace(/\\n/g, '\n');
+	for (const file of files) {
+		const content = fs.readFileSync(file, 'utf8');
+		if (file.endsWith('.json')) {
+			for (const [key, value] of Object.entries(JSON.parse(content))) {
+				const text = Array.isArray(value) ? value[1] : value;
+				if (typeof text === 'string' && !pairs.has(key)) pairs.set(key, text.trim());
+			}
+			continue;
+		}
+		for (const block of content.split(/\n\s*\n/)) {
+			const msgid = block.match(/^msgid "((?:[^"\\]|\\.)*)"((?:\n"(?:[^"\\]|\\.)*")*)/m);
+			const msgstr = block.match(/^msgstr(?:\[0\])? "((?:[^"\\]|\\.)*)"((?:\n"(?:[^"\\]|\\.)*")*)/m);
+			if (!msgid || !msgstr) continue;
+			const key = unquote(msgid[1], msgid[2]);
+			if (key && !pairs.has(key)) pairs.set(key, unquote(msgstr[1], msgstr[2]).trim());
+		}
+	}
+	return pairs;
+};
+
+/**
+ * App texts are never translated by hand: every entry of the translation table whose Spanish text is an
+ * app string must hold that string's msgstr in the app's pt-BR catalog. The Spanish the app shows is the
+ * es-AR msgstr, or the msgid when es-AR lacks it. In "captures" every text is an app text, so values
+ * ({0}), pieces split by markup ({1}…{2}) and "prefix: value" labels are checked too, and a text the
+ * catalog does not have is reported (keep it in Spanish unless the app translates it).
+ */
+const checkTranslationTable = (table, spanishFiles, portugueseFiles) => {
+	const problems = { errors: [], warnings: [] };
+	const spanish = loadPairs(spanishFiles);
+	const portuguese = loadPairs(portugueseFiles);
+	const shown = new Map();
+	for (const msgid of portuguese.keys()) {
+		if (!shown.has(msgid)) shown.set(msgid, msgid);
+		if (spanish.get(msgid)) shown.set(spanish.get(msgid), msgid);
+	}
+	const target = (msgid) => portuguese.get(msgid) || msgid;
+	const placeholder = /\{\d+\}/g;
+	const letters = (text) => (text.match(/\p{L}/gu) || []).length;
+	const pieces = new Map();
+	const patterns = [];
+	for (const [text, msgid] of shown) {
+		if (!placeholder.test(text)) continue;
+		placeholder.lastIndex = 0;
+		const sourcePieces = text.split(placeholder).map((piece) => piece.trim());
+		const targetPieces = target(msgid).split(placeholder).map((piece) => piece.trim());
+		if (sourcePieces.length === targetPieces.length) sourcePieces.forEach((piece, index) => { if (letters(piece) >= 3 && !pieces.has(piece)) pieces.set(piece, targetPieces[index]); });
+		if (letters(text.replace(placeholder, '')) >= 3) patterns.push({ regex: new RegExp(`^${text.split(placeholder).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('(.+?)')}$`, 's'), msgid });
+	}
+	const exact = (text) => {
+		if (shown.has(text)) return target(shown.get(text));
+		if (text.endsWith(':') && shown.has(text.slice(0, -1))) return `${target(shown.get(text.slice(0, -1)))}:`;
+		return null;
+	};
+	const expected = (text) => {
+		const direct = exact(text);
+		if (direct !== null) return direct;
+		if (pieces.has(text)) return pieces.get(text);
+		for (const { regex, msgid } of patterns) {
+			const match = text.match(regex);
+			if (!match) continue;
+			const values = match.slice(1);
+			let index = 0;
+			return target(msgid).replace(placeholder, () => values[index++] ?? '');
+		}
+		const [head, ...rest] = text.split(': ');
+		if (rest.length && exact(head) !== null) return `${exact(head)}: ${rest.join(': ')}`;
+		return null;
+	};
+	for (const [part, check] of [['document', exact], ['captures', expected]]) {
+		for (const [text, translation] of Object.entries(table[part] || {})) {
+			const wanted = check(text);
+			if (wanted === null) {
+				if (part === 'captures') problems.warnings.push(`translations: capture text «${text.slice(0, 60)}» is not in the app's catalog; keep it in Spanish unless the app translates it`);
+				continue;
+			}
+			if (wanted.trim() !== translation.trim()) problems.errors.push(`translations: «${text.slice(0, 60)}» is an app text: its pt-BR is «${wanted.slice(0, 60)}» (catalog), not «${translation.slice(0, 60)}»`);
+		}
+	}
+	return problems;
+};
+
+// A manual with a Portuguese version is written once, in Spanish, plus a translation table in
+// <script type="application/json" id="heritage-translations"> (DESIGN.md, "Selector de idioma"). The
+// Portuguese document for the checks is the Spanish one with the "document" table applied, as the
+// language script does in the browser.
+const TRANSLATIONS_SCRIPT = /<script type="application\/json" id="heritage-translations">([\s\S]*?)<\/script>/;
+const LEGACY_LANGUAGE_MARKUP = /<template id="lang-pt"|<div id="lang-region">/;
+const TRANSLATED_ATTRIBUTES = ['aria-label', 'title', 'alt', 'placeholder', 'data-tooltip', 'data-target', 'data-target-text'];
+const escapeText = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const escapeAttribute = (text) => escapeText(text).replace(/"/g, '&quot;');
+/** Applies a translation table the way the language script does: exact text without edge spaces. */
+const applyTable = (html, table, used) => {
+	const translate = (value) => {
+		const key = value.trim();
+		if (!key || !Object.prototype.hasOwnProperty.call(table, key)) return null;
+		used.add(key);
+		return value.replace(key, () => table[key]);
+	};
+	const attributes = new RegExp(`\\b(${TRANSLATED_ATTRIBUTES.join('|')})="([^"]*)"`, 'g');
+	return html.replace(/<(script|style|code|template)\b[\s\S]*?<\/\1>|<div class="lang-switch"[\s\S]*?<\/div>|<[^>]+>|[^<]+/g, (token, skipped) => {
+		if (skipped || token.startsWith('<div class="lang-switch"')) return token;
+		if (token.startsWith('<')) return token.replace(attributes, (match, name, value) => {
+			const translated = translate(decodeEntities(value));
+			return translated === null ? match : `${name}="${escapeAttribute(translated)}"`;
+		});
+		const translated = translate(decodeEntities(token));
+		return translated === null ? token : escapeText(translated);
+	});
+};
 const splitLanguages = (html, options) => {
-	const template = html.match(PORTUGUESE_TEMPLATE);
-	if (!template) return [{ label: '', html, translations: options.translations }];
-	const withoutTemplate = html.replace(PORTUGUESE_TEMPLATE, '');
-	if (!LANGUAGE_REGION.test(withoutTemplate)) throw new Error('check-manual: <template id="lang-pt"> found but no <div id="lang-region">…</div><!-- /lang-region -->');
-	const portuguese = withoutTemplate.replace(LANGUAGE_REGION, (match, open, content, close) => open + template[1] + close);
-	return [
-		// The msgids of the pt-BR files are the app's Spanish source texts: they also count for Spanish, since
-		// a string missing from the es-AR catalog is shown as its msgid.
-		{ label: 'es', html: withoutTemplate, translations: options.translations, sourceTranslations: options.translationsPt },
-		{ label: 'pt', html: portuguese, translations: options.translationsPt },
-	];
+	if (LEGACY_LANGUAGE_MARKUP.test(html)) throw new Error('check-manual: old language markup (#lang-region / <template id="lang-pt">); migrate it to the translation table of DESIGN.md "Selector de idioma"');
+	const script = html.match(TRANSLATIONS_SCRIPT);
+	if (!script) return { languages: [{ label: '', html, translations: options.translations }], unused: [], table: null };
+	const table = JSON.parse(script[1]).pt || {};
+	const used = new Set();
+	let portuguese = applyTable(html, table.document || {}, used);
+	if (table.title) portuguese = portuguese.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeText(table.title)}</title>`);
+	const unused = Object.keys(table.document || {}).filter((key) => !used.has(key));
+	return {
+		languages: [
+			// The msgids of the pt-BR files are the app's Spanish source texts: they also count for Spanish, since
+			// a string missing from the es-AR catalog is shown as its msgid.
+			{ label: 'es', html, translations: options.translations, sourceTranslations: options.translationsPt },
+			{ label: 'pt', html: portuguese, translations: options.translationsPt },
+		],
+		unused,
+		table,
+	};
 };
 
 const main = () => {
 	const options = parseArguments(process.argv.slice(2));
 	const source = fs.readFileSync(options.manual, 'utf8');
-	const languages = splitLanguages(source, options);
+	const { languages, unused, table } = splitLanguages(source, options);
 	let failed = 0;
+	// Keys that no longer match any text are stale translations: the Spanish text changed and the
+	// Portuguese one did not follow.
+	for (const key of unused) console.log(`  WARN  languages: translation never used (stale?): «${key.slice(0, 80)}»`);
+	if (table && options.translations.length && options.translationsPt.length) {
+		const problems = checkTranslationTable(table, options.translations, options.translationsPt);
+		for (const message of problems.errors) console.log(`  ERROR ${message}`);
+		for (const message of problems.warnings) console.log(`  WARN  ${message}`);
+		failed += problems.errors.length;
+	} else if (table) {
+		console.log('  WARN  translations: no --translations / --translations-pt given; the table was not checked against the app catalogs');
+	}
 	// The language switch exists only with a Portuguese version, and a Portuguese version needs the switch.
 	const hasSwitch = /<div class="lang-switch"/.test(source);
 	if (hasSwitch !== (languages.length > 1)) {
@@ -124,10 +254,7 @@ const main = () => {
 		failed += 1;
 	}
 	for (const language of languages) failed += checkDocument(language.html, { ...options, translations: language.translations, sourceTranslations: language.sourceTranslations }, language.label, source);
-	if (languages.length > 1) {
-		const ids = languages.map((language) => [...language.html.matchAll(/<h2 class="section-title" id="(s\d+)">/g)].map((match) => match[1]).join(','));
-		if (ids[0] !== ids[1]) { console.log('  ERROR languages: the Spanish and Portuguese versions do not have the same sections'); failed += 1; }
-	}
+
 	process.exitCode = failed ? 1 : 0;
 };
 
@@ -141,8 +268,20 @@ const checkDocument = (html, options, label, source) => {
 	const visible = body.replace(/<script\b[\s\S]*?<\/script>/g, '').replace(/<style\b[\s\S]*?<\/style>/g, '');
 
 	// Structure: TOC entries ↔ section titles.
-	const titles = new Map([...visible.matchAll(/<h2 class="section-title" id="(s\d+)">([\s\S]*?)<\/h2>/g)].map((match) => [match[1], stripTags(match[2])]));
-	const tocEntries = [...visible.matchAll(/<nav class="toc"[\s\S]*?<\/nav>/g)].flatMap((toc) => [...toc[0].matchAll(/<a href="#(s\d+)"><span class="toc-num">\d+<\/span>([\s\S]*?)<\/a>/g)]);
+	const titles = new Map([...visible.matchAll(/<h2 class="section-title" id="([^"]+)">([\s\S]*?)<\/h2>/g)].map((match) => [match[1], stripTags(match[2])]));
+	const tocEntries = [...visible.matchAll(/<nav class="toc"[\s\S]*?<\/nav>/g)].flatMap((toc) => [...toc[0].matchAll(/<a href="#([^"]+)"><span class="toc-num">\d+<\/span>([\s\S]*?)<\/a>/g)]);
+
+	// Section ids are fixed slugs (DESIGN.md, "Copiar enlace a una sección"): not the number, so inserting a
+	// section does not move links, and not the title, so retitling does not either.
+	const slugOf = (text) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+	const sectionIds = [...visible.matchAll(/<section class="section" aria-labelledby="([^"]+)"/g)].map((match) => match[1]);
+	for (const id of sectionIds) {
+		if (/^s\d+$/.test(id)) errors.push(`ids: section id "${id}" is its number; use a fixed slug`);
+		else if (!/^[a-z][a-z0-9-]*$/.test(id)) errors.push(`ids: section id "${id}" is not a kebab-case slug`);
+		if (!label || label === 'es') { if (titles.has(id) && slugOf(titles.get(id)) === id) errors.push(`ids: section id "${id}" is its title; use a slug that does not change when the title does`); }
+		if (sectionIds.filter((other) => other === id).length > 1) errors.push(`ids: section id "${id}" is repeated`);
+	}
+
 	if (!tocEntries.length) errors.push('toc: no nav.toc entries found');
 	for (const [, id, label] of tocEntries) {
 		if (!titles.has(id)) errors.push(`toc: link #${id} has no section`);
@@ -168,6 +307,22 @@ const checkDocument = (html, options, label, source) => {
 	const definitions = new Set([...visible.matchAll(/<dt id="([^"]+)"/g)].map((match) => match[1]));
 	for (const [, target] of visible.matchAll(/class="term" href="#([^"]+)"/g)) if (!definitions.has(target)) errors.push(`glossary: term link #${target} has no <dt>`);
 
+	// Closing sections: "Permisos y qué habilitan" second to last (last without a glossary), "Glosario"
+	// last and only with terms. They are marked with data-section, so the check works in any language.
+	const sectionTags = [...visible.matchAll(/<section class="section"[^>]*>/g)].map((match) => match[0]);
+	const roleOf = (tag) => (tag.match(/data-section="([^"]+)"/) || [])[1] || '';
+	const roles = sectionTags.map(roleOf);
+	const glossaryIndex = roles.indexOf('glossary');
+	const permissionsIndex = roles.indexOf('permissions');
+	if (roles.filter((role) => role === 'permissions').length > 1) errors.push('permissions: more than one data-section="permissions"; permissions are listed in a single section');
+	if (permissionsIndex === -1) errors.push('permissions: no "Permisos y qué habilitan" section (<section … data-section="permissions">), second to last');
+	if (glossaryIndex !== -1 && glossaryIndex !== roles.length - 1) errors.push('glossary: the Glosario section must be the last one');
+	if (permissionsIndex !== -1 && permissionsIndex !== roles.length - (glossaryIndex === -1 ? 1 : 2)) errors.push('permissions: "Permisos y qué habilitan" must be second to last (last when there is no glossary)');
+	const glossaryLists = [...visible.matchAll(/<dl class="glossary">([\s\S]*?)<\/dl>/g)];
+	if (glossaryLists.some((list) => !/<dt\b/.test(list[1]))) errors.push('glossary: empty glossary; without confirmed terms the section is not shown');
+	if (glossaryLists.length && glossaryIndex === -1) errors.push('glossary: the <dl class="glossary"> must live in the Glosario section (data-section="glossary")');
+	if (definitions.size && !/class="term" href="#/.test(visible)) warnings.push('glossary: no a.term links to the glossary in the text');
+
 	// Mockups: caption after each one, url bar without host, pins anchored on captures.
 	// The url bar is a <span> in the current snippets and a <div> in older manuals.
 	const mockups = [...visible.matchAll(/<div class="mockup(?: [^"]*)?">[\s\S]*?<(?:span|div) class="mockup-url">([^<]*)<\/(?:span|div)>/g)];
@@ -181,7 +336,7 @@ const checkDocument = (html, options, label, source) => {
 	}
 
 	// Pins: each section owns its pins; one pin per number, and every step or reference has its pin.
-	for (const [, sectionId, sectionBody] of visible.matchAll(/<section class="section" aria-labelledby="([^"]+)">([\s\S]*?)<\/section>/g)) {
+	for (const [, sectionId, sectionBody] of visible.matchAll(/<section class="section" aria-labelledby="([^"]+)"[^>]*>([\s\S]*?)<\/section>/g)) {
 		const pinNumbers = [...sectionBody.matchAll(/<span class="hotspot"[^>]*data-hotspot="([^"]+)"/g)].map((match) => match[1]);
 		const linkedNumbers = new Set([...sectionBody.matchAll(/class="(?:step-item|hotspot-ref)"[^>]*data-hotspot="([^"]+)"/g)].map((match) => match[1]));
 		const repeated = [...new Set(pinNumbers.filter((number, index) => pinNumbers.indexOf(number) !== index))];

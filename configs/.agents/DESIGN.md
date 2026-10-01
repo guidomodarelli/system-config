@@ -1139,6 +1139,11 @@ el link directo a la sección.
   siempre en pantallas táctiles (`hover: none`).
 - Copia `<URL base>#<id del section-title>`. En visores embebidos (Grid) la URL del iframe no es
   la que ve el lector: declarar la pública con `<meta name="heritage:share-url" content="…">`.
+- **El id es un slug fijo de la sección**, no su número ni su título: corto, en kebab-case, en
+  inglés (el mismo para todos los idiomas) y que diga de qué trata (`permissions`,
+  `add-collaborators`). Se elige al crear la sección y no cambia nunca: ni al renumerar, ni al agregar
+  secciones en medio, ni al cambiar el título; así un enlace copiado sigue llevando a la misma
+  sección. Un id de una sección eliminada no se reusa.
 - Confirma con "Enlace copiado" en el botón y en una región `role="status"`. Si el visor bloquea
   el portapapeles, dice "No se pudo copiar" y deja un `console.warn` con el `id` de la sección.
 - Al copiar, la URL de la barra también pasa a `#<id>` (sin agregar una entrada al historial); en
@@ -1157,26 +1162,29 @@ botón "Inicio" y la píldora de sección; la opción activa lleva fondo `surfac
 y peso 600, y las demás quedan en `muted`. En pantallas angostas se achica y se acerca al borde
 (`top:12px`, `right:16px`), y el `doc-header` suma `28px` arriba para que no tape la etiqueta ni el título.
 
-- **Un solo archivo con los dos idiomas.** El contenido en español va dentro de
-  `<div id="lang-region">…</div><!-- /lang-region -->` (desde el `doc-header` hasta el `doc-footer`); el
-  portugués, completo y con
-  los mismos `id` de sección, en `<template id="lang-pt" data-html-lang="pt-BR" data-title="…">`.
-  Las capturas en portugués son otras (`data-cap="<nombre>--pt"`), con la app en pt-BR.
-- **Script de idioma**, justo antes del de navegación: lee `?lang=pt` y, si es portugués, reemplaza el
-  contenido por el de la plantilla, ajusta `lang` y el título. **Siempre abre en español**: la elección
-  no se guarda (ni `localStorage` ni cookies); vive solo en la URL, así que dura mientras se lee y viaja
-  en un enlace compartido.
-- **Al elegir**, la URL pasa a `?lang=pt` (o lo pierde para español) y conserva la sección actual (`#sNN`, también en la
-  barra de Grid) y el documento se abre en el otro idioma **al inicio de la sección que se leía**, como
-  un salto del índice (el número `16px` abajo del borde), sin volver arriba ni animar el scroll. No
-  conserva la posición exacta: el texto traducido tiene otro largo y la página quedaría desfasada. La
-  sección se guarda en `sessionStorage` `heritage:lang-restore` y se aplica en `pagereveal`, antes del
-  primer cuadro; la
-  URL viaja sin `#sNN` y lo recupera después de `load`, porque el salto nativo del navegador a ese
-  hash llegaría tarde y animado. La navegación es `location.replace`, no `reload`, para que el navegador funda los dos
-  idiomas en `1,5 × motion.duration-base` (300ms, `@view-transition`). Al hacer clic, la píldora marca enseguida el idioma elegido y el contenido se atenúa al 50% en `motion.duration-fast` mientras llega el documento nuevo (en Grid la red tarda ~300ms, sin caché): el lector ve la respuesta al instante y el fundido parte de ese estado; con "reducir movimiento" cambia sin fundido.
-- Los textos de la interfaz que arma el script (copiar enlace, tooltips, pista de las capturas, hoja
-  del índice, botón "Inicio") salen de un diccionario por idioma en el script de navegación.
+- **Un solo markup, en español, y una tabla de traducciones.** El documento se escribe una vez, en
+  español; el portugués es una tabla JSON en `<script type="application/json" id="heritage-translations">`
+  con `htmlLang`, `title` y tres partes: `document` (texto en español → texto en portugués, para cada
+  texto y cada `aria-label`, `title`, `alt`, `placeholder`, `data-tooltip`, `data-target` y
+  `data-target-text` del documento), `captures` (lo mismo para los textos de la app dentro de las
+  capturas) y `captureTemplates` (solo para la captura excepcional cuya estructura cambia en
+  portugués: su HTML completo, por nombre). No se duplica el markup ni las capturas.
+- **Script de idioma** (`window.HeritageLanguage`), justo antes del de navegación: traduce en el lugar
+  los textos y atributos que están en la tabla (la clave es el texto sin los espacios de los bordes),
+  guarda el español de cada uno para poder volver, ajusta `lang` y el título, y avisa con el evento
+  `heritage:language-change`. Nunca toca `code`, `style`, `script` ni el selector. Al cargar, traduce
+  solo si la URL lo pide: **siempre abre en español**, la elección no se guarda (ni `localStorage` ni
+  cookies) y vive solo en `?lang=pt`, así que dura mientras se lee y viaja en un enlace compartido.
+- **Al elegir**, el cambio es **en la misma página, sin red ni recarga**: el script de navegación llama
+  a `HeritageLanguage.set`, reescribe sus propios textos, las capturas se traducen y vuelven a ubicar
+  sus puntos, la URL pasa a `?lang=pt` (o lo pierde) conservando `#sNN`, y el documento queda **al
+  inicio de la sección que se leía**, como un salto del índice (el número `16px` abajo del borde), no en
+  la posición exacta, que se desfasaría porque el texto traducido tiene otro largo. El navegador funde
+  el antes y el después con `document.startViewTransition` en `1,5 × motion.duration-base` (300ms); sin
+  soporte o con "reducir movimiento", cambia al instante.
+- Los textos de la interfaz que arma el script de navegación (copiar enlace, tooltips, pista de las
+  capturas, mapa, píldora, hoja del índice, botón "Inicio") salen de su diccionario `UI_TEXT` y se
+  vuelven a escribir con cada cambio de idioma (`whenLanguage`); no van en la tabla.
 - `role="radiogroup"` con `aria-label` "Idioma"; cada opción es un `button` con `role="radio"` y
   `aria-checked`. Cada opción se nombra en su propio idioma. No se imprime.
 - Sin banderas: un idioma no es un país.
@@ -1201,9 +1209,10 @@ Términos del dominio con su definición a mano, sin salir del párrafo.
 </dl>
 ```
 
-- La definición vive **una sola vez**, en la `<dl class="glossary">` (normalmente una sección
-  "Glosario" al final). El término es un link a su `<dt>`: sin JavaScript igual lleva a la
-  definición.
+- La definición vive **una sola vez**, en la `<dl class="glossary">`, en la sección "Glosario"
+  (`data-section="glossary"`), siempre la **última** del documento. Un glosario sin términos no se
+  muestra: sin sección, sin entrada en el índice y sin `a.term`. El término es un link a su `<dt>`:
+  sin JavaScript igual lleva a la definición.
 - Con JavaScript, al pasar o enfocar el término aparece una tarjeta con el término y la definición,
   debajo (o arriba si no entra). Se puede recorrer con el puntero sin que se cierre y `Escape` la
   cierra (WCAG 1.4.13). El término recibe `aria-describedby` hacia su `<dd>`.
@@ -1651,11 +1660,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .section-link,.hotspot{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
   .hotspot,.hotspot-ref,.step-circle{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard),scale var(--motion-duration-fast) var(--motion-easing-standard);}
   .hotspot-return{transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
-  /* Cambio de idioma: el navegador funde el documento anterior con el nuevo (navegación al mismo origen). */
-  @view-transition{navigation:auto;}
-  /* 1,5 × base, desde el contenido ya atenuado al hacer clic: se percibe aunque los dos idiomas queden en la misma posición. */
+  /* Cambio de idioma en la misma página (document.startViewTransition): funde el antes y el después en 1,5 × base. */
   ::view-transition-old(root),::view-transition-new(root){animation-duration:calc(var(--motion-duration-base) * 1.5);animation-timing-function:var(--motion-easing-standard);}
-  .is-switching-language #lang-region{opacity:0.5;transition:opacity var(--motion-duration-fast) var(--motion-easing-standard);}
   .lang-switch button{transition:color var(--motion-duration-fast) var(--motion-easing-standard),background-color var(--motion-duration-fast) var(--motion-easing-standard),border-color var(--motion-duration-fast) var(--motion-easing-standard);}
   /* Abre en 500ms y cierra en 500ms (2,5 × motion.duration-base cada uno). */
   .hotspot-spotlight.is-on{transition:--spot-radius calc(var(--motion-duration-base) * 2.5) var(--motion-easing-standard),opacity calc(var(--motion-duration-base) * 2.5) var(--motion-easing-standard);}
@@ -1675,7 +1681,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 }
 @media (max-width:719px){
   .lang-switch{top:12px;right:16px;}
-  .lang-switch ~ #lang-region > .doc-header{padding-top:28px;}
+  .lang-switch ~ .doc-header{padding-top:28px;}
   .lang-switch button{padding:5px 12px;font-size:12px;}
   body{padding-left:16px;padding-right:16px;}
   .back-to-top{right:16px;bottom:16px;}
@@ -1713,9 +1719,10 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   <div class="doc-meta"><span>Fecha: …</span></div>
 </header>
 
-<section class="section" aria-labelledby="s01">
+<!-- id: slug fijo de la sección (kebab-case, en inglés), no su número ni su título -->
+<section class="section" aria-labelledby="[slug]">
   <div class="section-num">01</div>
-  <h2 class="section-title" id="s01">[Título de la sección]</h2>
+  <h2 class="section-title" id="[slug]">[Título de la sección]</h2>
   <p>…</p>
 </section>
 
@@ -1758,53 +1765,55 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     }
   };
   var ui = UI_TEXT[language] || UI_TEXT.es;
+  // Textos que arma este script: se escriben al iniciar y otra vez cuando el idioma cambia en la misma página.
+  var relabels = [];
+  function whenLanguage(apply) { relabels.push(apply); apply(); }
   // Textos fijos fuera del contenido (botón Inicio, mapa, hoja del índice) en el idioma del documento.
-  if (button) {
-    button.setAttribute('aria-label', ui.backToTop);
-    if (button.lastChild && button.lastChild.nodeType === 3) button.lastChild.textContent = ' ' + ui.backToTopText;
-  }
   var railLabelled = document.querySelector('.section-rail');
-  if (railLabelled) railLabelled.setAttribute('aria-label', ui.sectionMap);
   var sheetLabel = document.getElementById('toc-sheet-label');
-  if (sheetLabel) sheetLabel.textContent = ui.contents;
   var sheetClose = document.querySelector('.toc-sheet-close');
-  if (sheetClose) sheetClose.textContent = ui.close;
+  whenLanguage(function () {
+    if (button) {
+      button.setAttribute('aria-label', ui.backToTop);
+      if (button.lastChild && button.lastChild.nodeType === 3) button.lastChild.textContent = ' ' + ui.backToTopText;
+    }
+    if (railLabelled) railLabelled.setAttribute('aria-label', ui.sectionMap);
+    if (sheetLabel) sheetLabel.textContent = ui.contents;
+    if (sheetClose) sheetClose.textContent = ui.close;
+  });
 
-  // —— Selector de idioma: guarda la elección, conserva la sección actual en la URL y recarga en ese idioma.
+  // —— Selector de idioma: cambia en la misma página, sin red ni recarga. La tabla de traducciones
+  // (script de idioma) reemplaza textos y capturas; este script reescribe lo suyo y vuelve al inicio
+  // de la sección que se leía, como un salto del índice (el texto traducido tiene otro largo).
   var languageSwitch = document.querySelector('.lang-switch');
   if (languageSwitch) {
-    // Volver atrás puede restaurar esta página desde el bfcache: sin atenuar y con su idioma marcado.
-    window.addEventListener('pageshow', function (event) {
-      if (!event.persisted) return;
-      document.documentElement.classList.remove('is-switching-language');
-      languageSwitch.querySelectorAll('[data-lang]').forEach(function (option) { option.setAttribute('aria-checked', String(option.getAttribute('data-lang') === language)); });
+    whenLanguage(function () {
+      languageSwitch.setAttribute('aria-label', ui.languageLabel);
+      languageSwitch.querySelectorAll('[data-lang]').forEach(function (option) {
+        option.setAttribute('aria-checked', String(option.getAttribute('data-lang') === language));
+      });
     });
-    languageSwitch.setAttribute('aria-label', ui.languageLabel);
     languageSwitch.querySelectorAll('[data-lang]').forEach(function (option) {
-      option.setAttribute('aria-checked', String(option.getAttribute('data-lang') === language));
       option.addEventListener('click', function () {
         var chosen = option.getAttribute('data-lang');
-        if (chosen === language) return;
-        // Respuesta inmediata: el documento nuevo tarda lo que tarde la red (sin caché en Grid, ~300ms).
-        languageSwitch.querySelectorAll('[data-lang]').forEach(function (other) { other.setAttribute('aria-checked', String(other === option)); });
-        document.documentElement.classList.add('is-switching-language');
-        var query = new URLSearchParams(location.search);
-        if (chosen === 'es') query.delete('lang'); else query.set('lang', chosen);
-        var search = query.toString() ? '?' + query.toString() : '';
-        var hash = currentEntry && !currentEntry.isStart ? '#' + currentEntry.heading.id : '';
-        // El otro idioma abre al inicio de la sección actual, como un salto del índice: no la posición exacta,
-        // que se desfasa porque el texto traducido tiene otro largo.
-        // Guardada la sección, la URL va sin hash: el salto nativo al #sNN llegaría después y animado.
-        var restoreSaved = false;
-        if (hash) {
-          try {
-            sessionStorage.setItem(LANGUAGE_RESTORE_KEY, JSON.stringify({ id: currentEntry.heading.id }));
-            restoreSaved = true;
-          } catch (storageError) { /* fallback deliberado: abre al inicio de la sección por el hash */ }
-          setHash(currentEntry.heading.id);
-        }
-        // replace (no reload): navegación al mismo origen, así el navegador funde los dos idiomas (@view-transition).
-        location.replace(location.pathname + search + (restoreSaved ? '' : hash));
+        if (chosen === language || !window.HeritageLanguage) return;
+        var section = currentEntry && !currentEntry.isStart ? currentEntry.heading : null;
+        var change = function () {
+          window.HeritageLanguage.set(chosen);
+          // La URL dice el idioma (?lang=pt), así un enlace compartido abre igual; no se guarda ninguna preferencia.
+          var query = new URLSearchParams(location.search);
+          if (chosen === 'es') query.delete('lang'); else query.set('lang', chosen);
+          var search = query.toString() ? '?' + query.toString() : '';
+          history.replaceState(history.state, '', location.pathname + search + location.hash);
+          if (section) {
+            document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: section } }));
+            settleOn(section);
+          }
+        };
+        // Mismo documento: el navegador funde el antes y el después (view transition); sin soporte o con
+        // "reducir movimiento", cambia al instante.
+        if (document.startViewTransition && !reduceMotion.matches) document.startViewTransition(change);
+        else change();
       });
     });
   }
@@ -1827,8 +1836,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   // Vida total del foco temporal: 500ms de apertura + 500ms de cierre.
   var SPOTLIGHT_LIFETIME_MS = 1000;
   var spotlightTimer = null;
-  // Sección que se leía al cambiar de idioma (solo para la carga siguiente de esta pestaña).
-  var LANGUAGE_RESTORE_KEY = 'heritage:lang-restore';
   // Apertura y cierre de accordions: 1,5 × motion.duration-base (300ms).
   var ACCORDION_FACTOR = 1.5;
   // Manito de los pasos (trazo al estilo de Lucide "pointer", ISC): halo claro, relleno, destello y línea.
@@ -1956,6 +1963,13 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     });
   }
   var toc = document.querySelector('.toc');
+  // Título y resumen salen del contenido: se vuelven a leer cuando cambia el idioma.
+  function readEntryText(entry) {
+    var title = entry.isStart ? docTitle : entry.heading;
+    var summary = entry.isStart ? docHeader.querySelector('.doc-sub') : entry.section.querySelector('p');
+    entry.title = title.textContent.replace(/\s+/g, ' ').trim();
+    entry.summary = summary ? summary.textContent.replace(/\s+/g, ' ').trim() : '';
+  }
 
   // —— Copiar enlace a una sección. En visores embebidos, <meta name="heritage:share-url"> da la URL pública.
   var shareMeta = document.querySelector('meta[name="heritage:share-url"]');
@@ -1982,10 +1996,12 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   }
   entries.forEach(function (entry) {
     if (!entry.numberElement) return;
-    var copyButton = createElement('button', 'section-link', ui.copyLink);
-    var restLabel = ui.copyLinkTo + (entry.number || entry.title);
+    var copyButton = createElement('button', 'section-link');
     copyButton.type = 'button';
-    copyButton.setAttribute('aria-label', restLabel);
+    whenLanguage(function () {
+      if (!copyButton.classList.contains('is-copied')) copyButton.textContent = ui.copyLink;
+      copyButton.setAttribute('aria-label', ui.copyLinkTo + (entry.number || entry.title));
+    });
     copyButton.addEventListener('click', function () {
       var url = shareBase + '#' + entry.heading.id;
       // La barra de direcciones también pasa a la sección, también la del visor.
@@ -2021,8 +2037,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     var previewNumber = createElement('span', 'section-rail-preview-num');
     var previewTitle = createElement('div', 'section-rail-preview-title');
     var previewSummary = createElement('div', 'section-rail-preview-summary');
-    var previewHint = createElement('div', 'section-rail-preview-hint',
-      modifierLabel + ui.shortcutSections + (toc ? ' · ' + modifierLabel + ui.shortcutIndex : ''));
+    var previewHint = createElement('div', 'section-rail-preview-hint');
+    whenLanguage(function () { previewHint.textContent = modifierLabel + ui.shortcutSections + (toc ? ' · ' + modifierLabel + ui.shortcutIndex : ''); });
     previewMeta.append(previewNumber);
     preview.append(previewMeta, previewTitle, previewSummary, previewHint);
     preview.setAttribute('aria-hidden', 'true');
@@ -2032,7 +2048,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       var item = createElement('li');
       entry.link = createElement('a', entry.isStart ? 'section-rail-tick is-start' : 'section-rail-tick');
       entry.link.href = '#' + entry.heading.id;
-      entry.link.setAttribute('aria-label', (entry.isStart ? ui.start : entry.number ? entry.number + ' ' : '') + entry.title);
+      whenLanguage(function () { entry.link.setAttribute('aria-label', (entry.isStart ? ui.start : entry.number ? entry.number + ' ' : '') + entry.title); });
       item.appendChild(entry.link);
       railList.appendChild(item);
     });
@@ -2120,7 +2136,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     var startEntry = entries[0] && entries[0].isStart ? entries[0] : null;
     if (startEntry && toc) {
       var startItem = createElement('li');
-      var startLink = createElement('a', 'toc-sheet-start', startEntry.title);
+      var startLink = createElement('a', 'toc-sheet-start');
+      whenLanguage(function () { startLink.textContent = startEntry.title; });
       startLink.href = '#top';
       startItem.appendChild(startLink);
       sheetList.prepend(startItem);
@@ -2364,7 +2381,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     // Va después del pie, no adentro: el pie es la descripción accesible de la captura.
     if (caption && caption.classList.contains('figcap') && !(caption.nextElementSibling && caption.nextElementSibling.classList.contains('figcap-hint'))) {
       var hasSteps = Boolean(section.querySelector('.step-item[data-hotspot]'));
-      var hint = createElement('div', 'figcap figcap-hint', hasSteps ? ui.hintSteps : ui.hintMentions);
+      var hint = createElement('div', 'figcap figcap-hint');
+      whenLanguage(function () { hint.textContent = hasSteps ? ui.hintSteps : ui.hintMentions; });
       hint.setAttribute('aria-hidden', 'true');
       caption.after(hint);
     }
@@ -2382,7 +2400,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       // Del punto se va al paso (o, sin pasos, a la primera referencia); del paso o la referencia, al punto.
       var destinationSelector = isPin ? (hasStep ? '.step-item' : '.hotspot-ref') : '.hotspot';
       // El tooltip dice qué pasa al tocar.
-      element.title = isPin ? (hasStep ? ui.goToStep + element.dataset.hotspot : ui.goToMention) : ui.seeInCapture;
+      whenLanguage(function () { element.title = isPin ? (hasStep ? ui.goToStep + element.dataset.hotspot : ui.goToMention) : ui.seeInCapture; });
       // Mientras dura un salto, el resaltado es del destino: lo que pasa por debajo del puntero al
       // scrollear (otro punto, otro paso) no lo cambia.
       element.addEventListener('mouseenter', function () { if (!revealTimer) highlight(element.dataset.hotspot); });
@@ -2454,10 +2472,10 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       range.setAttribute('aria-valuetext', ui.before + value + ui.after + (100 - value) + '%');
     };
     range.addEventListener('input', update);
-    update();
+    whenLanguage(update);
   });
 
-  // —— Enlace directo al cargar: "Copiar enlace" da …#s05, pero al abrirlo o recargarlo el salto nativo
+  // —— Enlace directo al cargar: "Copiar enlace" da …#permissions, pero al abrirlo o recargarlo el salto nativo
   // ocurre antes de que se rendericen las capturas de arriba, y en visores embebidos (Grid) el hash queda
   // en la página que envuelve al iframe. Se lee de los dos lados y se salta como desde el índice.
   function parentHash() {
@@ -2467,34 +2485,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     var target = hash && hash.length > 1 && document.getElementById(decodeURIComponent(hash.slice(1)));
     if (target) scrollToTarget(target, false);
   }
-  // Después de un cambio de idioma abre, sin animar, al inicio de la sección que se leía; si no, sigue el hash.
-  var restoreReadingPoint = function () {
-    var saved = null;
-    try {
-      saved = JSON.parse(sessionStorage.getItem(LANGUAGE_RESTORE_KEY) || 'null');
-      sessionStorage.removeItem(LANGUAGE_RESTORE_KEY);
-    } catch (storageError) { saved = null; }
-    var heading = saved && document.getElementById(saved.id);
-    if (!heading) return false;
-    document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: heading } }));
-    // Sin animar y re-ubicándose si algo de arriba cambia de alto (capturas diferidas).
-    settleOn(heading);
-    // La URL recupera la sección (también en la barra del visor) recién después de load: antes, el navegador
-    // todavía haría su salto nativo al #sNN, animado.
-    var restoreHash = function () { setTimeout(function () { setHash(saved.id); }, 0); };
-    if (document.readyState === 'complete') restoreHash();
-    else window.addEventListener('load', restoreHash, { once: true });
-    return true;
-  };
-  var initialLinkOpened = false;
-  var openInitialLink = function () {
-    if (initialLinkOpened) return;
-    initialLinkOpened = true;
-    if (!restoreReadingPoint()) openDeepLink(location.hash.length > 1 ? location.hash : parentHash());
-  };
+  var openInitialLink = function () { openDeepLink(location.hash.length > 1 ? location.hash : parentHash()); };
   // DOMContentLoaded: después de todos los scripts, así las capturas diferidas ya escuchan heritage:before-scroll.
-  // pagereveal llega antes del primer cuadro: la posición ya está puesta cuando el lector ve la página.
-  window.addEventListener('pagereveal', openInitialLink, { once: true });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', openInitialLink, { once: true });
   else setTimeout(openInitialLink, 0);
   window.addEventListener('hashchange', function () { openDeepLink(location.hash); });
@@ -2502,6 +2494,17 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   try {
     if (window.parent !== window) window.parent.addEventListener('hashchange', function () { if (parentHash() !== location.hash) openDeepLink(parentHash()); });
   } catch (crossOriginError) { /* fallback deliberado: visor de otro origen, solo el hash propio */ }
+
+  // —— Cambio de idioma en la misma página: el script de idioma ya tradujo el contenido.
+  document.addEventListener('heritage:language-change', function (event) {
+    language = event.detail.language;
+    ui = UI_TEXT[language] || UI_TEXT.es;
+    entries.forEach(readEntryText);
+    relabels.forEach(function (apply) { apply(); });
+    hidePreview();
+    hideTermCard();
+    updateCurrent();
+  });
 })();
 </script>
 <script>
@@ -2520,32 +2523,109 @@ Markup de referencia para cada componente. Los nombres de clase son contrato:
 otras skills (por ejemplo `user-manual`) dependen de ellos.
 
 ```html
-<!-- Selector de idioma: primer hijo del <body>, fuera de #lang-region -->
+<!-- Selector de idioma: primer hijo del <body> (solo en documentos con versión en portugués) -->
 <div class="lang-switch" role="radiogroup" aria-label="Idioma">
   <button type="button" role="radio" data-lang="es" lang="es" aria-checked="true">Español</button>
   <button type="button" role="radio" data-lang="pt" lang="pt-BR" aria-checked="false">Português</button>
 </div>
-<div id="lang-region">
-  <!-- doc-header … secciones … doc-footer en español -->
-</div><!-- /lang-region -->
-<template id="lang-pt" data-html-lang="pt-BR" data-title="[Título en portugués]">
-  <!-- el mismo contenido en portugués, con los mismos id de sección y capturas data-cap="…--pt" -->
-</template>
+<!-- doc-header … secciones … doc-footer, una sola vez y en español -->
 <!-- …botón Inicio, mapa, píldora y hoja del índice… -->
+<script type="application/json" id="heritage-translations">
+{"pt": {"htmlLang": "pt-BR", "title": "[Título en portugués]",
+  "document": {"[Texto en español]": "[Texto em português]"},
+  "captures": {"[Texto de la app en español]": "[Texto da app em pt-BR]"},
+  "captureTemplates": {}}}
+</script>
 <script>
-// Idioma: siempre español por defecto; portugués solo si la URL lo pide (?lang=pt). No se guarda ninguna preferencia.
+// Idioma: el documento se escribe en español y se traduce en la misma página con la tabla de
+// heritage-translations (textos y atributos), sin duplicar el markup. Siempre abre en español;
+// en portugués solo si la URL lo pide (?lang=pt). No se guarda ninguna preferencia.
 (function () {
-  var language = new URLSearchParams(location.search).get('lang') || 'es';
-  var template = document.getElementById('lang-' + language);
-  var region = document.getElementById('lang-region');
-  if (language !== 'es' && template && region) {
-    region.replaceChildren(template.content.cloneNode(true));
-    document.documentElement.lang = template.getAttribute('data-html-lang') || language;
-    if (template.getAttribute('data-title')) document.title = template.getAttribute('data-title');
-  } else {
-    language = 'es';
+  var source = document.getElementById('heritage-translations');
+  var tables = source ? JSON.parse(source.textContent) : {};
+  var ATTRIBUTES = ['aria-label', 'title', 'alt', 'placeholder', 'data-tooltip', 'data-target', 'data-target-text'];
+  // Nunca se traducen: código, estilos, scripts y el selector (cada opción ya está en su idioma).
+  var SKIPPED = 'script, style, code, template, .lang-switch';
+  var spanishLang = document.documentElement.lang || 'es';
+  var spanishTitle = document.title;
+  // Español de cada texto o atributo traducido, para volver; lo que no está en la tabla no se toca.
+  var spanishTexts = new WeakMap();
+  var spanishAttributes = new WeakMap();
+  var current = 'es';
+  function lookup(dictionary, value) {
+    var key = value.trim();
+    if (!dictionary || !key || !Object.prototype.hasOwnProperty.call(dictionary, key)) return null;
+    return value.replace(key, function () { return dictionary[key]; });
   }
-  document.documentElement.setAttribute('data-language', language);
+  // Portugués → español, para lo que se copió ya traducido (la hoja del índice copia el índice al iniciar).
+  var reverseTables = {};
+  function reverseOf(kind) {
+    if (!reverseTables[kind]) {
+      reverseTables[kind] = {};
+      Object.keys(tables).forEach(function (language) {
+        var dictionary = tables[language][kind] || {};
+        Object.keys(dictionary).forEach(function (spanish) {
+          if (!Object.prototype.hasOwnProperty.call(reverseTables[kind], dictionary[spanish])) reverseTables[kind][dictionary[spanish]] = spanish;
+        });
+      });
+    }
+    return reverseTables[kind];
+  }
+  function translate(root, kind) {
+    var dictionary = current === 'es' ? reverseOf(kind) : (tables[current] || {})[kind];
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (var node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.parentElement && node.parentElement.closest(SKIPPED)) continue;
+      if (spanishTexts.has(node)) {
+        // Ya traducido: vuelve a su español y, si el idioma nuevo no es español, se traduce de nuevo desde ahí.
+        node.nodeValue = spanishTexts.get(node);
+        spanishTexts.delete(node);
+      }
+      var translated = lookup(dictionary, node.nodeValue);
+      if (translated === null) continue;
+      if (current !== 'es') spanishTexts.set(node, node.nodeValue);
+      node.nodeValue = translated;
+    }
+    root.querySelectorAll('[' + ATTRIBUTES.join('],[') + ']').forEach(function (element) {
+      if (element.closest(SKIPPED)) return;
+      var saved = spanishAttributes.get(element) || {};
+      ATTRIBUTES.forEach(function (name) {
+        if (!element.hasAttribute(name)) return;
+        if (Object.prototype.hasOwnProperty.call(saved, name)) {
+          element.setAttribute(name, saved[name]);
+          delete saved[name];
+        }
+        var value = element.getAttribute(name);
+        var translated = lookup(dictionary, value);
+        if (translated === null) return;
+        if (current !== 'es') saved[name] = value;
+        element.setAttribute(name, translated);
+      });
+      spanishAttributes.set(element, saved);
+    });
+  }
+  function set(language) {
+    current = tables[language] ? language : 'es';
+    translate(document.body, 'document');
+    var table = tables[current];
+    document.documentElement.lang = table ? table.htmlLang || current : spanishLang;
+    document.title = table && table.title ? table.title : spanishTitle;
+    document.documentElement.setAttribute('data-language', current);
+    document.dispatchEvent(new CustomEvent('heritage:language-change', { detail: { language: current } }));
+  }
+  window.HeritageLanguage = {
+    get current() { return current; },
+    set: set,
+    // Las capturas se traducen al renderizarse (embed-app-frames.mjs) con la parte "captures".
+    translate: translate,
+    captureTemplate: function (name) {
+      var table = tables[current];
+      return (table && table.captureTemplates && table.captureTemplates[name]) || null;
+    }
+  };
+  var requested = new URLSearchParams(location.search).get('lang');
+  if (requested && tables[requested]) set(requested);
+  else document.documentElement.setAttribute('data-language', 'es');
 })();
 </script>
 <!-- …y después el script de navegación -->
@@ -2554,8 +2634,8 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 <nav class="toc" aria-labelledby="toc-label">
   <div class="toc-label" id="toc-label">Contenido</div>
   <ol>
-    <li><a href="#s01"><span class="toc-num">01</span>[Título de la sección]</a></li>
-    <li><a href="#s02"><span class="toc-num">02</span>[Título de la sección]</a></li>
+    <li><a href="#[slug]"><span class="toc-num">01</span>[Título de la sección]</a></li>
+    <li><a href="#[otro-slug]"><span class="toc-num">02</span>[Título de la sección]</a></li>
   </ol>
 </nav>
 

@@ -59,13 +59,17 @@ Only if the answer is yes, ask a second question:
 
 | Answers | Result |
 |---|---|
-| No portuguese (default) | Spanish only. **No language switch**: no `.lang-switch`, no `#lang-region`, no `<template id="lang-pt">`. |
-| Portuguese, captures in Spanish | Spanish and Portuguese text with the switch ("Selector de idioma" in DESIGN.md); the Portuguese version reuses the Spanish captures. |
-| Portuguese, captures in Portuguese | Same, plus Portuguese captures (`data-cap="<name>--pt"`) with the app in pt-BR. |
+| No portuguese (default) | Spanish only. **No language switch** and no translation table. |
+| Portuguese, captures in Spanish | The Spanish manual plus the `document` translation table and the switch ("Selector de idioma" in DESIGN.md); the captures stay in Spanish (empty `captures` table). |
+| Portuguese, captures in Portuguese | Same, plus the `captures` table, which translates the Spanish captures to the app's pt-BR texts in place: no second set of captures. |
 
 Never add Portuguese, the switch or translated captures on your own, also when updating a manual:
 an existing manual keeps its languages unless the user asks to change them. When there is a
-Portuguese version, read `references/portuguese-version.md` before translating: it says which texts
+Portuguese version, read `references/portuguese-version.md` before translating. The manual is written
+and captured once, in Spanish; the Portuguese version is a translation table, so translating it again,
+updating it or adding a language means editing that table, never running the app or capturing again.
+App texts are never translated by hand: they come from the repo's `pt-BR/messages.po` (and its pt-BR
+`messages.json`), and `check-manual.mjs` checks the table against those catalogs. The reference says which texts
 stay in Spanish (strings the app does not translate), how quotes, pins and captures are translated,
 and how to verify both languages. `check-manual.mjs` runs with `--translations-pt`. The manual always
 opens in Spanish; the reader's choice is never stored.
@@ -90,7 +94,11 @@ code of the base branch, not the old manual:
   diff). It lists the commits and files of the documented paths changed since the recorded commit;
   "No changes" means the content is still current (only design or capture updates remain). Then
   read the whole flow anyway for new paths the old list did not cover. Manuals without the metas are
-  read from scratch.
+  read from scratch. The commit is the same one the `doc-footer` links to ("Código: <base> @
+  <commit>"); the diff reads it from the metas. After the update, run `source-trace.py record` again
+  (Step 5) so the metas and the footer move to the commit you documented. With a Portuguese version,
+  every Spanish text you change needs its entry in the translation table updated too
+  (`check-manual.mjs` warns about entries that no longer match).
 
 - If the user asks to ignore the current branch, or it has unrelated changes, read the base with
   `git show origin/<base>:<path>` and run the app from a **detached worktree** of the base
@@ -181,16 +189,36 @@ For a branch diff:
 2. **Vista en computadora (escritorio)** or **Pantalla principal** (mobile flows).
 3. One section per **major UI surface**.
 4. **Experiencia en celular** — if the answer in Step 0 was "Ambos" and the mobile flow differs.
-5. `part-header` **"Quién ve qué: permisos y roles"**.
-6. **Tabla de visibilidad por permiso** — the matrix from Step 2.
-7. **Escenarios de ejemplo** — 3–5 concrete user/operator combinations.
-8. **Guía paso a paso** — `steps` linked to `hotspot` pins on the capture of each screen.
-9. **Preguntas frecuentes**.
-10. **Glosario** — only when the manual uses domain terms a non-technical reader may not know.
+5. **Escenarios de ejemplo** — 3–5 concrete user/operator combinations.
+6. **Guía paso a paso** — `steps` linked to `hotspot` pins on the capture of each screen.
+7. **Preguntas frecuentes**.
+8. **Permisos y qué habilitan** — always, second to last (see below).
+9. **Glosario** — always last, only with the terms the user confirmed (see below).
 
 For a flow manual (or an update of one), keep the existing section order when it still fits and
 add what is missing: Objetivo with the audience, prerequisites, flow overview with every screen, each screen with all its
-variants, messages and what to do, FAQ, glossary.
+variants, messages and what to do, FAQ, then **Permisos y qué habilitan** and **Glosario** at the end.
+
+**Required closing sections, in this order, at the end of every manual:**
+
+1. **Permisos y qué habilitan** (`<section class="section" data-section="permissions">`), second to
+   last, or last when there is no glossary. The **only place** that lists the permissions: one row per
+   permission with its exact identifier in `<code>`, who usually has it, what it enables (every
+   screen, action and element it gates, from the matrix of Step 2) and any extra condition (another
+   permission, a configuration, a role). The rest of the manual names a permission in plain words and
+   links here (`<a href="#permissions">Permisos y qué habilitan</a>`) instead of repeating what it enables:
+   prerequisites, "Cómo se entra", messages and FAQ do not keep their own permission tables. When the
+   flow checks no permission, the section says so in one sentence. A table of elements is only for
+   what a permission gates (an entry card, a screen, a button, an option), with what happens without
+   it: behavior that depends on data or state (a filter that needs another one, a bar that appears
+   with a selection) belongs to its screen's section, not here. Show permission identifiers only,
+   never the front end's internal names (`canEditContingencyOp`). If no row is left, there is no
+   element table.
+2. **Glosario** (`<section class="section" data-section="glossary">`), always the last section.
+   Technical terms and business-specific language (`facility`, `site`, `Groot ID`, a role or process
+   name) that a non-technical reader may not know, defined in plain words. **Which terms go in is the
+   user's decision** ("Glossary terms — ask" in Step 4). With no confirmed terms there is no glossary:
+   no section, no TOC entry and no `a.term` links.
 
 Adjust sections when there is little to say — skip sections that have nothing to say.
 
@@ -212,13 +240,19 @@ manual only lives in its destination (for example a Grid document being updated)
 - All CSS inline in `<style>`. Colors only through the `:root` variables. The one exception is the
   real-app capture payload injected by `scripts/embed-app-frames.mjs`.
 - Semantic markup: `<header class="doc-header">` + `<h1 class="doc-title">`, one
-  `<section class="section">` per numbered section with `<h2 class="section-title" id="sNN">`.
+  `<section class="section" aria-labelledby="<slug>">` per numbered section with
+  `<h2 class="section-title" id="<slug>">`.
+- **Section ids are fixed slugs**, never `sNN` and never the title: short kebab-case English words
+  that say what the section is about (`prerequisites`, `add-collaborators`, `permissions`,
+  `glossary`), unique in the manual and the same in every language. Choose it when the section is
+  created and never change it: renumbering, inserting sections in between or retitling leave it as
+  it is, so a copied link keeps opening the same section. Ids of deleted sections are not reused.
 - Keep the `beforeprint` script. Max width `860px`, centered.
 - **Legacy manuals.** A manual in the old div-based Heritage markup (`div.doc-title`,
   `div.section-title` without ids, `div.steps`, `part-label`/`part-title`, `example-box-label`, bare
   tables) is migrated first with a **one-off script written for that manual**: an HTML parser (Python
   `html.parser`, no regex over nested divs) that keeps every text verbatim, closes each converted tag
-  where its `div` closed, assigns `sNN` ids from the `section-num`, wraps tables in `.table-wrap`,
+  where its `div` closed, assigns a slug id to each section, wraps tables in `.table-wrap`,
   adds `th scope="col"`, generates the TOC, and takes the head and tail from the current DESIGN.md
   boilerplate. Check the result (sections, ids, TOC, no legacy classes) and then verify its content
   like any other.
@@ -271,23 +305,39 @@ DESIGN.md ("Índice (TOC)", "Mapa de secciones", "Píldora de sección", "Copiar
   it shows the document title), the only shortcut below 1024 px. The map, the sheet and the pill
   start with the document title, which leads back to the start. The header needs `id="top"` and a
   `.doc-title`, as in the boilerplate.
-- **The URL follows the reader:** jumps and "Copiar enlace" write `#sNN` (the start clears it), also in
+- **The URL follows the reader:** jumps and "Copiar enlace" write `#<slug>` (the start clears it), also in
   Grid's address bar, so a reload lands on the same section.
 - **Keyboard shortcuts** come with the script and are listed at the foot of the map preview:
   `⌥`/`Alt` + `↑` `↓` previous / next section, `⌥`/`Alt` + `I` table of contents, `Escape` closes
   previews. Nothing to add per manual; verify them.
 - **Share URL** when the manual is published inside an iframe viewer (Grid): add
   `<meta name="heritage:share-url" content="<public document URL>">`. In Grid it is the `/view` URL;
-  `…/view#sNN` opens the manual at that section.
+  `…/view#<slug>` opens the manual at that section.
 
 Verify on a **fresh load** and in the destination viewer: TOC links land with the section 16 px
 below the top about 2 s later; the button brings `scrollY` to `0`; at ≥ 1024 px a map tick magnifies
 its neighbours and its preview shows number, title and first paragraph; at 375 px the pill opens the
 sheet and its links land; `Alt`+`↓` moves to the next section; opening a copied section link
-(`…/view#s08`) in a new tab, and reloading it, lands on that section in the viewer. Scroll with `behavior: 'instant'`
+(`…/view#add-collaborators`) in a new tab, and reloading it, lands on that section in the viewer. Scroll with `behavior: 'instant'`
 before screenshots. A browser tab in the background does not run `requestAnimationFrame` nor
 dispatch scroll events: if "current section" checks fail in automation, check
 `document.visibilityState` before blaming the script.
+
+### Glossary terms — ask
+
+When the prose is written, list the candidate terms (technical words and business language the text
+uses: codes, roles, process and place names, identifiers) and ask the user which ones go in the
+glossary, with the question tool (`multiSelect`; at most four options per question, so split the
+candidates into several questions or list them in chat when there are more). Show each candidate
+with the one-line definition you would write. Then:
+
+- the glossary holds exactly the confirmed terms, in the order the reader meets them;
+- only those terms get `a.term` links; unconfirmed ones stay plain text;
+- a link goes only in the manual's own prose: never inside an app text (a label, a button, a screen
+  or modal name such as «Solicitar acceso», even when it is not in bold or quoted), a heading, a
+  caption or a mockup bar;
+- no confirmed term: no glossary section at all (an empty glossary is never shown);
+- when updating a manual, keep its confirmed terms and ask only about new candidates.
 
 ### Pins, before / after and glossary
 
@@ -429,7 +479,8 @@ icon, text or button inside). Also look at each pin: it must read as pointing at
 
 Cross-check against the code what the scripts cannot see:
 
-- Every permission flag appears in the visibility matrix, with its exact identifier.
+- Every permission flag the code checks appears in **Permisos y qué habilitan**, with its exact
+  identifier and everything it enables, and no other section repeats what a permission enables.
 - Every visible label, notice and error text appears in the prose or a table, and every one of them
   exists in the code (no obsolete strings).
 - Every conditional render, redirect and guard maps to a rule in the doc.
@@ -509,6 +560,9 @@ add them to `scripts/`.
       Groot IDs), no token/CSRF, and no environment host (`https?://` in mockup bars or prose,
       `:8443`, `melioffice`, `melisystems`).
 - [ ] Every `compare` uses captures with the same width and framing; every `a.term` resolves.
+- [ ] **Permisos y qué habilitan** is second to last (last without a glossary) and is the only list
+      of permissions; **Glosario** is last and holds only the terms the user confirmed, or does not
+      exist when none was confirmed.
 - [ ] Visibility matrix complete; texts, limits and formats verified against code and translations;
       untranslated keys reported.
 - [ ] Temporary fixtures, worktrees, local servers, logs with request headers and exports deleted.
