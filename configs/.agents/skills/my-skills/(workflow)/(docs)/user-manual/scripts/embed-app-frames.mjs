@@ -9,6 +9,8 @@
  *
  * The manual marks each preview with an empty host element:
  *   <div class="app-frame" data-cap="<capture name>"></div>
+ * Optional on the host: data-mute="<selector>" grays the icons and images of the matching elements of the
+ * capture, except those matching data-mute-except (the card of this manual in the app's menu).
  * This script injects, between marker comments (re-runs replace the previous block):
  *   - a JSON payload with the used CSS, @font-face rules and one template per capture;
  *   - a small runtime that renders every host inside its own shadow root, so the app's CSS and
@@ -127,6 +129,20 @@ const block = `${START}
 		return sheet;
 	}
 	var hostSheet = toSheet(data.hostCss);
+	// data-mute="<selector>" on a host grays the media (icons, images) of every matching element of the
+	// capture except the ones matching data-mute-except, so the element the text talks about stands out
+	// (the card of this manual in a capture of the app's menu).
+	var muteSheet = toSheet('[data-muted] :is(img,svg,picture,canvas){filter:grayscale(1);opacity:0.45;}');
+	function mute(host, content) {
+		var group = host.getAttribute('data-mute');
+		if (!group) return;
+		var except = host.getAttribute('data-mute-except');
+		content.querySelectorAll(group).forEach(function (element) {
+			var kept = except && (element.matches(except) || element.querySelector(except) || element.closest(except));
+			if (kept) element.removeAttribute('data-muted');
+			else element.setAttribute('data-muted', '');
+		});
+	}
 	function captureSheet(name) {
 		return toSheet((data.captureRules[name] || []).map(function (index) { return data.rules[index]; }).join('\\n'));
 	}
@@ -270,13 +286,14 @@ const block = `${START}
 		host.__umFilled = true;
 		host.__umOverridden = Boolean(override);
 		if (language && !override) language.translate(content, 'captures');
+		mute(host, content);
 	}
 
 	function render(host) {
 		if (host.shadowRoot) return;
 		var name = host.getAttribute('data-cap');
 		var root = host.attachShadow({ mode: 'open' });
-		root.adoptedStyleSheets = [captureSheet(name), hostSheet];
+		root.adoptedStyleSheets = [captureSheet(name), hostSheet, muteSheet];
 		var page = document.createElement('div');
 		page.className = 'app-frame__page';
 		page.style.padding = MARGIN + 'px';

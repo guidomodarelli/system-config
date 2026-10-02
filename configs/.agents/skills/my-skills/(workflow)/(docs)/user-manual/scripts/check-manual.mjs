@@ -379,7 +379,9 @@ const checkDocument = (html, options, label, source) => {
 		if (roles[index] !== role) errors.push(`order: section ${String(index + 1).padStart(2, '0')} must be data-section="${role}" (found "${roles[index] || 'none'}")`);
 	});
 	const unhappyIndex = roles.indexOf('unhappy-paths');
-	if (unhappyIndex !== -1 && unhappyIndex !== STANDARD_HEAD.length) errors.push('order: "Flujos no felices" (unhappy-paths) goes right after the happy path, as section 06');
+	// The unhappy paths come after the happy path and every particularity of the flow (its initial
+	// configuration and steps), right before the closing sections: how it works first, then how it fails.
+	if (unhappyIndex !== -1 && roles.slice(unhappyIndex + 1).some((role) => !STANDARD_TAIL.includes(role))) errors.push('order: "Flujos no felices" (unhappy-paths) goes after the happy path and every particularity (configuration, steps), right before the closing sections');
 	// Tail sections close the manual, after the flow's particularities, in their fixed relative order.
 	const tailPositions = STANDARD_TAIL.map((role) => roles.indexOf(role)).filter((position) => position !== -1);
 	if (tailPositions.some((position, index) => index && position < tailPositions[index - 1])) errors.push(`order: closing sections out of order; expected ${STANDARD_TAIL.join(' → ')}`);

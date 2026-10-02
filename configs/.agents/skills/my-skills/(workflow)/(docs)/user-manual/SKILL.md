@@ -200,8 +200,8 @@ the same in any manual and `check-manual.mjs` can check the order:
 | 03 | **Permisos y prerrequisitos** | `permissions` | always |
 | 04 | **¿Cómo se accede?** | `access` | always |
 | 05 | **Flujo general del proceso** | `happy-path` | always |
-| 06 | **Flujos no felices** | `unhappy-paths` | when the flow can stop or fail |
-| … | **Particularidades** of the flow: one section per screen, surface or variant | own slugs | as needed |
+| … | **Particularidades** of the flow: one section per screen, surface or variant (the initial configuration, each step) | own slugs | as needed |
+| … | **Flujos no felices** | `unhappy-paths` | when the flow can stop or fail; always after the happy path and every particularity |
 | … | **Límites y valores** | `limits` | when there are maximums, minimums, formats or codes to look up |
 | … | **Mensajes y situaciones frecuentes** | `messages` | when the flow shows messages |
 | … | **Buenas prácticas y recomendaciones** | `good-practices` | when there is advice worth giving |
@@ -225,19 +225,27 @@ the same in any manual and `check-manual.mjs` can check the order:
     met. Leave out anything that does not change what the reader sees or can do.
 - **¿Cómo se accede?** — the main menu or screen that holds the entry, deduced from the code (Step 1):
   a real capture, its route in the `mockup-url`, an anchored pin on the card/item/button, its exact
-  label, who sees it and what happens without access. When the outer menu lives outside the repo,
+  label, who sees it and what happens without access. When the entry is a card of a menu, capture the
+  menu with **every card** (the same capture in every manual of that menu) and keep only this manual's
+  card in color: `data-mute=".<card>"` + `data-mute-except=".<card>:nth-of-type(N)"` on the `app-frame`
+  (the runtime grays the other cards' icons); the entry is a `steps` item ("Tocá «…»" / "Hacé click en
+  «…»") tied to the pin, and how to go back is a sentence after it. When the outer menu lives outside the repo,
   start at the first screen that is in it, without inventing the steps before it. When the entry
   cannot be deduced from the code, **ask the user** how readers get there; never skip the section.
 - **Flujo general del proceso** — the happy path end to end: an overview of every screen in order,
   then the `steps` linked to `hotspot` pins on each capture, and how the reader knows it ended well.
   Step-by-step guides live here and in the particularities, never as separate "Guía paso a paso"
   sections.
+- **Particularidades** — each screen, surface or variant in detail (all its states), with its steps and
+  pins, starting with the initial configuration. Mobile-specific behavior goes here when Step 0 was
+  "Ambos".
 - **Flujos no felices** — the paths that stop or fail (error screens, no access, invalid
   configuration, a failed confirmation, an empty result): what the reader sees (capture), why and how
-  to go on. Each message is explained once, in **Mensajes y situaciones frecuentes** (the reference
-  catalog: message, cause, what to do); the unhappy paths link to it instead of repeating it.
-- **Particularidades** — each screen, surface or variant in detail (all its states), with its steps and
-  pins. Mobile-specific behavior goes here when Step 0 was "Ambos".
+  to go on. **Never before the initial configuration, the general flow or the happy path**: the reader
+  learns how it works first, then how it fails, so the section goes after the last particularity and
+  before the closing sections. Each message is explained once, in **Mensajes y situaciones
+  frecuentes** (the reference catalog: message, cause, what to do); the unhappy paths link to it
+  instead of repeating it.
 - **Buenas prácticas y recomendaciones** — one block per role of the Audiencia (who operates the tool,
   who takes part), so advice for different roles does not split into two near-identical sections.
 - **¿A quién escalar?** — when to escalate and through which channel. The channel never comes from
@@ -535,11 +543,11 @@ not a manual:
 - One `a.menu-link` per card, anchored with `data-target` + `data-target-text` (the card's text):
   - with a manual: `href` to the manual's public URL (Grid `/view`), plus `#<slug>` when the card opens
     one part of a manual (a card covered by another tool's manual);
-  - without a manual: `aria-disabled="true"` and no `href` (the card shows dimmed).
+  - without a manual: `aria-disabled="true"` and no `href` (the script turns its icon gray and translucent; the texts stay as in the app).
   Ask the user which manuals exist and where they live when it is not clear.
 - `<meta name="heritage:kind" content="menu">`; header with `Fecha` and `Capturas` (no audience); no
   TOC, section map, pill or "Inicio" button; `figcap` saying each user sees only the cards their
-  permissions enable; a short legend (what a card opens, what a dimmed card means); the
+  permissions enable; a short legend (what a card opens, what a card with a gray icon means); the
   "Navegación entre documentos" script; source metas and footer from `source-trace.py record`.
 - Languages as in Step 0 (ask). The cards' texts come from the catalogs like any capture text.
 - **Each linked manual gets "← Ir al menú"** (`a.menu-back`, fixed top-left, first child of
@@ -633,5 +641,5 @@ add them to `scripts/`.
 - [ ] Temporary fixtures, worktrees, local servers, logs with request headers and exports deleted.
 - [ ] Tone is non-technical throughout.
 - [ ] Menu of manuals (when asked): replica of the real menu captured with `app-frame`, every card
-      covered by its `menu-link` at 1280 px and 390 px in every language, cards without manual dimmed,
+      covered by its `menu-link` at 1280 px and 390 px in every language, cards without manual with their icon gray,
       and every linked manual has "← Ir al menú" with the menu's URL.

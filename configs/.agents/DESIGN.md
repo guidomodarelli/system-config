@@ -1202,6 +1202,14 @@ texto (hasta 1199px), el `doc-header` suma `28px` arriba y los saltos dejan la s
 él, como con el selector. No se imprime. Es el primer hijo del `<body>`; el texto va en la tabla de
 traducciones ("Ir ao menu").
 
+### Tarjeta destacada en una captura
+
+Cuando una captura muestra varias opciones del mismo tipo (las tarjetas del menú de la app) y el texto
+habla de una, el `app-frame` lleva `data-mute="<selector del grupo>"` y `data-mute-except="<selector de la
+opción>"`: el runtime de capturas pone en gris (`grayscale`) y al 45% los íconos e imágenes de las demás,
+dentro de la captura, también después de cambiar de idioma. Los textos de la app no cambian. Se usa en
+"¿Cómo se accede?" para la tarjeta del manual.
+
 ### Menú de manuales
 
 Un documento que reúne los manuales de una herramienta es **siempre una réplica del menú real de la
@@ -1218,11 +1226,11 @@ nunca una grilla dibujada a mano. El lector reconoce la pantalla que ya usa y to
     manual); la tarjeta se ve como en la app y, al pasar el puntero o enfocar su link, crece con
     `scale:1.05` en `motion.duration-fast` (la regla la inyecta el script dentro de la captura); con
     teclado suma el anillo `2px` `link` de `:focus-visible`.
-  - Sin manual: `aria-disabled="true"`, sin `href`; un velo `surface-card` al 62% atenúa la tarjeta y
-    no navega.
+  - Sin manual: `aria-disabled="true"`, sin `href`; el script pone su ícono en gris (`grayscale`) y al
+    45% de opacidad, dentro de la captura, y no navega. Los textos quedan como en la app.
   - Nada se superpone a los textos de la tarjeta (sin badges encima): los textos de la app cambian de
     largo con el ancho y el idioma. Una leyenda debajo del `figcap` dice qué hace una tarjeta normal y
-    qué significa una atenuada.
+    qué significa una con el ícono en gris.
 - Cada link tiene `aria-label` ("Abrir el manual de …" o "…: manual en preparación").
 
 ### Navegación entre documentos
@@ -1433,7 +1441,7 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Cada `a.term` apunta a un `<dt>` existente y su tarjeta muestra la definición.
 - [ ] Los `data-hotspot` de puntos, pasos y referencias coinciden, y cada punto cae sobre el elemento correcto de la captura renderizada.
 - [ ] Las comparaciones usan capturas del mismo ancho y encuadre, y el divisor se mueve con mouse y teclado.
-- [ ] Un menú de manuales es la captura real del menú de la app, con cada `menu-link` cubriendo su tarjeta a 1280px y 390px, también en portugués, y sin nada encima de sus textos; dentro del visor, cada link abre su manual en la página entera.
+- [ ] Un menú de manuales es la captura real del menú de la app, con cada `menu-link` cubriendo su tarjeta a 1280px y 390px, también en portugués, sin nada encima de sus textos y con el ícono en gris en las tarjetas sin manual; dentro del visor, cada link abre su manual en la página entera.
 - [ ] Con "Ir al menú": lleva al menú en el idioma que se lee y no tapa la etiqueta del header ni el número de una sección después de un salto.
 
 ## Changelog
@@ -1684,8 +1692,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 /* Hover: crece la tarjeta de la captura (el script la marca); con teclado además el anillo de foco. */
 .menu-link.is-active{scale:1.05;}
 .menu-link:focus-visible{box-shadow:0 0 0 2px var(--link);}
-/* Sin manual: la tarjeta queda atenuada por un velo; nada se superpone a sus textos. */
-.menu-link[aria-disabled="true"]{cursor:default;background:color-mix(in srgb,var(--surface-card) 62%,transparent);}
+/* Sin manual: el script pone en gris y semitransparente el ícono de la tarjeta; nada se superpone a sus textos. */
+.menu-link[aria-disabled="true"]{cursor:default;}
 /* Foco temporal: la página se desenfoca y una burbuja se cierra sobre el destino de un salto. */
 @property --spot-radius{syntax:'<length>';inherits:false;initial-value:0px;}
 .hotspot-spotlight{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:0;--spot-radius:150vmax;background:color-mix(in srgb,var(--surface-dark) 15%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));}
@@ -2740,7 +2748,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 
 <!-- Menú de manuales: la captura real del menú de la app (app-frame) y un link por tarjeta, anclado con
      data-target + data-target-text. Tarjeta con manual: href a su URL pública (+ #slug para una sección).
-     Sin manual: aria-disabled, sin href (la tarjeta queda atenuada). Los links empiezan ocultos; el script los ubica. -->
+     Sin manual: aria-disabled, sin href (el script pone su ícono en gris). Los links empiezan ocultos; el script los ubica. -->
 <div class="mockup mockup--mobile">
   <div class="mockup-bar"><div class="mockup-dots" aria-hidden="true"><span></span><span></span><span></span></div><span class="mockup-url">/[ruta del menú]</span></div>
   <div class="menu-stage">
@@ -2750,7 +2758,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
   </div>
 </div>
 <div class="figcap">[Qué muestra la captura y quién ve cada tarjeta] (datos de ejemplo).</div>
-<!-- Leyenda: qué hace una tarjeta normal y qué significa una atenuada (y adónde lleva cada excepción). -->
+<!-- Leyenda: qué hace una tarjeta normal y qué significa una con el ícono en gris (y adónde lleva cada excepción). -->
 
 <!-- Script de navegación entre documentos: después del script de idioma (si lo hay), en el menú y en
      cada documento con "Ir al menú". Es independiente del script de navegación del documento. -->
@@ -2843,7 +2851,9 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
   }
   // Menú: la tarjeta de la captura crece al pasar el puntero o enfocar su link (1.05: entre tarjetas hay
   // pocos píxeles). La regla vive dentro de cada captura, porque la tarjeta está en su shadow root.
+  // Tarjeta sin manual: su ícono (imagen o dibujo) en gris y al 45%, para que se lea como no disponible.
   var CARD_ACTIVE_RULES = '[data-menu-card]{transform-origin:center;}[data-menu-card][data-menu-active]{scale:1.05;}'
+    + '[data-menu-card][data-menu-pending] :is(img,svg,picture,canvas){filter:grayscale(1);opacity:0.45;}'
     + '@media (prefers-reduced-motion:no-preference){[data-menu-card]{transition:scale var(--motion-duration-fast) var(--motion-easing-standard);}}';
   function setActive(link, active) {
     if (!link.__menuCard || link.getAttribute('aria-disabled') === 'true') return;
@@ -2881,6 +2891,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
       if (link.__menuCard && link.__menuCard !== target && link.__menuCard.hasAttribute('data-menu-active')) target.setAttribute('data-menu-active', '');
       link.__menuCard = target;
       target.setAttribute('data-menu-card', '');
+      if (link.getAttribute('aria-disabled') === 'true') target.setAttribute('data-menu-pending', '');
       // Medida sin la escala del hover, para que el link cubra la tarjeta en reposo.
       var active = target.hasAttribute('data-menu-active');
       if (active) target.removeAttribute('data-menu-active');
