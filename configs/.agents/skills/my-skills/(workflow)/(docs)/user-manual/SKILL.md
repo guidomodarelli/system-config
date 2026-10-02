@@ -165,60 +165,90 @@ Right after the doc header always goes the **table of contents** (`Contenido`), 
 ends with the floating **Inicio** button, the **section map** and the **section pill**. See
 "Navigation (always)" in Step 4.
 
-**Audience, always.** Before writing, name the roles that use or take part in the flow, from the
-permission and role checks (Step 2) and from who acts on each screen (who operates the tool, who
-only shows a QR or approves). Then:
+**Audience, always, confirmed by the user.** Before writing, deduce the roles that use or take part
+in the flow:
 
-- the `doc-meta` carries `Audiencia: <rol> / <rol>`;
-- section **01 Objetivo** says in one sentence what the manual helps to do and lists each role with
-  what it does in the flow (`<strong>Team Leader</strong>: opera la herramienta desde el celular…`);
+- from the repo's own documentation: `README`, `docs/`, specs and SDD files (`meli/PROJECT.md`,
+  functional specs, actor tables), any `.md`, and JSDoc / Javadoc / TSDoc of the pages and services;
+- from the code: permission and role checks (Step 2), position and role values, and who acts on each
+  screen (who operates the tool, who only shows a QR or approves).
+
+Then **always confirm them with the user** with the question tool, even when the docs and the code
+agree: show the roles you propose, where each comes from (file or check) and what each does in the
+flow, and let the user pick or rename them. When updating a manual, confirm its current audience the
+same way. With the confirmed roles:
+
+- the `doc-meta` carries `Audiencia: <rol> / <rol>` (`Público:` in Portuguese);
+- the **Audiencia** section (`<section class="section" data-section="audience">`, right after
+  **¿Para qué sirve?**) is the only place that describes them: a table `Rol | Qué hace en el flujo |
+  Qué necesita`, one row per role, with short lists in the cells; "Qué necesita" names a permission
+  or a condition in plain words and points to "Permisos y prerrequisitos" (or says "Ningún
+  permiso"). ¿Para qué sirve? does not list the roles, and no other section keeps its own actors or
+  roles table;
 - the prose addresses the role that operates the tool, and calls the others by their role name.
 
-**Cómo se entra** goes in every manual where an entry point was found in the code (Step 1), right
-after the introduction: the screen that holds the entry (real capture, its route in the
-`mockup-url`, an anchored pin on the card/item/button), its exact label, who sees the entry, and
-what happens when the reader lacks access. When the outer menu lives outside the repo, start at
-the first screen that is in it, without inventing the steps before it. When no entry is found in
-the code, skip the section and say so in the report.
+**Standard order, the same in every manual** (a branch diff or a whole flow, new or updated). Each
+standard section has a fixed slug as its id and in `data-section`, so `#faq` or `#permissions` mean
+the same in any manual and `check-manual.mjs` can check the order:
 
-For a branch diff:
+| # | Section | Slug (`id` and `data-section`) | When |
+|---|---|---|---|
+| — | **Contenido** (TOC, not numbered) | — | always |
+| 01 | **¿Para qué sirve?** | `purpose` | always |
+| 02 | **Audiencia** | `audience` | always, confirmed by the user |
+| 03 | **Permisos y prerrequisitos** | `permissions` | always |
+| 04 | **¿Cómo se accede?** | `access` | always |
+| 05 | **Flujo general del proceso** | `happy-path` | always |
+| 06 | **Flujos no felices** | `unhappy-paths` | when the flow can stop or fail |
+| … | **Particularidades** of the flow: one section per screen, surface or variant | own slugs | as needed |
+| … | **Límites y valores** | `limits` | when there are maximums, minimums, formats or codes to look up |
+| … | **Mensajes y situaciones frecuentes** | `messages` | when the flow shows messages |
+| … | **Buenas prácticas y recomendaciones** | `good-practices` | when there is advice worth giving |
+| … | **Preguntas frecuentes** | `faq` | when there are real questions |
+| … | **¿A quién escalar?** | `escalation` | when the user gives the channel |
+| last | **Glosario** | `glossary` | only with the terms the user confirmed |
 
-0. **Objetivo** — what the manual helps to do and the audience, role by role (see above).
-1. **¿Qué cambió y por qué?** — 1-paragraph executive summary. When a before capture exists, show
-   the main screen as a before / after `compare`.
-2. **Vista en computadora (escritorio)** or **Pantalla principal** (mobile flows).
-3. One section per **major UI surface**.
-4. **Experiencia en celular** — if the answer in Step 0 was "Ambos" and the mobile flow differs.
-5. **Escenarios de ejemplo** — 3–5 concrete user/operator combinations.
-6. **Guía paso a paso** — `steps` linked to `hotspot` pins on the capture of each screen.
-7. **Preguntas frecuentes**.
-8. **Permisos y qué habilitan** — always, second to last (see below).
-9. **Glosario** — always last, only with the terms the user confirmed (see below).
+- **¿Para qué sirve?** — what the tool or flow is for and what the manual helps to do, in a few
+  sentences (no roles: they go in Audiencia). For a branch diff, add what changed and why in one
+  paragraph, with a before / after `compare` of the main screen when a before capture exists.
+- **Permisos y prerrequisitos** — everything the reader needs before starting, only what really
+  stops or changes the flow (a permission, a configuration, an account state, the device). Two parts:
+  - **Permisos**: the **only place** that lists the permissions, one row per permission with its exact
+    identifier in `<code>`, who usually has it, what it enables (every screen, action and element it
+    gates, from the matrix of Step 2) and what happens without it. A table of elements only for what a
+    permission gates (an entry card, a screen, a button, an option); behavior that depends on data or
+    state belongs to its screen's section. Permission identifiers only, never the front end's internal
+    names (`canEditContingencyOp`). The rest of the manual names a permission in plain words and links
+    here. When the flow checks no permission, one sentence says so.
+  - **Prerrequisitos**: the other conditions, with who must meet each and what happens when it is not
+    met. Leave out anything that does not change what the reader sees or can do.
+- **¿Cómo se accede?** — the main menu or screen that holds the entry, deduced from the code (Step 1):
+  a real capture, its route in the `mockup-url`, an anchored pin on the card/item/button, its exact
+  label, who sees it and what happens without access. When the outer menu lives outside the repo,
+  start at the first screen that is in it, without inventing the steps before it. When the entry
+  cannot be deduced from the code, **ask the user** how readers get there; never skip the section.
+- **Flujo general del proceso** — the happy path end to end: an overview of every screen in order,
+  then the `steps` linked to `hotspot` pins on each capture, and how the reader knows it ended well.
+  Step-by-step guides live here and in the particularities, never as separate "Guía paso a paso"
+  sections.
+- **Flujos no felices** — the paths that stop or fail (error screens, no access, invalid
+  configuration, a failed confirmation, an empty result): what the reader sees (capture), why and how
+  to go on. Each message is explained once, in **Mensajes y situaciones frecuentes** (the reference
+  catalog: message, cause, what to do); the unhappy paths link to it instead of repeating it.
+- **Particularidades** — each screen, surface or variant in detail (all its states), with its steps and
+  pins. Mobile-specific behavior goes here when Step 0 was "Ambos".
+- **Buenas prácticas y recomendaciones** — one block per role of the Audiencia (who operates the tool,
+  who takes part), so advice for different roles does not split into two near-identical sections.
+- **¿A quién escalar?** — when to escalate and through which channel. The channel never comes from
+  the code: **ask the user** for it; without an answer, leave the section out.
+- **Glosario** — technical terms and business-specific language (`facility`, `site`, `Groot ID`, a
+  role or process name) defined in plain words. **Which terms go in is the user's decision**
+  ("Glossary terms — ask" in Step 4); with no confirmed terms there is no glossary: no section, no
+  TOC entry and no `a.term` links.
 
-For a flow manual (or an update of one), keep the existing section order when it still fits and
-add what is missing: Objetivo with the audience, prerequisites, flow overview with every screen, each screen with all its
-variants, messages and what to do, FAQ, then **Permisos y qué habilitan** and **Glosario** at the end.
-
-**Required closing sections, in this order, at the end of every manual:**
-
-1. **Permisos y qué habilitan** (`<section class="section" data-section="permissions">`), second to
-   last, or last when there is no glossary. The **only place** that lists the permissions: one row per
-   permission with its exact identifier in `<code>`, who usually has it, what it enables (every
-   screen, action and element it gates, from the matrix of Step 2) and any extra condition (another
-   permission, a configuration, a role). The rest of the manual names a permission in plain words and
-   links here (`<a href="#permissions">Permisos y qué habilitan</a>`) instead of repeating what it enables:
-   prerequisites, "Cómo se entra", messages and FAQ do not keep their own permission tables. When the
-   flow checks no permission, the section says so in one sentence. A table of elements is only for
-   what a permission gates (an entry card, a screen, a button, an option), with what happens without
-   it: behavior that depends on data or state (a filter that needs another one, a bar that appears
-   with a selection) belongs to its screen's section, not here. Show permission identifiers only,
-   never the front end's internal names (`canEditContingencyOp`). If no row is left, there is no
-   element table.
-2. **Glosario** (`<section class="section" data-section="glossary">`), always the last section.
-   Technical terms and business-specific language (`facility`, `site`, `Groot ID`, a role or process
-   name) that a non-technical reader may not know, defined in plain words. **Which terms go in is the
-   user's decision** ("Glossary terms — ask" in Step 4). With no confirmed terms there is no glossary:
-   no section, no TOC entry and no `a.term` links.
+Optional sections that have nothing to say are left out; the others keep their relative order.
+Updating an existing manual means moving its content into this order (merging sections that say the
+same, such as "Objetivo" and "Qué es…" into ¿Para qué sirve?), not keeping a different one.
 
 Adjust sections when there is little to say — skip sections that have nothing to say.
 
@@ -315,7 +345,7 @@ DESIGN.md ("Índice (TOC)", "Mapa de secciones", "Píldora de sección", "Copiar
   `…/view#<slug>` opens the manual at that section.
 
 Verify on a **fresh load** and in the destination viewer: TOC links land with the section 16 px
-below the top about 2 s later; the button brings `scrollY` to `0`; at ≥ 1024 px a map tick magnifies
+below the top (16 px below the language switch when it covers the text column) about 2 s later; the button brings `scrollY` to `0`; at ≥ 1024 px a map tick magnifies
 its neighbours and its preview shows number, title and first paragraph; at 375 px the pill opens the
 sheet and its links land; `Alt`+`↓` moves to the next section; opening a copied section link
 (`…/view#add-collaborators`) in a new tab, and reloading it, lands on that section in the viewer. Scroll with `behavior: 'instant'`
@@ -479,7 +509,7 @@ icon, text or button inside). Also look at each pin: it must read as pointing at
 
 Cross-check against the code what the scripts cannot see:
 
-- Every permission flag the code checks appears in **Permisos y qué habilitan**, with its exact
+- Every permission flag the code checks appears in **Permisos y prerrequisitos**, with its exact
   identifier and everything it enables, and no other section repeats what a permission enables.
 - Every visible label, notice and error text appears in the prose or a table, and every one of them
   exists in the code (no obsolete strings).
@@ -528,7 +558,8 @@ add them to `scripts/`.
       app does not translate stay in Spanish, pin selectors point at the pt capture texts, and
       `__umCheckRendered` passes with `?lang=pt` at desktop and 390 px.
 - [ ] Quotes only hold app texts; values the operator types go in `<em>`.
-- [ ] Audience named: `Audiencia:` in the `doc-meta` and each role, with what it does, in 01 Objetivo.
+- [ ] Audience confirmed by the user (proposed from the repo's docs and code): `Audiencia:` in the
+      `doc-meta` and an **Audiencia** section right after ¿Para qué sirve?, the only place that describes the roles.
 - [ ] `source-trace.py record` ran: source metas in the `<head>` and "Código: <base> @ <commit>" in
       the `doc-footer`, linked to the commit on GitHub.
 - [ ] `check-manual.mjs` exits 0 with the app's translations and the real values seen, and its
@@ -543,9 +574,9 @@ add them to `scripts/`.
       also inside the destination viewer; shortcuts verified.
 - [ ] `heritage:share-url` set when the manual is published inside an iframe viewer.
 - [ ] No change markers: no `data-change`, "Nuevo", "Actualizado" or "Novedades".
-- [ ] "Cómo se entra" present when the code has an entry point: entry screen captured with an
-      anchored pin on the entry, exact label, visibility gates; the outer path not in the repo is
-      not invented and is flagged in the report.
+- [ ] **¿Cómo se accede?** present: from the code (entry screen captured with an anchored pin on the
+      entry, exact label, visibility gates) or, when the code does not show it, as the user explained;
+      the outer path not in the repo is not invented.
 - [ ] Every screen of the flow is captured with **all its variants**, from temporary synthetic mocks.
 - [ ] Mobile flows: every capture at 375 px inside `.mockup--mobile`. Desktop flows: captures at
       ≥ 1280 px that reflow at 390 px.
@@ -560,9 +591,10 @@ add them to `scripts/`.
       Groot IDs), no token/CSRF, and no environment host (`https?://` in mockup bars or prose,
       `:8443`, `melioffice`, `melisystems`).
 - [ ] Every `compare` uses captures with the same width and framing; every `a.term` resolves.
-- [ ] **Permisos y qué habilitan** is second to last (last without a glossary) and is the only list
-      of permissions; **Glosario** is last and holds only the terms the user confirmed, or does not
-      exist when none was confirmed.
+- [ ] Sections in the standard order of Step 3 with their slugs (`check-manual.mjs` checks it);
+      **Permisos y prerrequisitos** is the only list of permissions and keeps only conditions that
+      change the flow; **Glosario** is last and holds only the terms the user confirmed, or does not
+      exist when none was confirmed; **¿A quién escalar?** only with the channel the user gave.
 - [ ] Visibility matrix complete; texts, limits and formats verified against code and translations;
       untranslated keys reported.
 - [ ] Temporary fixtures, worktrees, local servers, logs with request headers and exports deleted.

@@ -16,6 +16,9 @@
  *   --allow-host    extra hosts allowed in the file besides fonts, the app CDN and the share URL.
  *   --design        DESIGN.md to compare the navigation script with (default ~/system-config/configs/.agents/DESIGN.md).
  *
+ * A menu of manuals (<meta name="heritage:kind" content="menu">, DESIGN.md "Menú de manuales") is one
+ * screen: no TOC, section map, standard order or audience; it is checked for its capture and its links.
+ *
  * Exit code: 0 when there are no errors (warnings do not fail), 1 with errors, 2 on bad usage.
  * The rendered checks (frame fit, pin distance) run in the browser with check-rendered.js.
  */
@@ -26,6 +29,8 @@ import path from 'node:path';
 const DEFAULT_ALLOWED_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'http2.mlstatic.com', 'www.w3.org'];
 const DEFAULT_DESIGN_PATH = path.join(os.homedir(), 'system-config/configs/.agents/DESIGN.md');
 const NAVIGATION_SCRIPT_MARKER = '// Navegación e interacciones Heritage';
+const DOCUMENT_LINKS_SCRIPT_MARKER = '// Navegación entre documentos Heritage';
+const LANGUAGE_SCRIPT_MARKER = '// Idioma: el documento se escribe en español';
 const ENVIRONMENT_MARKERS = [':8443', 'melioffice', 'melisystems', 'localhost', '127.0.0.1', 'dev.adminml.com'];
 const SECRET_PATTERNS = [/type=\\?"hidden\\?"/i, /_csrf/i, /csrf-token/i, /session-id/i, /authorization:/i];
 const CHANGE_MARKERS = [/data-change=/, /class="[^"]*change-badge/, /Novedades:/];
@@ -127,7 +132,7 @@ const loadPairs = (files) => {
  * ({0}), pieces split by markup ({1}…{2}) and "prefix: value" labels are checked too, and a text the
  * catalog does not have is reported (keep it in Spanish unless the app translates it).
  */
-const checkTranslationTable = (table, spanishFiles, portugueseFiles) => {
+const checkTranslationTable = (table, spanishFiles, portugueseFiles, manualTitles = new Set()) => {
 	const problems = { errors: [], warnings: [] };
 	const spanish = loadPairs(spanishFiles);
 	const portuguese = loadPairs(portugueseFiles);
@@ -158,20 +163,32 @@ const checkTranslationTable = (table, spanishFiles, portugueseFiles) => {
 		const direct = exact(text);
 		if (direct !== null) return direct;
 		if (pieces.has(text)) return pieces.get(text);
+		// A text can fit several catalog strings ("¡Hola {0}!" and "¡Hola {0} {1}!"); when their translations
+		// differ, only the source code tells which one the app uses.
+		const candidates = new Map();
 		for (const { regex, msgid } of patterns) {
 			const match = text.match(regex);
 			if (!match) continue;
 			const values = match.slice(1);
 			let index = 0;
-			return target(msgid).replace(placeholder, () => values[index++] ?? '');
+			candidates.set(target(msgid).replace(placeholder, () => values[index++] ?? ''), msgid);
 		}
+		if (candidates.size > 1) return { ambiguous: [...candidates.entries()] };
+		if (candidates.size === 1) return [...candidates.keys()][0];
 		const [head, ...rest] = text.split(': ');
 		if (rest.length && exact(head) !== null) return `${exact(head)}: ${rest.join(': ')}`;
 		return null;
 	};
 	for (const [part, check] of [['document', exact], ['captures', expected]]) {
 		for (const [text, translation] of Object.entries(table[part] || {})) {
+			// Section and part titles are the manual's own words, even when an app string happens to match.
+			if (part === 'document' && manualTitles.has(text)) continue;
 			const wanted = check(text);
+			if (wanted && wanted.ambiguous) {
+				if (!wanted.ambiguous.some(([candidate]) => candidate.trim() === translation.trim())) problems.errors.push(`translations: «${text.slice(0, 60)}» is an app text: its pt-BR is one of ${wanted.ambiguous.map(([candidate]) => `«${candidate.slice(0, 40)}»`).join(', ')} (catalog), not «${translation.slice(0, 60)}»`);
+				else problems.warnings.push(`translations: «${text.slice(0, 60)}» fits several catalog strings (${wanted.ambiguous.map(([, msgid]) => `"${msgid.slice(0, 40)}"`).join(', ')}); check in the source which one the app uses`);
+				continue;
+			}
 			if (wanted === null) {
 				if (part === 'captures') problems.warnings.push(`translations: capture text «${text.slice(0, 60)}» is not in the app's catalog; keep it in Spanish unless the app translates it`);
 				continue;
@@ -240,7 +257,8 @@ const main = () => {
 	// Portuguese one did not follow.
 	for (const key of unused) console.log(`  WARN  languages: translation never used (stale?): «${key.slice(0, 80)}»`);
 	if (table && options.translations.length && options.translationsPt.length) {
-		const problems = checkTranslationTable(table, options.translations, options.translationsPt);
+		const manualTitles = new Set([...source.matchAll(/<h2 class="(?:section-title|part-header-title)"[^>]*>([\s\S]*?)<\/h2>/g)].map((match) => stripTags(match[1])));
+		const problems = checkTranslationTable(table, options.translations, options.translationsPt, manualTitles);
 		for (const message of problems.errors) console.log(`  ERROR ${message}`);
 		for (const message of problems.warnings) console.log(`  WARN  ${message}`);
 		failed += problems.errors.length;
@@ -282,42 +300,102 @@ const checkDocument = (html, options, label, source) => {
 		if (sectionIds.filter((other) => other === id).length > 1) errors.push(`ids: section id "${id}" is repeated`);
 	}
 
-	if (!tocEntries.length) errors.push('toc: no nav.toc entries found');
+	const isMenu = metaContent(html, 'heritage:kind') === 'menu';
+	// The scripts travel inside each document: compare them with the current boilerplate.
+	const extractScript = (text, marker) => {
+		const start = text.indexOf(marker);
+		return start === -1 ? null : text.slice(start, text.indexOf('</script>', start)).trim();
+	};
+	const designSource = fs.existsSync(options.design) ? fs.readFileSync(options.design, 'utf8') : null;
+	const compareScript = (marker, name) => {
+		const embedded = extractScript(body, marker);
+		const current = designSource && extractScript(designSource, marker);
+		if (embedded && current && embedded !== current) warnings.push(`${name}: the script differs from the DESIGN.md boilerplate (outdated); copy the current one`);
+		return embedded;
+	};
+	if (/id="heritage-translations"/.test(html) && !compareScript(LANGUAGE_SCRIPT_MARKER, 'language')) errors.push('language: the language script (HeritageLanguage) is missing');
+
+	// Links to other published documents (menu ↔ manuals, DESIGN.md "Navegación entre documentos").
+	const documentLinks = [...visible.matchAll(/<a\b[^>]*data-document-link[^>]*>/g)].map((match) => match[0]);
+	if (documentLinks.length && !compareScript(DOCUMENT_LINKS_SCRIPT_MARKER, 'document links')) errors.push('document links: data-document-link without the "Navegación entre documentos" script (links would not leave the Grid iframe)');
+	for (const link of [...visible.matchAll(/<a class="menu-back"[^>]*>/g)].map((match) => match[0])) {
+		if (!/href="https:\/\/[^"]+"/.test(link)) errors.push('menu-back: "Volver al menú" needs the public URL of the menu');
+		if (!link.includes('data-document-link')) errors.push('menu-back: "Volver al menú" needs data-document-link');
+	}
+	if (/<a class="menu-back"/.test(visible) && !/<body>\s*<a class="menu-back"/.test(visible)) errors.push('menu-back: "Volver al menú" must be the first child of <body>');
+
+	if (isMenu) {
+		const menuLinks = [...visible.matchAll(/<a class="menu-link"[^>]*>/g)].map((match) => match[0]);
+		if (!/<div class="menu-stage">\s*<div class="app-frame" data-cap="[^"]+"><\/div>/.test(visible)) errors.push('menu: the menu is a capture of the app menu (div.menu-stage > div.app-frame), never drawn by hand');
+		if (!menuLinks.length) errors.push('menu: no a.menu-link over the cards');
+		for (const link of menuLinks) {
+			const card = (link.match(/data-target-text="([^"]*)"/) || [])[1] || '?';
+			if (!/data-target="[^"]+"/.test(link)) errors.push(`menu: link «${card}» has no data-target`);
+			if (!link.includes('data-document-link')) errors.push(`menu: link «${card}» needs data-document-link`);
+			if (!/aria-label="[^"]+"/.test(link)) errors.push(`menu: link «${card}» has no aria-label`);
+			const disabled = link.includes('aria-disabled="true"');
+			const hasHref = /\shref="/.test(link);
+			if (disabled === hasHref) errors.push(`menu: link «${card}» must have either an href (with manual) or aria-disabled="true" (without), not both or none`);
+		}
+		const cardTexts = menuLinks.map((link) => (link.match(/data-target-text="([^"]*)"/) || [])[1]).filter(Boolean);
+		for (const text of new Set(cardTexts)) if (cardTexts.filter((other) => other === text).length > 1) errors.push(`menu: two links over the card «${text}»`);
+	}
+
+	if (isMenu) { /* one screen: no TOC */ } else if (!tocEntries.length) errors.push('toc: no nav.toc entries found');
 	for (const [, id, label] of tocEntries) {
 		if (!titles.has(id)) errors.push(`toc: link #${id} has no section`);
 		else if (stripTags(label) !== titles.get(id)) errors.push(`toc: "${stripTags(label)}" differs from the title of #${id} ("${titles.get(id)}")`);
 	}
 	for (const id of titles.keys()) if (!tocEntries.some((entry) => entry[1] === id)) errors.push(`toc: section #${id} is missing from the TOC`);
-	for (const required of ['class="section-rail"', 'class="section-pill"', 'class="toc-sheet"', 'class="back-to-top"']) {
-		if (!visible.includes(required)) errors.push(`navigation: ${required} missing`);
-	}
-	// The navigation script travels inside each manual: compare it with the current boilerplate.
-	const extractNavigationScript = (source) => {
-		const start = source.indexOf(NAVIGATION_SCRIPT_MARKER);
-		return start === -1 ? null : source.slice(start, source.indexOf('</script>', start)).trim();
-	};
-	if (fs.existsSync(options.design)) {
-		const current = extractNavigationScript(fs.readFileSync(options.design, 'utf8'));
-		const embedded = extractNavigationScript(body);
-		if (!embedded) errors.push('navigation: the Heritage navigation script is missing');
-		else if (current && embedded !== current) warnings.push('navigation: the navigation script differs from the DESIGN.md boilerplate (outdated); copy the current one');
+	if (!isMenu) {
+		for (const required of ['class="section-rail"', 'class="section-pill"', 'class="toc-sheet"', 'class="back-to-top"']) {
+			if (!visible.includes(required)) errors.push(`navigation: ${required} missing`);
+		}
+		if (!compareScript(NAVIGATION_SCRIPT_MARKER, 'navigation')) errors.push('navigation: the Heritage navigation script is missing');
 	}
 
 	// Glossary terms resolve.
 	const definitions = new Set([...visible.matchAll(/<dt id="([^"]+)"/g)].map((match) => match[1]));
 	for (const [, target] of visible.matchAll(/class="term" href="#([^"]+)"/g)) if (!definitions.has(target)) errors.push(`glossary: term link #${target} has no <dt>`);
 
-	// Closing sections: "Permisos y qué habilitan" second to last (last without a glossary), "Glosario"
-	// last and only with terms. They are marked with data-section, so the check works in any language.
+	// Standard order (user-manual skill, Step 3): the same sections in the same order in every manual,
+	// marked with data-section (and the same slug as id), so the check works in any language.
+	const STANDARD_HEAD = ['purpose', 'audience', 'permissions', 'access', 'happy-path'];
+	const STANDARD_TAIL = ['limits', 'messages', 'good-practices', 'faq', 'escalation', 'glossary'];
 	const sectionTags = [...visible.matchAll(/<section class="section"[^>]*>/g)].map((match) => match[0]);
 	const roleOf = (tag) => (tag.match(/data-section="([^"]+)"/) || [])[1] || '';
 	const roles = sectionTags.map(roleOf);
 	const glossaryIndex = roles.indexOf('glossary');
-	const permissionsIndex = roles.indexOf('permissions');
-	if (roles.filter((role) => role === 'permissions').length > 1) errors.push('permissions: more than one data-section="permissions"; permissions are listed in a single section');
-	if (permissionsIndex === -1) errors.push('permissions: no "Permisos y qué habilitan" section (<section … data-section="permissions">), second to last');
+	for (const role of new Set(roles.filter(Boolean))) {
+		if (roles.filter((other) => other === role).length > 1) errors.push(`order: more than one data-section="${role}"`);
+		if (![...STANDARD_HEAD, 'unhappy-paths', ...STANDARD_TAIL].includes(role)) errors.push(`order: unknown data-section="${role}"`);
+	}
+	sectionTags.forEach((tag, index) => {
+		const role = roles[index];
+		const id = (tag.match(/aria-labelledby="([^"]+)"/) || [])[1];
+		if (role && id !== role) errors.push(`order: the "${role}" section must use "${role}" as its id (found "${id}")`);
+	});
+	if (!isMenu) STANDARD_HEAD.forEach((role, index) => {
+		if (roles[index] !== role) errors.push(`order: section ${String(index + 1).padStart(2, '0')} must be data-section="${role}" (found "${roles[index] || 'none'}")`);
+	});
+	const unhappyIndex = roles.indexOf('unhappy-paths');
+	if (unhappyIndex !== -1 && unhappyIndex !== STANDARD_HEAD.length) errors.push('order: "Flujos no felices" (unhappy-paths) goes right after the happy path, as section 06');
+	// Tail sections close the manual, after the flow's particularities, in their fixed relative order.
+	const tailPositions = STANDARD_TAIL.map((role) => roles.indexOf(role)).filter((position) => position !== -1);
+	if (tailPositions.some((position, index) => index && position < tailPositions[index - 1])) errors.push(`order: closing sections out of order; expected ${STANDARD_TAIL.join(' → ')}`);
+	if (tailPositions.length) {
+		const firstTail = tailPositions[0];
+		if (roles.slice(firstTail).some((role) => !STANDARD_TAIL.includes(role))) errors.push('order: particularities go before the closing sections (limits, messages, good practices, FAQ, escalation, glossary)');
+	}
 	if (glossaryIndex !== -1 && glossaryIndex !== roles.length - 1) errors.push('glossary: the Glosario section must be the last one');
-	if (permissionsIndex !== -1 && permissionsIndex !== roles.length - (glossaryIndex === -1 ? 1 : 2)) errors.push('permissions: "Permisos y qué habilitan" must be second to last (last when there is no glossary)');
+	// Audience: the only place that describes the roles, with every role of the doc-meta
+	// ("Audiencia:" / "Público:") named in it.
+	if (roles.includes('audience')) {
+		const audienceSection = [...visible.matchAll(/<section class="section"[^>]*data-section="audience"[^>]*>([\s\S]*?)<\/section>/g)][0];
+		const metaRoles = ((visible.match(/<span>(?:Audiencia|Público): ([^<]+)<\/span>/) || [])[1] || '').split('/').map((role) => decodeEntities(role).trim()).filter(Boolean);
+		const audienceText = audienceSection ? stripTags(audienceSection[1]).toLowerCase() : '';
+		for (const role of metaRoles) if (!audienceText.includes(role.toLowerCase())) errors.push(`audience: role "${role}" of the doc-meta is not described in the Audiencia section`);
+	}
 	const glossaryLists = [...visible.matchAll(/<dl class="glossary">([\s\S]*?)<\/dl>/g)];
 	if (glossaryLists.some((list) => !/<dt\b/.test(list[1]))) errors.push('glossary: empty glossary; without confirmed terms the section is not shown');
 	if (glossaryLists.length && glossaryIndex === -1) errors.push('glossary: the <dl class="glossary"> must live in the Glosario section (data-section="glossary")');
@@ -352,7 +430,7 @@ const checkDocument = (html, options, label, source) => {
 	// No change markers.
 	for (const marker of CHANGE_MARKERS) if (marker.test(visible)) errors.push(`change markers: found ${marker} (manuals never mark new or updated sections)`);
 	// The doc-meta carries only what tells the reader something.
-	if (!/<div class="doc-meta">[\s\S]*?<span>(?:Audiencia|Público): [^<]+<\/span>[\s\S]*?<\/div>/.test(visible)) errors.push('doc-meta: missing "Audiencia: <rol> / <rol>" ("Público:" in Portuguese)');
+	if (!isMenu && !/<div class="doc-meta">[\s\S]*?<span>(?:Audiencia|Público): [^<]+<\/span>[\s\S]*?<\/div>/.test(visible)) errors.push('doc-meta: missing "Audiencia: <rol> / <rol>" ("Público:" in Portuguese)');
 	for (const noise of HEADER_NOISE) if (noise.test(visible)) errors.push(`doc-meta: found ${noise} (no "Estado" and no app version in a manual header)`);
 
 	// Source trace (where the content comes from).
@@ -365,12 +443,14 @@ const checkDocument = (html, options, label, source) => {
 	if (/<div class="doc-meta">[\s\S]*?Código:[\s\S]*?<\/div>/.test(visible.slice(0, visible.indexOf('</header>')))) errors.push('source: "Código:" belongs in the doc-footer, not in the doc-meta');
 	else if (commitUrl && decodeEntities(codeLink[1]) !== commitUrl) errors.push('source: the "Código" link does not point to heritage:source-commit-url');
 	if (commitUrl && commit && !commitUrl.endsWith(`/commit/${commit}`)) errors.push('source: heritage:source-commit-url does not match heritage:source-commit');
-	if (!metaContent(html, 'heritage:share-url')) warnings.push('share-url: no heritage:share-url meta (needed when the manual is shown inside an iframe)');
+	if (!isMenu && !metaContent(html, 'heritage:share-url')) warnings.push('share-url: no heritage:share-url meta (needed when the manual is shown inside an iframe)');
 
 	// Environment data and secrets anywhere in the file, captures payload included.
 	const shareHost = (() => { try { return new URL(metaContent(html, 'heritage:share-url')).host; } catch (error) { return null; } })();
 	const commitHost = (() => { try { return new URL(commitUrl).host; } catch (error) { return null; } })();
-	const allowedHosts = new Set([...DEFAULT_ALLOWED_HOSTS, ...options.allowHosts, ...(shareHost ? [shareHost] : []), ...(commitHost ? [commitHost] : [])]);
+	// Documents linked from this one (menu ↔ manuals) live in the same viewer.
+	const linkedHosts = documentLinks.map((link) => { try { return new URL(decodeEntities((link.match(/\shref="([^"]+)"/) || [])[1] || '')).host; } catch (error) { return null; } }).filter(Boolean);
+	const allowedHosts = new Set([...DEFAULT_ALLOWED_HOSTS, ...options.allowHosts, ...(shareHost ? [shareHost] : []), ...(commitHost ? [commitHost] : []), ...linkedHosts]);
 	const unexpectedHosts = new Set([...html.matchAll(/https?:\\?\/\\?\/([a-z0-9.-]+)/gi)].map((match) => match[1].toLowerCase()).filter((host) => !allowedHosts.has(host)));
 	for (const host of unexpectedHosts) errors.push(`hosts: unexpected host ${host}`);
 	for (const marker of ENVIRONMENT_MARKERS) if (html.includes(marker)) errors.push(`hosts: environment marker "${marker}" found`);

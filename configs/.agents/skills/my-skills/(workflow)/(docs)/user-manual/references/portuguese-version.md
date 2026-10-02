@@ -132,7 +132,7 @@ list above.
 3. A round trip es → pt → es leaves the text, the attributes and the captures exactly as before.
 4. In the destination viewer: the manual opens in Spanish; the switch changes language in the same
    document (no navigation, a few tens of ms), at the start of the section being read (its number
-   16 px below the top, like a TOC jump, not the exact scroll position, which drifts because the
+   16 px below the top, or below the language switch when it covers the text, like a TOC jump, not the exact scroll position, which drifts because the
    translation has another length); the viewer's address bar keeps `#<slug>`.
 
 When measuring in the shared browser, the user may be using it too: a language change you did not

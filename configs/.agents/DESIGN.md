@@ -1161,6 +1161,9 @@ segmentada **fija arriba a la derecha** (`Español · Português`), visible en t
 botón "Inicio" y la píldora de sección; la opción activa lleva fondo `surface-card`, borde `1.5px` `link`
 y peso 600, y las demás quedan en `muted`. En pantallas angostas se achica y se acerca al borde
 (`top:12px`, `right:16px`), y el `doc-header` suma `28px` arriba para que no tape la etiqueta ni el título.
+Cuando el selector cae sobre la columna del texto, los saltos (índice, mapa, enlaces directos, cambio
+de idioma) dejan la sección `16px` debajo del selector en lugar de `16px` debajo del borde, así el
+número de la sección y su "Copiar enlace" quedan a la vista.
 
 - **Un solo markup, en español, y una tabla de traducciones.** El documento se escribe una vez, en
   español; el portugués es una tabla JSON en `<script type="application/json" id="heritage-translations">`
@@ -1174,7 +1177,8 @@ y peso 600, y las demás quedan en `muted`. En pantallas angostas se achica y se
   guarda el español de cada uno para poder volver, ajusta `lang` y el título, y avisa con el evento
   `heritage:language-change`. Nunca toca `code`, `style`, `script` ni el selector. Al cargar, traduce
   solo si la URL lo pide: **siempre abre en español**, la elección no se guarda (ni `localStorage` ni
-  cookies) y vive solo en `?lang=pt`, así que dura mientras se lee y viaja en un enlace compartido.
+  cookies) y vive solo en `?lang=pt` (la URL del documento o, dentro de un visor como Grid, la del
+  visor), así que dura mientras se lee y viaja en un enlace compartido.
 - **Al elegir**, el cambio es **en la misma página, sin red ni recarga**: el script de navegación llama
   a `HeritageLanguage.set`, reescribe sus propios textos, las capturas se traducen y vuelven a ubicar
   sus puntos, la URL pasa a `?lang=pt` (o lo pierde) conservando `#sNN`, y el documento queda **al
@@ -1188,6 +1192,48 @@ y peso 600, y las demás quedan en `muted`. En pantallas angostas se achica y se
 - `role="radiogroup"` con `aria-label` "Idioma"; cada opción es un `button` con `role="radio"` y
   `aria-checked`. Cada opción se nombra en su propio idioma. No se imprime.
 - Sin banderas: un idioma no es un país.
+
+### Volver al menú
+
+En los documentos que se abren desde un **menú de manuales**: un link **fijo arriba a la izquierda**,
+`‹ Volver al menú`, espejo del selector de idioma (mismo fondo, borde, radio y alto) y visible en todo
+el recorrido. Lleva a la URL pública del menú (en Grid, su `/view`). Mientras cae sobre la columna del
+texto (hasta 1199px), el `doc-header` suma `28px` arriba y los saltos dejan la sección `16px` debajo de
+él, como con el selector. No se imprime. Es el primer hijo del `<body>`; el texto va en la tabla de
+traducciones (`‹ Voltar ao menu`).
+
+### Menú de manuales
+
+Un documento que reúne los manuales de una herramienta es **siempre una réplica del menú real de la
+app**: la captura del menú (`app-frame`, como cualquier captura) con un link encima de cada tarjeta,
+nunca una grilla dibujada a mano. El lector reconoce la pantalla que ya usa y toca la misma tarjeta.
+
+- Header común (`doc-label`, `doc-title`, `doc-sub` con qué hacer, `doc-meta` con `Fecha` y
+  `Capturas`), sin índice, mapa, píldora ni botón "Inicio": es una sola pantalla.
+- Se captura con **todas** las tarjetas (un usuario con todos los permisos); el `figcap` dice que cada
+  usuario ve solo las que le habilitan sus permisos.
+- Cada tarjeta lleva un `a.menu-link` anclado con `data-target` + `data-target-text` (el texto de la
+  tarjeta), que cubre la tarjeta después de cada ajuste de la captura y al cambiar de idioma.
+  - Con manual: `href` a la URL pública del manual (con `#slug` cuando la tarjeta abre una parte del
+    manual), badge `b-green` **Ver manual**, foco y hover con anillo `2px` `link`.
+  - Sin manual: `aria-disabled="true"`, sin `href`, badge `b-gray` **En preparación**; no navega.
+- Cada link tiene `aria-label` ("Abrir el manual de …" o "…: manual en preparación").
+
+### Navegación entre documentos
+
+El menú y los manuales se enlazan con `a[data-document-link]` y el script "Navegación entre
+documentos" del boilerplate:
+
+- **Abre en la página entera**, también dentro de Grid: el sandbox de su iframe no permite navegar la
+  página de arriba (ni con `target="_top"`), así que el script crea el link en el documento del visor,
+  que es del mismo origen, y lo activa. Fuera de un visor funciona el `target="_top"` del link.
+- **Lleva el idioma:** en portugués agrega `?lang=pt` a la URL de destino. El script de idioma lee
+  `?lang` de su propia URL y, dentro de un visor, de la del visor (Grid no pasa la query al iframe).
+- **Transición:** el documento se desvanece en `motion.duration-base` antes de irse y el destino aparece
+  en lo mismo cuando llega desde otro documento del mismo visor (no al recargar). No es una view
+  transition entre documentos: las páginas de Grid no la habilitan y el destino es suyo. Con "reducir
+  movimiento", cambia al instante.
+- `Cmd`/`Ctrl` + click abre en una pestaña nueva, con el idioma ya en el link.
 
 ### Sin marcas de novedad
 
@@ -1381,11 +1427,20 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Cada `a.term` apunta a un `<dt>` existente y su tarjeta muestra la definición.
 - [ ] Los `data-hotspot` de puntos, pasos y referencias coinciden, y cada punto cae sobre el elemento correcto de la captura renderizada.
 - [ ] Las comparaciones usan capturas del mismo ancho y encuadre, y el divisor se mueve con mouse y teclado.
+- [ ] Un menú de manuales es la captura real del menú de la app, con cada `menu-link` cubriendo su tarjeta a 1280px y 390px, también en portugués; dentro del visor, cada link abre su manual en la página entera.
+- [ ] Con "Volver al menú": lleva al menú en el idioma que se lee y no tapa la etiqueta del header ni el número de una sección después de un salto.
 
 ## Changelog
 
 Cambios que alteran cómo se ve o se escribe un documento. Los documentos
 viejos siguen funcionando: los nombres de clase no cambiaron.
+
+### 2026-10-02
+
+- **Componentes:** menú de manuales (`menu-stage` + `menu-link` sobre la captura real del menú de la app) y "Volver al menú" (`menu-back`, fijo arriba a la izquierda).
+- **Navegación entre documentos:** script propio (`a[data-document-link]`) que abre en la página entera dentro de Grid, lleva `?lang` y funde salida y llegada.
+- **Idioma:** también se lee `?lang` de la URL del visor.
+- **Saltos:** `landingOffset` deja la sección debajo de cualquier control fijo que tape la columna (selector o "Volver al menú").
 
 ### 2026-10-01
 
@@ -1614,6 +1669,15 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .lang-switch button{padding:6px 14px;border:1.5px solid transparent;border-radius:9999px;background:none;font-family:var(--sans);font-size:13px;font-weight:500;line-height:1.2;color:var(--muted);cursor:pointer;}
 .lang-switch button:hover{color:var(--primary);}
 .lang-switch button[aria-checked="true"]{border-color:var(--link);background:var(--surface-card);color:var(--primary);font-weight:600;}
+/* Volver al menú: fijo arriba a la izquierda, espejo del selector de idioma y de su mismo alto. */
+.menu-back{position:fixed;top:16px;left:24px;z-index:10;display:inline-flex;align-items:center;gap:6px;padding:10px 16px 10px 12px;border:1px solid var(--border-strong);border-radius:9999px;background:color-mix(in srgb,var(--surface-dark) 4%,var(--surface-card));box-shadow:0 1px 2px rgba(0,0,0,0.04);font-family:var(--sans);font-size:13px;font-weight:500;line-height:1.2;color:var(--primary);text-decoration:none;}
+.menu-back:hover{border-color:var(--link);color:var(--link);}
+/* Menú de manuales: la captura real del menú de la app, con un link sobre cada tarjeta. */
+.menu-stage{position:relative;}
+.menu-link{position:absolute;display:block;border-radius:10px;color:inherit;text-decoration:none;}
+.menu-link[href]:hover,.menu-link:focus-visible{box-shadow:0 0 0 2px var(--link);}
+.menu-link[aria-disabled="true"]{cursor:default;}
+.menu-link-badge{position:absolute;top:6px;right:6px;pointer-events:none;}
 /* Foco temporal: la página se desenfoca y una burbuja se cierra sobre el destino de un salto. */
 @property --spot-radius{syntax:'<length>';inherits:false;initial-value:0px;}
 .hotspot-spotlight{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:0;--spot-radius:150vmax;background:color-mix(in srgb,var(--surface-dark) 15%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));}
@@ -1663,6 +1727,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   /* Cambio de idioma en la misma página (document.startViewTransition): funde el antes y el después en 1,5 × base. */
   ::view-transition-old(root),::view-transition-new(root){animation-duration:calc(var(--motion-duration-base) * 1.5);animation-timing-function:var(--motion-easing-standard);}
   .lang-switch button{transition:color var(--motion-duration-fast) var(--motion-easing-standard),background-color var(--motion-duration-fast) var(--motion-easing-standard),border-color var(--motion-duration-fast) var(--motion-easing-standard);}
+  .menu-back{transition:color var(--motion-duration-fast) var(--motion-easing-standard),border-color var(--motion-duration-fast) var(--motion-easing-standard);}
+  .menu-link{transition:box-shadow var(--motion-duration-fast) var(--motion-easing-standard);}
+  /* Entre documentos (menú ↔ manuales): se desvanece en motion.duration-base antes de irse y aparece en lo mismo al llegar. */
+  html.is-leaving body{opacity:0;transition:opacity var(--motion-duration-base) var(--motion-easing-standard);}
+  html.is-arriving body{animation:heritage-fade-in var(--motion-duration-base) var(--motion-easing-standard);}
   /* Abre en 500ms y cierra en 500ms (2,5 × motion.duration-base cada uno). */
   .hotspot-spotlight.is-on{transition:--spot-radius calc(var(--motion-duration-base) * 2.5) var(--motion-easing-standard),opacity calc(var(--motion-duration-base) * 2.5) var(--motion-easing-standard);}
   .hotspot-spotlight.is-leaving{transition:opacity calc(var(--motion-duration-base) * 2.5) var(--motion-easing-standard);}
@@ -1683,6 +1752,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .lang-switch{top:12px;right:16px;}
   .lang-switch ~ .doc-header{padding-top:28px;}
   .lang-switch button{padding:5px 12px;font-size:12px;}
+  .menu-back{top:12px;left:16px;padding:9px 14px 9px 10px;font-size:12px;}
   body{padding-left:16px;padding-right:16px;}
   .back-to-top{right:16px;bottom:16px;}
   .section-pill{left:16px;bottom:16px;max-width:calc(100vw - 152px);}
@@ -1693,6 +1763,13 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 @media (max-width:1023px){
   .section-rail,.section-rail-preview{display:none;}
 }
+/* Hasta 1199px "Volver al menú" cae sobre la columna: el doc-header baja para no tapar la etiqueta. */
+@media (min-width:720px) and (max-width:1199px){
+  .menu-back ~ .doc-header{padding-top:28px;}
+}
+@media (max-width:719px){
+  .menu-back ~ .doc-header{padding-top:28px;}
+}
 @media (hover:none){
   .section-link{opacity:1;}
 }
@@ -1701,7 +1778,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return,.hotspot-spotlight,.lang-switch{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return,.hotspot-spotlight,.lang-switch,.menu-back,.menu-link-badge{display:none;}
+  a.menu-link[href^="http"]::after{content:none;}
   .term{text-decoration:none;}
   .compare-stage{grid-template-columns:1fr 1fr;gap:16px;border:0;}
   .compare-before,.compare-after{grid-area:auto;border:1.5px solid var(--border-strong);border-radius:10px;overflow:hidden;}
@@ -1856,7 +1934,19 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   function targetTop(target) {
     if (target.id === 'top') return 0;
     var anchor = (target.matches('.section-title') && target.closest('section')) || target;
-    return Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - TARGET_OFFSET_PX);
+    return Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - landingOffset(anchor));
+  }
+  // El selector de idioma y "Volver al menú" son fijos: si alguno cae sobre la columna del destino, el
+  // destino queda debajo de él (si no, taparía el número de la sección y su "Copiar enlace").
+  function landingOffset(anchor) {
+    var anchorBox = anchor.getBoundingClientRect();
+    var offset = TARGET_OFFSET_PX;
+    document.querySelectorAll('.lang-switch, .menu-back').forEach(function (control) {
+      if (getComputedStyle(control).position !== 'fixed') return;
+      var box = control.getBoundingClientRect();
+      if (box.left < anchorBox.right && box.right > anchorBox.left) offset = Math.max(offset, box.bottom + TARGET_OFFSET_PX);
+    });
+    return offset;
   }
   // 'instant' explícito: con html{scroll-behavior:smooth}, un scrollTo común también sería suave.
   function jump(target) { window.scrollTo({ top: targetTop(target), behavior: 'instant' }); }
@@ -2539,7 +2629,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 <script>
 // Idioma: el documento se escribe en español y se traduce en la misma página con la tabla de
 // heritage-translations (textos y atributos), sin duplicar el markup. Siempre abre en español;
-// en portugués solo si la URL lo pide (?lang=pt). No se guarda ninguna preferencia.
+// en portugués solo si la URL lo pide (?lang=pt, la propia o la del visor). No se guarda ninguna preferencia.
 (function () {
   var source = document.getElementById('heritage-translations');
   var tables = source ? JSON.parse(source.textContent) : {};
@@ -2623,12 +2713,120 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
       return (table && table.captureTemplates && table.captureTemplates[name]) || null;
     }
   };
-  var requested = new URLSearchParams(location.search).get('lang');
+  // Dentro de un visor con iframe (Grid) cuenta también la URL del visor: carga el iframe sin su ?lang.
+  function requestedLanguage() {
+    var own = new URLSearchParams(location.search).get('lang');
+    if (own) return own;
+    try { return window.parent !== window ? new URLSearchParams(window.parent.location.search).get('lang') : null; } catch (error) { return null; }
+  }
+  var requested = requestedLanguage();
   if (requested && tables[requested]) set(requested);
   else document.documentElement.setAttribute('data-language', 'es');
 })();
 </script>
 <!-- …y después el script de navegación -->
+
+<!-- Volver al menú: primer hijo del <body> (antes del selector de idioma), en documentos que se abren
+     desde un menú de manuales. href = URL pública del menú (en Grid, su /view). -->
+<a class="menu-back" href="[URL pública del menú]" target="_top" data-document-link>‹ Volver al menú</a>
+
+<!-- Menú de manuales: la captura real del menú de la app (app-frame) y un link por tarjeta, anclado con
+     data-target + data-target-text. Tarjeta con manual: href a su URL pública (+ #slug para una sección).
+     Sin manual: aria-disabled, sin href, badge gris. Los links empiezan ocultos; el script los ubica. -->
+<div class="mockup mockup--mobile">
+  <div class="mockup-bar"><div class="mockup-dots" aria-hidden="true"><span></span><span></span><span></span></div><span class="mockup-url">/[ruta del menú]</span></div>
+  <div class="menu-stage">
+    <div class="app-frame" data-cap="[captura del menú]"></div>
+    <a class="menu-link" href="[URL pública del manual]" target="_top" data-document-link data-target=".[tarjeta]" data-target-text="[Texto de la tarjeta]" aria-label="Abrir el manual de [Herramienta]" hidden><span class="badge b-green menu-link-badge" aria-hidden="true">Ver manual</span></a>
+    <a class="menu-link" role="link" aria-disabled="true" tabindex="0" data-document-link data-target=".[tarjeta]" data-target-text="[Texto de la tarjeta]" aria-label="[Herramienta]: manual en preparación" hidden><span class="badge b-gray menu-link-badge" aria-hidden="true">En preparación</span></a>
+  </div>
+</div>
+<div class="figcap">[Qué muestra la captura y quién ve cada tarjeta] (datos de ejemplo).</div>
+
+<!-- Script de navegación entre documentos: después del script de idioma (si lo hay), en el menú y en
+     cada documento con "Volver al menú". Es independiente del script de navegación del documento. -->
+<script>
+// Navegación entre documentos Heritage: links a otros documentos publicados (menú de manuales ↔ manuales)
+// que abren en la página entera también dentro de un visor con iframe (Grid), llevan el idioma que se lee,
+// funden la salida y la llegada y, en un menú, ubican cada link sobre su tarjeta de la captura.
+(function () {
+  var root = document.documentElement;
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  // Lo que dura el desvanecimiento de salida del CSS (motion.duration-base).
+  var LEAVE_MS = 200;
+  function viewerDocument() {
+    try { return window.parent !== window ? window.parent.document : null; } catch (error) { return null; }
+  }
+  // El idioma viaja en la URL de destino (?lang=pt); el español no lleva parámetro.
+  function withLanguage(href) {
+    var language = window.HeritageLanguage ? window.HeritageLanguage.current : 'es';
+    var url = new URL(href, location.href);
+    if (language !== 'es') url.searchParams.set('lang', language);
+    else url.searchParams.delete('lang');
+    return url.href;
+  }
+  // El sandbox de Grid no deja que el iframe navegue la página de arriba (ni con target="_top"); un link
+  // creado en el documento del visor, que es del mismo origen, sí la navega.
+  function go(href) {
+    var viewer = viewerDocument();
+    if (!viewer) { location.href = href; return; }
+    var link = viewer.createElement('a');
+    link.href = href;
+    link.hidden = true;
+    viewer.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  document.addEventListener('click', function (event) {
+    var link = event.target.closest ? event.target.closest('a[data-document-link]') : null;
+    if (!link) return;
+    if (link.getAttribute('aria-disabled') === 'true') { event.preventDefault(); return; }
+    var href = withLanguage(link.href);
+    // Con modificadores (pestaña nueva) decide el navegador, con el idioma ya puesto en el link.
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) { link.href = href; return; }
+    event.preventDefault();
+    if (reduceMotion.matches) { go(href); return; }
+    root.classList.add('is-leaving');
+    setTimeout(function () { go(href); }, LEAVE_MS);
+  });
+  // Al volver con "atrás" (bfcache) el documento no queda desvanecido.
+  window.addEventListener('pageshow', function () { root.classList.remove('is-leaving'); });
+  // Llegada desde otro documento del mismo visor: aparece con un fundido (una recarga no lo repite).
+  try {
+    var page = viewerDocument() || document;
+    var from = page.referrer ? new URL(page.referrer) : null;
+    if (from && from.origin === page.location.origin && from.pathname !== page.location.pathname && !reduceMotion.matches) {
+      root.classList.add('is-arriving');
+      document.body.addEventListener('animationend', function done(event) {
+        if (event.target !== document.body) return;
+        root.classList.remove('is-arriving');
+        document.body.removeEventListener('animationend', done);
+      });
+    }
+  } catch (error) { /* referrer ilegible: llega sin fundido */ }
+  // Menú: cada .menu-link[data-target] cubre su tarjeta después de cada ajuste de la captura
+  // (evento heritage:frame-fit del runtime de capturas), también al cambiar de idioma.
+  document.addEventListener('heritage:frame-fit', function (event) {
+    var host = event.target;
+    var stage = host.closest && host.closest('.menu-stage');
+    if (!stage || !host.shadowRoot) return;
+    var stageBox = stage.getBoundingClientRect();
+    stage.querySelectorAll('.menu-link[data-target]').forEach(function (link) {
+      var text = link.getAttribute('data-target-text');
+      var target = Array.prototype.filter.call(host.shadowRoot.querySelectorAll(link.getAttribute('data-target')), function (element) {
+        return !text || element.textContent.trim() === text;
+      })[0];
+      link.hidden = !target;
+      if (!target) return;
+      var box = target.getBoundingClientRect();
+      link.style.left = (box.left - stageBox.left) + 'px';
+      link.style.top = (box.top - stageBox.top) + 'px';
+      link.style.width = box.width + 'px';
+      link.style.height = box.height + 'px';
+    });
+  });
+})();
+</script>
 
 <!-- Índice (TOC): después del doc-header, solo con 5+ secciones -->
 <nav class="toc" aria-labelledby="toc-label">

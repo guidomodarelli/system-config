@@ -291,7 +291,12 @@ const block = `${START}
 		page.appendChild(content);
 		root.appendChild(page);
 		host.style.minHeight = '';
-		var refit = function () { fit(page, content, data.widths[name], (data.viewports || {})[name]); placeHotspots(host); };
+		var refit = function () {
+			fit(page, content, data.widths[name], (data.viewports || {})[name]);
+			placeHotspots(host);
+			// Overlays placed by other scripts (menu links over the cards of a menu) follow the capture too.
+			host.dispatchEvent(new CustomEvent('heritage:frame-fit', { bubbles: true }));
+		};
 		host.__umRefit = refit;
 		// setTimeout instead of requestAnimationFrame: rAF does not fire in background tabs.
 		(document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { setTimeout(refit, 0); });
