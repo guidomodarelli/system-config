@@ -1194,9 +1194,10 @@ número de la sección y su "Copiar enlace" quedan a la vista.
   visor), así que dura mientras se lee y viaja en un enlace compartido.
 - **Al elegir**, el cambio es **en la misma página, sin red ni recarga**: el script de navegación llama
   a `HeritageLanguage.set`, reescribe sus propios textos, las capturas se traducen y vuelven a ubicar
-  sus puntos, la URL pasa a `?lang=pt` (o lo pierde) conservando `#sNN`, y el documento queda **al
-  inicio de la sección que se leía**, como un salto del índice (el número `16px` abajo del borde), no en
-  la posición exacta, que se desfasaría porque el texto traducido tiene otro largo. El navegador funde
+  sus puntos, la URL pasa a `?lang=pt` (o lo pierde) conservando `#sNN`, y **la pantalla queda donde
+  estaba**: el primer bloque que se veía arriba (párrafo, paso, fila, captura) sigue a la misma distancia
+  del borde. El ancla es ese bloque y no el `scrollY`, porque el texto traducido tiene otro largo; se
+  mantiene mientras las capturas se vuelven a acomodar. El navegador funde
   el antes y el después con `document.startViewTransition` en `1,5 × motion.duration-base` (300ms); sin
   soporte o con "reducir movimiento", cambia al instante.
 - Los textos de la interfaz que arma el script de navegación (copiar enlace, tooltips, pista de las
@@ -1493,6 +1494,7 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 ### 2026-10-02
 
+- **Selector de idioma:** el cambio de idioma conserva la posición de lectura (el bloque que se veía arriba queda en el mismo lugar), en vez de volver al inicio de la sección.
 - **Puntos sobre capturas:** la pista del pie dice «Hacé click en un número…» con mouse y «Tocá un número…» en pantallas táctiles (antes, siempre «Tocá»).
 - **Accordions:** nunca hay dos abiertos en todo el documento (antes, uno por sección); también al abrirse por un salto del glosario.
 - **Glosario:** cada término muestra superíndices con sus menciones en el documento; cada número lleva a la mención. Los saltos del glosario (término → definición, superíndice → mención) abren el accordion que contiene el destino y lo hacen latir 3 veces bajo el foco temporal, ajustado a su texto. Los destinos del final del documento (el glosario) también quedan centrados, y el foco no se corre cuando la palabra empieza a latir.
@@ -1944,8 +1946,8 @@ dt.is-text-revealed{width:fit-content;}
   });
 
   // —— Selector de idioma: cambia en la misma página, sin red ni recarga. La tabla de traducciones
-  // (script de idioma) reemplaza textos y capturas; este script reescribe lo suyo y vuelve al inicio
-  // de la sección que se leía, como un salto del índice (el texto traducido tiene otro largo).
+  // (script de idioma) reemplaza textos y capturas; este script reescribe lo suyo y deja en el mismo lugar
+  // de la pantalla lo que se estaba leyendo (el texto traducido tiene otro largo, así que no basta el scroll).
   var languageSwitch = document.querySelector('.lang-switch');
   if (languageSwitch) {
     whenLanguage(function () {
@@ -1958,7 +1960,7 @@ dt.is-text-revealed{width:fit-content;}
       option.addEventListener('click', function () {
         var chosen = option.getAttribute('data-lang');
         if (chosen === language || !window.HeritageLanguage) return;
-        var section = currentEntry && !currentEntry.isStart ? currentEntry.heading : null;
+        var anchor = window.scrollY > 0 ? readingAnchor() : null;
         var change = function () {
           window.HeritageLanguage.set(chosen);
           // La URL dice el idioma (?lang=pt), así un enlace compartido abre igual; no se guarda ninguna preferencia.
@@ -1966,9 +1968,11 @@ dt.is-text-revealed{width:fit-content;}
           if (chosen === 'es') query.delete('lang'); else query.set('lang', chosen);
           var search = query.toString() ? '?' + query.toString() : '';
           history.replaceState(history.state, '', location.pathname + search + location.hash);
-          if (section) {
-            document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: section } }));
-            settleOn(section);
+          if (anchor) {
+            document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: anchor.element } }));
+            holdPosition(function () {
+              window.scrollTo({ top: anchor.element.getBoundingClientRect().top + window.scrollY - anchor.offset, behavior: 'instant' });
+            });
           }
         };
         // Mismo documento: el navegador funde el antes y el después (view transition); sin soporte o con
@@ -2036,9 +2040,11 @@ dt.is-text-revealed{width:fit-content;}
 
   // El contenido de arriba puede cambiar de alto mientras se scrollea (imágenes o capturas diferidas):
   // mantiene el destino alineado hasta que el layout se asienta, salvo que el lector scrollee por su cuenta.
-  function settleOn(target) {
+  function settleOn(target) { holdPosition(function () { jump(target); }); }
+  // Repite place() cada vez que la página cambia de alto, durante SETTLE_MS o hasta que el lector scrollee.
+  function holdPosition(place) {
     if (stopSettling) stopSettling();
-    var observer = new ResizeObserver(function () { jump(target); });
+    var observer = new ResizeObserver(place);
     var stop = function () {
       observer.disconnect();
       ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.removeEventListener(type, stop); });
@@ -2046,9 +2052,21 @@ dt.is-text-revealed{width:fit-content;}
     };
     ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.addEventListener(type, stop, { passive: true }); });
     observer.observe(document.body);
-    jump(target);
+    place();
     setTimeout(stop, SETTLE_MS);
     stopSettling = stop;
+  }
+
+  // Lo que el lector tiene arriba de la pantalla: el primer bloque del contenido que todavía se ve y su
+  // distancia al borde. Los nodos no cambian al traducir, así que sirve de ancla aunque el texto cambie de largo.
+  var READING_BLOCKS = ':is(.doc-header, nav.toc, section.section) :is(h1, h2, p, li, dt, dd, tr, summary, .section-num, .mockup, .figcap, .callout, .example-box)';
+  function readingAnchor() {
+    var blocks = document.querySelectorAll(READING_BLOCKS);
+    for (var index = 0; index < blocks.length; index++) {
+      var box = blocks[index].getBoundingClientRect();
+      if (box.height && box.bottom > 0) return { element: blocks[index], offset: box.top };
+    }
+    return null;
   }
 
   // La URL sigue a la sección: el inicio la deja sin hash. En un visor del mismo origen (Grid) también se

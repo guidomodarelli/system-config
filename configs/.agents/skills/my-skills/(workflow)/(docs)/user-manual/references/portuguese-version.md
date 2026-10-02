@@ -141,9 +141,9 @@ list above.
    once after switching in place from Spanish (pins must follow the translated captures).
 3. A round trip es → pt → es leaves the text, the attributes and the captures exactly as before.
 4. In the destination viewer: the manual opens in Spanish; the switch changes language in the same
-   document (no navigation, a few tens of ms), at the start of the section being read (its number
-   16 px below the top, or below the language switch when it covers the text, like a TOC jump, not the exact scroll position, which drifts because the
-   translation has another length); the viewer's address bar keeps `#<slug>`.
+   document (no navigation, a few tens of ms) and keeps the reading position: the block that was at
+   the top of the screen (paragraph, step, row, capture) stays at the same distance from the top
+   (±2 px), also mid-section and after the captures re-render; the viewer's address bar keeps `#<slug>`.
 
 When measuring in the shared browser, the user may be using it too: a language change you did not
 trigger is a click of theirs. Measure inside an iframe you create. If the emulated viewport is wider than the real window, fixed elements

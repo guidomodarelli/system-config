@@ -397,6 +397,15 @@ the mockups are approximations.
   selector such as `.andes-button__content` + text can match a hidden copy first. Scope the
   `data-target` to the visible panel's own class.
 
+- **A row of a grid list captured alone loses its layout** (name and buttons piled up in the middle):
+  the grid template lives in inline styles of the list container, and ancestors are copied as empty
+  shells. Capture the whole list and remove the other rows in `transform`. For the same reason, scope
+  pin selectors to the captured part (`.sub-list .andes-checkbox__checkbox`), not to a class that an
+  ancestor shell also has (`.card-row`).
+- **A tooltip or coachmark that sticks out of its modal** (`fit` reports a negative gap): capture the
+  modal's overlay (`.andes-modal__overlay`) with `floating: true`, so the layer fits as in the app.
+- **`nordic dev` waits on a "Nordic Doctor" upgrade prompt** in a throwaway worktree: start it with
+  `yes n | npm run start-dev` so it answers no and keeps going.
 - **Dev server does not start:** use the Node version in `.nvmrc` (Nordic rejects unsupported
   majors), run `npm ci` in a worktree instead of reusing another branch's `node_modules`, and build
   the artifacts the dev server expects (for example the remote-modules manifest produced by the
