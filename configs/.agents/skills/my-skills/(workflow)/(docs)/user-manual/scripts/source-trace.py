@@ -26,6 +26,8 @@ diff — on the next update, lists what changed in those paths since the recorde
 
   It fetches the ref, prints `git log` and `git diff --stat` for the recorded paths (and the full patch
   with --patch), so the update starts from the real changes instead of re-reading the whole flow.
+  Older manuals without the metas but with a doc-footer commit link are compared from that commit over
+  the whole repository; the ref defaults to origin/develop.
 """
 import argparse
 import html
@@ -112,12 +114,20 @@ def diff(arguments) -> None:
     manual = Path(arguments.manual).read_text()
     commit = read_meta(manual, 'commit')
     files = (read_meta(manual, 'files') or '').split()
-    ref = arguments.ref or read_meta(manual, 'ref')
-    if not commit or not files or not ref:
-        raise SystemExit('source-trace: the manual has no heritage:source-* metas; record them first')
+    ref = arguments.ref or read_meta(manual, 'ref') or 'origin/develop'
+    if not commit:
+        # Older manuals only link the commit in their doc-footer ("Código: develop @ <commit>"): compare
+        # from it over the whole repository, since the documented paths were not recorded.
+        footer = re.search(r'class="doc-footer"[^>]*>.*?/commit/([0-9a-f]{7,40})', manual, re.S)
+        if not footer:
+            raise SystemExit('source-trace: the manual records no commit (no heritage:source-* metas nor doc-footer link); read the whole flow and record it')
+        commit = footer.group(1)
+        files = []
+        print('source-trace: no recorded paths; comparing the whole repository from the doc-footer commit')
     git(repo, 'fetch', '--quiet', 'origin')
+    commit = git(repo, 'rev-parse', commit)
     head = git(repo, 'rev-parse', ref)
-    print(f'source-trace: {read_meta(manual, "repo")} {commit[:7]} -> {ref} @ {head[:7]}')
+    print(f'source-trace: {read_meta(manual, "repo") or repository_name(repo)} {commit[:7]} -> {ref} @ {head[:7]}')
     if head == commit:
         print('No changes: the documented code is still current.')
         return

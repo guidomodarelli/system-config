@@ -79,6 +79,30 @@ opens in Spanish; the reader's choice is never stored.
 
 ## Step 1 — Gather context
 
+**Find the repository first.** Look for the app's repo locally (the current directory, `~/ghq/`,
+siblings of other repos of the same team, `git remote -v` matching the app name). When it is not
+found, **never guess and never search the whole disk at length: ask**, with the question tool
+(`AskUserQuestion` / `request_user_input`), offering:
+
+| Option | What you do |
+|---|---|
+| It is at a local path | The user writes the path; check it is the right repo (`git remote -v`). |
+| Clone it from GitHub | Ask for the repo URL and **where** to clone it (the user's folder of choice, e.g. `~/ghq/work/`), then `git clone` there. It stays after the task. |
+| Temporary ephemeral clone | `git clone --depth 50 --branch develop <url> /tmp/<name>` (depth enough to reach the recorded commit; deepen with `git fetch --deepen` if `source-trace.py diff` cannot find it). Delete it at the end. |
+
+**Always document an up-to-date `develop`** (or the repo's base branch when it has no `develop`):
+`git fetch origin develop` and read and run `origin/develop`, from a detached worktree or the
+ephemeral clone, never from whatever branch the user's checkout is on and never pulling into it. The
+exception is a manual of a branch diff the user asked for (below).
+
+**Compare against the recorded commit, then record the new one.** Before reading code for an existing
+manual, run `python3 scripts/source-trace.py diff <manual.html> --repo <repo>`: it fetches and compares
+the commit recorded in the manual (its `heritage:source-*` metas, or, in older manuals, the commit the
+`doc-footer` links to) with `origin/develop`, so you update only what changed since then. With no
+recorded commit (no metas and no footer link), read the whole flow. Either way, when the manual is done,
+`source-trace.py record --ref origin/develop` stores the documented commit in the metas and the footer
+(Step 5), so the next update starts from it.
+
 **New manual from a branch.** Run in parallel:
 
 ```bash
@@ -90,12 +114,11 @@ git diff develop..HEAD -- <key files>
 **Updating an existing manual, or documenting a flow as it is today.** The source of truth is the
 code of the base branch, not the old manual:
 
-- **Start from the recorded source.** If the manual has `heritage:source-*` metas, run
-  `python3 scripts/source-trace.py diff <manual.html> --repo <repo>` (add `--patch` for the full
-  diff). It lists the commits and files of the documented paths changed since the recorded commit;
-  "No changes" means the content is still current (only design or capture updates remain). Then
-  read the whole flow anyway for new paths the old list did not cover. Manuals without the metas are
-  read from scratch. The commit is the same one the `doc-footer` links to ("Código: <base> @
+- **Start from the recorded source** ("Compare against the recorded commit" above; add `--patch` for
+  the full diff). It lists the commits and files of the documented paths changed since the recorded
+  commit (the whole repository when only the footer commit exists); "No changes" means the content is
+  still current (only design or capture updates remain). Then read the whole flow anyway for new paths
+  the old list did not cover. Manuals that record no commit are read from scratch. The commit is the same one the `doc-footer` links to ("Código: <base> @
   <commit>"); the diff reads it from the metas. After the update, run `source-trace.py record` again
   (Step 5) so the metas and the footer move to the commit you documented. With a Portuguese version,
   every Spanish text you change needs its entry in the translation table updated too
@@ -630,6 +653,7 @@ add them to `scripts/`.
 - [ ] Quotes only hold app texts; values the operator types go in `<em>`.
 - [ ] Audience confirmed by the user (proposed from the repo's docs and code): `Audiencia:` in the
       `doc-meta` and an **Audiencia** section right after ¿Para qué sirve?, the only place that describes the roles.
+- [ ] Repo found locally or provided by the user (local path, clone where they said, or ephemeral clone, asked with the question tool); the manual documents an up-to-date `origin/develop`, compared first with the recorded commit (`source-trace.py diff`).
 - [ ] `source-trace.py record` ran: source metas in the `<head>` and "Código: <base> @ <commit>" in
       the `doc-footer`, linked to the commit on GitHub.
 - [ ] `check-manual.mjs` exits 0 with the app's translations and the real values seen, and its
