@@ -1038,8 +1038,9 @@ abrir/cerrar). Estructura:
   sobre el `<details>` nativo: el teclado, el lector de pantalla y la impresión (que abre todo) siguen
   funcionando igual. Tocar de nuevo a mitad de camino invierte el movimiento. Con "reducir
   movimiento", abre y cierra al instante.
-- **Uno abierto por sección:** abrir un accordion cierra, con la misma animación, los otros abiertos de
-  su sección. La impresión los abre todos igual.
+- **Nunca dos abiertos:** abrir un accordion, con un clic o con un salto (desde el glosario, un link o una
+  referencia), cierra con la misma animación todos los demás abiertos del documento, salvo los que lo
+  contienen. La impresión los abre todos igual.
 
 **Regla de uso:** colapsar los bloques de **referencia** (reglas de negocio,
 comportamiento esperado, casos de error, checklist) y dejar **siempre abiertos**
@@ -1298,7 +1299,9 @@ Términos del dominio con su definición a mano, sin salir del párrafo.
 - **Saltos del glosario:** del término a su definición y de un superíndice a su mención, el destino se
   centra y late 3 veces (`scale 1 → 1.08 → 1`) bajo el foco temporal, como un punto de una captura, sin
   fondo de color. El foco se centra en la palabra del destino: no en el ancho de su bloque ni en sus superíndices. Si está dentro de un
-  accordion cerrado, el accordion se abre antes. Con "reducir movimiento" no late ni aparece el foco.
+  accordion cerrado, el accordion se abre antes. El resaltado se aplica antes de medir, para que la palabra no se mueva
+  al empezar a latir. Un destino del final (el glosario) también queda centrado: un espaciador (`.scroll-spacer`)
+  agrega lugar al pie durante el salto y se achica solo cuando el lector vuelve a subir. Con "reducir movimiento" no late ni aparece el foco.
 
 ### Puntos sobre capturas
 
@@ -1490,7 +1493,8 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 ### 2026-10-02
 
-- **Glosario:** cada término muestra superíndices con sus menciones en el documento; cada número lleva a la mención. Los saltos del glosario (término → definición, superíndice → mención) abren el accordion que contiene el destino y lo hacen latir 3 veces bajo el foco temporal, ajustado a su texto.
+- **Accordions:** nunca hay dos abiertos en todo el documento (antes, uno por sección); también al abrirse por un salto del glosario.
+- **Glosario:** cada término muestra superíndices con sus menciones en el documento; cada número lleva a la mención. Los saltos del glosario (término → definición, superíndice → mención) abren el accordion que contiene el destino y lo hacen latir 3 veces bajo el foco temporal, ajustado a su texto. Los destinos del final del documento (el glosario) también quedan centrados, y el foco no se corre cuando la palabra empieza a latir.
 - **Puntos sobre capturas:** la lista de pasos va antes de la captura que la acompaña (antes iba después del `figcap`). Lo mismo para el texto con referencias en línea: va justo antes de la captura de sus puntos. Los puntos se numeran de arriba hacia abajo y de izquierda a derecha. Las referencias en el texto se mencionan en ese orden.
 - **Referencias a secciones:** se escriben como link con el título de la sección; un link dentro de un paso o de una referencia ya no dispara el punto de la captura ni muestra "Ver en la captura".
 - **Puntos sobre capturas:** una referencia dentro del texto de un paso lleva a su propio punto; antes el clic seguía hasta el paso y resaltaba también el punto de ese paso.
@@ -1719,9 +1723,12 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .glossary-mentions a:hover{text-decoration:underline;}
 .glossary-mentions a:focus-visible{outline:2px solid var(--focus-ring);outline-offset:1px;}
 /* Destino de un salto del glosario (término ↔ mención): late como un punto, sin fondo. */
-.term.is-text-pulsing{display:inline-block;}
+/* Se aplica antes de centrar: el término no cambia de lugar al empezar a latir. */
+.term.is-text-revealed{display:inline-block;}
 dt.is-text-pulsing{transform-origin:left center;}
 dt.is-text-revealed{width:fit-content;}
+/* Lugar al pie para centrar destinos del final (el glosario); lo agrega y lo achica el script. */
+.scroll-spacer{pointer-events:none;}
 .hotspot-stage{position:relative;}
 .hotspot,.hotspot-ref{display:inline-flex;align-items:center;justify-content:center;border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-weight:500;}
 .hotspot{position:absolute;left:var(--x);top:var(--y);z-index:1;width:24px;height:24px;transform:translate(-50%,-50%);border:2px solid var(--surface-card);font-size:12px;}
@@ -1844,6 +1851,7 @@ dt.is-text-revealed{width:fit-content;}
   .section-link{opacity:1;}
 }
 @media print{
+  .scroll-spacer{display:none;}
   body{background:#fff;padding:0;max-width:none;}
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
@@ -2499,6 +2507,14 @@ dt.is-text-revealed{width:fit-content;}
     clearTimeout(spotlightTimer);
     spotlightTimer = setTimeout(spotlightOff, SPOTLIGHT_LIFETIME_MS / 2);
   }
+  // Mueve el foco temporal con su destino, sin reiniciarlo.
+  function spotlightFollow(destination) {
+    var spot = document.querySelector('.hotspot-spotlight');
+    if (!spot || !spot.classList.contains('is-on')) return;
+    var rect = destination.getBoundingClientRect();
+    spot.style.setProperty('--spot-x', (rect.left + rect.width / 2) + 'px');
+    spot.style.setProperty('--spot-y', (rect.top + rect.height / 2) + 'px');
+  }
   function spotlightOff() {
     var spot = document.querySelector('.hotspot-spotlight');
     if (!spot || !spot.classList.contains('is-on')) return;
@@ -2508,9 +2524,39 @@ dt.is-text-revealed{width:fit-content;}
   window.addEventListener('wheel', spotlightOff, { passive: true });
   window.addEventListener('touchstart', spotlightOff, { passive: true });
 
-  // Centra un destino en la pantalla (aunque ya se vea) y avisa al llegar.
-  function centerOnTarget(destination, onArrive) {
-    var destinationTop = function () { return Math.max(0, destination.getBoundingClientRect().top + window.scrollY - (window.innerHeight - destination.offsetHeight) / 2); };
+  // Al final del documento (el glosario) no hay lugar para centrar: un espaciador al pie lo da durante
+  // el salto, y se achica solo mientras el lector vuelve a subir, por debajo de lo que se ve.
+  var scrollSpacer = null;
+  var centering = false;
+  function spacerHeight() { return scrollSpacer ? scrollSpacer.offsetHeight : 0; }
+  function contentBottom() { return document.documentElement.scrollHeight - spacerHeight(); }
+  function makeRoomFor(top) {
+    var contentMaxScroll = contentBottom() - window.innerHeight;
+    var needed = Math.max(0, Math.ceil(top - contentMaxScroll), Math.ceil(window.scrollY - contentMaxScroll));
+    if (!scrollSpacer) {
+      if (!needed) return;
+      scrollSpacer = createElement('div', 'scroll-spacer');
+      scrollSpacer.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(scrollSpacer);
+    }
+    if (needed !== spacerHeight()) scrollSpacer.style.height = needed + 'px';
+  }
+  window.addEventListener('scroll', function () {
+    if (centering || !spacerHeight()) return;
+    var visible = Math.max(0, Math.ceil(window.scrollY + window.innerHeight - contentBottom()));
+    if (visible < spacerHeight()) scrollSpacer.style.height = visible + 'px';
+  }, { passive: true });
+
+  // Centra un destino en la pantalla (aunque ya se vea) y avisa al llegar. Después lo mantiene centrado
+  // mientras la página se acomoda (capturas o accordions que cambian de alto) y avisa cada corrección,
+  // salvo que el lector scrollee por su cuenta.
+  function centerOnTarget(destination, onArrive, onMove) {
+    var destinationTop = function () {
+      var top = destination.getBoundingClientRect().top + window.scrollY - (window.innerHeight - destination.offsetHeight) / 2;
+      makeRoomFor(top);
+      return Math.max(0, top);
+    };
+    centering = true;
     // Las capturas diferidas de arriba se renderizan antes de medir, para que el destino no se corra.
     document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: destination } }));
     setTimeout(function () {
@@ -2521,6 +2567,20 @@ dt.is-text-revealed{width:fit-content;}
         arrived = true;
         if (Math.abs(window.scrollY - destinationTop()) > 1) window.scrollTo({ top: destinationTop(), behavior: 'instant' });
         onArrive();
+        if (!onMove) { centering = false; return; }
+        var observer = new ResizeObserver(function () {
+          if (Math.abs(window.scrollY - destinationTop()) <= 1) return;
+          window.scrollTo({ top: destinationTop(), behavior: 'instant' });
+          onMove();
+        });
+        var stop = function () {
+          observer.disconnect();
+          centering = false;
+          ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.removeEventListener(type, stop); });
+        };
+        ['wheel', 'touchstart', 'keydown'].forEach(function (type) { window.addEventListener(type, stop, { passive: true }); });
+        observer.observe(document.body);
+        setTimeout(stop, SETTLE_MS);
       };
       if (Math.abs(window.scrollY - destinationTop()) <= 1) { arrive(); return; }
       window.scrollTo({ top: destinationTop(), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
@@ -2540,11 +2600,22 @@ dt.is-text-revealed{width:fit-content;}
     if (!target.hasAttribute('tabindex') && !target.matches('a[href]')) target.setAttribute('tabindex', '-1');
     target.focus({ preventScroll: true });
     if (target.id) setHash(target.id);
-    setTimeout(function () {
+    // Se centra cuando terminan de abrirse y cerrarse los accordions: antes, el destino todavía se mueve.
+    var animations = [];
+    document.querySelectorAll('details.acc').forEach(function (accordion) {
+      if (accordion.__accordionAnimation) animations.push(accordion.__accordionAnimation.finished.catch(function () {}));
+    });
+    var spotTarget = target;
+    // El resaltado (que hace del término un inline-block para poder latir) va antes de medir y centrar.
+    target.classList.remove('is-text-pulsing', 'is-text-revealed');
+    void target.offsetWidth;
+    target.classList.add('is-text-revealed');
+    // Si el navegador pausa las animaciones (pestaña en segundo plano), centra igual al rato.
+    var animationsDone = new Promise(function (resolve) { setTimeout(resolve, FALLBACK_MS); });
+    Promise.race([Promise.all(animations), animationsDone]).then(function () {
       centerOnTarget(target, function () {
         // En un bloque (el término en el glosario) el foco se centra en la palabra: no en todo el ancho ni
         // en los superíndices de menciones que la siguen.
-        var spotTarget = target;
         if (getComputedStyle(target).display === 'block') {
           var range = document.createRange();
           var mentions = target.querySelector('.glossary-mentions');
@@ -2553,9 +2624,6 @@ dt.is-text-revealed{width:fit-content;}
           spotTarget = { getBoundingClientRect: function () { return range.getBoundingClientRect(); } };
         }
         spotlightOn(spotTarget);
-        target.classList.remove('is-text-pulsing', 'is-text-revealed');
-        void target.offsetWidth;
-        target.classList.add('is-text-revealed');
         // Con "reducir movimiento" no late: el resaltado dura lo mismo que los latidos.
         if (reduceMotion.matches) {
           setTimeout(function () { target.classList.remove('is-text-revealed'); }, HOTSPOT_REVEAL_MS);
@@ -2566,8 +2634,8 @@ dt.is-text-revealed{width:fit-content;}
           target.classList.remove('is-text-pulsing', 'is-text-revealed');
           spotlightOff();
         }, { once: true });
-      });
-    }, closed.length ? motionDurationMs(ACCORDION_FACTOR) : 0);
+      }, function () { spotlightFollow(spotTarget); });
+    });
   }
 
   // —— Puntos sobre capturas: pasar por un paso o una referencia resalta su punto, y viceversa.
@@ -2677,10 +2745,17 @@ dt.is-text-revealed{width:fit-content;}
     return base * factor;
   };
   var motionEasing = getComputedStyle(document.documentElement).getPropertyValue('--motion-easing-standard').trim() || 'ease';
-  // Abrir un accordion cierra los demás abiertos de la misma sección, con la misma animación.
+  // Nunca hay dos accordions abiertos: abrir uno (con un clic o con un salto) cierra, con la misma
+  // animación, todos los demás abiertos del documento, salvo los que lo contienen.
   var setAccordion = function (accordion, opening) {
     var body = accordion.querySelector('.acc-body');
     if (!body) return;
+    if (opening) {
+      document.querySelectorAll('details.acc[open]').forEach(function (other) {
+        if (other === accordion || other.contains(accordion) || accordion.contains(other) || other.classList.contains('is-closing')) return;
+        setAccordion(other, false);
+      });
+    }
     if (reduceMotion.matches || !body.animate) { accordion.open = opening; return; }
     if (accordion.__accordionAnimation) accordion.__accordionAnimation.cancel();
     if (opening) accordion.open = true;
@@ -2705,12 +2780,6 @@ dt.is-text-revealed{width:fit-content;}
     summary.addEventListener('click', function (event) {
       event.preventDefault();
       var opening = !accordion.open || accordion.classList.contains('is-closing');
-      if (opening) {
-        var group = accordion.closest('section') || document;
-        group.querySelectorAll('details.acc[open]').forEach(function (other) {
-          if (other !== accordion && !other.classList.contains('is-closing')) setAccordion(other, false);
-        });
-      }
       setAccordion(accordion, opening);
     });
   });
