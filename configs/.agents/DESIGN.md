@@ -2513,7 +2513,11 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       // scrollear (otro punto, otro paso) no lo cambia.
       element.addEventListener('mouseenter', function () { if (!revealTimer) highlight(element.dataset.hotspot); });
       element.addEventListener('mouseleave', function () { if (!revealTimer) highlight(''); });
+      // Un link dentro del paso (una sección, un término del glosario) va a su destino y no muestra el
+      // tooltip del paso: el title vacío lo tapa.
+      element.querySelectorAll('a[href]').forEach(function (link) { if (!link.hasAttribute('title')) link.setAttribute('title', ''); });
       element.addEventListener('click', function (event) {
+        if (event.target.closest && event.target.closest('a[href]') && element.contains(event.target.closest('a[href]'))) return;
         // Una referencia dentro del texto de un paso ("«Cancelar» (3)" en el paso 2) lleva a su punto, no
         // al del paso que la contiene: el clic no sigue hasta el paso.
         if (element.classList.contains('hotspot-ref')) event.stopPropagation();

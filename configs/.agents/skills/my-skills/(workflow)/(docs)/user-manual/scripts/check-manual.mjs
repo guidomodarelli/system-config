@@ -300,6 +300,11 @@ const checkDocument = (html, options, label, source) => {
 		if (sectionIds.filter((other) => other === id).length > 1) errors.push(`ids: section id "${id}" is repeated`);
 	}
 
+	// Section references are links named after the section (DESIGN.md, "Referencias a secciones"): a bare
+	// number ("sección 03") says nothing and cannot be followed.
+	const plainReferences = stripTags(visible.replace(/<nav class="toc"[\s\S]*?<\/nav>/g, '')).match(/(?<![\p{L}])(?:secci(?:ón|ones)|se(?:ção|ções)) \d{2}(?!\d)/giu) || [];
+	for (const reference of new Set(plainReferences)) errors.push(`section references: «${reference}» names a section by its number; link it with its title (<a href="#slug">sección Título</a>)`);
+
 	const isMenu = metaContent(html, 'heritage:kind') === 'menu';
 	// The scripts travel inside each document: compare them with the current boilerplate.
 	const extractScript = (text, marker) => {
