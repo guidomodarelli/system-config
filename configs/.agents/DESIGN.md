@@ -1451,6 +1451,8 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 ### 2026-10-02
 
+- **Puntos sobre capturas:** una referencia dentro del texto de un paso lleva a su propio punto; antes el clic seguía hasta el paso y resaltaba también el punto de ese paso.
+
 - **Componentes:** menú de manuales (`menu-stage` + `menu-link` sobre la captura real del menú de la app) y "Ir al menú" (`menu-back`, fijo arriba a la izquierda).
 - **Navegación entre documentos:** script propio (`a[data-document-link]`) que abre en la página entera dentro de Grid, lleva `?lang` y funde salida y llegada.
 - **Idioma:** también se lee `?lang` de la URL del visor.
@@ -2511,7 +2513,12 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       // scrollear (otro punto, otro paso) no lo cambia.
       element.addEventListener('mouseenter', function () { if (!revealTimer) highlight(element.dataset.hotspot); });
       element.addEventListener('mouseleave', function () { if (!revealTimer) highlight(''); });
-      element.addEventListener('click', function () { reveal(element.dataset.hotspot, destinationSelector); });
+      element.addEventListener('click', function (event) {
+        // Una referencia dentro del texto de un paso ("«Cancelar» (3)" en el paso 2) lleva a su punto, no
+        // al del paso que la contiene: el clic no sigue hasta el paso.
+        if (element.classList.contains('hotspot-ref')) event.stopPropagation();
+        reveal(element.dataset.hotspot, destinationSelector);
+      });
       if (!element.classList.contains('hotspot-ref')) return;
       element.setAttribute('role', 'button');
       element.setAttribute('tabindex', '0');

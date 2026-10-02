@@ -109,7 +109,7 @@ const HOST_CSS = `
 
 const payload = JSON.stringify({ fontFaces, rules: payloadRules, captureRules, hostCss: HOST_CSS + extraHostCss, widths, viewports: viewports, templates: Object.fromEntries(hosts.map((name) => [name, captures.get(name).html])) })
 	.replace(/<\//g, '<\\/')
-	.replace(/<!--/g, '<\\!--');
+	.replace(/<!--/g, '\\u003c!--'); // "<\!--" is not a valid JSON escape; \u003c is, and keeps the HTML parser out
 
 const block = `${START}
 <script id="app-frames-data" type="application/json">${payload}</script>
