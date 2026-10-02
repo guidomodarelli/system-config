@@ -30,6 +30,15 @@ work from a signed-in tab with `scripts/grid-publish.js`.
   If the iframe still shows the old content after reloading the page, reload the iframe itself
   (`iframe.contentWindow.location.reload()`, waiting for its `load` event) before checking.
 
+- **Links between documents need the "Navegación entre documentos" script** (DESIGN.md). The iframe's
+  sandbox has no `allow-top-navigation`: `target="_top"` and `top.location` are blocked. The script
+  creates the link in Grid's own document (same origin) and clicks it, which navigates the whole page.
+  Grid does not forward the `/view` query to the iframe (`/view?lang=pt` loads `/raw`), so the language
+  script also reads `?lang` from the parent URL, and the links add the current language.
+- **A Grid presentation is not a document.** Its `/raw` answers `invalid_file` and its versions API
+  fails: the content lives in each slide (`iframe.src` of the view, an `html` document with
+  `presentation_id`). Publish to the slide id, or let the user upload the file as a new document.
+
 ## Workflow
 
 1. **Open the document view** in the browser tab the user is signed in (`/d/<documentId>/view`). Never

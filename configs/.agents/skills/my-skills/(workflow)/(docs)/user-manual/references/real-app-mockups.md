@@ -55,6 +55,11 @@ or custom CSS, because it copies whatever markup and stylesheets the page actual
 
 - Use the URL the user gives. Otherwise prefer a local dev server or a sandbox/test environment.
 - Production is acceptable **only for read-only navigation**, and only when the user points to it.
+- **The app's language may come from the user's profile, not from the browser** (`Accept-Language`
+  does not change it). When the account opens in another language, capture it as it is and replace
+  each app text with the reader's locale through the catalogs (`__umCap` `pairs`: pt-BR `msgstr` →
+  its msgid → es-AR `msgstr`), never with your own translation; set the capture's `lang` shell to the
+  reader's locale.
 - If authentication, SSO, or TLS gates appear, the user completes them; never type credentials.
 
 ### 2. Plan the captures
@@ -275,6 +280,11 @@ both, capture the screens whose mobile layout differs:
 - Pages with `min-height: 100vh` keep the captured height (vh resolved), which can leave a lot of
   empty space. Release it per manual with `--host-css`
   (`[data-capture-root] .page-wrapper{min-height:0!important}`) when the empty area adds nothing.
+- A container sized from `vh` with its own scroll (`overflow:auto`, a grid row filling the screen)
+  becomes a fixed-height box that **cuts what was below the fold** (the last row of a menu). Release
+  its height and the parent's (`[data-capture-root].page{height:auto!important}`,
+  `[data-capture-root] .list{height:auto!important;overflow:visible!important}`) so the capture shows
+  every item, and check the last item is visible.
 - Pins on captures use `data-target` (DESIGN.md, "Puntos sobre capturas"); the runtime places them
   after every fit and resize. Verify the distance pin → element at 1280 px and 390 px.
 

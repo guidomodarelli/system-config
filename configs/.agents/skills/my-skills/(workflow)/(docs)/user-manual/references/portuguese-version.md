@@ -125,7 +125,9 @@ list above.
    library pairs): 0 errors in both languages. For Spanish it also accepts the pt-BR msgids. It also
    checks the table against the catalogs: an entry whose Spanish is an app text and whose Portuguese
    is not that text's `msgstr` is an error, and a capture text the catalogs do not have is a warning
-   (keep it in Spanish, or add its verified library source).
+   (keep it in Spanish, or add its verified library source). A text that fits several catalog strings
+   with different translations (`¡Hola {0}!` → `Olá {0}!` and `¡Hola {0} {1}!` → `¡Olá {0} {1}!`) is a
+   warning: read in the source which `gettext` the screen calls and use that msgstr.
    No "translation never used" warnings.
 2. `__umCheckRendered` in both languages, at desktop width and at 390 px: once loading `?lang=pt`, and
    once after switching in place from Spanish (pins must follow the translated captures).

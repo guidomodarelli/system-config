@@ -1215,8 +1215,12 @@ nunca una grilla dibujada a mano. El lector reconoce la pantalla que ya usa y to
 - Cada tarjeta lleva un `a.menu-link` anclado con `data-target` + `data-target-text` (el texto de la
   tarjeta), que cubre la tarjeta después de cada ajuste de la captura y al cambiar de idioma.
   - Con manual: `href` a la URL pública del manual (con `#slug` cuando la tarjeta abre una parte del
-    manual), badge `b-green` **Ver manual**, foco y hover con anillo `2px` `link`.
-  - Sin manual: `aria-disabled="true"`, sin `href`, badge `b-gray` **En preparación**; no navega.
+    manual); la tarjeta se ve como en la app, con anillo `2px` `link` en hover y foco.
+  - Sin manual: `aria-disabled="true"`, sin `href`; un velo `surface-card` al 62% atenúa la tarjeta y
+    no navega.
+  - Nada se superpone a los textos de la tarjeta (sin badges encima): los textos de la app cambian de
+    largo con el ancho y el idioma. Una leyenda debajo del `figcap` dice qué hace una tarjeta normal y
+    qué significa una atenuada.
 - Cada link tiene `aria-label` ("Abrir el manual de …" o "…: manual en preparación").
 
 ### Navegación entre documentos
@@ -1427,7 +1431,7 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Cada `a.term` apunta a un `<dt>` existente y su tarjeta muestra la definición.
 - [ ] Los `data-hotspot` de puntos, pasos y referencias coinciden, y cada punto cae sobre el elemento correcto de la captura renderizada.
 - [ ] Las comparaciones usan capturas del mismo ancho y encuadre, y el divisor se mueve con mouse y teclado.
-- [ ] Un menú de manuales es la captura real del menú de la app, con cada `menu-link` cubriendo su tarjeta a 1280px y 390px, también en portugués; dentro del visor, cada link abre su manual en la página entera.
+- [ ] Un menú de manuales es la captura real del menú de la app, con cada `menu-link` cubriendo su tarjeta a 1280px y 390px, también en portugués, y sin nada encima de sus textos; dentro del visor, cada link abre su manual en la página entera.
 - [ ] Con "Volver al menú": lleva al menú en el idioma que se lee y no tapa la etiqueta del header ni el número de una sección después de un salto.
 
 ## Changelog
@@ -1676,8 +1680,8 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .menu-stage{position:relative;}
 .menu-link{position:absolute;display:block;border-radius:10px;color:inherit;text-decoration:none;}
 .menu-link[href]:hover,.menu-link:focus-visible{box-shadow:0 0 0 2px var(--link);}
-.menu-link[aria-disabled="true"]{cursor:default;}
-.menu-link-badge{position:absolute;top:6px;right:6px;pointer-events:none;}
+/* Sin manual: la tarjeta queda atenuada por un velo; nada se superpone a sus textos. */
+.menu-link[aria-disabled="true"]{cursor:default;background:color-mix(in srgb,var(--surface-card) 62%,transparent);}
 /* Foco temporal: la página se desenfoca y una burbuja se cierra sobre el destino de un salto. */
 @property --spot-radius{syntax:'<length>';inherits:false;initial-value:0px;}
 .hotspot-spotlight{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:0;--spot-radius:150vmax;background:color-mix(in srgb,var(--surface-dark) 15%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);-webkit-mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));mask-image:radial-gradient(circle at var(--spot-x) var(--spot-y),transparent var(--spot-radius),#000 calc(var(--spot-radius) + 18px));}
@@ -1778,7 +1782,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return,.hotspot-spotlight,.lang-switch,.menu-back,.menu-link-badge{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return,.hotspot-spotlight,.lang-switch,.menu-back{display:none;}
   a.menu-link[href^="http"]::after{content:none;}
   .term{text-decoration:none;}
   .compare-stage{grid-template-columns:1fr 1fr;gap:16px;border:0;}
@@ -2732,16 +2736,17 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 
 <!-- Menú de manuales: la captura real del menú de la app (app-frame) y un link por tarjeta, anclado con
      data-target + data-target-text. Tarjeta con manual: href a su URL pública (+ #slug para una sección).
-     Sin manual: aria-disabled, sin href, badge gris. Los links empiezan ocultos; el script los ubica. -->
+     Sin manual: aria-disabled, sin href (la tarjeta queda atenuada). Los links empiezan ocultos; el script los ubica. -->
 <div class="mockup mockup--mobile">
   <div class="mockup-bar"><div class="mockup-dots" aria-hidden="true"><span></span><span></span><span></span></div><span class="mockup-url">/[ruta del menú]</span></div>
   <div class="menu-stage">
     <div class="app-frame" data-cap="[captura del menú]"></div>
-    <a class="menu-link" href="[URL pública del manual]" target="_top" data-document-link data-target=".[tarjeta]" data-target-text="[Texto de la tarjeta]" aria-label="Abrir el manual de [Herramienta]" hidden><span class="badge b-green menu-link-badge" aria-hidden="true">Ver manual</span></a>
-    <a class="menu-link" role="link" aria-disabled="true" tabindex="0" data-document-link data-target=".[tarjeta]" data-target-text="[Texto de la tarjeta]" aria-label="[Herramienta]: manual en preparación" hidden><span class="badge b-gray menu-link-badge" aria-hidden="true">En preparación</span></a>
+    <a class="menu-link" href="[URL pública del manual]" target="_top" data-document-link data-target=".[tarjeta]" data-target-text="[Texto de la tarjeta]" aria-label="Abrir el manual de [Herramienta]" hidden></a>
+    <a class="menu-link" role="link" aria-disabled="true" tabindex="0" data-document-link data-target=".[tarjeta]" data-target-text="[Texto de la tarjeta]" aria-label="[Herramienta]: manual en preparación" hidden></a>
   </div>
 </div>
 <div class="figcap">[Qué muestra la captura y quién ve cada tarjeta] (datos de ejemplo).</div>
+<!-- Leyenda: qué hace una tarjeta normal y qué significa una atenuada (y adónde lleva cada excepción). -->
 
 <!-- Script de navegación entre documentos: después del script de idioma (si lo hay), en el menú y en
      cada documento con "Volver al menú". Es independiente del script de navegación del documento. -->
@@ -2804,6 +2809,34 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
       });
     }
   } catch (error) { /* referrer ilegible: llega sin fundido */ }
+  // Documento de una sola pantalla (menú de manuales), sin el script de navegación del documento: el
+  // selector de idioma cambia en el lugar, con el mismo fundido; no hay sección a la que volver.
+  var languageSwitch = document.querySelector('.lang-switch');
+  if (languageSwitch && window.HeritageLanguage && !document.querySelector('.section-rail')) {
+    var markChosen = function () {
+      languageSwitch.querySelectorAll('[data-lang]').forEach(function (option) {
+        option.setAttribute('aria-checked', String(option.getAttribute('data-lang') === window.HeritageLanguage.current));
+      });
+    };
+    markChosen();
+    languageSwitch.querySelectorAll('[data-lang]').forEach(function (option) {
+      option.addEventListener('click', function () {
+        var chosen = option.getAttribute('data-lang');
+        if (chosen === window.HeritageLanguage.current) return;
+        var change = function () {
+          window.HeritageLanguage.set(chosen);
+          markChosen();
+          var query = new URLSearchParams(location.search);
+          if (chosen === 'es') query.delete('lang');
+          else query.set('lang', chosen);
+          var search = query.toString() ? '?' + query.toString() : '';
+          history.replaceState(history.state, '', location.pathname + search + location.hash);
+        };
+        if (document.startViewTransition && !reduceMotion.matches) document.startViewTransition(change);
+        else change();
+      });
+    });
+  }
   // Menú: cada .menu-link[data-target] cubre su tarjeta después de cada ajuste de la captura
   // (evento heritage:frame-fit del runtime de capturas), también al cambiar de idioma.
   document.addEventListener('heritage:frame-fit', function (event) {

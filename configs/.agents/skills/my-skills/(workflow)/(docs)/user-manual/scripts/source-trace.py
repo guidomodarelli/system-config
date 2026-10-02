@@ -94,9 +94,13 @@ def record(arguments) -> None:
     manual = re.sub(r'\s*<span>Código: (?:<a [^>]*>[^<]*</a>|[^<]*)</span>', '', manual, count=1)
     manual, replaced = re.subn(r'<footer class="doc-footer">[\s\S]*?</footer>', lambda match: footer, manual, count=1)
     if not replaced:
-        if FOOTER_ANCHOR not in manual:
-            raise SystemExit('source-trace: back-to-top button not found; is this a Heritage manual?')
-        manual = manual.replace(FOOTER_ANCHOR, footer + '\n\n' + FOOTER_ANCHOR, 1)
+        # A menu of manuals (one screen, no "Inicio" button) ends its content with </main>.
+        if FOOTER_ANCHOR in manual:
+            manual = manual.replace(FOOTER_ANCHOR, footer + '\n\n' + FOOTER_ANCHOR, 1)
+        elif '</main>' in manual:
+            manual = manual.replace('</main>', '</main>\n\n' + footer, 1)
+        else:
+            raise SystemExit('source-trace: neither the back-to-top button nor </main> found; is this a Heritage document?')
     if '.doc-footer{' not in manual:
         manual = manual.replace('</style>', FOOTER_CSS + '\n</style>', 1)
     manual_path.write_text(manual)

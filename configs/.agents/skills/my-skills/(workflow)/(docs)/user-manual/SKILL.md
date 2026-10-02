@@ -1,7 +1,8 @@
 ---
 name: user-manual
 description: >
-  Generates or updates a self-contained .html user manual (never .htm) for a feature or flow,
+  Generates or updates a self-contained .html user manual (never .htm) for a feature or flow, or a
+  menu of manuals (a replica of the app's menu linking each card to its manual),
   written as a user story for non-technical readers, from a branch diff or the current code. Uses
   the Heritage Spec design system in ~/system-config/configs/.agents/DESIGN.md. Documents UI
   visibility rules driven by permissions, roles and user context. Mockups are real-app captures
@@ -10,7 +11,7 @@ description: >
   the changes on a branch, create or update a user manual, or explain a flow to non-technical users.
 metadata:
   author: gmodarelli_meli
-  version: "2.2"
+  version: "2.3"
 ---
 
 # User Manual Generator
@@ -521,6 +522,37 @@ Fix the HTML before reporting done.
 
 ---
 
+## Menu of manuals
+
+When the user asks for a page that gathers the manuals of a tool ("el menú de User Management, con un
+link al manual de cada herramienta"), build a **menu of manuals** (DESIGN.md, "Menú de manuales"),
+not a manual:
+
+- **Always a replica of the app's real menu, captured with `app-frame`** — never a grid of cards
+  drawn by hand. Find the menu in the code (Step 1, "Find how the reader enters the flow"), capture it
+  with **every card visible** (a user with all the permissions, or mocks that grant them) at the
+  device the user chose, with the greeting's name replaced by a synthetic one.
+- One `a.menu-link` per card, anchored with `data-target` + `data-target-text` (the card's text):
+  - with a manual: `href` to the manual's public URL (Grid `/view`), plus `#<slug>` when the card opens
+    one part of a manual (a card covered by another tool's manual);
+  - without a manual: `aria-disabled="true"` and no `href` (the card shows dimmed).
+  Ask the user which manuals exist and where they live when it is not clear.
+- `<meta name="heritage:kind" content="menu">`; header with `Fecha` and `Capturas` (no audience); no
+  TOC, section map, pill or "Inicio" button; `figcap` saying each user sees only the cards their
+  permissions enable; a short legend (what a card opens, what a dimmed card means); the
+  "Navegación entre documentos" script; source metas and footer from `source-trace.py record`.
+- Languages as in Step 0 (ask). The cards' texts come from the catalogs like any capture text.
+- **Each linked manual gets "‹ Volver al menú"** (`a.menu-back`, fixed top-left, first child of
+  `<body>`, `data-document-link`, `href` = the menu's public URL) and the "Navegación entre documentos"
+  script; with Portuguese, its text in the `document` table (`‹ Voltar ao menu`). When the menu is a
+  new Grid document the user uploads, ask for its URL before republishing the manuals.
+- `check-manual.mjs` checks a menu in its own mode (capture present, every link anchored, `href` xor
+  `aria-disabled`, `aria-label`); `__umCheckRendered` and the cover check (every `menu-link` box equals
+  its card's box) must pass at 1280 px and 390 px in every language. Inside Grid, verify that a card
+  opens its manual in the whole page with the language kept, and that "Volver al menú" comes back.
+
+---
+
 ## Step 6 — Publish (when the destination is Grid)
 
 Follow `references/grid-publishing.md`: pull the current version, strip Grid's injected scripts,
@@ -599,3 +631,6 @@ add them to `scripts/`.
       untranslated keys reported.
 - [ ] Temporary fixtures, worktrees, local servers, logs with request headers and exports deleted.
 - [ ] Tone is non-technical throughout.
+- [ ] Menu of manuals (when asked): replica of the real menu captured with `app-frame`, every card
+      covered by its `menu-link` at 1280 px and 390 px in every language, cards without manual dimmed,
+      and every linked manual has "‹ Volver al menú" with the menu's URL.
