@@ -129,6 +129,13 @@ machine:
   mounts; and in the server hook, replace the props with synthetic values under `env.DEVELOPMENT`
   and the same parameter. Read flags for other variants (empty list) from `sessionStorage` when the
   stub starts. Both edits die with the worktree.
+- **Password and credential forms:** never type into a password field from the browser, not even a
+  test value. Seed each state (rules half met, all met, confirmation that does not match) from the
+  throwaway worktree: page props filled under the fixture parameter, with example values written in
+  the code. Stub the save request in the browser so it never reaches the server, and confirm in the dev
+  log that nothing arrived. Do not trigger the success path when it signs the user out. In the export,
+  replace every `value` of a password input with the same number of `x`, so the manual never ships an
+  example password readers could copy.
 - **Mock debug logs (`DEBUG=mock:*`) print request headers**, session ids included. Never dump them;
   grep only the lines you need and delete the log at the end.
 
