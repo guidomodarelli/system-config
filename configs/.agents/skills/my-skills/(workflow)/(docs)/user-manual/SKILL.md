@@ -79,16 +79,30 @@ opens in Spanish; the reader's choice is never stored.
 
 ## Step 1 — Gather context
 
-**Find the repository first.** Look for the app's repo locally (the current directory, `~/ghq/`,
-siblings of other repos of the same team, `git remote -v` matching the app name). When it is not
-found, **never guess and never search the whole disk at length: ask**, with the question tool
-(`AskUserQuestion` / `request_user_input`), offering:
+**Find the repository first.** The folder where the user keeps their work repositories lives in the
+`WORK_REPOS_DIR` variable of their shell. Read it from the environment, or from the export in their
+shell startup file when the agent's shell did not load it:
+
+```bash
+echo "${WORK_REPOS_DIR:-}"; grep -h '^export WORK_REPOS_DIR=' ~/.zshrc ~/.bashrc 2>/dev/null | tail -1
+```
+
+- **Not defined:** ask the user, with the question tool, where they keep their work repositories. Then
+  write it to their shell startup file (`~/.zshrc` for zsh, `~/.bashrc` for bash): replace the existing
+  `export WORK_REPOS_DIR=` line, or append one. Tell the user it was saved and that new terminals pick it up.
+- **Defined but the repo is not there** (or the user said it moved): ask again and update the same line.
+- Never assume a personal layout or tool (`~/ghq`, `~/code`, `~/Projects`): only the current directory
+  and `WORK_REPOS_DIR` are searched. Look there for the app's repo (`git remote -v` matching the app
+  name), including the sibling repos of the same team.
+
+When the repo is not there, **never guess and never search the whole disk at length: ask**, with the
+question tool (`AskUserQuestion` / `request_user_input`), offering:
 
 | Option | What you do |
 |---|---|
 | It is at a local path | The user writes the path; check it is the right repo (`git remote -v`). |
-| Clone it from GitHub | Ask for the repo URL and **where** to clone it (the user's folder of choice, e.g. `~/ghq/work/`), then `git clone` there. It stays after the task. |
-| Temporary ephemeral clone | `git clone --depth 50 --branch develop <url> /tmp/<name>` (depth enough to reach the recorded commit; deepen with `git fetch --deepen` if `source-trace.py diff` cannot find it). Delete it at the end. |
+| Clone it from GitHub | Ask for the repo URL and `git clone` it inside `$WORK_REPOS_DIR` (no need to ask where). Full clone that stays after the task, for future updates. |
+| Temporary ephemeral clone | For a one-off manual, without leaving the repo on disk: `git clone --depth 50 --branch develop <url> /tmp/<name>` (depth enough to reach the recorded commit; deepen with `git fetch --deepen` if `source-trace.py diff` cannot find it). Delete it at the end. |
 
 **Always document an up-to-date `develop`** (or the repo's base branch when it has no `develop`):
 `git fetch origin develop` and read and run `origin/develop`, from a detached worktree or the
@@ -653,7 +667,7 @@ add them to `scripts/`.
 - [ ] Quotes only hold app texts; values the operator types go in `<em>`.
 - [ ] Audience confirmed by the user (proposed from the repo's docs and code): `Audiencia:` in the
       `doc-meta` and an **Audiencia** section right after ¿Para qué sirve?, the only place that describes the roles.
-- [ ] Repo found locally or provided by the user (local path, clone where they said, or ephemeral clone, asked with the question tool); the manual documents an up-to-date `origin/develop`, compared first with the recorded commit (`source-trace.py diff`).
+- [ ] Repo found locally or provided by the user (local path, clone from GitHub inside `$WORK_REPOS_DIR`, or ephemeral clone, asked with the question tool); the manual documents an up-to-date `origin/develop`, compared first with the recorded commit (`source-trace.py diff`).
 - [ ] `source-trace.py record` ran: source metas in the `<head>` and "Código: <base> @ <commit>" in
       the `doc-footer`, linked to the commit on GitHub.
 - [ ] `check-manual.mjs` exits 0 with the app's translations and the real values seen, and its
