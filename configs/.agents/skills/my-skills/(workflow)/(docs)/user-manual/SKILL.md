@@ -388,6 +388,16 @@ with the one-line definition you would write. Then:
   list or a list of references, so each pin has its text. Only skip a pin when it would point at
   nothing the reader acts on or reads (decoration, layout). Before closing a manual, walk every
   capture and ask "what does the text ask the reader to find here?"; each answer needs a pin.
+- **Steps before their capture:** an `ol.steps` linked to a capture always goes **before** that
+  `.mockup` and its `figcap`, never after (DESIGN.md, "Puntos sobre capturas").
+- **Pins in reading order:** number the pins of each capture top to bottom and, on the same row, left to
+  right; across several captures of a section the numbering continues. Steps and references take the same
+  numbers, so steps are written in that order; an action that must come before one placed higher goes in a
+  separate steps list. `check-rendered.js` reports captures out of order (`order`).
+- **Inline references before their capture, too:** the paragraph, list or table holding `hotspot-ref`s
+  goes right before the capture with those pins: steps → text with references → capture → figcap. A list
+  that names pins of several consecutive captures is split, one list before each capture. `check-manual.mjs`
+  reports references that come after their capture.
 - **Pins on steps:** on the capture of every screen with a `steps` walkthrough, one pin per step that
   touches a visible element, same number as the step. On real captures **always anchor the pin**:
   `data-target="<selector inside the capture>"` plus `data-target-text="<exact text>"` when the
@@ -601,6 +611,9 @@ add them to `scripts/`.
 ## Output checklist
 
 - [ ] Step 0 asked: captures and prose match the device the flow is used on.
+- [ ] Every `steps` list linked to a capture comes before the capture, not after.
+- [ ] Every inline reference (`hotspot-ref`) sits right before the capture with its pin, never after.
+- [ ] Pins of every capture are numbered top to bottom, left to right (`__umCheckRendered` `order` is empty).
 - [ ] Every mention of another section is a link with its title, never a bare number; clicking it inside a step goes to the section, not to the pin.
 - [ ] Step 0 asked about Portuguese (and, if yes, about translating the captures); a Spanish-only
       manual has no language switch.

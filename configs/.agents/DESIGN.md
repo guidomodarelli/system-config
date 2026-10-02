@@ -1304,6 +1304,18 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
 
 - `div.hotspot-stage` envuelve el contenido de la captura (`app-frame` o `mockup-body`) y lleva
   los `span.hotspot` con `data-hotspot="1"`.
+- **Los pasos van antes de la captura:** el `ol.steps` vinculado a una captura se escribe antes de su
+  `.mockup` (y del `figcap`), nunca después. El lector lee qué hacer y después ve dónde; los círculos
+  grandes de los pasos encabezan el bloque.
+- **Los puntos se numeran en orden de lectura:** de arriba hacia abajo y, en la misma fila, de
+  izquierda a derecha. Si una sección tiene varias capturas, la numeración sigue de una captura a la
+  siguiente. Los pasos y las referencias llevan esos mismos números, así que los pasos se escriben en ese
+  orden; si una acción tiene que ir antes que otra que está más arriba, va en otra lista de pasos.
+- **Las referencias en el texto también van antes:** el párrafo, la lista o la tabla con
+  `span.hotspot-ref` se ubica justo antes de la captura que tiene esos puntos, lo más cerca posible:
+  pasos → texto con referencias → captura → `figcap`. Si una lista nombra puntos de varias capturas
+  seguidas, se parte en una lista por captura, cada una antes de la suya. Un párrafo que presenta varias
+  capturas seguidas puede ir antes de la primera, sin otro texto entre ellas.
 - **Sobre una captura real, anclar siempre el punto a su elemento:** `data-target` es un selector
   CSS dentro de la captura y `data-target-text`, opcional, el texto exacto cuando el selector
   matchea varios (`data-target="button" data-target-text="Confirmar"`). El runtime de capturas
@@ -1455,6 +1467,9 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Las comparaciones usan capturas del mismo ancho y encuadre, y el divisor se mueve con mouse y teclado.
 - [ ] Un menú de manuales es la captura real del menú de la app, con cada `menu-link` cubriendo su tarjeta a 1280px y 390px, también en portugués, sin nada encima de sus textos y con el ícono en gris en las tarjetas sin manual; dentro del visor, cada link abre su manual en la página entera.
 - [ ] Con "Ir al menú": lleva al menú en el idioma que se lee y no tapa la etiqueta del header ni el número de una sección después de un salto.
+- [ ] Cada lista de pasos vinculada a una captura va antes de la captura, no después.
+- [ ] Las referencias en el texto (`hotspot-ref`) van justo antes de la captura de su punto, nunca después.
+- [ ] En cada captura, los puntos están numerados de arriba hacia abajo y de izquierda a derecha.
 - [ ] Toda mención a otra sección es un link con su título ("sección Permisos y prerrequisitos"), nunca un número suelto; dentro de un paso con punto, el link lleva a la sección y no al punto.
 
 ## Changelog
@@ -1464,6 +1479,7 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 ### 2026-10-02
 
+- **Puntos sobre capturas:** la lista de pasos va antes de la captura que la acompaña (antes iba después del `figcap`). Lo mismo para el texto con referencias en línea: va justo antes de la captura de sus puntos. Los puntos se numeran de arriba hacia abajo y de izquierda a derecha.
 - **Referencias a secciones:** se escriben como link con el título de la sección; un link dentro de un paso o de una referencia ya no dispara el punto de la captura ni muestra "Ver en la captura".
 - **Puntos sobre capturas:** una referencia dentro del texto de un paso lleva a su propio punto; antes el clic seguía hasta el paso y resaltaba también el punto de ese paso.
 
@@ -3026,7 +3042,10 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
   <dd>[Definición en una o dos oraciones]</dd>
 </dl>
 
-<!-- Puntos sobre una captura + pasos y referencia vinculados -->
+<!-- Puntos sobre una captura + pasos y referencia vinculados: los pasos van ANTES de la captura -->
+<ol class="steps">
+  <li class="step-item" data-hotspot="1">…</li>
+</ol>
 <div class="mockup">
   <div class="mockup-bar">…</div>
   <div class="hotspot-stage">
@@ -3034,9 +3053,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
     <span class="hotspot" data-hotspot="1" data-target="button" data-target-text="[Texto del botón]" style="--x:12%;--y:30%" aria-hidden="true">1</span>
   </div>
 </div>
-<ol class="steps">
-  <li class="step-item" data-hotspot="1">…</li>
-</ol>
+<div class="figcap">[Qué muestra la captura]</div>
 <p>Tocá el botón <span class="hotspot-ref" data-hotspot="1"><span class="visually-hidden">punto </span>1</span>.</p>
 
 <!-- Comparación antes / después -->

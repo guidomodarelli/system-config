@@ -5,11 +5,14 @@
  *   await __umCheckRendered()            // in the manual's window
  *   await __umCheckRendered(iframe.contentWindow)   // from the Grid view, on its iframe
  *
- * Returns { frames, unrendered, fit, pins, ok }:
+ * Returns { frames, unrendered, fit, pins, order, ok }:
  *   unrendered  captures that did not render (no shadow root or no height)
  *   fit         captures whose visible content is closer than 16 px to an edge (cut or cramped)
  *   pins        anchored pins that are not 14 px left of what the reader sees in their element (its text
  *               and media, or the whole box when it is filled or bordered), or that fall outside the capture
+ *   order       captures whose pins are not numbered top to bottom and left to right (pins on the same row,
+ *               within 12 px, go left to right). Checked on mobile captures and, for desktop captures, at
+ *               1000 px or more, where the capture keeps the layout it was taken in.
  * Run it at desktop width (1280 px) and at phone width (390 px): both must return ok: true.
  */
 (function () {
@@ -18,6 +21,9 @@
 	// Inside a full-width target: pin radius (12) + inset (4).
 	const PIN_INSIDE_PX = 16;
 	const TOLERANCE_PX = 2;
+	// Pins whose centers are this close vertically are on the same row and read left to right.
+	const ROW_TOLERANCE_PX = 12;
+	const DESKTOP_LAYOUT_MIN_PX = 1000;
 	const RENDER_WAIT_MS = 2500;
 
 	// Left edge of what the reader actually sees inside an element (text, images, icons), which can be far
@@ -106,6 +112,20 @@
 				if (pinRect.left < stageRect.left || pinRect.right > stageRect.right) pins.push([key, 'outside the capture: anchor it to a compact element']);
 			});
 		});
-		return { width: view.innerWidth, frames: hosts.length, unrendered, fit, pins, ok: !unrendered.length && !fit.length && !pins.length };
+		// Pins are numbered in reading order: top to bottom, then left to right on the same row.
+		const order = [];
+		manual.querySelectorAll('.hotspot-stage').forEach((stage) => {
+			const host = stage.querySelector('.app-frame');
+			const isMobile = Boolean(stage.closest('.mockup--mobile'));
+			if (!host || (!isMobile && view.innerWidth < DESKTOP_LAYOUT_MIN_PX)) return;
+			const placed = [...stage.querySelectorAll('.hotspot')].map((pin) => {
+				const rect = pin.getBoundingClientRect();
+				return { number: Number(pin.dataset.hotspot), x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+			});
+			const reading = [...placed].sort((a, b) => (Math.abs(a.y - b.y) <= ROW_TOLERANCE_PX ? a.x - b.x : a.y - b.y)).map((pin) => pin.number);
+			const numbered = [...reading].sort((a, b) => a - b);
+			if (reading.some((number, index) => number !== numbered[index])) order.push([host.dataset.cap, reading]);
+		});
+		return { width: view.innerWidth, frames: hosts.length, unrendered, fit, pins, order, ok: !unrendered.length && !fit.length && !pins.length && !order.length };
 	};
 })();

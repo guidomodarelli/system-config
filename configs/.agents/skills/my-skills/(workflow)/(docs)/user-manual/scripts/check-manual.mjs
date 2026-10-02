@@ -305,6 +305,26 @@ const checkDocument = (html, options, label, source) => {
 	const plainReferences = stripTags(visible.replace(/<nav class="toc"[\s\S]*?<\/nav>/g, '')).match(/(?<![\p{L}])(?:secci(?:ón|ones)|se(?:ção|ções)) \d{2}(?!\d)/giu) || [];
 	for (const reference of new Set(plainReferences)) errors.push(`section references: «${reference}» names a section by its number; link it with its title (<a href="#slug">sección Título</a>)`);
 
+	// Steps linked to a capture go before it (DESIGN.md, "Puntos sobre capturas"): what to do first, then where.
+	const stepsAfterCapture = (visible.match(/<div class="figcap">[\s\S]*?<\/div>\s*<ol class="steps">\s*<li class="step-item" data-hotspot=/g) || []).length;
+	if (stepsAfterCapture) errors.push(`order: ${stepsAfterCapture} steps list(s) linked to pins come after their capture; put each ol.steps before its .mockup`);
+
+	// Inline references (span.hotspot-ref) also go before the capture they point to, as close to it as the text
+	// allows: read the reference, then find its pin (DESIGN.md, "Puntos sobre capturas").
+	for (const section of visible.matchAll(/<section class="section"[^>]*aria-labelledby="([^"]+)"[\s\S]*?<\/section>/g)) {
+		const text = section[0];
+		const pinEnds = new Map();
+		for (const mockup of text.matchAll(/<div class="mockup[ "][\s\S]*?<div class="figcap">/g)) {
+			for (const pin of mockup[0].matchAll(/class="hotspot" data-hotspot="(\d+)"/g)) if (!pinEnds.has(pin[1])) pinEnds.set(pin[1], mockup.index + mockup[0].length);
+		}
+		const late = new Set();
+		for (const reference of text.matchAll(/class="hotspot-ref" data-hotspot="(\d+)"/g)) {
+			const insideStep = text.lastIndexOf('<li class="step-item', reference.index) > text.lastIndexOf('</li>', reference.index);
+			if (!insideStep && pinEnds.has(reference[1]) && reference.index > pinEnds.get(reference[1])) late.add(reference[1]);
+		}
+		if (late.size) errors.push(`order: in #${section[1]}, the inline reference(s) ${[...late].join(', ')} come after the capture with their pin; move that text before the capture`);
+	}
+
 	const isMenu = metaContent(html, 'heritage:kind') === 'menu';
 	// The scripts travel inside each document: compare them with the current boilerplate.
 	const extractScript = (text, marker) => {
