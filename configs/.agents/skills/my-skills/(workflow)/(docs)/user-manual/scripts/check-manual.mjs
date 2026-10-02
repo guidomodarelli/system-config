@@ -325,6 +325,13 @@ const checkDocument = (html, options, label, source) => {
 		if (late.size) errors.push(`order: in #${section[1]}, the inline reference(s) ${[...late].join(', ')} come after the capture with their pin; move that text before the capture`);
 	}
 
+	// Inside one paragraph, list or table the inline references read in ascending order, like the pins
+	// (DESIGN.md, "Puntos sobre capturas"): "(5) … (6) … (7)", never "(6) … (5)".
+	for (const block of visible.matchAll(/<(p|ul|ol|table|dl)\b[^>]*>[\s\S]*?<\/\1>/g)) {
+		const numbers = [...block[0].matchAll(/class="hotspot-ref" data-hotspot="(\d+)"/g)].map((match) => Number(match[1]));
+		if (numbers.some((number, index) => index && number < numbers[index - 1])) errors.push(`order: inline references ${numbers.join(', ')} are not ascending in «${stripTags(block[0]).replace(/\s+/g, ' ').trim().slice(0, 60)}…»; mention the pins in order`);
+	}
+
 	const isMenu = metaContent(html, 'heritage:kind') === 'menu';
 	// The scripts travel inside each document: compare them with the current boilerplate.
 	const extractScript = (text, marker) => {

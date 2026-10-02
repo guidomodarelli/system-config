@@ -393,7 +393,10 @@ with the one-line definition you would write. Then:
 - **Pins in reading order:** number the pins of each capture top to bottom and, on the same row, left to
   right; across several captures of a section the numbering continues. Steps and references take the same
   numbers, so steps are written in that order; an action that must come before one placed higher goes in a
-  separate steps list. `check-rendered.js` reports captures out of order (`order`).
+  separate steps list. Inline references are mentioned in that same order inside each paragraph, list or
+  table ("(5) … (6) … (7)"); when a sentence names the elements in another order, rewrite it following the
+  capture. `check-rendered.js` reports captures out of order (`order`) and `check-manual.mjs` reports
+  references out of order in the text.
 - **Inline references before their capture, too:** the paragraph, list or table holding `hotspot-ref`s
   goes right before the capture with those pins: steps → text with references → capture → figcap. A list
   that names pins of several consecutive captures is split, one list before each capture. `check-manual.mjs`
@@ -614,6 +617,7 @@ add them to `scripts/`.
 - [ ] Every `steps` list linked to a capture comes before the capture, not after.
 - [ ] Every inline reference (`hotspot-ref`) sits right before the capture with its pin, never after.
 - [ ] Pins of every capture are numbered top to bottom, left to right (`__umCheckRendered` `order` is empty).
+- [ ] Inline references are mentioned in ascending order inside each paragraph, list and table.
 - [ ] Every mention of another section is a link with its title, never a bare number; clicking it inside a step goes to the section, not to the pin.
 - [ ] Step 0 asked about Portuguese (and, if yes, about translating the captures); a Spanish-only
       manual has no language switch.

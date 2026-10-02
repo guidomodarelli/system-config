@@ -1311,6 +1311,9 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   izquierda a derecha. Si una sección tiene varias capturas, la numeración sigue de una captura a la
   siguiente. Los pasos y las referencias llevan esos mismos números, así que los pasos se escriben en ese
   orden; si una acción tiene que ir antes que otra que está más arriba, va en otra lista de pasos.
+  Las referencias en el texto también se mencionan en orden dentro de cada párrafo, lista o tabla:
+  "(5) … (6) … (7)", nunca "(6) … (5)". Si la frase nombra los elementos en otro orden, se reescribe
+  siguiendo la captura (de arriba hacia abajo).
 - **Las referencias en el texto también van antes:** el párrafo, la lista o la tabla con
   `span.hotspot-ref` se ubica justo antes de la captura que tiene esos puntos, lo más cerca posible:
   pasos → texto con referencias → captura → `figcap`. Si una lista nombra puntos de varias capturas
@@ -1469,7 +1472,7 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Con "Ir al menú": lleva al menú en el idioma que se lee y no tapa la etiqueta del header ni el número de una sección después de un salto.
 - [ ] Cada lista de pasos vinculada a una captura va antes de la captura, no después.
 - [ ] Las referencias en el texto (`hotspot-ref`) van justo antes de la captura de su punto, nunca después.
-- [ ] En cada captura, los puntos están numerados de arriba hacia abajo y de izquierda a derecha.
+- [ ] En cada captura, los puntos están numerados de arriba hacia abajo y de izquierda a derecha. En el texto, las referencias se mencionan en ese mismo orden.
 - [ ] Toda mención a otra sección es un link con su título ("sección Permisos y prerrequisitos"), nunca un número suelto; dentro de un paso con punto, el link lleva a la sección y no al punto.
 
 ## Changelog
@@ -1479,7 +1482,7 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 ### 2026-10-02
 
-- **Puntos sobre capturas:** la lista de pasos va antes de la captura que la acompaña (antes iba después del `figcap`). Lo mismo para el texto con referencias en línea: va justo antes de la captura de sus puntos. Los puntos se numeran de arriba hacia abajo y de izquierda a derecha.
+- **Puntos sobre capturas:** la lista de pasos va antes de la captura que la acompaña (antes iba después del `figcap`). Lo mismo para el texto con referencias en línea: va justo antes de la captura de sus puntos. Los puntos se numeran de arriba hacia abajo y de izquierda a derecha. Las referencias en el texto se mencionan en ese orden.
 - **Referencias a secciones:** se escriben como link con el título de la sección; un link dentro de un paso o de una referencia ya no dispara el punto de la captura ni muestra "Ver en la captura".
 - **Puntos sobre capturas:** una referencia dentro del texto de un paso lleva a su propio punto; antes el clic seguía hasta el paso y resaltaba también el punto de ese paso.
 
