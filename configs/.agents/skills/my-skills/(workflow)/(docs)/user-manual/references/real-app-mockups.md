@@ -122,6 +122,13 @@ machine:
   restore and check with `git status`.
 - **Verify after every flow** that nothing was recorded: `git status --short --untracked-files=all
   mocks/` must list only your temporary files, and the dev log must not say "Writing the mock".
+- **Data fetched on mount or in SSR props** (a list loaded in a `useEffect`, a page prop computed in a
+  server hook): a browser-side XHR stub installed after the page loads misses those requests, and
+  tabs or filters often do not fetch again. In the throwaway worktree, import a stub module at the
+  top of the page entry, gated by a query parameter (`?um_fixture=…`), so it runs before React
+  mounts; and in the server hook, replace the props with synthetic values under `env.DEVELOPMENT`
+  and the same parameter. Read flags for other variants (empty list) from `sessionStorage` when the
+  stub starts. Both edits die with the worktree.
 - **Mock debug logs (`DEBUG=mock:*`) print request headers**, session ids included. Never dump them;
   grep only the lines you need and delete the log at the end.
 
@@ -372,6 +379,16 @@ blocks access, or stylesheets are cross-origin and blocked. In that case, say in
 the mockups are approximations.
 
 ## Troubleshooting
+
+- **Dates in the capturing browser's locale:** `toLocaleDateString(undefined, …)` follows the browser
+  (an en-US Chrome writes `10/05/2026` for 5 October). Rewrite them in the export to the readers'
+  format (`05/10/2026`) before embedding, and check the source to know which call formats them.
+- **Root-relative images in a capture** (`<img src="/icon.webp">` not loaded when captured):
+  `check-manual.mjs` reports them. Fetch each file from the local dev server and replace the `src`
+  with a data URI in the export, or recapture after the images load.
+- **Pins on a page with tabs:** a capture of the whole page also holds the hidden tab panels, so a
+  selector such as `.andes-button__content` + text can match a hidden copy first. Scope the
+  `data-target` to the visible panel's own class.
 
 - **Dev server does not start:** use the Node version in `.nvmrc` (Nordic rejects unsupported
   majors), run `npm ci` in a worktree instead of reusing another branch's `node_modules`, and build

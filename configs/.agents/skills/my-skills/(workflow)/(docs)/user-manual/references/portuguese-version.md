@@ -62,14 +62,18 @@ git show origin/develop:app/translations/pt-BR/messages.json
 
 - Build the Spanish → Portuguese map by **msgid**: the msgid is the Spanish source text. The es-AR
   catalog can be stale (a string missing there is shown as its msgid), so never require it in es-AR.
-- Read plurals too: `msgid_plural` with `msgstr[0]` / `msgstr[1]`.
+- Read plurals too: `msgid_plural` with `msgstr[0]` / `msgstr[1]`. In the pt-BR `messages.json` a
+  plural entry is `[msgid_plural, msgstr[0], msgstr[1]]`: the singular translation is index 1, never
+  index 0 (`"Pendiente": ["Pendientes", "Pendente", "Pendentes"]`).
 - **Library and platform texts** are not in the app catalog: take them from their own source, never
   from your translation. For example the `@kraken/static` error page ("Ir à página principal", in its
   bundle under `node_modules/@kraken/static/dist/`) or relative dates, which come from
   `Intl.RelativeTimeFormat` (`new Intl.RelativeTimeFormat('pt-BR', { style: 'long' }).format(-1,
   'minute')` → "há 1 minuto"). Put each verified pair in a small JSON file
   (`{"Ir a la página principal": "Ir à página principal"}`) and pass it to `check-manual.mjs` as one
-  more `--translations-pt`.
+  more `--translations-pt`. Pass that library file **first**: when a library text has the same msgid as
+  an app string (Andes pagination «Siguiente» → «Seguinte», app catalog «Siguiente» → «Próximo»), the
+  first file wins.
 
 ## What stays in Spanish (or English)
 
@@ -97,7 +101,9 @@ list above.
   `…Los <b>3 colaboradores</b> escaneados…`. Translate the whole paragraph with its markup, not node
   by node.
 - **Labels built as `{prefix}: {data}`** (pending-change tags, `Agregar: Inventory • Cycle Count`):
-  translate only the prefix.
+  translate only the prefix. When the value is itself a translated label (a status built with
+  `getStatusLabel(i18n)`), the app translates both parts but the check expects only the prefix:
+  capture that tag with a value the app does not translate (a facility type, an LDAP) instead.
 - **Placeholders:** catalog keys with `{0}` match texts with values ("Podés buscar hasta 100 IDs…").
   Use that matching only on capture texts and quotes, never on prose.
 
