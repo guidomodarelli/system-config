@@ -1001,6 +1001,18 @@ quitar el subrayado en prosa: el color solo no distingue un link del texto. Úni
 el contexto ya indica que todo es navegable. Links externos con texto descriptivo, no
 "click acá".
 
+### Referencias a secciones
+
+Cada vez que el texto menciona otra sección, la mención es un link a esa sección con su **título**, no
+con su número: `<a href="#permissions">sección Permisos y prerrequisitos</a>`. El número solo no le dice
+nada al lector ("sección 03") y no se puede seguir. Varias secciones: `secciones <a href="#a">Título A</a>
+y <a href="#b">Título B</a>` (o `a` para un rango). Sin comillas: «…» y “…” se reservan para textos de la
+app. En portugués, el link dice `seção` y el título traducido de la tabla. `check-manual.mjs` marca como
+error cualquier "sección NN" que quede sin link.
+
+Un link dentro de un paso con punto (`step-item[data-hotspot]`) o de una referencia va a su destino: el
+script de navegación no muestra el punto ni el tooltip "Ver en la captura" al tocarlo.
+
 ### Accordion (bloques colapsables)
 
 Bloque de detalle que arranca **cerrado** y se expande al click. Pensado para
@@ -1393,7 +1405,7 @@ El documento debe imprimirse (o exportarse a PDF) sin perder jerarquía:
 
 ### Do
 
-- **Numerá las secciones** (`01`, `02`, …). Da una sensación de spec serio y permite referenciar "ver sección 04".
+- **Numerá las secciones** (`01`, `02`, …). Da una sensación de spec serio. Para referenciar una sección en el texto, usá su nombre como link, nunca solo el número (ver "Referencias a secciones").
 - **Usá `doc-label` y `section-num` en mono uppercase**. Es la firma visual del sistema.
 - **Elegí callouts conscientemente**: cada uno tiene un significado, no son intercambiables.
 - **Mantené párrafos cortos** (3–5 líneas máximo). El line-height generoso es para escanear, no para muros de texto.
@@ -1443,6 +1455,7 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Las comparaciones usan capturas del mismo ancho y encuadre, y el divisor se mueve con mouse y teclado.
 - [ ] Un menú de manuales es la captura real del menú de la app, con cada `menu-link` cubriendo su tarjeta a 1280px y 390px, también en portugués, sin nada encima de sus textos y con el ícono en gris en las tarjetas sin manual; dentro del visor, cada link abre su manual en la página entera.
 - [ ] Con "Ir al menú": lleva al menú en el idioma que se lee y no tapa la etiqueta del header ni el número de una sección después de un salto.
+- [ ] Toda mención a otra sección es un link con su título ("sección Permisos y prerrequisitos"), nunca un número suelto; dentro de un paso con punto, el link lleva a la sección y no al punto.
 
 ## Changelog
 
@@ -1451,6 +1464,7 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 ### 2026-10-02
 
+- **Referencias a secciones:** se escriben como link con el título de la sección; un link dentro de un paso o de una referencia ya no dispara el punto de la captura ni muestra "Ver en la captura".
 - **Puntos sobre capturas:** una referencia dentro del texto de un paso lleva a su propio punto; antes el clic seguía hasta el paso y resaltaba también el punto de ese paso.
 
 - **Componentes:** menú de manuales (`menu-stage` + `menu-link` sobre la captura real del menú de la app) y "Ir al menú" (`menu-back`, fijo arriba a la izquierda).
