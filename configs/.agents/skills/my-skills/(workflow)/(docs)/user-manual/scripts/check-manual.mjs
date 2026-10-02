@@ -319,10 +319,10 @@ const checkDocument = (html, options, label, source) => {
 	const documentLinks = [...visible.matchAll(/<a\b[^>]*data-document-link[^>]*>/g)].map((match) => match[0]);
 	if (documentLinks.length && !compareScript(DOCUMENT_LINKS_SCRIPT_MARKER, 'document links')) errors.push('document links: data-document-link without the "Navegación entre documentos" script (links would not leave the Grid iframe)');
 	for (const link of [...visible.matchAll(/<a class="menu-back"[^>]*>/g)].map((match) => match[0])) {
-		if (!/href="https:\/\/[^"]+"/.test(link)) errors.push('menu-back: "Volver al menú" needs the public URL of the menu');
-		if (!link.includes('data-document-link')) errors.push('menu-back: "Volver al menú" needs data-document-link');
+		if (!/href="https:\/\/[^"]+"/.test(link)) errors.push('menu-back: "Ir al menú" needs the public URL of the menu');
+		if (!link.includes('data-document-link')) errors.push('menu-back: "Ir al menú" needs data-document-link');
 	}
-	if (/<a class="menu-back"/.test(visible) && !/<body>\s*<a class="menu-back"/.test(visible)) errors.push('menu-back: "Volver al menú" must be the first child of <body>');
+	if (/<a class="menu-back"/.test(visible) && !/<body>\s*<a class="menu-back"/.test(visible)) errors.push('menu-back: "Ir al menú" must be the first child of <body>');
 
 	if (isMenu) {
 		const menuLinks = [...visible.matchAll(/<a class="menu-link"[^>]*>/g)].map((match) => match[0]);

@@ -1193,14 +1193,14 @@ número de la sección y su "Copiar enlace" quedan a la vista.
   `aria-checked`. Cada opción se nombra en su propio idioma. No se imprime.
 - Sin banderas: un idioma no es un país.
 
-### Volver al menú
+### Ir al menú
 
 En los documentos que se abren desde un **menú de manuales**: un link **fijo arriba a la izquierda**,
-`‹ Volver al menú`, espejo del selector de idioma (mismo fondo, borde, radio y alto) y visible en todo
-el recorrido. Lleva a la URL pública del menú (en Grid, su `/view`). Mientras cae sobre la columna del
+espejo del selector de idioma (mismo fondo, borde, radio y alto) y visible en todo
+el recorrido: la flecha `←` (en un `span` con `aria-hidden`, como la `↑` del botón "Inicio") y "Ir al menú". Lleva a la URL pública del menú (en Grid, su `/view`). Mientras cae sobre la columna del
 texto (hasta 1199px), el `doc-header` suma `28px` arriba y los saltos dejan la sección `16px` debajo de
 él, como con el selector. No se imprime. Es el primer hijo del `<body>`; el texto va en la tabla de
-traducciones (`‹ Voltar ao menu`).
+traducciones ("Ir ao menu").
 
 ### Menú de manuales
 
@@ -1215,7 +1215,9 @@ nunca una grilla dibujada a mano. El lector reconoce la pantalla que ya usa y to
 - Cada tarjeta lleva un `a.menu-link` anclado con `data-target` + `data-target-text` (el texto de la
   tarjeta), que cubre la tarjeta después de cada ajuste de la captura y al cambiar de idioma.
   - Con manual: `href` a la URL pública del manual (con `#slug` cuando la tarjeta abre una parte del
-    manual); la tarjeta se ve como en la app, con anillo `2px` `link` en hover y foco.
+    manual); la tarjeta se ve como en la app y, al pasar el puntero o enfocar su link, crece con
+    `scale:1.05` en `motion.duration-fast` (la regla la inyecta el script dentro de la captura); con
+    teclado suma el anillo `2px` `link` de `:focus-visible`.
   - Sin manual: `aria-disabled="true"`, sin `href`; un velo `surface-card` al 62% atenúa la tarjeta y
     no navega.
   - Nada se superpone a los textos de la tarjeta (sin badges encima): los textos de la app cambian de
@@ -1432,7 +1434,7 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Los `data-hotspot` de puntos, pasos y referencias coinciden, y cada punto cae sobre el elemento correcto de la captura renderizada.
 - [ ] Las comparaciones usan capturas del mismo ancho y encuadre, y el divisor se mueve con mouse y teclado.
 - [ ] Un menú de manuales es la captura real del menú de la app, con cada `menu-link` cubriendo su tarjeta a 1280px y 390px, también en portugués, y sin nada encima de sus textos; dentro del visor, cada link abre su manual en la página entera.
-- [ ] Con "Volver al menú": lleva al menú en el idioma que se lee y no tapa la etiqueta del header ni el número de una sección después de un salto.
+- [ ] Con "Ir al menú": lleva al menú en el idioma que se lee y no tapa la etiqueta del header ni el número de una sección después de un salto.
 
 ## Changelog
 
@@ -1441,10 +1443,10 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 ### 2026-10-02
 
-- **Componentes:** menú de manuales (`menu-stage` + `menu-link` sobre la captura real del menú de la app) y "Volver al menú" (`menu-back`, fijo arriba a la izquierda).
+- **Componentes:** menú de manuales (`menu-stage` + `menu-link` sobre la captura real del menú de la app) y "Ir al menú" (`menu-back`, fijo arriba a la izquierda).
 - **Navegación entre documentos:** script propio (`a[data-document-link]`) que abre en la página entera dentro de Grid, lleva `?lang` y funde salida y llegada.
 - **Idioma:** también se lee `?lang` de la URL del visor.
-- **Saltos:** `landingOffset` deja la sección debajo de cualquier control fijo que tape la columna (selector o "Volver al menú").
+- **Saltos:** `landingOffset` deja la sección debajo de cualquier control fijo que tape la columna (selector o "Ir al menú").
 
 ### 2026-10-01
 
@@ -1673,13 +1675,15 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .lang-switch button{padding:6px 14px;border:1.5px solid transparent;border-radius:9999px;background:none;font-family:var(--sans);font-size:13px;font-weight:500;line-height:1.2;color:var(--muted);cursor:pointer;}
 .lang-switch button:hover{color:var(--primary);}
 .lang-switch button[aria-checked="true"]{border-color:var(--link);background:var(--surface-card);color:var(--primary);font-weight:600;}
-/* Volver al menú: fijo arriba a la izquierda, espejo del selector de idioma y de su mismo alto. */
-.menu-back{position:fixed;top:16px;left:24px;z-index:10;display:inline-flex;align-items:center;gap:6px;padding:10px 16px 10px 12px;border:1px solid var(--border-strong);border-radius:9999px;background:color-mix(in srgb,var(--surface-dark) 4%,var(--surface-card));box-shadow:0 1px 2px rgba(0,0,0,0.04);font-family:var(--sans);font-size:13px;font-weight:500;line-height:1.2;color:var(--primary);text-decoration:none;}
+/* Ir al menú: fijo arriba a la izquierda, espejo del selector de idioma y de su mismo alto. */
+.menu-back{position:fixed;top:16px;left:24px;z-index:10;display:inline-flex;align-items:center;gap:6px;padding:10.5px 16px 10.5px 12px;border:1px solid var(--border-strong);border-radius:9999px;background:color-mix(in srgb,var(--surface-dark) 4%,var(--surface-card));box-shadow:0 1px 2px rgba(0,0,0,0.04);font-family:var(--sans);font-size:13px;font-weight:500;line-height:1.2;color:var(--primary);text-decoration:none;}
 .menu-back:hover{border-color:var(--link);color:var(--link);}
 /* Menú de manuales: la captura real del menú de la app, con un link sobre cada tarjeta. */
 .menu-stage{position:relative;}
 .menu-link{position:absolute;display:block;border-radius:10px;color:inherit;text-decoration:none;}
-.menu-link[href]:hover,.menu-link:focus-visible{box-shadow:0 0 0 2px var(--link);}
+/* Hover: crece la tarjeta de la captura (el script la marca); con teclado además el anillo de foco. */
+.menu-link.is-active{scale:1.05;}
+.menu-link:focus-visible{box-shadow:0 0 0 2px var(--link);}
 /* Sin manual: la tarjeta queda atenuada por un velo; nada se superpone a sus textos. */
 .menu-link[aria-disabled="true"]{cursor:default;background:color-mix(in srgb,var(--surface-card) 62%,transparent);}
 /* Foco temporal: la página se desenfoca y una burbuja se cierra sobre el destino de un salto. */
@@ -1732,7 +1736,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   ::view-transition-old(root),::view-transition-new(root){animation-duration:calc(var(--motion-duration-base) * 1.5);animation-timing-function:var(--motion-easing-standard);}
   .lang-switch button{transition:color var(--motion-duration-fast) var(--motion-easing-standard),background-color var(--motion-duration-fast) var(--motion-easing-standard),border-color var(--motion-duration-fast) var(--motion-easing-standard);}
   .menu-back{transition:color var(--motion-duration-fast) var(--motion-easing-standard),border-color var(--motion-duration-fast) var(--motion-easing-standard);}
-  .menu-link{transition:box-shadow var(--motion-duration-fast) var(--motion-easing-standard);}
+  .menu-link{transition:box-shadow var(--motion-duration-fast) var(--motion-easing-standard),scale var(--motion-duration-fast) var(--motion-easing-standard);}
   /* Entre documentos (menú ↔ manuales): se desvanece en motion.duration-base antes de irse y aparece en lo mismo al llegar. */
   html.is-leaving body{opacity:0;transition:opacity var(--motion-duration-base) var(--motion-easing-standard);}
   html.is-arriving body{animation:heritage-fade-in var(--motion-duration-base) var(--motion-easing-standard);}
@@ -1756,7 +1760,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .lang-switch{top:12px;right:16px;}
   .lang-switch ~ .doc-header{padding-top:28px;}
   .lang-switch button{padding:5px 12px;font-size:12px;}
-  .menu-back{top:12px;left:16px;padding:9px 14px 9px 10px;font-size:12px;}
+  .menu-back{top:12px;left:16px;padding:9.5px 14px 9.5px 10px;font-size:12px;}
   body{padding-left:16px;padding-right:16px;}
   .back-to-top{right:16px;bottom:16px;}
   .section-pill{left:16px;bottom:16px;max-width:calc(100vw - 152px);}
@@ -1767,7 +1771,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 @media (max-width:1023px){
   .section-rail,.section-rail-preview{display:none;}
 }
-/* Hasta 1199px "Volver al menú" cae sobre la columna: el doc-header baja para no tapar la etiqueta. */
+/* Hasta 1199px "Ir al menú" cae sobre la columna: el doc-header baja para no tapar la etiqueta. */
 @media (min-width:720px) and (max-width:1199px){
   .menu-back ~ .doc-header{padding-top:28px;}
 }
@@ -1940,7 +1944,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     var anchor = (target.matches('.section-title') && target.closest('section')) || target;
     return Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - landingOffset(anchor));
   }
-  // El selector de idioma y "Volver al menú" son fijos: si alguno cae sobre la columna del destino, el
+  // El selector de idioma y "Ir al menú" son fijos: si alguno cae sobre la columna del destino, el
   // destino queda debajo de él (si no, taparía el número de la sección y su "Copiar enlace").
   function landingOffset(anchor) {
     var anchorBox = anchor.getBoundingClientRect();
@@ -2730,9 +2734,9 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 </script>
 <!-- …y después el script de navegación -->
 
-<!-- Volver al menú: primer hijo del <body> (antes del selector de idioma), en documentos que se abren
+<!-- Ir al menú: primer hijo del <body> (antes del selector de idioma), en documentos que se abren
      desde un menú de manuales. href = URL pública del menú (en Grid, su /view). -->
-<a class="menu-back" href="[URL pública del menú]" target="_top" data-document-link>‹ Volver al menú</a>
+<a class="menu-back" href="[URL pública del menú]" target="_top" data-document-link><span aria-hidden="true">←</span> Ir al menú</a>
 
 <!-- Menú de manuales: la captura real del menú de la app (app-frame) y un link por tarjeta, anclado con
      data-target + data-target-text. Tarjeta con manual: href a su URL pública (+ #slug para una sección).
@@ -2749,7 +2753,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 <!-- Leyenda: qué hace una tarjeta normal y qué significa una atenuada (y adónde lleva cada excepción). -->
 
 <!-- Script de navegación entre documentos: después del script de idioma (si lo hay), en el menú y en
-     cada documento con "Volver al menú". Es independiente del script de navegación del documento. -->
+     cada documento con "Ir al menú". Es independiente del script de navegación del documento. -->
 <script>
 // Navegación entre documentos Heritage: links a otros documentos publicados (menú de manuales ↔ manuales)
 // que abren en la página entera también dentro de un visor con iframe (Grid), llevan el idioma que se lee,
@@ -2837,12 +2841,34 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
       });
     });
   }
-  // Menú: cada .menu-link[data-target] cubre su tarjeta después de cada ajuste de la captura
+  // Menú: la tarjeta de la captura crece al pasar el puntero o enfocar su link (1.05: entre tarjetas hay
+  // pocos píxeles). La regla vive dentro de cada captura, porque la tarjeta está en su shadow root.
+  var CARD_ACTIVE_RULES = '[data-menu-card]{transform-origin:center;}[data-menu-card][data-menu-active]{scale:1.05;}'
+    + '@media (prefers-reduced-motion:no-preference){[data-menu-card]{transition:scale var(--motion-duration-fast) var(--motion-easing-standard);}}';
+  function setActive(link, active) {
+    if (!link.__menuCard || link.getAttribute('aria-disabled') === 'true') return;
+    link.classList.toggle('is-active', active);
+    if (active) link.__menuCard.setAttribute('data-menu-active', '');
+    else link.__menuCard.removeAttribute('data-menu-active');
+  }
+  document.querySelectorAll('.menu-link').forEach(function (link) {
+    link.addEventListener('pointerenter', function () { setActive(link, true); });
+    link.addEventListener('pointerleave', function () { if (document.activeElement !== link) setActive(link, false); });
+    link.addEventListener('focus', function () { setActive(link, true); });
+    link.addEventListener('blur', function () { setActive(link, false); });
+  });
+  // Cada .menu-link[data-target] cubre su tarjeta después de cada ajuste de la captura
   // (evento heritage:frame-fit del runtime de capturas), también al cambiar de idioma.
   document.addEventListener('heritage:frame-fit', function (event) {
     var host = event.target;
     var stage = host.closest && host.closest('.menu-stage');
     if (!stage || !host.shadowRoot) return;
+    if (!host.shadowRoot.querySelector('style[data-menu-rules]')) {
+      var rules = document.createElement('style');
+      rules.setAttribute('data-menu-rules', '');
+      rules.textContent = CARD_ACTIVE_RULES;
+      host.shadowRoot.appendChild(rules);
+    }
     var stageBox = stage.getBoundingClientRect();
     stage.querySelectorAll('.menu-link[data-target]').forEach(function (link) {
       var text = link.getAttribute('data-target-text');
@@ -2851,7 +2877,15 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
       })[0];
       link.hidden = !target;
       if (!target) return;
+      // Al cambiar de idioma la captura se vuelve a llenar: la tarjeta es otro nodo y hereda el estado.
+      if (link.__menuCard && link.__menuCard !== target && link.__menuCard.hasAttribute('data-menu-active')) target.setAttribute('data-menu-active', '');
+      link.__menuCard = target;
+      target.setAttribute('data-menu-card', '');
+      // Medida sin la escala del hover, para que el link cubra la tarjeta en reposo.
+      var active = target.hasAttribute('data-menu-active');
+      if (active) target.removeAttribute('data-menu-active');
       var box = target.getBoundingClientRect();
+      if (active) target.setAttribute('data-menu-active', '');
       link.style.left = (box.left - stageBox.left) + 'px';
       link.style.top = (box.top - stageBox.top) + 'px';
       link.style.width = box.width + 'px';

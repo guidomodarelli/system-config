@@ -542,14 +542,15 @@ not a manual:
   permissions enable; a short legend (what a card opens, what a dimmed card means); the
   "Navegación entre documentos" script; source metas and footer from `source-trace.py record`.
 - Languages as in Step 0 (ask). The cards' texts come from the catalogs like any capture text.
-- **Each linked manual gets "‹ Volver al menú"** (`a.menu-back`, fixed top-left, first child of
-  `<body>`, `data-document-link`, `href` = the menu's public URL) and the "Navegación entre documentos"
-  script; with Portuguese, its text in the `document` table (`‹ Voltar ao menu`). When the menu is a
+- **Each linked manual gets "← Ir al menú"** (`a.menu-back`, fixed top-left, first child of
+  `<body>`, `data-document-link`, `href` = the menu's public URL; the arrow `←` in an `aria-hidden`
+  span, never `‹` or `<`) and the "Navegación entre documentos" script; with Portuguese, its text in
+  the `document` table (`Ir al menú` → `Ir ao menu`). When the menu is a
   new Grid document the user uploads, ask for its URL before republishing the manuals.
 - `check-manual.mjs` checks a menu in its own mode (capture present, every link anchored, `href` xor
   `aria-disabled`, `aria-label`); `__umCheckRendered` and the cover check (every `menu-link` box equals
   its card's box) must pass at 1280 px and 390 px in every language. Inside Grid, verify that a card
-  opens its manual in the whole page with the language kept, and that "Volver al menú" comes back.
+  opens its manual in the whole page with the language kept, and that "Ir al menú" comes back.
 
 ---
 
@@ -633,4 +634,4 @@ add them to `scripts/`.
 - [ ] Tone is non-technical throughout.
 - [ ] Menu of manuals (when asked): replica of the real menu captured with `app-frame`, every card
       covered by its `menu-link` at 1280 px and 390 px in every language, cards without manual dimmed,
-      and every linked manual has "‹ Volver al menú" with the menu's URL.
+      and every linked manual has "← Ir al menú" with the menu's URL.

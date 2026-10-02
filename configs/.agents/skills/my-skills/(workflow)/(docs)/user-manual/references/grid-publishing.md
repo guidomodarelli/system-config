@@ -73,7 +73,12 @@ work from a signed-in tab with `scripts/grid-publish.js`.
    back (`iframe.contentWindow.GRID` exists), the section map and pill work, and the screenshot matches
    the local check. Inject `check-rendered.js` in the Grid tab and run
    `await __umCheckRendered(document.querySelector('iframe').contentWindow)`: it must return
-   `ok: true` (every capture rendered, none cut, pins next to their elements).
+   `ok: true` (every capture rendered, none cut, pins next to their elements). The iframe itself cannot
+   `fetch` the local bridge (its requests to `127.0.0.1` fail); fetch scripts from the Grid page and
+   pass their text to the iframe.
+   With a menu of manuals, walk the round trip in the viewer: a card opens its manual in the whole
+   page (in Portuguese when the menu is), "← Ir al menú" comes back, and a card with `#slug` lands on
+   its section.
 8. **Stop the bridge** and delete the pulled and staged files.
 
 ## Rules
