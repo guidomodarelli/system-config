@@ -618,6 +618,7 @@ add them to `scripts/`.
 - [ ] Every inline reference (`hotspot-ref`) sits right before the capture with its pin, never after.
 - [ ] Pins of every capture are numbered top to bottom, left to right (`__umCheckRendered` `order` is empty).
 - [ ] Inline references are mentioned in ascending order inside each paragraph, list and table.
+- [ ] Glossary terms show one superscript per mention (added by the navigation script); each one opens its mention (and its closed accordion) with 3 beats and the spotlight, and a term opens its definition the same way.
 - [ ] Every mention of another section is a link with its title, never a bare number; clicking it inside a step goes to the section, not to the pin.
 - [ ] Step 0 asked about Portuguese (and, if yes, about translating the captures); a Spanish-only
       manual has no language switch.

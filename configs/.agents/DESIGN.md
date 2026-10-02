@@ -1291,6 +1291,14 @@ Términos del dominio con su definición a mano, sin salir del párrafo.
 - Estilo: hereda el color del texto, subrayado punteado `label`; así no se confunde con un link
   común. Marcar solo la primera aparición de cada término por sección.
 - Ids con prefijo `g-` en kebab-case.
+- **Menciones:** el script de navegación agrega junto a cada `<dt>` un superíndice por cada `a.term` que
+  lo menciona en el documento (`1 2 3`, en orden de aparición). Cada número lleva a esa mención y su
+  tooltip dice la sección ("Mención en Permisos y prerrequisitos"). No se escriben a mano: salen de los
+  `a.term` del texto, así que agregar o quitar una mención actualiza el glosario solo. No se imprimen.
+- **Saltos del glosario:** del término a su definición y de un superíndice a su mención, el destino se
+  centra y late 3 veces (`scale 1 → 1.08 → 1`) bajo el foco temporal, como un punto de una captura, sin
+  fondo de color. El foco se centra en la palabra del destino: no en el ancho de su bloque ni en sus superíndices. Si está dentro de un
+  accordion cerrado, el accordion se abre antes. Con "reducir movimiento" no late ni aparece el foco.
 
 ### Puntos sobre capturas
 
@@ -1465,7 +1473,7 @@ Antes de entregar o aprobar un documento con este sistema:
 - [ ] Si hay mapa de secciones: una marca por sección a 1024px o más, la lupa agranda la marca bajo el puntero y achica en forma gradual a las vecinas, la vista previa muestra número, título y primer párrafo sin salirse de la ventana, la marca actual sigue al scroll y el click lleva a la sección completa.
 - [ ] La píldora muestra la sección actual y abre la hoja con el índice; la hoja cierra con `Escape` y devuelve el foco.
 - [ ] Ninguna marca de novedad: sin badges "Nuevo" / "Actualizado" ni "Novedades" en el `doc-meta`.
-- [ ] Cada `a.term` apunta a un `<dt>` existente y su tarjeta muestra la definición.
+- [ ] Cada `a.term` apunta a un `<dt>` existente y su tarjeta muestra la definición; en el glosario, cada término muestra un superíndice por mención y cada uno lleva a su mención, abriendo su accordion y haciéndola latir bajo el foco temporal centrado en su texto (lo mismo del término a su definición).
 - [ ] Los `data-hotspot` de puntos, pasos y referencias coinciden, y cada punto cae sobre el elemento correcto de la captura renderizada.
 - [ ] Las comparaciones usan capturas del mismo ancho y encuadre, y el divisor se mueve con mouse y teclado.
 - [ ] Un menú de manuales es la captura real del menú de la app, con cada `menu-link` cubriendo su tarjeta a 1280px y 390px, también en portugués, sin nada encima de sus textos y con el ícono en gris en las tarjetas sin manual; dentro del visor, cada link abre su manual en la página entera.
@@ -1482,6 +1490,7 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 ### 2026-10-02
 
+- **Glosario:** cada término muestra superíndices con sus menciones en el documento; cada número lleva a la mención. Los saltos del glosario (término → definición, superíndice → mención) abren el accordion que contiene el destino y lo hacen latir 3 veces bajo el foco temporal, ajustado a su texto.
 - **Puntos sobre capturas:** la lista de pasos va antes de la captura que la acompaña (antes iba después del `figcap`). Lo mismo para el texto con referencias en línea: va justo antes de la captura de sus puntos. Los puntos se numeran de arriba hacia abajo y de izquierda a derecha. Las referencias en el texto se mencionan en ese orden.
 - **Referencias a secciones:** se escriben como link con el título de la sección; un link dentro de un paso o de una referencia ya no dispara el punto de la captura ni muestra "Ver en la captura".
 - **Puntos sobre capturas:** una referencia dentro del texto de un paso lleva a su propio punto; antes el clic seguía hasta el paso y resaltaba también el punto de ese paso.
@@ -1705,6 +1714,14 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
 .glossary dt{margin-top:12px;font-size:14px;font-weight:600;color:var(--primary);}
 .glossary dt:first-child{margin-top:0;}
 .glossary dd{margin:4px 0 0;font-size:14px;line-height:1.7;color:var(--body);}
+.glossary-mentions{margin-left:6px;font-family:var(--mono);font-size:11px;font-weight:400;line-height:1;vertical-align:super;}
+.glossary-mentions a{display:inline-block;min-width:16px;padding:0 2px;color:var(--link);text-align:center;text-decoration:none;border-radius:4px;}
+.glossary-mentions a:hover{text-decoration:underline;}
+.glossary-mentions a:focus-visible{outline:2px solid var(--focus-ring);outline-offset:1px;}
+/* Destino de un salto del glosario (término ↔ mención): late como un punto, sin fondo. */
+.term.is-text-pulsing{display:inline-block;}
+dt.is-text-pulsing{transform-origin:left center;}
+dt.is-text-revealed{width:fit-content;}
 .hotspot-stage{position:relative;}
 .hotspot,.hotspot-ref{display:inline-flex;align-items:center;justify-content:center;border-radius:9999px;background:var(--surface-dark);color:var(--surface-card);font-family:var(--mono);font-weight:500;}
 .hotspot{position:absolute;left:var(--x);top:var(--y);z-index:1;width:24px;height:24px;transform:translate(-50%,-50%);border:2px solid var(--surface-card);font-size:12px;}
@@ -1792,12 +1809,14 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   @keyframes heritage-rise{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
   /* Latido de destino: `scale` (no `transform`) para no pisar el translate que centra el punto. */
   .is-pulsing{animation:heritage-pulse calc(var(--motion-duration-base) * 2) var(--motion-easing-standard) 3;}
+  .is-text-pulsing{animation:heritage-text-pulse calc(var(--motion-duration-base) * 2) var(--motion-easing-standard) 3;}
   /* Gesto de toque: se repite mientras el puntero sigue sobre el paso; el índice baja y destella. */
   .step-item[data-hotspot]:hover .tap-hand{animation:heritage-tap-press calc(var(--motion-duration-base) * 3) var(--motion-easing-standard) infinite;}
   .step-item[data-hotspot]:hover .tap-hand-rays{animation:heritage-tap-rays calc(var(--motion-duration-base) * 3) var(--motion-easing-standard) infinite;}
   @keyframes heritage-tap-press{0%,60%,100%{translate:0 0;}30%{translate:-2px -2px;}}
   @keyframes heritage-tap-rays{0%,20%{opacity:0;}35%{opacity:1;}70%,100%{opacity:0;}}
   @keyframes heritage-pulse{0%,100%{scale:1;}50%{scale:1.25;}}
+  @keyframes heritage-text-pulse{0%,100%{scale:1;}50%{scale:1.08;}}
 }
 @media (max-width:719px){
   .lang-switch{top:12px;right:16px;}
@@ -1829,7 +1848,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   .callout,.example-box,.mockup,.step-item,.code-block,tr{break-inside:avoid;}
   .section-title,.part-header,.acc>summary{break-after:avoid;}
   .acc>summary::after{display:none;}
-  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return,.hotspot-spotlight,.lang-switch,.menu-back{display:none;}
+  .back-to-top,.section-rail,.section-rail-preview,.section-pill,.toc-sheet,.section-link,.term-card,.compare-handle,.compare-range,.figcap-hint,.tap-hand,.hotspot-return,.hotspot-spotlight,.lang-switch,.menu-back,.glossary-mentions{display:none;}
   a.menu-link[href^="http"]::after{content:none;}
   .term{text-decoration:none;}
   .compare-stage{grid-template-columns:1fr 1fr;gap:16px;border:0;}
@@ -1880,7 +1899,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       copyLink: 'Copiar enlace', copyLinkTo: 'Copiar enlace a la sección ', linkCopied: 'Enlace copiado', copyFailed: 'No se pudo copiar',
       shortcutSections: ' ↑ ↓ secciones', shortcutIndex: ' I índice', start: 'Inicio: ', currentSection: 'Sección actual: ', openIndex: '. Abrir índice',
       hintSteps: 'Tocá un número para ir a su paso.', hintMentions: 'Tocá un número para ir a su mención en el texto.',
-      goToStep: 'Ir al paso ', goToMention: 'Ir a su mención en el texto', seeInCapture: 'Ver en la captura',
+      goToStep: 'Ir al paso ', goToMention: 'Ir a su mención en el texto', seeInCapture: 'Ver en la captura', mentionIn: 'Mención en ',
       before: 'Antes ', after: '%, después ', backToTop: 'Volver al inicio', backToTopText: 'Inicio', sectionMap: 'Mapa de secciones',
       contents: 'Contenido', close: 'Cerrar', languageLabel: 'Idioma'
     },
@@ -1888,7 +1907,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       copyLink: 'Copiar link', copyLinkTo: 'Copiar link da seção ', linkCopied: 'Link copiado', copyFailed: 'Não foi possível copiar',
       shortcutSections: ' ↑ ↓ seções', shortcutIndex: ' I índice', start: 'Início: ', currentSection: 'Seção atual: ', openIndex: '. Abrir índice',
       hintSteps: 'Toque em um número para ir ao passo.', hintMentions: 'Toque em um número para ir à menção no texto.',
-      goToStep: 'Ir ao passo ', goToMention: 'Ir à menção no texto', seeInCapture: 'Ver na captura',
+      goToStep: 'Ir ao passo ', goToMention: 'Ir à menção no texto', seeInCapture: 'Ver na captura', mentionIn: 'Menção em ',
       before: 'Antes ', after: '%, depois ', backToTop: 'Voltar ao início', backToTopText: 'Início', sectionMap: 'Mapa de seções',
       contents: 'Conteúdo', close: 'Fechar', languageLabel: 'Idioma'
     }
@@ -2364,6 +2383,12 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     clearTimeout(termHideTimer);
     termHideTimer = setTimeout(hideTermCard, TERM_HIDE_DELAY_MS);
   };
+  // El título del término sin sus superíndices de menciones.
+  var termLabel = function (definitionTerm) {
+    var copy = definitionTerm.cloneNode(true);
+    copy.querySelectorAll('.glossary-mentions').forEach(function (node) { node.remove(); });
+    return copy.textContent.trim();
+  };
   var terms = document.querySelectorAll('a.term[href^="#"]');
   if (terms.length) document.body.appendChild(termCard);
   terms.forEach(function (term) {
@@ -2374,7 +2399,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     term.setAttribute('aria-describedby', definition.id);
     var showTermCard = function () {
       clearTimeout(termHideTimer);
-      termCardTitle.textContent = definitionTerm.textContent.trim();
+      termCardTitle.textContent = termLabel(definitionTerm);
       termCardText.textContent = definition.textContent.replace(/\s+/g, ' ').trim();
       termCard.hidden = false;
       placeNear(termCard, term.getBoundingClientRect());
@@ -2389,6 +2414,33 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
   termCard.addEventListener('mouseleave', scheduleHideTermCard);
   window.addEventListener('scroll', hideTermCard, { passive: true });
 
+  // —— Glosario: cada <dt> suma un superíndice por mención del término en el documento (1, 2, 3…), en orden
+  // de aparición; lleva a esa mención y su tooltip dice en qué sección está.
+  document.querySelectorAll('.glossary dt[id]').forEach(function (definitionTerm) {
+    var mentions = document.querySelectorAll('a.term[href="#' + definitionTerm.id + '"]');
+    if (!mentions.length) return;
+    var references = createElement('sup', 'glossary-mentions');
+    mentions.forEach(function (mention, index) {
+      if (!mention.id) mention.id = definitionTerm.id + '-mention-' + (index + 1);
+      var section = mention.closest('section');
+      var sectionTitle = section && section.querySelector('.section-title');
+      var link = createElement('a', null, String(index + 1));
+      link.href = '#' + mention.id;
+      whenLanguage(function () {
+        var label = ui.mentionIn + (sectionTitle ? sectionTitle.textContent.trim() : '');
+        link.title = label;
+        link.setAttribute('aria-label', label);
+      });
+      link.addEventListener('click', function (event) {
+        event.preventDefault();
+        revealText(mention);
+      });
+      if (index) references.append(' ');
+      references.append(link);
+    });
+    definitionTerm.append(' ', references);
+  });
+
   // —— Links internos: índice, mapa, hoja inferior y términos del glosario usan el mismo scroll.
   document.querySelectorAll('.toc a[href^="#"], .section-rail a[href^="#"], .toc-sheet a[href^="#"], a.term[href^="#"]').forEach(function (link) {
     link.addEventListener('click', function (event) {
@@ -2397,6 +2449,7 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       event.preventDefault();
       if (sheet && sheet.open) closeSheet();
       hideTermCard();
+      if (link.matches('a.term')) { revealText(target); return; }
       scrollToTarget(target, true);
     });
   });
@@ -2426,6 +2479,97 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     scrollToTarget(destination, destination !== toc);
   });
 
+  // —— Foco temporal sobre el destino de un salto: se abre al llegar y se va enseguida (vida total
+  // SPOTLIGHT_LIFETIME_MS), o si el lector scrollea. Lo usan los puntos y el glosario.
+  function spotlightOn(destination) {
+    if (reduceMotion.matches) return;
+    var spot = document.querySelector('.hotspot-spotlight');
+    if (!spot) {
+      spot = createElement('div', 'hotspot-spotlight');
+      spot.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(spot);
+    }
+    var rect = destination.getBoundingClientRect();
+    spot.style.setProperty('--spot-x', (rect.left + rect.width / 2) + 'px');
+    spot.style.setProperty('--spot-y', (rect.top + rect.height / 2) + 'px');
+    spot.style.setProperty('--spot-target', (Math.max(rect.width, rect.height) / 2 + SPOTLIGHT_MARGIN_PX) + 'px');
+    spot.classList.remove('is-on', 'is-leaving');
+    void spot.offsetWidth;
+    spot.classList.add('is-on');
+    clearTimeout(spotlightTimer);
+    spotlightTimer = setTimeout(spotlightOff, SPOTLIGHT_LIFETIME_MS / 2);
+  }
+  function spotlightOff() {
+    var spot = document.querySelector('.hotspot-spotlight');
+    if (!spot || !spot.classList.contains('is-on')) return;
+    spot.classList.remove('is-on');
+    spot.classList.add('is-leaving');
+  }
+  window.addEventListener('wheel', spotlightOff, { passive: true });
+  window.addEventListener('touchstart', spotlightOff, { passive: true });
+
+  // Centra un destino en la pantalla (aunque ya se vea) y avisa al llegar.
+  function centerOnTarget(destination, onArrive) {
+    var destinationTop = function () { return Math.max(0, destination.getBoundingClientRect().top + window.scrollY - (window.innerHeight - destination.offsetHeight) / 2); };
+    // Las capturas diferidas de arriba se renderizan antes de medir, para que el destino no se corra.
+    document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: destination } }));
+    setTimeout(function () {
+      var arrived = false;
+      // Al terminar el scroll (o si el navegador lo salteó: pestaña en segundo plano, visor embebido).
+      var arrive = function () {
+        if (arrived) return;
+        arrived = true;
+        if (Math.abs(window.scrollY - destinationTop()) > 1) window.scrollTo({ top: destinationTop(), behavior: 'instant' });
+        onArrive();
+      };
+      if (Math.abs(window.scrollY - destinationTop()) <= 1) { arrive(); return; }
+      window.scrollTo({ top: destinationTop(), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+      if ('onscrollend' in window) window.addEventListener('scrollend', arrive, { once: true });
+      setTimeout(arrive, FALLBACK_MS);
+    }, 50);
+  }
+
+  // —— Saltos a un texto (de un término a su definición y de la definición a cada mención): abre los
+  // accordions que lo contienen, lo centra, lo resalta y lo hace latir 3 veces bajo el foco temporal.
+  function revealText(target) {
+    var closed = [];
+    for (var node = target.parentElement; node; node = node.parentElement) {
+      if (node.matches('details.acc') && (!node.open || node.classList.contains('is-closing'))) closed.unshift(node);
+    }
+    closed.forEach(function (accordion) { setAccordion(accordion, true); });
+    if (!target.hasAttribute('tabindex') && !target.matches('a[href]')) target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+    if (target.id) setHash(target.id);
+    setTimeout(function () {
+      centerOnTarget(target, function () {
+        // En un bloque (el término en el glosario) el foco se centra en la palabra: no en todo el ancho ni
+        // en los superíndices de menciones que la siguen.
+        var spotTarget = target;
+        if (getComputedStyle(target).display === 'block') {
+          var range = document.createRange();
+          var mentions = target.querySelector('.glossary-mentions');
+          range.setStart(target, 0);
+          if (mentions) range.setEndBefore(mentions); else range.setEnd(target, target.childNodes.length);
+          spotTarget = { getBoundingClientRect: function () { return range.getBoundingClientRect(); } };
+        }
+        spotlightOn(spotTarget);
+        target.classList.remove('is-text-pulsing', 'is-text-revealed');
+        void target.offsetWidth;
+        target.classList.add('is-text-revealed');
+        // Con "reducir movimiento" no late: el resaltado dura lo mismo que los latidos.
+        if (reduceMotion.matches) {
+          setTimeout(function () { target.classList.remove('is-text-revealed'); }, HOTSPOT_REVEAL_MS);
+          return;
+        }
+        target.classList.add('is-text-pulsing');
+        target.addEventListener('animationend', function () {
+          target.classList.remove('is-text-pulsing', 'is-text-revealed');
+          spotlightOff();
+        }, { once: true });
+      });
+    }, closed.length ? motionDurationMs(ACCORDION_FACTOR) : 0);
+  }
+
   // —— Puntos sobre capturas: pasar por un paso o una referencia resalta su punto, y viceversa.
   // Tocar un paso o una referencia lleva a su punto; tocar el punto lleva a su paso. Ambos quedan resaltados un momento.
   document.querySelectorAll('section.section').forEach(function (section) {
@@ -2437,33 +2581,6 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
       section.classList.toggle('has-hotspot-highlight', Boolean(number));
     };
     // Latido de destino: reinicia la animación si ya estaba latiendo; con "reducir movimiento" no late.
-    // Foco temporal sobre el destino: se abre al llegar y se va enseguida (vida total SPOTLIGHT_LIFETIME_MS), o si el lector scrollea.
-    var spotlightOn = function (destination) {
-      if (reduceMotion.matches) return;
-      var spot = document.querySelector('.hotspot-spotlight');
-      if (!spot) {
-        spot = createElement('div', 'hotspot-spotlight');
-        spot.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(spot);
-      }
-      var rect = destination.getBoundingClientRect();
-      spot.style.setProperty('--spot-x', (rect.left + rect.width / 2) + 'px');
-      spot.style.setProperty('--spot-y', (rect.top + rect.height / 2) + 'px');
-      spot.style.setProperty('--spot-target', (Math.max(rect.width, rect.height) / 2 + SPOTLIGHT_MARGIN_PX) + 'px');
-      spot.classList.remove('is-on', 'is-leaving');
-      void spot.offsetWidth;
-      spot.classList.add('is-on');
-      clearTimeout(spotlightTimer);
-      spotlightTimer = setTimeout(spotlightOff, SPOTLIGHT_LIFETIME_MS / 2);
-    };
-    var spotlightOff = function () {
-      var spot = document.querySelector('.hotspot-spotlight');
-      if (!spot || !spot.classList.contains('is-on')) return;
-      spot.classList.remove('is-on');
-      spot.classList.add('is-leaving');
-    };
-    window.addEventListener('wheel', spotlightOff, { passive: true });
-    window.addEventListener('touchstart', spotlightOff, { passive: true });
     var pulse = function (destination) {
       if (reduceMotion.matches) return;
       destination.classList.remove('is-pulsing');
@@ -2481,24 +2598,10 @@ code{font-family:var(--mono);background:var(--surface-alt);color:var(--primary);
     };
     // Centra el destino en la pantalla, aunque ya se vea, y lo hace latir al llegar.
     var centerOn = function (destination) {
-      var destinationTop = function () { return Math.max(0, destination.getBoundingClientRect().top + window.scrollY - (window.innerHeight - destination.offsetHeight) / 2); };
-      // Las capturas diferidas de arriba se renderizan antes de medir, para que el destino no se corra.
-      document.dispatchEvent(new CustomEvent('heritage:before-scroll', { detail: { target: destination } }));
-      setTimeout(function () {
-        var arrived = false;
-        // Al terminar el scroll (o si el navegador lo salteó: pestaña en segundo plano, visor embebido).
-        var arrive = function () {
-          if (arrived) return;
-          arrived = true;
-          if (Math.abs(window.scrollY - destinationTop()) > 1) window.scrollTo({ top: destinationTop(), behavior: 'instant' });
-          spotlightOn(destination);
-          pulse(destination);
-        };
-        if (Math.abs(window.scrollY - destinationTop()) <= 1) { arrive(); return; }
-        window.scrollTo({ top: destinationTop(), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
-        if ('onscrollend' in window) window.addEventListener('scrollend', arrive, { once: true });
-        setTimeout(arrive, FALLBACK_MS);
-      }, 50);
+      centerOnTarget(destination, function () {
+        spotlightOn(destination);
+        pulse(destination);
+      });
     };
     var reveal = function (number, selector) {
       var destination = section.querySelector(selector + '[data-hotspot="' + number + '"]');
