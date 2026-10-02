@@ -432,8 +432,9 @@ with the one-line definition you would write. Then:
   a section with pins on several captures: after the jump, only the destination stays highlighted.
   The script also signals that the circles can be tapped (a small hand on each step circle that keeps
   tapping while the pointer is on the step, a "back" bubble on each pin shown on hover and on arrival, hover growth, a tooltip with the action and,
-  for touch screens, «Tocá un número para ir a su paso.» under the first capture with pins of each
-  section), so never write that hint by hand.
+  under the first capture with pins of each section, «Hacé click en un número para ir a su paso.»
+  with a mouse or «Tocá un número para ir a su paso.» on touch screens, chosen by the pointer), so
+  never write that hint by hand.
 - **Before / after:** only when both captures have the same width and framing. Give each
   `app-frame` its own `aria-label`. Otherwise show two separate mockups.
 - **Glossary:** link only the first use of each term per section; every `a.term` points to an

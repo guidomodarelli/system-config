@@ -1364,9 +1364,9 @@ Círculos numerados encima de una captura o mockup que conectan la imagen con lo
   taparía lo que señalan. Con "reducir movimiento" no se anima.
 - **Se nota que se pueden tocar,** sin movimiento que el lector no pidió: el círculo bajo el puntero
   o con foco crece a `1.1` (en `motion.duration-fast`) y se resalta con su par; el tooltip dice qué
-  pasa al tocar («Ir al paso 2», «Ver en la captura»), y, para pantallas táctiles, el pie de la
-  primera captura con puntos de cada sección suma «Tocá un número para ir a su paso.» (`.figcap-hint`,
-  lo agrega el script; no se imprime).
+  pasa al tocar («Ir al paso 2», «Ver en la captura»), y el pie de la primera captura con puntos de
+  cada sección suma «Hacé click en un número para ir a su paso.» con mouse o «Tocá un número para ir
+  a su paso.» en pantallas táctiles (`.figcap-hint`, lo agrega el script según el puntero; no se imprime).
 - Tocar un paso o una referencia (o `Enter` sobre la referencia) centra su punto en la pantalla,
   siempre, lo resalta y, al llegar, lo hace latir 3 veces. Tocar el punto hace el camino inverso: centra el círculo de su paso (o,
   si la sección no tiene pasos con ese número, la primera referencia).
@@ -1493,6 +1493,7 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 
 ### 2026-10-02
 
+- **Puntos sobre capturas:** la pista del pie dice «Hacé click en un número…» con mouse y «Tocá un número…» en pantallas táctiles (antes, siempre «Tocá»).
 - **Accordions:** nunca hay dos abiertos en todo el documento (antes, uno por sección); también al abrirse por un salto del glosario.
 - **Glosario:** cada término muestra superíndices con sus menciones en el documento; cada número lleva a la mención. Los saltos del glosario (término → definición, superíndice → mención) abren el accordion que contiene el destino y lo hacen latir 3 veces bajo el foco temporal, ajustado a su texto. Los destinos del final del documento (el glosario) también quedan centrados, y el foco no se corre cuando la palabra empieza a latir.
 - **Puntos sobre capturas:** la lista de pasos va antes de la captura que la acompaña (antes iba después del `figcap`). Lo mismo para el texto con referencias en línea: va justo antes de la captura de sus puntos. Los puntos se numeran de arriba hacia abajo y de izquierda a derecha. Las referencias en el texto se mencionan en ese orden.
@@ -1900,6 +1901,8 @@ dt.is-text-revealed{width:fit-content;}
 (function () {
   var button = document.querySelector('.back-to-top');
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  // Mouse o trackpad: los textos de la interfaz dicen "Hacé click en" en vez de "Tocá".
+  var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
   // Idioma del documento (lo fija el script de idioma antes de este) y textos de la interfaz por idioma.
   var language = document.documentElement.getAttribute('data-language') || 'es';
   var UI_TEXT = {
@@ -1907,6 +1910,7 @@ dt.is-text-revealed{width:fit-content;}
       copyLink: 'Copiar enlace', copyLinkTo: 'Copiar enlace a la sección ', linkCopied: 'Enlace copiado', copyFailed: 'No se pudo copiar',
       shortcutSections: ' ↑ ↓ secciones', shortcutIndex: ' I índice', start: 'Inicio: ', currentSection: 'Sección actual: ', openIndex: '. Abrir índice',
       hintSteps: 'Tocá un número para ir a su paso.', hintMentions: 'Tocá un número para ir a su mención en el texto.',
+      hintStepsPointer: 'Hacé click en un número para ir a su paso.', hintMentionsPointer: 'Hacé click en un número para ir a su mención en el texto.',
       goToStep: 'Ir al paso ', goToMention: 'Ir a su mención en el texto', seeInCapture: 'Ver en la captura', mentionIn: 'Mención en ',
       before: 'Antes ', after: '%, después ', backToTop: 'Volver al inicio', backToTopText: 'Inicio', sectionMap: 'Mapa de secciones',
       contents: 'Contenido', close: 'Cerrar', languageLabel: 'Idioma'
@@ -1915,6 +1919,7 @@ dt.is-text-revealed{width:fit-content;}
       copyLink: 'Copiar link', copyLinkTo: 'Copiar link da seção ', linkCopied: 'Link copiado', copyFailed: 'Não foi possível copiar',
       shortcutSections: ' ↑ ↓ seções', shortcutIndex: ' I índice', start: 'Início: ', currentSection: 'Seção atual: ', openIndex: '. Abrir índice',
       hintSteps: 'Toque em um número para ir ao passo.', hintMentions: 'Toque em um número para ir à menção no texto.',
+      hintStepsPointer: 'Clique em um número para ir ao passo.', hintMentionsPointer: 'Clique em um número para ir à menção no texto.',
       goToStep: 'Ir ao passo ', goToMention: 'Ir à menção no texto', seeInCapture: 'Ver na captura', mentionIn: 'Menção em ',
       before: 'Antes ', after: '%, depois ', backToTop: 'Voltar ao início', backToTopText: 'Início', sectionMap: 'Mapa de seções',
       contents: 'Conteúdo', close: 'Fechar', languageLabel: 'Idioma'
@@ -2686,7 +2691,7 @@ dt.is-text-revealed{width:fit-content;}
       }, HOTSPOT_REVEAL_MS);
       centerOn(destination.querySelector('.step-circle') || destination);
     };
-    // Pista para pantallas táctiles (sin hover): una línea en el pie de la primera captura con puntos.
+    // Pista en el pie de la primera captura con puntos: "Tocá" en pantallas táctiles y "Hacé click en" con mouse.
     var firstStage = section.querySelector('.hotspot-stage');
     var caption = firstStage && firstStage.closest('.mockup, .compare');
     caption = caption && caption.nextElementSibling;
@@ -2694,7 +2699,12 @@ dt.is-text-revealed{width:fit-content;}
     if (caption && caption.classList.contains('figcap') && !(caption.nextElementSibling && caption.nextElementSibling.classList.contains('figcap-hint'))) {
       var hasSteps = Boolean(section.querySelector('.step-item[data-hotspot]'));
       var hint = createElement('div', 'figcap figcap-hint');
-      whenLanguage(function () { hint.textContent = hasSteps ? ui.hintSteps : ui.hintMentions; });
+      var writeHint = function () {
+        var pointer = finePointer.matches;
+        hint.textContent = hasSteps ? (pointer ? ui.hintStepsPointer : ui.hintSteps) : (pointer ? ui.hintMentionsPointer : ui.hintMentions);
+      };
+      whenLanguage(writeHint);
+      finePointer.addEventListener('change', writeHint);
       hint.setAttribute('aria-hidden', 'true');
       caption.after(hint);
     }
