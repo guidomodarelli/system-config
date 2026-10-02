@@ -102,8 +102,10 @@ list above.
   by node.
 - **Labels built as `{prefix}: {data}`** (pending-change tags, `Agregar: Inventory • Cycle Count`):
   translate only the prefix. When the value is itself a translated label (a status built with
-  `getStatusLabel(i18n)`), the app translates both parts but the check expects only the prefix:
-  capture that tag with a value the app does not translate (a facility type, an LDAP) instead.
+  `getStatusLabel(i18n)`, a filter tag «Estado: Habilitado» → «Estado: Ativo»), the app translates both
+  parts: write both translated in the `captures` table (`check-manual.mjs` accepts either form). In the
+  prose, quote a tag whose value the app does not translate («Rol: ADMIN»), since a prose quote has a
+  single expected form.
 - **Placeholders:** catalog keys with `{0}` match texts with values ("Podés buscar hasta 100 IDs…").
   Use that matching only on capture texts and quotes, never on prose.
 

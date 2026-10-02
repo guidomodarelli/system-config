@@ -176,7 +176,14 @@ const checkTranslationTable = (table, spanishFiles, portugueseFiles, manualTitle
 		if (candidates.size > 1) return { ambiguous: [...candidates.entries()] };
 		if (candidates.size === 1) return [...candidates.keys()][0];
 		const [head, ...rest] = text.split(': ');
-		if (rest.length && exact(head) !== null) return `${exact(head)}: ${rest.join(': ')}`;
+		if (rest.length && exact(head) !== null) {
+			const value = rest.join(': ');
+			const prefixOnly = `${exact(head)}: ${value}`;
+			// The value can be a translated label too (a status built with gettext, "Estado: Habilitado" →
+			// "Estado: Ativo"): then the app translates both parts, so either form is the app's text.
+			const translatedValue = exact(value);
+			return translatedValue !== null && translatedValue !== value ? { anyOf: [prefixOnly, `${exact(head)}: ${translatedValue}`] } : prefixOnly;
+		}
 		return null;
 	};
 	for (const [part, check] of [['document', exact], ['captures', expected]]) {
@@ -187,6 +194,10 @@ const checkTranslationTable = (table, spanishFiles, portugueseFiles, manualTitle
 			if (wanted && wanted.ambiguous) {
 				if (!wanted.ambiguous.some(([candidate]) => candidate.trim() === translation.trim())) problems.errors.push(`translations: «${text.slice(0, 60)}» is an app text: its pt-BR is one of ${wanted.ambiguous.map(([candidate]) => `«${candidate.slice(0, 40)}»`).join(', ')} (catalog), not «${translation.slice(0, 60)}»`);
 				else problems.warnings.push(`translations: «${text.slice(0, 60)}» fits several catalog strings (${wanted.ambiguous.map(([, msgid]) => `"${msgid.slice(0, 40)}"`).join(', ')}); check in the source which one the app uses`);
+				continue;
+			}
+			if (wanted && wanted.anyOf) {
+				if (!wanted.anyOf.some((candidate) => candidate.trim() === translation.trim())) problems.errors.push(`translations: «${text.slice(0, 60)}» is an app text: its pt-BR is ${wanted.anyOf.map((candidate) => `«${candidate.slice(0, 40)}»`).join(' or ')} (catalog), not «${translation.slice(0, 60)}»`);
 				continue;
 			}
 			if (wanted === null) {
