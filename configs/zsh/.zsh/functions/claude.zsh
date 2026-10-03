@@ -4,8 +4,14 @@ ccd() {
   command claude --dangerously-skip-permissions --chrome "$@"
 }
 
-# Claude Code wrapper using the local GPT proxy configuration.
+# Wrapper de Claude Code con proxy GPT local, reservado al usuario.
+# Codex tiene prohibido invocar ccg o eludir esta protección.
 ccg() {
+  if [[ -n "${CODEX_THREAD_ID-}" || -n "${CODEX_SESSION_ID-}" || "${CODEX_CI-}" == "1" ]]; then
+    print -u2 -- 'ccg: ejecución prohibida desde Codex; reservado al usuario.'
+    return 1
+  fi
+
   local -x ANTHROPIC_AUTH_TOKEN="dummy"
   local -x ANTHROPIC_BASE_URL="http://localhost:4141"
   local -x ANTHROPIC_DEFAULT_OPUS_MODEL="gpt-5.6-luna[1m]"

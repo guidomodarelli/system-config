@@ -25,6 +25,12 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Los comentarios inline de review, si existen, tienen título y cuerpo en español.
 - Los comentarios publicados en GitHub, si existen, están en español.
 
+## Prohibición De `ccg` Desde Codex
+
+- Codex tiene prohibido invocar la función Zsh `ccg`, tanto directamente como mediante otro shell, script o proceso delegado. Está reservada al usuario.
+- No eliminar, vaciar ni alterar las señales de entorno de Codex para eludir la protección de `ccg`, ni reproducir su configuración para sortear esta prohibición.
+- Los tests automatizados pueden simular esas señales únicamente en procesos aislados con un CLI `claude` falso, sin iniciar Claude real.
+
 ## Memoria persistente (MCP `memory`) — Mandatorio
 
 - Al inicio de cada sesión o tarea, consultar la integración MCP `memory` para recuperar contexto relevante del usuario y del proyecto.
