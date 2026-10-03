@@ -693,3 +693,70 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
     }
   }
 }
+
+Describe 'Microsoft.PowerShell_profile PR del prompt murilasso' {
+  BeforeAll {
+    $profilePath = Join-Path $PSScriptRoot 'Microsoft.PowerShell_profile.ps1'
+    $tokens = $null
+    $parseErrors = $null
+    $profileAst = [System.Management.Automation.Language.Parser]::ParseFile($profilePath, [ref]$tokens, [ref]$parseErrors)
+
+    foreach ($variableName in @('MURILASSO_BASE_BRANCHES', 'MURILASSO_OPEN_PR_STATE')) {
+      $assignment = $profileAst.Find({
+          param($node)
+          $node -is [System.Management.Automation.Language.AssignmentStatementAst] -and
+          $node.Left.Extent.Text -eq ('$' + $variableName)
+        }, $true)
+      . ([scriptblock]::Create($assignment.Extent.Text))
+    }
+
+    foreach ($functionName in @('Test-MurilassoBaseBranch', 'Read-MurilassoPrCache')) {
+      $functionDefinition = $profileAst.Find({
+          param($node)
+          $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
+        }, $true)
+      . ([scriptblock]::Create($functionDefinition.Extent.Text))
+    }
+
+    function Write-TestPrCache {
+      param([string]$PrState)
+
+      $cachePath = Join-Path $TestDrive ('pr-' + [guid]::NewGuid().ToString('N'))
+      Set-Content -LiteralPath $cachePath -Value ("https://github.com/owner/repo/pull/8`n{0}" -f $PrState) -NoNewline
+      return $cachePath
+    }
+  }
+
+  BeforeEach {
+    $env:MURILASSO_PR_URL = ''
+    $env:MURILASSO_PR_STATE = ''
+    $env:MURILASSO_PR_NUMBER = ''
+  }
+
+  It 'debe ocultar un PR <PrState> en la branch base <Branch>' -ForEach @(
+    @{ Branch = 'main'; PrState = 'MERGED' }
+    @{ Branch = 'master'; PrState = 'CLOSED' }
+    @{ Branch = 'develop'; PrState = 'MERGED' }
+  ) {
+    Read-MurilassoPrCache -CachePath (Write-TestPrCache -PrState $PrState) -Branch $Branch
+
+    $env:MURILASSO_PR_URL | Should -BeNullOrEmpty
+    $env:MURILASSO_PR_STATE | Should -BeNullOrEmpty
+    $env:MURILASSO_PR_NUMBER | Should -BeNullOrEmpty
+  }
+
+  It 'debe mostrar un PR abierto en la branch base' {
+    Read-MurilassoPrCache -CachePath (Write-TestPrCache -PrState 'OPEN') -Branch 'main'
+
+    $env:MURILASSO_PR_URL | Should -Be 'https://github.com/owner/repo/pull/8'
+    $env:MURILASSO_PR_STATE | Should -Be 'OPEN'
+    $env:MURILASSO_PR_NUMBER | Should -Be '8'
+  }
+
+  It 'debe mostrar un PR mergeado en una feature branch' {
+    Read-MurilassoPrCache -CachePath (Write-TestPrCache -PrState 'MERGED') -Branch 'feature/main-fix'
+
+    $env:MURILASSO_PR_STATE | Should -Be 'MERGED'
+    $env:MURILASSO_PR_NUMBER | Should -Be '8'
+  }
+}

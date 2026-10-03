@@ -2772,6 +2772,16 @@ function Complete-MurilassoGhFetches {
     }
 }
 
+# Branches base: solo muestran PR si está abierto (nunca cerrado ni mergeado).
+$MURILASSO_BASE_BRANCHES = @('main', 'master', 'develop')
+$MURILASSO_OPEN_PR_STATE = 'OPEN'
+
+function Test-MurilassoBaseBranch {
+    param([string]$Branch)
+
+    return $Branch -cin $MURILASSO_BASE_BRANCHES
+}
+
 function Start-MurilassoPrFetch {
     param([string]$Repo, [string]$CachePath, [string]$Branch)
 
@@ -2780,7 +2790,12 @@ function Start-MurilassoPrFetch {
         'pr', 'list', '--head', $Branch, '--state', 'open', '--limit', '1',
         '--json', 'url,state', '--jq', $openPrQuery
     )
-    $fallbackPrArgs = @('pr', 'view', '--json', 'url,state', '--jq', '.url + "\n" + .state')
+    $fallbackPrQuery = if (Test-MurilassoBaseBranch $Branch) {
+        'select(.state == "OPEN") | .url + "\n" + .state'
+    } else {
+        '.url + "\n" + .state'
+    }
+    $fallbackPrArgs = @('pr', 'view', '--json', 'url,state', '--jq', $fallbackPrQuery)
 
     Start-MurilassoGhFetch `
         -Repo $Repo `
@@ -2789,15 +2804,21 @@ function Start-MurilassoPrFetch {
         -FallbackGhArgs $fallbackPrArgs
 }
 
-# Lee el cache de PR (linea 1 = url, linea 2 = state) hacia env vars.
+# Lee el cache de PR (linea 1 = url, linea 2 = state) hacia env vars. En
+# branches base descarta PRs no abiertos, aunque un cache viejo los conserve.
 function Read-MurilassoPrCache {
-    param([string]$CachePath)
+    param([string]$CachePath, [string]$Branch)
 
-    $lines = Get-Content -LiteralPath $CachePath -ErrorAction SilentlyContinue
-    if (-not $lines) { return }
+    $lines = @(Get-Content -LiteralPath $CachePath -ErrorAction SilentlyContinue)
+    if ($lines.Count -eq 0) { return }
 
-    $url = if ($lines.Count -ge 1) { ([string]$lines[0]).Trim() } else { '' }
+    $url = ([string]$lines[0]).Trim()
     $prState = if ($lines.Count -ge 2) { ([string]$lines[1]).Trim() } else { '' }
+
+    if ((Test-MurilassoBaseBranch $Branch) -and $prState -ne $MURILASSO_OPEN_PR_STATE) {
+        $url = ''
+        $prState = ''
+    }
 
     $env:MURILASSO_PR_URL = $url
     $env:MURILASSO_PR_STATE = $prState
@@ -2880,13 +2901,13 @@ function Update-MurilassoPromptContext {
         $promptState.Repo = $repo
         $promptState.PrLastFetch = $now
         Clear-MurilassoPrContext
-        if (Test-Path -LiteralPath $prCache) { Read-MurilassoPrCache $prCache }
+        if (Test-Path -LiteralPath $prCache) { Read-MurilassoPrCache -CachePath $prCache -Branch $branch }
         Start-MurilassoPrFetch -Repo $repo -CachePath $prCache -Branch $branch
     }
     elseif (Test-Path -LiteralPath $prCache) {
         # Relee cache en cada render, incluso si PR anterior estaba cerrado.
         # Misma branch puede recibir un PR abierto nuevo posteriormente.
-        Read-MurilassoPrCache $prCache
+        Read-MurilassoPrCache -CachePath $prCache -Branch $branch
         # Refresca cada 30s para detectar PRs nuevos.
         if (($now - $promptState.PrLastFetch).TotalSeconds -gt $MURILASSO_PR_REFRESH_SECONDS) {
             $promptState.PrLastFetch = $now
