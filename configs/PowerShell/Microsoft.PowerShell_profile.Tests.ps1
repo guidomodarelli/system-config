@@ -1,3 +1,140 @@
+Describe 'Microsoft.PowerShell_profile cache de scripts por ejecutable' {
+  BeforeAll {
+    Set-StrictMode -Version Latest
+
+    $profilePath = Join-Path $PSScriptRoot 'Microsoft.PowerShell_profile.ps1'
+    $tokens = $null
+    $parseErrors = $null
+    $profileAst = [System.Management.Automation.Language.Parser]::ParseFile($profilePath, [ref]$tokens, [ref]$parseErrors)
+    if ($parseErrors.Count -gt 0) {
+      throw "El perfil tiene errores de sintaxis: $($parseErrors.Message -join '; ')"
+    }
+
+    foreach ($functionName in @('Get-ExecutableTargetInfo', 'Get-StableExecutablePath', 'Get-ExecutableFingerprint', 'Get-ExecutableInitCachePath', 'Get-CachedInitScriptPath')) {
+      $functionDefinition = $profileAst.Find({
+          param($node)
+          $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
+        }, $true)
+      . ([scriptblock]::Create($functionDefinition.Extent.Text))
+    }
+
+    # El CLI de prueba genera un init ejecutable. Los archivos y enlaces son reales;
+    # no se reemplazan las APIs de PowerShell ni del sistema de archivos.
+    function New-TestInitGenerator {
+      param([string]$DirectoryPath, [string]$InitResult)
+
+      New-Item -ItemType Directory -Path $DirectoryPath -Force | Out-Null
+      $executablePath = Join-Path $DirectoryPath 'codex.ps1'
+      Set-Content -LiteralPath $executablePath -Value ('"''{0}''"' -f $InitResult)
+      return Get-Command -Name $executablePath
+    }
+  }
+
+  BeforeEach {
+    $script:FirstGenerationCount = 0
+    $script:SecondGenerationCount = 0
+    $script:InitCacheBasePath = Join-Path $TestDrive ('cache-' + [guid]::NewGuid().ToString('N') + '/completion.ps1')
+    $script:FirstExecutable = New-TestInitGenerator -DirectoryPath (Join-Path $TestDrive ('node-first-' + [guid]::NewGuid().ToString('N'))) -InitResult 'primer init'
+    $script:SecondExecutable = New-TestInitGenerator -DirectoryPath (Join-Path $TestDrive ('node-second-' + [guid]::NewGuid().ToString('N'))) -InitResult 'segundo init'
+  }
+
+  It 'debe generar el init una sola vez cuando se reutiliza la misma instalación' {
+    $cachePath = Get-ExecutableInitCachePath -CachePath $script:InitCacheBasePath -CommandInfo $script:FirstExecutable
+    $fingerprint = Get-ExecutableFingerprint -CommandInfo $script:FirstExecutable
+    $generator = {
+      $script:FirstGenerationCount++
+      & $script:FirstExecutable.Source
+    }
+
+    $firstCachePath = Get-CachedInitScriptPath -CachePath $cachePath -Fingerprint $fingerprint -GenerateScriptText $generator
+    $secondCachePath = Get-CachedInitScriptPath -CachePath $cachePath -Fingerprint $fingerprint -GenerateScriptText $generator
+
+    (. $firstCachePath) | Should -Be 'primer init'
+    (. $secondCachePath) | Should -Be 'primer init'
+    $script:FirstGenerationCount | Should -Be 1
+  }
+
+  It 'debe conservar ambos init cuando las sesiones alternan instalaciones' {
+    $firstCachePath = Get-ExecutableInitCachePath -CachePath $script:InitCacheBasePath -CommandInfo $script:FirstExecutable
+    $secondCachePath = Get-ExecutableInitCachePath -CachePath $script:InitCacheBasePath -CommandInfo $script:SecondExecutable
+    $firstFingerprint = Get-ExecutableFingerprint -CommandInfo $script:FirstExecutable
+    $secondFingerprint = Get-ExecutableFingerprint -CommandInfo $script:SecondExecutable
+    $firstGenerator = { $script:FirstGenerationCount++; & $script:FirstExecutable.Source }
+    $secondGenerator = { $script:SecondGenerationCount++; & $script:SecondExecutable.Source }
+
+    foreach ($iteration in 1..2) {
+      $firstInit = Get-CachedInitScriptPath -CachePath $firstCachePath -Fingerprint $firstFingerprint -GenerateScriptText $firstGenerator
+      $secondInit = Get-CachedInitScriptPath -CachePath $secondCachePath -Fingerprint $secondFingerprint -GenerateScriptText $secondGenerator
+      (. $firstInit) | Should -Be 'primer init'
+      (. $secondInit) | Should -Be 'segundo init'
+    }
+
+    $script:FirstGenerationCount | Should -Be 1
+    $script:SecondGenerationCount | Should -Be 1
+  }
+
+  It 'debe reutilizar el init cuando distintos enlaces apuntan a la misma instalación' {
+    $installationPath = Split-Path -Parent $script:FirstExecutable.Source
+    $firstLinkPath = Join-Path $TestDrive 'session-first'
+    $secondLinkPath = Join-Path $TestDrive 'session-second'
+    $linkType = if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) { 'Junction' } else { 'SymbolicLink' }
+    New-Item -ItemType $linkType -Path $firstLinkPath -Target $installationPath | Out-Null
+    New-Item -ItemType $linkType -Path $secondLinkPath -Target $installationPath | Out-Null
+    $firstLinkedExecutable = Get-Command -Name (Join-Path $firstLinkPath 'codex.ps1')
+    $secondLinkedExecutable = Get-Command -Name (Join-Path $secondLinkPath 'codex.ps1')
+    $firstCachePath = Get-ExecutableInitCachePath -CachePath $script:InitCacheBasePath -CommandInfo $firstLinkedExecutable
+    $secondCachePath = Get-ExecutableInitCachePath -CachePath $script:InitCacheBasePath -CommandInfo $secondLinkedExecutable
+    $generator = { $script:FirstGenerationCount++; & $script:FirstExecutable.Source }
+
+    $firstInit = Get-CachedInitScriptPath -CachePath $firstCachePath -Fingerprint (Get-ExecutableFingerprint -CommandInfo $firstLinkedExecutable) -GenerateScriptText $generator
+    $secondInit = Get-CachedInitScriptPath -CachePath $secondCachePath -Fingerprint (Get-ExecutableFingerprint -CommandInfo $secondLinkedExecutable) -GenerateScriptText $generator
+
+    (. $firstInit) | Should -Be 'primer init'
+    (. $secondInit) | Should -Be 'primer init'
+    $script:FirstGenerationCount | Should -Be 1
+  }
+
+  It 'debe regenerar solo el init actualizado cuando cambia el ejecutable' {
+    $firstCachePath = Get-ExecutableInitCachePath -CachePath $script:InitCacheBasePath -CommandInfo $script:FirstExecutable
+    $secondCachePath = Get-ExecutableInitCachePath -CachePath $script:InitCacheBasePath -CommandInfo $script:SecondExecutable
+    $firstGenerator = { $script:FirstGenerationCount++; & $script:FirstExecutable.Source }
+    $secondGenerator = { $script:SecondGenerationCount++; & $script:SecondExecutable.Source }
+    $null = Get-CachedInitScriptPath -CachePath $firstCachePath -Fingerprint (Get-ExecutableFingerprint -CommandInfo $script:FirstExecutable) -GenerateScriptText $firstGenerator
+    $null = Get-CachedInitScriptPath -CachePath $secondCachePath -Fingerprint (Get-ExecutableFingerprint -CommandInfo $script:SecondExecutable) -GenerateScriptText $secondGenerator
+    $originalWriteTime = [System.IO.File]::GetLastWriteTimeUtc($script:FirstExecutable.Source)
+    Set-Content -LiteralPath $script:FirstExecutable.Source -Value '"''init actualizado''"'
+    [System.IO.File]::SetLastWriteTimeUtc($script:FirstExecutable.Source, $originalWriteTime.AddSeconds(1))
+
+    $firstInit = Get-CachedInitScriptPath -CachePath $firstCachePath -Fingerprint (Get-ExecutableFingerprint -CommandInfo $script:FirstExecutable) -GenerateScriptText $firstGenerator
+    $secondInit = Get-CachedInitScriptPath -CachePath $secondCachePath -Fingerprint (Get-ExecutableFingerprint -CommandInfo $script:SecondExecutable) -GenerateScriptText $secondGenerator
+
+    (. $firstInit) | Should -Be 'init actualizado'
+    (. $secondInit) | Should -Be 'segundo init'
+    $script:FirstGenerationCount | Should -Be 2
+    $script:SecondGenerationCount | Should -Be 1
+  }
+
+  It 'debe conservar el init anterior cuando el generador falla' {
+    $cachePath = Get-ExecutableInitCachePath -CachePath $script:InitCacheBasePath -CommandInfo $script:FirstExecutable
+    $fingerprint = Get-ExecutableFingerprint -CommandInfo $script:FirstExecutable
+    $initPath = Get-CachedInitScriptPath -CachePath $cachePath -Fingerprint $fingerprint -GenerateScriptText { & $script:FirstExecutable.Source }
+
+    { Get-CachedInitScriptPath -CachePath $cachePath -Fingerprint ($fingerprint + '-updated') -GenerateScriptText { throw 'No se pudo generar el init de prueba.' } } | Should -Throw 'No se pudo generar el init de prueba.'
+
+    (. $initPath) | Should -Be 'primer init'
+  }
+
+  It 'debe rechazar un init vacío sin reemplazar el cache anterior' {
+    $cachePath = Get-ExecutableInitCachePath -CachePath $script:InitCacheBasePath -CommandInfo $script:FirstExecutable
+    $fingerprint = Get-ExecutableFingerprint -CommandInfo $script:FirstExecutable
+    $initPath = Get-CachedInitScriptPath -CachePath $cachePath -Fingerprint $fingerprint -GenerateScriptText { & $script:FirstExecutable.Source }
+
+    { Get-CachedInitScriptPath -CachePath $cachePath -Fingerprint ($fingerprint + '-updated') -GenerateScriptText { '' } } | Should -Throw '*returned no output*'
+
+    (. $initPath) | Should -Be 'primer init'
+  }
+}
+
 Describe 'Microsoft.PowerShell_profile ghq repository scan' {
   BeforeAll {
     Set-StrictMode -Version Latest

@@ -69,6 +69,23 @@ function Get-ExecutableFingerprint {
     return '{0}|{1}' -f (Get-StableExecutablePath -CommandInfo $CommandInfo), $executableTicks
 }
 
+# Cada instalación conserva su propio init: fnm puede alternar versiones de Node
+# entre terminales y un cache compartido se invalidaría en cada arranque.
+# La ruta estable mantiene el mismo archivo entre los multishell links de fnm;
+# el fingerprint sigue invalidándolo cuando se actualiza ese ejecutable.
+function Get-ExecutableInitCachePath {
+    param(
+        [Parameter(Mandatory = $true)][string]$CachePath,
+        [Parameter(Mandatory = $true)][System.Management.Automation.CommandInfo]$CommandInfo
+    )
+
+    $stableExecutablePath = Get-StableExecutablePath -CommandInfo $CommandInfo
+    $executablePathBytes = [System.Text.Encoding]::UTF8.GetBytes($stableExecutablePath)
+    $executablePathHash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($executablePathBytes))
+    $cacheFileName = '{0}-{1}{2}' -f [System.IO.Path]::GetFileNameWithoutExtension($CachePath), $executablePathHash, [System.IO.Path]::GetExtension($CachePath)
+    return [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($CachePath), $cacheFileName)
+}
+
 # Devuelve el path del script cacheado, regenerándolo con $GenerateScriptText
 # cuando el fingerprint de la primera línea no coincide. El caller debe
 # dot-sourcear el path devuelto: el script se ejecuta fuera de esta función a
@@ -488,14 +505,17 @@ function cxd {
 $codexCommandInfo = Get-Command codex -ErrorAction SilentlyContinue
 if ($codexCommandInfo) {
     try {
-        # Cache del completion de Codex: `codex completion powershell` spawnea
-        # el CLI de Node (~150 ms por arranque).
-        . (Get-CachedInitScriptPath `
+        # Cache por instalación: sesiones con distintas versiones de Node no
+        # deben invalidarse entre sí y volver a spawnear el CLI en cada arranque.
+        $codexCompletionCachePath = Get-ExecutableInitCachePath `
             -CachePath (Join-Path $env:LOCALAPPDATA 'PowerShell\codex-completion-cache.ps1') `
+            -CommandInfo $codexCommandInfo
+        . (Get-CachedInitScriptPath `
+            -CachePath $codexCompletionCachePath `
             -Fingerprint (Get-ExecutableFingerprint -CommandInfo $codexCommandInfo) `
-            -GenerateScriptText { (& codex completion powershell) -join [Environment]::NewLine })
+            -GenerateScriptText { (& $codexCommandInfo.Source completion powershell) -join [Environment]::NewLine })
     } catch {
-        Write-Warning "Unable to load Codex PowerShell completion: $($_.Exception.Message)"
+        Write-Warning "No se pudo cargar el autocompletado de Codex: $($_.Exception.Message)"
     }
 
     $cxCompletionScriptBlock = {
