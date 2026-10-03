@@ -859,6 +859,13 @@ needs_elevated_permissions() {
     return 0
   fi
 
+  # A directory symlink into the repository is replaced by a real directory,
+  # which writes into its parent instead of the (writable) repository folder.
+  if [ -L "$target_dir" ] && path_is_inside_configs_dir "$target_dir"; then
+    [ ! -w "$(dirname "$target_dir")" ]
+    return $?
+  fi
+
   if [ -d "$target_dir" ]; then
     [ ! -w "$target_dir" ]
     return $?

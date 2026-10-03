@@ -1070,6 +1070,42 @@ YAML
   [[ "$output" == *"(antes symlink a skills-tree)"* ]]
 }
 
+@test "usa sudo para reemplazar symlink de directorio cuyo padre no es escribible" {
+  seed_filter_tree
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: skills-tree/*
+    target: locked/linked-files
+    descendInto: /^\(.*\)$/
+    markerFile: SKILL.md
+YAML
+  local locked_dir="$HOME_DIR/locked"
+  mkdir -p "$locked_dir"
+  ln -s "$REPO_DIR/configs/skills-tree" "$locked_dir/linked-files"
+  chmod 555 "$locked_dir"
+  # Fake sudo grants write access to the locked parent only while it runs.
+  cat > "$FAKE_BIN_DIR/sudo" <<BASH
+#!/usr/bin/env bash
+printf "sudo %s\\n" "\$*" >> "$TEST_DIR/sudo.log"
+chmod 755 "$locked_dir"
+"\$@"
+command_status=\$?
+chmod 555 "$locked_dir"
+exit \$command_status
+BASH
+  chmod +x "$FAKE_BIN_DIR/sudo"
+
+  run_dotfiler "false" "--no-color"
+  chmod 755 "$locked_dir"
+
+  [ "$status" -eq 0 ]
+  grep -q "^sudo rm $locked_dir/linked-files\$" "$TEST_DIR/sudo.log"
+  [ -d "$locked_dir/linked-files" ] && [ ! -L "$locked_dir/linked-files" ]
+  assert_symlink_points_to "$locked_dir/linked-files/leaf-a" "$REPO_DIR/configs/skills-tree/leaf-a"
+  [ -z "$(find "$REPO_DIR/configs/skills-tree" -type l)" ]
+  [[ "$output" != *"No se pudo eliminar symlink de directorio"* ]]
+}
+
 @test "dry-run informa reemplazo de symlink de directorio sin modificar nada" {
   seed_filter_tree
   write_directory_migration_config

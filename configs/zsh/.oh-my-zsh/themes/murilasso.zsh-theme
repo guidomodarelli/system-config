@@ -190,7 +190,7 @@ _murilasso_refresh_duration() {
   _MURILASSO_CMD_START=""
   (( elapsed_seconds < _MURILASSO_DURATION_THRESHOLD_SECONDS )) && return
   _murilasso_format_duration "$elapsed_seconds"
-  _MURILASSO_DURATION_SEG="%F{yellow}⏱ ${REPLY}%f"
+  _MURILASSO_DURATION_SEG="%F{yellow} ${REPLY}%f"
 }
 
 precmd_functions=(_murilasso_capture_status ${precmd_functions:#_murilasso_capture_status})
@@ -249,7 +249,7 @@ _murilasso_refresh_node() {
     dir="${dir:h}"
   done
 
-  local version_seg="%F{green}⬡ ${_MURILASSO_NODE_VERSION}%f"
+  local version_seg="%F{green} ${_MURILASSO_NODE_VERSION}%f"
 
   if [[ -n "$nvmrc_path" ]]; then
     local nvmrc_ver running_ver
@@ -257,7 +257,7 @@ _murilasso_refresh_node() {
     nvmrc_ver="${${nvmrc_ver// /}#v}"
     running_ver="${_MURILASSO_NODE_VERSION#v}"
     if [[ "$running_ver" != "$nvmrc_ver"* ]]; then
-      version_seg="${version_seg} %F{yellow}≠ v${nvmrc_ver} .nvmrc%f"
+      version_seg="${version_seg} %F{yellow} v${nvmrc_ver} .nvmrc%f"
     fi
   fi
 
@@ -281,9 +281,9 @@ _murilasso_git_segment() {
 
   local dirty_marker
   if (( ${#changed_lines} )); then
-    dirty_marker="%{$fg[red]%}✗%{$reset_color%}"
+    dirty_marker="%{$fg[red]%}%{$reset_color%}"
   else
-    dirty_marker="%{$fg[green]%}✔%{$reset_color%}"
+    dirty_marker="%{$fg[green]%}%{$reset_color%}"
   fi
 
   local display_branch="$branch"
@@ -301,18 +301,18 @@ _murilasso_git_segment() {
     local osc8_close=$'\e]8;;\a'
     local pr_icon pr_color
     case "$_MURILASSO_PR_STATE" in
-      OPEN)   pr_icon="○"  pr_color="$fg[green]" ;;
-      MERGED) pr_icon="⊕"  pr_color="$fg[magenta]" ;;
-      CLOSED) pr_icon="⊗"  pr_color="$fg[red]" ;;
-      *)      pr_icon="⎇"  pr_color="$fg[yellow]" ;;
+      OPEN)   pr_icon=""  pr_color="$fg[green]" ;;
+      MERGED) pr_icon=""  pr_color="$fg[magenta]" ;;
+      CLOSED) pr_icon=""  pr_color="$fg[red]" ;;
+      *)      pr_icon=""  pr_color="$fg[yellow]" ;;
     esac
 
     local ci_marker
     case "$_MURILASSO_PR_CI" in
-      SUCCESS) ci_marker=" %{$fg[green]%}✔%{$reset_color%}" ;;
-      FAILURE) ci_marker=" %{$fg[red]%}✗%{$reset_color%}" ;;
-      PENDING) ci_marker=" %{$fg[yellow]%}●%{$reset_color%}" ;;
-      *)       ci_marker=" %{$fg[white]%}◦%{$reset_color%}" ;;
+      SUCCESS) ci_marker=" %{$fg[green]%}%{$reset_color%}" ;;
+      FAILURE) ci_marker=" %{$fg[red]%}%{$reset_color%}" ;;
+      PENDING) ci_marker=" %{$fg[yellow]%}%{$reset_color%}" ;;
+      *)       ci_marker=" %{$fg[white]%}%{$reset_color%}" ;;
     esac
 
     pr_seg=" — %{${osc8_open}%}%{${pr_color}%}${pr_icon} #${pr_number}%{$reset_color%}%{${osc8_close}%}${ci_marker}"
@@ -391,18 +391,18 @@ _murilasso_pr_segment() {
   local osc8_close=$'\e]8;;\a'
   local pr_icon pr_color
   case "$_MURILASSO_PR_STATE" in
-    OPEN)   pr_icon="○"  pr_color="green" ;;
-    MERGED) pr_icon="⊕"  pr_color="magenta" ;;
-    CLOSED) pr_icon="⊗"  pr_color="red" ;;
-    *)      pr_icon="⎇"  pr_color="yellow" ;;
+    OPEN)   pr_icon=""  pr_color="green" ;;
+    MERGED) pr_icon=""  pr_color="magenta" ;;
+    CLOSED) pr_icon=""  pr_color="red" ;;
+    *)      pr_icon=""  pr_color="yellow" ;;
   esac
 
   local ci_marker
   case "$_MURILASSO_PR_CI" in
-    SUCCESS) ci_marker="%F{green}✔%f" ;;
-    FAILURE) ci_marker="%F{red}✗%f" ;;
-    PENDING) ci_marker="%F{yellow}●%f" ;;
-    *)       ci_marker="%F{white}◦%f" ;;
+    SUCCESS) ci_marker="%F{green}%f" ;;
+    FAILURE) ci_marker="%F{red}%f" ;;
+    PENDING) ci_marker="%F{yellow}%f" ;;
+    *)       ci_marker="%F{white}%f" ;;
   esac
 
   REPLY=" %F{242}—%f %{${osc8_open}%}%F{${pr_color}}${pr_icon} #${pr_number}%f%{${osc8_close}%} ${ci_marker}"
@@ -445,14 +445,14 @@ _murilasso_refresh_git_segment() {
 
   local branch_label
   if [[ "$branch" == "HEAD" ]]; then
-    branch_label="%B%F{yellow}➦ ${head_oid[1,7]}%f%b"
+    branch_label="%B%F{yellow} ${head_oid[1,7]}%f%b"
   else
     local display_branch="$branch"
     (( ${#branch} > 40 )) && display_branch="${branch[1,39]}…"
     display_branch="${display_branch//\%/%%}"
     local branch_color="blue"
     [[ -n "$upstream_name" ]] && (( ! has_ahead_behind )) && branch_color="red"
-    branch_label="%B%F{${branch_color}}${display_branch}%f%b"
+    branch_label="%B%F{${branch_color}} ${display_branch}%f%b"
   fi
 
   local git_dir
@@ -464,20 +464,20 @@ _murilasso_refresh_git_segment() {
   [[ -n "$REPLY" ]] && operation_seg=" %B%F{magenta}${REPLY}%f%b"
 
   local sync_seg=""
-  (( ahead )) && sync_seg+="%F{cyan}⇡${ahead}%f"
-  (( behind )) && sync_seg+="%F{cyan}⇣${behind}%f"
+  (( ahead )) && sync_seg+="%F{cyan}${ahead}%f"
+  (( behind )) && sync_seg+="%F{cyan}${behind}%f"
   [[ -n "$sync_seg" ]] && sync_seg=" ${sync_seg}"
 
   local changes_seg=""
-  (( conflicted )) && changes_seg+=" %B%F{red}=${conflicted}%f%b"
-  (( staged )) && changes_seg+=" %F{green}+${staged}%f"
-  (( modified )) && changes_seg+=" %F{yellow}!${modified}%f"
-  (( untracked )) && changes_seg+=" %F{244}?${untracked}%f"
-  [[ -z "$changes_seg" ]] && changes_seg=" %F{green}✔%f"
+  (( conflicted )) && changes_seg+=" %B%F{red} ${conflicted}%f%b"
+  (( staged )) && changes_seg+=" %F{green} ${staged}%f"
+  (( modified )) && changes_seg+=" %F{yellow} ${modified}%f"
+  (( untracked )) && changes_seg+=" %F{244} ${untracked}%f"
+  [[ -z "$changes_seg" ]] && changes_seg=" %F{green}%f"
 
   _murilasso_git_stash_count "$git_dir"
   local stash_seg=""
-  (( REPLY )) && stash_seg=" %F{cyan}≡${REPLY}%f"
+  (( REPLY )) && stash_seg=" %F{cyan} ${REPLY}%f"
 
   _murilasso_pr_segment
   _MURILASSO_GIT_SEG=" %F{242}—%f ${branch_label}${operation_seg}${sync_seg}${changes_seg}${stash_seg}${REPLY}"
@@ -524,8 +524,8 @@ export VIRTUAL_ENV_DISABLE_PROMPT=1
 _murilasso_refresh_context() {
   local host_seg="" venv_seg="" readonly_seg=""
   [[ -n "$SSH_CONNECTION$SSH_TTY" ]] && host_seg="%F{242}@%f%F{magenta}%m%f"
-  [[ -n "$VIRTUAL_ENV" ]] && venv_seg="%F{yellow}(${${VIRTUAL_ENV:t}//\%/%%})%f "
-  [[ -w "$PWD" ]] || readonly_seg=" %F{red}⊘%f"
+  [[ -n "$VIRTUAL_ENV" ]] && venv_seg="%F{yellow} ${${VIRTUAL_ENV:t}//\%/%%}%f "
+  [[ -w "$PWD" ]] || readonly_seg=" %F{red}%f"
   _MURILASSO_CONTEXT_SEG="${venv_seg}%B%F{green}%n%f%b${host_seg}:%F{blue}${_MURILASSO_DIR//\%/%%}%f${readonly_seg}"
 }
 
@@ -537,7 +537,7 @@ _murilasso_compose_rprompt() {
 
   local -i last_status=$_MURILASSO_LAST_STATUS
   if (( last_status )); then
-    local status_seg="%F{red}✘ ${last_status}"
+    local status_seg="%F{red} ${last_status}"
     local -i signal_number=$(( last_status - _MURILASSO_SIGNAL_STATUS_OFFSET ))
     (( signal_number > 0 && signal_number < ${#signals} )) && \
       status_seg+=" SIG${signals[signal_number + 1]}"
@@ -554,12 +554,12 @@ _murilasso_compose_rprompt() {
 (( ${precmd_functions[(Ie)_murilasso_compose_rprompt]} )) || precmd_functions+=(_murilasso_compose_rprompt)
 
 # === Prompt ===
-# ╭─ (venv) user@host:~/../dir — branch ⇡1 +2 !1 ?3 ≡1 — ○ #123 ✔
-# ╰─ ✦1 ❯
+# ╭─  venv user@host:~/../dir —  branch 1  2  1  3  1 —  #123 
+# ╰─  1 ❯
 PROMPT='%F{242}╭─%f ${_MURILASSO_CONTEXT_SEG}${_MURILASSO_GIT_SEG}
-%F{242}╰─%f %(1j.%F{yellow}✦%j%f .)%(?.%F{green}.%F{red})%(!.#.❯)%f '
+%F{242}╰─%f %(1j.%F{yellow} %j%f .)%(?.%F{green}.%F{red})%(!.#.❯)%f '
 PS2='%F{242}   %_ ›%f '
 RPS1=""
 
-ZSH_THEME_GIT_PROMPT_DIRTY=" %{$fg[red]%}✗%{$reset_color%}"
-ZSH_THEME_GIT_PROMPT_CLEAN=" %{$fg[green]%}✔%{$reset_color%}"
+ZSH_THEME_GIT_PROMPT_DIRTY=" %{$fg[red]%}%{$reset_color%}"
+ZSH_THEME_GIT_PROMPT_CLEAN=" %{$fg[green]%}%{$reset_color%}"
