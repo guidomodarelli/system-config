@@ -81,7 +81,12 @@ function Get-ExecutableInitCachePath {
 
     $stableExecutablePath = Get-StableExecutablePath -CommandInfo $CommandInfo
     $executablePathBytes = [System.Text.Encoding]::UTF8.GetBytes($stableExecutablePath)
-    $executablePathHash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($executablePathBytes))
+    $pathHasher = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $executablePathHash = [System.BitConverter]::ToString($pathHasher.ComputeHash($executablePathBytes)).Replace('-', '')
+    } finally {
+        $pathHasher.Dispose()
+    }
     $cacheFileName = '{0}-{1}{2}' -f [System.IO.Path]::GetFileNameWithoutExtension($CachePath), $executablePathHash, [System.IO.Path]::GetExtension($CachePath)
     return [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($CachePath), $cacheFileName)
 }
@@ -129,26 +134,117 @@ function Get-CachedInitScriptPath {
 function global:grep { & grep.exe --color=auto --exclude-dir=".bzr" --exclude-dir="CVS" --exclude-dir=".git" --exclude-dir=".hg" --exclude-dir=".svn" --exclude-dir=".idea" --exclude-dir=".tox" --exclude-dir=".venv" --exclude-dir="venv" $args }
 function rg { & rg.exe --glob "!.git/*" $args }
 
-$zoxideCommand = Get-Command zoxide -ErrorAction SilentlyContinue
-if ($zoxideCommand) {
+$script:ZoxideCommandInfo = Get-Command zoxide -ErrorAction SilentlyContinue
+$script:ZoxideInitialized = $false
+$script:MurilassoOmpInitialized = $false
+
+# Se carga al usar z/zi, para que el primer prompt no pague su inicialización.
+function Initialize-Zoxide {
+    if ($script:ZoxideInitialized) { return $true }
+    if (-not $script:ZoxideCommandInfo) { return $false }
+
     try {
-        # Cache del init de zoxide: evita spawnear el binario (~30 ms) por arranque.
+        # OMP administra el prompt; sin OMP se conserva el aprendizaje de zoxide.
+        $zoxideHook = if ($script:MurilassoOmpInitialized) { 'none' } else { 'pwd' }
+        $zoxideInitArguments = @('init', 'powershell', '--hook', $zoxideHook)
         . (Get-CachedInitScriptPath `
             -CachePath (Join-Path $env:LOCALAPPDATA 'PowerShell\zoxide-init-cache.ps1') `
-            -Fingerprint (Get-ExecutableFingerprint -CommandInfo $zoxideCommand) `
-            -GenerateScriptText { (& $zoxideCommand.Source init powershell) -join [Environment]::NewLine })
+            -Fingerprint ('{0}|{1}' -f (Get-ExecutableFingerprint -CommandInfo $script:ZoxideCommandInfo), ($zoxideInitArguments -join ' ')) `
+            -GenerateScriptText { (& $script:ZoxideCommandInfo.Source @zoxideInitArguments) -join [Environment]::NewLine })
+        $script:ZoxideInitialized = $true
+        return $true
     } catch {
-        Write-Warning "Unable to initialize zoxide: $($_.Exception.Message)"
+        Write-Warning "No se pudo inicializar zoxide: $($_.Exception.Message)"
+        return $false
     }
 }
 
-# fnm returns no output when it cannot create its multishell symlink
-# (e.g. sandboxed users without write access to fnm_multishells).
-$fnmEnvironmentScript = fnm env --use-on-cd --shell powershell 2>$null | Out-String
-if ([string]::IsNullOrWhiteSpace($fnmEnvironmentScript)) {
-    Write-Verbose 'Profile: fnm env returned no output; skipping fnm initialization.'
-} else {
+function Invoke-LazyZoxideJump {
+    if (Initialize-Zoxide) { __zoxide_z @args }
+}
+
+function Invoke-LazyZoxideInteractiveJump {
+    if (Initialize-Zoxide) { __zoxide_zi @args }
+}
+
+if ($script:ZoxideCommandInfo) {
+    Set-Alias -Name z -Value Invoke-LazyZoxideJump -Option AllScope -Scope Global -Force
+    Set-Alias -Name zi -Value Invoke-LazyZoxideInteractiveJump -Option AllScope -Scope Global -Force
+}
+
+$script:FnmCommandInfo = Get-Command fnm -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+$script:FnmInitialized = $false
+$script:FnmInitializationAttempted = $false
+
+# Respeta FNM_DIR y la preferencia de fnm por la instalación moderna o legacy.
+function Get-FnmDataDirectory {
+    param(
+        [string]$UserDataDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData),
+        [string]$UserHomeDirectory = $HOME
+    )
+
+    if ($env:FNM_DIR) { return $env:FNM_DIR }
+    $modernDirectory = [System.IO.Path]::Combine($UserDataDirectory, 'fnm')
+    if ([System.IO.Directory]::Exists($modernDirectory)) { return $modernDirectory }
+    $legacyDirectory = [System.IO.Path]::Combine($UserHomeDirectory, '.fnm')
+    if ([System.IO.Directory]::Exists($legacyDirectory)) { return $legacyDirectory }
+    return $modernDirectory
+}
+
+# Node permanece disponible antes del primer cd incluso en una instalación nueva.
+# Se agrega al final para conservar la versión heredada de una terminal padre.
+function Add-FnmDefaultNodeDirectoryToPath {
+    param([Parameter(Mandatory = $true)][string]$FnmDirectory)
+
+    $defaultNodeDirectory = [System.IO.Path]::Combine($FnmDirectory, 'aliases', 'default')
+    if ([System.IO.Directory]::Exists($defaultNodeDirectory) -and
+        ($env:PATH -split [System.IO.Path]::PathSeparator) -notcontains $defaultNodeDirectory) {
+        $env:PATH = "$env:PATH$([System.IO.Path]::PathSeparator)$defaultNodeDirectory"
+    }
+}
+
+# El PATH heredado permite usar Node desde el arranque. El multishell propio se
+# crea antes del primer cd o comando fnm, evitando mutar el multishell del padre.
+function Initialize-FnmEnvironment {
+    if ($script:FnmInitialized) { return $true }
+    if ($script:FnmInitializationAttempted) { return $false }
+    if (-not $script:FnmCommandInfo) { return $false }
+    $script:FnmInitializationAttempted = $true
+
+    $fnmEnvironmentScript = (& $script:FnmCommandInfo.Source env --use-on-cd --shell powershell 2>$null) -join [Environment]::NewLine
+    if ([string]::IsNullOrWhiteSpace($fnmEnvironmentScript)) {
+        Write-Verbose 'Perfil: fnm env no devolvió un script; se omite su inicialización.'
+        return $false
+    }
     Invoke-Expression $fnmEnvironmentScript
+    $script:FnmInitialized = $true
+    return $true
+}
+
+if ($script:FnmCommandInfo) {
+    $fnmDirectory = Get-FnmDataDirectory
+    Add-FnmDefaultNodeDirectoryToPath -FnmDirectory $fnmDirectory
+
+    function global:Set-LocationWithFnm {
+        param($path)
+
+        if (Initialize-FnmEnvironment) {
+            # fnm reemplaza esta función por su implementación oficial.
+            & (Get-Command Set-LocationWithFnm -CommandType Function).ScriptBlock @PSBoundParameters
+        } elseif ($null -eq $path) {
+            Set-Location
+        } else {
+            Set-Location $path
+        }
+    }
+
+    function fnm {
+        $null = Initialize-FnmEnvironment
+        & $script:FnmCommandInfo.Source @args
+    }
+
+    Set-Alias -Name cd_with_fnm -Value Set-LocationWithFnm -Scope Global
+    Set-Alias -Name cd -Value Set-LocationWithFnm -Option AllScope -Scope Global -Force
 }
 
 # Ensure ~\.local\bin (used by native installers such as Claude Code) is on PATH.
@@ -502,8 +598,17 @@ function cxd {
     cx --yolo @args
 }
 
-$codexCommandInfo = Get-Command codex -ErrorAction SilentlyContinue
-if ($codexCommandInfo) {
+$script:CodexCompletionInitialized = $false
+$script:CodexCompletionAttempted = $false
+
+# La primera solicitud de autocompletado carga y registra el completer oficial.
+function Initialize-CodexCompletion {
+    if ($script:CodexCompletionInitialized) { return $true }
+    if ($script:CodexCompletionAttempted) { return $false }
+    $script:CodexCompletionAttempted = $true
+    $codexCommandInfo = Get-Command codex -ErrorAction SilentlyContinue
+    if (-not $codexCommandInfo) { return $false }
+
     try {
         # Cache por instalación: sesiones con distintas versiones de Node no
         # deben invalidarse entre sí y volver a spawnear el CLI en cada arranque.
@@ -514,9 +619,32 @@ if ($codexCommandInfo) {
             -CachePath $codexCompletionCachePath `
             -Fingerprint (Get-ExecutableFingerprint -CommandInfo $codexCommandInfo) `
             -GenerateScriptText { (& $codexCommandInfo.Source completion powershell) -join [Environment]::NewLine })
+        $script:CodexCompletionInitialized = $true
+        return $true
     } catch {
         Write-Warning "No se pudo cargar el autocompletado de Codex: $($_.Exception.Message)"
+        return $false
     }
+}
+
+function Register-LazyCodexCompletion {
+    # Registrar otra vez permite reintentar explícitamente después de corregir un fallo.
+    $script:CodexCompletionInitialized = $false
+    $script:CodexCompletionAttempted = $false
+    Register-ArgumentCompleter -Native -CommandName 'codex' -ScriptBlock {
+        param($wordToComplete, $commandAst, $cursorPosition)
+
+        if (-not (Initialize-CodexCompletion)) { return }
+        # Se vuelve a completar con el registro oficial, conservando el texto
+        # completo y su cursor, incluso después de un pipe o un punto y coma.
+        $fullInput = $commandAst.Extent.StartScriptPosition.GetFullScript()
+        [System.Management.Automation.CommandCompletion]::CompleteInput($fullInput, $cursorPosition, $null).CompletionMatches
+    }
+}
+
+$codexCommandInfo = Get-Command codex -ErrorAction SilentlyContinue
+if ($codexCommandInfo) {
+    Register-LazyCodexCompletion
 
     $cxCompletionScriptBlock = {
         param($wordToComplete, $commandAst, $cursorPosition)
@@ -2782,7 +2910,7 @@ if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
     # regenerar; el binario de omp, el path del theme y la versión del
     # generador forman el fingerprint.
     $murilassoOmpInitCachePath = Join-Path $env:LOCALAPPDATA 'PowerShell\oh-my-posh-init-cache.ps1'
-    $murilassoOmpInitialized = $false
+    $script:MurilassoOmpInitialized = $false
     try {
         # 'inline-config-v2' versiona el generador de abajo: cambiar su lógica
         # debe bumpear el sufijo para invalidar caches ya generados. El mtime
@@ -2824,20 +2952,20 @@ if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
         # Regenerarlo da a cada sesión su propio scope de cache de omp; el
         # theme no depende del id porque el config va inline en cada render.
         $env:POSH_SESSION_ID = [guid]::NewGuid().ToString()
-        $murilassoOmpInitialized = $true
+        $script:MurilassoOmpInitialized = $true
     } catch {
         # Cache corrupto o invalidación fallida: descartarlo y caer al init en
         # vivo para no perder el prompt.
         Remove-Item -LiteralPath $murilassoOmpInitCachePath -Force -ErrorAction SilentlyContinue
         try {
             oh-my-posh init pwsh --config $murilassoThemePath | Invoke-Expression
-            $murilassoOmpInitialized = $true
+            $script:MurilassoOmpInitialized = $true
         } catch {
             Write-Warning "Unable to initialize Oh My Posh (murilasso): $($_.Exception.Message)"
         }
     }
 
-    if ($murilassoOmpInitialized) {
+    if ($script:MurilassoOmpInitialized) {
         # El hook Set-PoshContext de Oh My Posh vive DENTRO de su modulo dinamico
         # `oh-my-posh-core` y su `prompt` resuelve esa version del modulo, no un
         # override global. Por eso envolvemos el `prompt` de OMP: guardamos su

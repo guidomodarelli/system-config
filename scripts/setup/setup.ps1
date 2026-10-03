@@ -436,7 +436,7 @@ function Install-Gh {
 }
 
 function Resolve-FnmExecutable {
-  $fnmCommand = Get-Command fnm -ErrorAction SilentlyContinue
+  $fnmCommand = Get-Command fnm -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($fnmCommand) {
     return $fnmCommand.Source
   }
