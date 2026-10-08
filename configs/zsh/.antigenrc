@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Ensure antigen is available locally (no network calls)
+ANTIGEN_SOURCE="$HOME/system-config/third-party/antigen/antigen.zsh"
+if [ ! -e "$HOME/antigen.zsh" ]; then
+	if [ -f "$ANTIGEN_SOURCE" ]; then
+		cp "$ANTIGEN_SOURCE" "$HOME/antigen.zsh"
+	else
+		echo "Antigen source not found at $ANTIGEN_SOURCE" >&2
+		return 1
+	fi
+fi
+
+# Use the local Oh My Zsh installation as the default repo for Antigen
+ANTIGEN_OMZ_REPO_URL="$HOME/.oh-my-zsh"
+
+source "$HOME/antigen.zsh"
+
+# Load the oh-my-zsh's library
+antigen use oh-my-zsh
+
+antigen bundle git
+
+# Last updated: 2026-01-15
+antigen bundle $HOME/system-config/third-party/fzf-tab --no-local-clone
+# Last updated: 2026-01-15
+antigen bundle $HOME/system-config/third-party/zsh-interactive-cd --no-local-clone
+# Last updated: 2026-01-15
+antigen bundle $HOME/system-config/third-party/anyframe --no-local-clone
+# Last updated: 2026-01-15
+antigen bundle $HOME/system-config/third-party/zsh-autosuggestions --no-local-clone
+# Last updated: 2026-01-15
+antigen bundle $HOME/system-config/third-party/zsh-syntax-highlighting --no-local-clone
+# Last updated: 2026-01-15
+antigen bundle $HOME/system-config/third-party/zsh-completions --no-local-clone
+
+# Tell antigen that you're done
+antigen apply

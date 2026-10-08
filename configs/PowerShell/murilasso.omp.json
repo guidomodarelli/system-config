@@ -1,0 +1,135 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "version": 3,
+  "final_space": true,
+  "secondary_prompt": {
+    "foreground": "#8a8a8a",
+    "template": "   › "
+  },
+  "blocks": [
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "newline": false,
+      "segments": [
+        {
+          "type": "text",
+          "style": "plain",
+          "foreground": "#6c6c6c",
+          "template": "╭─ "
+        },
+        {
+          "type": "python",
+          "style": "plain",
+          "foreground": "yellow",
+          "properties": {
+            "display_mode": "environment",
+            "fetch_virtual_env": true,
+            "fetch_version": false
+          },
+          "template": "{{ if .Venv }} {{ .Venv }} {{ end }}"
+        },
+        {
+          "type": "session",
+          "style": "plain",
+          "foreground": "green",
+          "template": "<b>{{ .UserName }}</b>{{ if .SSHSession }}<#6c6c6c>@</><magenta>{{ .HostName }}</>{{ end }}"
+        },
+        {
+          "type": "path",
+          "style": "plain",
+          "foreground": "blue",
+          "properties": {
+            "style": "agnoster_short",
+            "max_depth": 2,
+            "folder_separator_icon": "/",
+            "home_icon": "~"
+          },
+          "template": "<#ffffff>:</>{{ .Path }}{{ if not .Writable }} <red></>{{ end }}"
+        },
+        {
+          "type": "git",
+          "style": "plain",
+          "foreground": "blue",
+          "foreground_templates": [
+            "{{ if .Detached }}yellow{{ end }}",
+            "{{ if .UpstreamGone }}red{{ end }}"
+          ],
+          "properties": {
+            "fetch_status": true,
+            "fetch_stash_count": true,
+            "branch_icon": "",
+            "commit_icon": " "
+          },
+          "template": " <#6c6c6c>—</> <b>{{ $branch := .Ref }}{{ if .Detached }}{{ $branch = printf ` %s` (trunc 7 .Commit.Sha) }}{{ else }}{{ if gt (len $branch) 40 }}{{ $branch = printf `%s…` (trunc 39 $branch) }}{{ end }}{{ $branch = printf ` %s` $branch }}{{ end }}{{ $branch }}</b>{{ if .Rebase }} <magenta><b>REBASE {{ .Rebase.Current }}/{{ .Rebase.Total }}</b></>{{ else if .Merge }} <magenta><b>MERGE</b></>{{ else if .CherryPick }} <magenta><b>CHERRY-PICK</b></>{{ else if .Revert }} <magenta><b>REVERT</b></>{{ end }}{{ if or (gt .Ahead 0) (gt .Behind 0) }} {{ if gt .Ahead 0 }}<cyan>{{ .Ahead }}</>{{ end }}{{ if gt .Behind 0 }}<cyan>{{ .Behind }}</>{{ end }}{{ end }}{{ $staged := add .Staging.Added .Staging.Modified .Staging.Deleted }}{{ $modified := add .Working.Modified .Working.Deleted }}{{ if gt .Working.Unmerged 0 }} <red><b> {{ .Working.Unmerged }}</b></>{{ end }}{{ if gt $staged 0 }} <green> {{ $staged }}</>{{ end }}{{ if gt $modified 0 }} <yellow> {{ $modified }}</>{{ end }}{{ if gt .Working.Untracked 0 }} <#808080> {{ .Working.Untracked }}</>{{ end }}{{ if not (or .Working.Changed .Staging.Changed) }} <green></>{{ end }}{{ if gt .StashCount 0 }} <cyan> {{ .StashCount }}</>{{ end }}"
+        },
+        {
+          "type": "text",
+          "style": "plain",
+          "foreground": "white",
+          "template": "{{ if .Env.MURILASSO_PR_URL }} <#6c6c6c>—</> {{ $icon := `` }}{{ $color := `yellow` }}{{ if eq .Env.MURILASSO_PR_STATE `OPEN` }}{{ $icon = `` }}{{ $color = `green` }}{{ else if eq .Env.MURILASSO_PR_STATE `MERGED` }}{{ $icon = `` }}{{ $color = `magenta` }}{{ else if eq .Env.MURILASSO_PR_STATE `CLOSED` }}{{ $icon = `` }}{{ $color = `red` }}{{ end }}<{{ $color }}>{{ url (printf `%s #%s` $icon .Env.MURILASSO_PR_NUMBER) .Env.MURILASSO_PR_URL }}</> {{ if eq .Env.MURILASSO_PR_CI `SUCCESS` }}<green></>{{ else if eq .Env.MURILASSO_PR_CI `FAILURE` }}<red></>{{ else if eq .Env.MURILASSO_PR_CI `PENDING` }}<yellow></>{{ else }}<#ffffff></>{{ end }}{{ end }}"
+        }
+      ]
+    },
+    {
+      "type": "rprompt",
+      "overflow": "hide",
+      "segments": [
+        {
+          "type": "executiontime",
+          "style": "plain",
+          "foreground": "yellow",
+          "properties": {
+            "threshold": 3000
+          },
+          "template": " {{ if lt .Ms 60000 }}{{ printf `%.1fs` (divf .Ms 1000) }}{{ else if lt .Ms 3600000 }}{{ printf `%dm%02ds` (div .Ms 60000) (mod (div .Ms 1000) 60) }}{{ else }}{{ printf `%dh%02dm` (div .Ms 3600000) (mod (div .Ms 60000) 60) }}{{ end }}  "
+        },
+        {
+          "type": "node",
+          "style": "plain",
+          "foreground": "green",
+          "properties": {
+            "fetch_version": true,
+            "home_enabled": true,
+            "display_mode": "always"
+          },
+          "template": "<green> v{{ .Full }}</>{{ if .Mismatch }} <yellow> v{{ .Expected }} .nvmrc</>{{ end }}  "
+        },
+        {
+          "type": "status",
+          "style": "plain",
+          "foreground": "red",
+          "properties": {
+            "always_enabled": false
+          },
+          "template": "{{ if .Error }}{{ $signals := dict `129` `HUP` `130` `INT` `131` `QUIT` `134` `ABRT` `137` `KILL` `139` `SEGV` `141` `PIPE` `143` `TERM` }} {{ .Code }}{{ with get $signals (toString .Code) }} SIG{{ . }}{{ end }}  {{ end }}"
+        },
+        {
+          "type": "time",
+          "style": "plain",
+          "foreground": "#6c6c6c",
+          "properties": {
+            "time_format": "15:04:05"
+          },
+          "template": "{{ .CurrentDate | date .Format }}"
+        }
+      ]
+    },
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "newline": true,
+      "segments": [
+        {
+          "type": "text",
+          "style": "plain",
+          "foreground": "green",
+          "foreground_templates": [
+            "{{ if gt .Code 0 }}red{{ end }}"
+          ],
+          "template": "<#6c6c6c>╰─</> {{ if and .Env.MURILASSO_JOB_COUNT (ne .Env.MURILASSO_JOB_COUNT `0`) }}<yellow> {{ .Env.MURILASSO_JOB_COUNT }}</> {{ end }}{{ if .Root }}#{{ else }}❯{{ end }}"
+        }
+      ]
+    }
+  ]
+}

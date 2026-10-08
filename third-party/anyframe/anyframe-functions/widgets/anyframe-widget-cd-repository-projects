@@ -1,0 +1,9 @@
+anyframe-source-ghq-repository \
+  | fzf --prompt "[Projects] " --query "projects/ " \
+  | awk -F'\n' "{ print \"\\\"\" \"$(ghq root)/\" \$1 \"\\\"\" }" \
+  | anyframe-action-execute cd --
+
+# Local Variables:
+# mode: Shell-Script
+# End:
+# vim: ft=zsh

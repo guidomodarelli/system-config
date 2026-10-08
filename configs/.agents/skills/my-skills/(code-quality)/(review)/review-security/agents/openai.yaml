@@ -1,0 +1,4 @@
+interface:
+  display_name: "Revisar seguridad"
+  short_description: "Detecta vulnerabilidades en cambios de código"
+  default_prompt: "Usa $review-security para revisar HEAD incluyendo cambios no commiteados por inyección, bypass de auth, exposición de datos y prompt injection."

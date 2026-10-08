@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "$defs": {
+    "platform": {
+      "type": "string",
+      "enum": ["darwin", "linux", "win32"],
+      "description": "Operating system platform identifier"
+    },
+    "linuxDistro": {
+      "type": "string",
+      "enum": ["arch", "debian"],
+      "description": "Linux distribution type (Debian/Ubuntu)",
+      "$comment": "When this field is not present, it means that the configuration is applicable to all linux distributions"
+    },
+    "targetPath": {
+      "type": "string",
+      "description": "Target path for symlink."
+    },
+    "platformConfig": {
+      "type": "object",
+      "unevaluatedProperties": false,
+      "description": "Configuration specific to a particular platform or environment",
+      "properties": {
+        "platform": {
+          "$ref": "#/$defs/platform"
+        },
+        "linuxDistro": {
+          "$ref": "#/$defs/linuxDistro"
+        },
+        "wsl": {
+          "type": "boolean",
+          "description": "Indicates whether this config is for WSL environments"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "platform": {
+                "enum": ["linux"]
+              }
+            },
+            "required": ["platform"]
+          },
+          "then": {
+            "properties": {
+              "linuxDistro": {
+                "$ref": "#/$defs/linuxDistro"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": ["linuxDistro"]
+            }
+          }
+        },
+        {
+          "oneOf": [
+            {
+              "required": ["platform"],
+              "not": {
+                "required": ["wsl"]
+              }
+            },
+            {
+              "required": ["wsl"],
+              "not": {
+                "required": ["platform"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "platformArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/platform"
+      },
+      "uniqueItems": true,
+      "description": "Array of platform identifiers"
+    },
+    "platformConfigArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/platformConfig"
+      },
+      "uniqueItems": true,
+      "description": "Array of platform-specific configurations"
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "unevaluatedProperties": false,
+  "description": "System configuration schema for managing symlinks across different platforms",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "paths": {
+      "type": "array",
+      "description": "Collection of path configurations for symlinking",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "unevaluatedProperties": false,
+        "description": "Individual path configuration",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Source path for the link"
+          },
+          "hardLink": {
+            "type": "boolean",
+            "default": false,
+            "description": "Creates a hard link instead of a symbolic link; only regular files are supported"
+          },
+          "target": {
+            "$ref": "#/$defs/targetPath"
+          },
+          "exactTarget": {
+            "$ref": "#/$defs/targetPath",
+            "description": "Exact destination path for the symlink without appending the source basename"
+          },
+          "onlyFor": {
+            "$ref": "#/$defs/platformConfigArray",
+            "description": "Restricts this path configuration to specific platforms or environments"
+          },
+          "excludeFor": {
+            "$ref": "#/$defs/platformConfigArray",
+            "description": "Excludes this path configuration from specific platforms or environments"
+          },
+          "descendInto": {
+            "type": "string",
+            "description": "Regex pattern (optional surrounding slashes /pattern/) matching folder basenames to treat as containers: walk into them recursively instead of linking. Only applies when path ends with /*."
+          },
+          "markerFile": {
+            "type": "string",
+            "description": "Basename of a file that must exist at the root of a leaf folder for it to be linked. Does not apply to files. Only applies when path ends with /*."
+          },
+          "exclude": {
+            "type": "string",
+            "description": "Regex pattern (optional surrounding slashes /pattern/) matching folder OR file basenames to discard. Folders matched are skipped entirely (no descent). Only applies when path ends with /*."
+          },
+          "conditionalExcludes": {
+            "type": "array",
+            "description": "Machine-dependent exclude rules. Each pattern is added to exclude only when whenPathExists exists on the current machine; previously created symlinks to newly excluded sources are removed. Only applies when path ends with /*.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pattern", "whenPathExists"],
+              "properties": {
+                "pattern": {
+                  "type": "string",
+                  "description": "Regex pattern (optional surrounding slashes /pattern/) matching folder OR file basenames to discard, with the same semantics as exclude."
+                },
+                "whenPathExists": {
+                  "type": "string",
+                  "description": "File or directory whose existence activates the rule. Supports ~, $HOME and $USER; relative paths are resolved from $HOME."
+                }
+              }
+            }
+          },
+          "overrides": {
+            "type": "array",
+            "description": "Platform-specific overrides for this path configuration",
+            "items": {
+              "type": "object",
+              "unevaluatedProperties": false,
+              "description": "Platform-specific override",
+              "allOf": [
+                {
+                  "$ref": "#/$defs/platformConfig"
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "wsl": { "const": true }
+                    },
+                    "required": ["wsl"]
+                  },
+                  "then": {
+                    "properties": {
+                      "target": {
+                        "type": "string",
+                        "pattern": "^WSL://",
+                        "description": "WSL environments must use WSL:// prefix"
+                      },
+                      "exactTarget": {
+                        "type": "string",
+                        "pattern": "^WSL://",
+                        "description": "WSL environments must use WSL:// prefix"
+                      }
+                    }
+                  },
+                  "else": {
+                    "properties": {
+                      "target": {
+                        "type": "string",
+                        "pattern": "^(?!WSL://)",
+                        "description": "Non-WSL environments should not use WSL:// prefix"
+                      },
+                      "exactTarget": {
+                        "type": "string",
+                        "pattern": "^(?!WSL://)",
+                        "description": "Non-WSL environments should not use WSL:// prefix"
+                      }
+                    }
+                  }
+                }
+              ],
+              "oneOf": [
+                {
+                  "required": ["target"],
+                  "not": {
+                    "required": ["exactTarget"]
+                  }
+                },
+                {
+                  "required": ["exactTarget"],
+                  "not": {
+                    "required": ["target"]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "required": ["path"],
+        "allOf": [
+          {
+            "not": {
+              "required": ["target", "exactTarget"]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "onlyFor": {
+                  "type": "array",
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "items": [
+                    {
+                      "type": "object",
+                      "required": ["wsl"],
+                      "properties": {
+                        "wsl": { "const": true }
+                      }
+                    }
+                  ]
+                }
+              },
+              "required": ["onlyFor"]
+            },
+            "then": {
+              "oneOf": [
+                {
+                  "properties": {
+                    "target": {
+                      "type": "string",
+                      "pattern": "^WSL://"
+                    }
+                  },
+                  "required": ["target"]
+                },
+                {
+                  "properties": {
+                    "exactTarget": {
+                      "type": "string",
+                      "pattern": "^WSL://"
+                    }
+                  },
+                  "required": ["exactTarget"]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

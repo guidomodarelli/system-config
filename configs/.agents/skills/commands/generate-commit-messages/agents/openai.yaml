@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generate Commit Messages"
+  short_description: "Generate commit messages or prepare a commit message"
+  default_prompt: "Generate a commit message for use in git commit, with an imperative title, no type prefix, no issue numbers, English technical names wrapped in «...», and a detailed description separated by a blank line."

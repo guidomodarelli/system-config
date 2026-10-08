@@ -1,0 +1,1565 @@
+﻿Describe 'dotfiler.ps1' {
+  BeforeAll {
+    $script:PreviousSkipMain = $env:DOTFILER_PS1_SKIP_MAIN
+    $env:DOTFILER_PS1_SKIP_MAIN = '1'
+    . (Join-Path -Path $PSScriptRoot -ChildPath 'dotfiler.ps1')
+  }
+
+  AfterAll {
+    if ($null -eq $script:PreviousSkipMain) {
+      Remove-Item Env:DOTFILER_PS1_SKIP_MAIN -ErrorAction SilentlyContinue
+    } else {
+      $env:DOTFILER_PS1_SKIP_MAIN = $script:PreviousSkipMain
+    }
+  }
+
+  BeforeEach {
+    $script:DryRun = $false
+    $script:UseColor = $false
+    $script:Quiet = $false
+    $script:VerboseMode = $false
+    $script:IsElevatedSymlinkMode = $false
+    $script:ElevatedSymlinkHardLink = $false
+    $script:PendingElevatedSymlinks = [System.Collections.Generic.List[object]]::new()
+    $script:PreferredCommandPaths = @{}
+    $script:DocumentsDir = 'C:\Users\tester\Documents'
+    $script:CountCreated = 0
+    $script:CountReplaced = 0
+    $script:CountBackups = 0
+    $script:CountErrors = 0
+    $script:CountPlannedCreated = 0
+    $script:CountPlannedReplaced = 0
+    $script:CountPlannedBackups = 0
+    $script:CountRemoved = 0
+    $script:CountPlannedRemoved = 0
+    $script:CountUnchanged = 0
+    $script:PendingGroupHeader = $null
+    $script:GroupOpen = $false
+    $script:GroupChangeCount = 0
+    $script:GroupUnchangedCount = 0
+    $script:UseIcons = $true
+    $script:ProgressMode = 'never'
+    $script:PlannedDirectoryReplacements = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $script:LastOutputWasBlank = $true
+    $script:Diagnostics = [System.Collections.Generic.List[object]]::new()
+    $script:ConfigPathsFile = ''
+    $script:OverwriteDiverged = $false
+    $script:DivergedLinks = [System.Collections.Generic.List[object]]::new()
+  }
+
+  It 'Print-Summary imprime caja de resumen con contadores y cierre exitoso' {
+    $script:UseColor = $false
+    $script:StartTime = Get-Date
+    $script:CountCreated = 2
+    $script:CountReplaced = 1
+    $script:CountBackups = 1
+    $script:CountUnchanged = 7
+    $script:CountErrors = 0
+
+    $summaryOutput = Print-Summary | Out-String
+
+    $summaryOutput | Should -Match '\+- Resumen -'
+    $summaryOutput | Should -Match '\| \+ creados\s+2'
+    $summaryOutput | Should -Match '~ reemplazados\s+1'
+    $summaryOutput | Should -Match '= sin cambios\s+7'
+    $summaryOutput | Should -Match '< respaldos\s+1'
+    $summaryOutput | Should -Match 'x errores\s+0'
+    $summaryOutput | Should -Match '> aplicacion real'
+    $summaryOutput | Should -Match '= Sin errores\.'
+    $summaryOutput | Should -Match '\+-{10}'
+  }
+
+  It 'Print-Summary usa contadores planificados y aviso de simulacion en dry-run' {
+    $script:UseColor = $false
+    $script:DryRun = $true
+    $script:StartTime = Get-Date
+    $script:CountPlannedCreated = 3
+    $script:CountPlannedReplaced = 2
+    $script:CountPlannedBackups = 1
+    $script:CountPlannedRemoved = 4
+
+    $summaryOutput = Print-Summary | Out-String
+
+    $summaryOutput | Should -Match 'creados\s+3'
+    $summaryOutput | Should -Match 'reemplazados\s+2'
+    $summaryOutput | Should -Match 'respaldos\s+1'
+    $summaryOutput | Should -Match 'eliminados\s+4'
+    $summaryOutput | Should -Match '~ simulacion, no se escribieron cambios'
+  }
+
+  It 'Print-Summary informa errores con cierre de fallo' {
+    $script:UseColor = $false
+    $script:StartTime = Get-Date
+    $script:CountErrors = 2
+
+    $summaryOutput = Print-Summary | Out-String
+
+    $summaryOutput | Should -Match 'errores\s+2'
+    $summaryOutput | Should -Match 'x Finalizado con 2 error\(es\)\.'
+  }
+
+  It 'Print-Summary sin iconos conserva etiquetas alineadas' {
+    $script:UseColor = $false
+    $script:UseIcons = $false
+    $script:StartTime = Get-Date
+
+    $summaryOutput = Print-Summary | Out-String
+
+    $summaryOutput | Should -Match '\+- Resumen -'
+    $summaryOutput | Should -Match '\| creados\s+0\s+reemplazados\s+0'
+    $summaryOutput | Should -Not -Match '[=~<x] (creados|sin cambios)'
+  }
+
+  It 'Print-Diagnostics imprime caja de diagnostico con errores enumerados' {
+    $script:UseColor = $false
+    $script:Diagnostics.Add([PSCustomObject]@{
+        Target = 'C:\destino'
+        Reason = 'Fallo controlado'
+      })
+
+    $diagnosticsOutput = Print-Diagnostics | Out-String
+
+    $diagnosticsOutput | Should -Match '\+- Diagnostico -'
+    $diagnosticsOutput | Should -Match '\| 1\. C:\\destino'
+    $diagnosticsOutput | Should -Match '\|    -> Fallo controlado'
+  }
+
+  It 'Write-ItemLine imprime icono, accion, nombre y detalle dentro del grupo pendiente' {
+    $script:UseColor = $false
+    Set-GroupHeader -GroupPath '~/.claude/skills'
+
+    $itemOutput = & {
+      Write-ItemLine -Icon $script:Icons.Created -Label 'creado' -Color Green -Name 'simplify' -Detail '-> my-skills/simplify'
+      Close-Group
+    } | Out-String
+
+    $itemOutput | Should -Match '> ~/.claude/skills'
+    $itemOutput | Should -Match '\| \+ creado\s+simplify\s+-> my-skills/simplify'
+    $itemOutput | Should -Match '\+- 1 cambio'
+  }
+
+  It 'Close-Group no imprime grupos sin cambios visibles' {
+    $script:UseColor = $false
+    Set-GroupHeader -GroupPath '~/.config'
+    $script:GroupUnchangedCount = 3
+
+    $groupOutput = & { Close-Group } | Out-String
+
+    $groupOutput.Trim() | Should -BeNullOrEmpty
+  }
+
+  It 'Write-Info aplica color ANSI cuando esta habilitado' {
+    $script:UseColor = $true
+    $styledOutput = & { Write-Info 'mensaje' } | Out-String
+
+    $styledOutput | Should -Match 'mensaje'
+    $styledOutput | Should -Match ([regex]::Escape("$([char]27)["))
+  }
+
+  It 'New-DotfileSymlink crea hard link usando el tipo correspondiente' {
+    Mock Test-IsSymlink { $false }
+    Mock Test-PathEntry { $false }
+    Mock Test-Path { $true }
+    Mock New-Item {} -ParameterFilter { $ItemType -eq 'HardLink' }
+    Mock Write-ItemLine {}
+
+    New-DotfileSymlink -SourcePath 'C:\fuente.txt' -TargetPath 'C:\destino.txt' -HardLink $true
+
+    Should -Invoke New-Item -Times 1 -Exactly -ParameterFilter {
+      $ItemType -eq 'HardLink' -and $Target -eq 'C:\fuente.txt'
+    }
+    $script:CountErrors | Should -Be 0
+  }
+
+  It 'New-DotfileSymlink rechaza directorios para hard links antes de mutar destino' {
+    Mock Test-IsSymlink { $false }
+    Mock Test-PathEntry { $false }
+    Mock Test-Path {
+      param([string]$LiteralPath, [string]$PathType)
+      if ($PathType -eq 'Leaf') {
+        return $false
+      }
+
+      return $true
+    }
+    Mock New-Item {}
+
+    New-DotfileSymlink -SourcePath 'C:\carpeta' -TargetPath 'C:\destino' -HardLink $true
+
+    $script:CountErrors | Should -Be 1
+    $script:Diagnostics[0].Reason | Should -Match 'hard link'
+    Should -Invoke New-Item -Times 0 -Exactly
+  }
+
+  Context 'Hard links divergentes' {
+    BeforeEach {
+      $script:HardLinkSourcePath = Join-Path -Path $TestDrive -ChildPath 'fuente.md'
+      $script:HardLinkTargetPath = Join-Path -Path $TestDrive -ChildPath 'destino.md'
+      Set-Content -LiteralPath $script:HardLinkSourcePath -Value 'contenido del repo' -NoNewline
+      Mock Initialize-TargetDirectory {}
+      Mock New-Item {}
+      Mock Move-ToBackup {}
+    }
+
+    It 'no toca un destino con cambios propios y lo registra como divergente' {
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'contenido del repo + bloque local' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:DivergedLinks.Count | Should -Be 1
+      $script:DivergedLinks[0].Target | Should -Be $script:HardLinkTargetPath
+      Get-Content -LiteralPath $script:HardLinkTargetPath -Raw | Should -Be 'contenido del repo + bloque local'
+      Should -Invoke New-Item -Times 0 -Exactly
+      Should -Invoke Move-ToBackup -Times 0 -Exactly
+      $script:CountErrors | Should -Be 0
+    }
+
+    It 'reenlaza sin respaldo cuando el contenido es identico' {
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'contenido del repo' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:DivergedLinks.Count | Should -Be 0
+      $script:CountUnchanged | Should -Be 1
+      Should -Invoke Move-ToBackup -Times 0 -Exactly
+      Should -Invoke New-Item -Times 1 -Exactly -ParameterFilter { $ItemType -eq 'HardLink' -and $Force }
+    }
+
+    It 'no escribe al reenlazar contenido identico durante una simulacion' {
+      $script:DryRun = $true
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'contenido del repo' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:CountUnchanged | Should -Be 1
+      Should -Invoke New-Item -Times 0 -Exactly
+    }
+
+    It 'respalda y reenlaza un destino divergente con --overwrite-diverged' {
+      $script:OverwriteDiverged = $true
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'contenido local' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:DivergedLinks.Count | Should -Be 0
+      Should -Invoke Move-ToBackup -Times 1 -Exactly
+      Should -Invoke New-Item -Times 1 -Exactly -ParameterFilter { $ItemType -eq 'HardLink' }
+    }
+
+    It 'Print-Divergences lista cada destino con el comando para compararlo' {
+      $script:DivergedLinks.Add([PSCustomObject]@{ Source = 'C:\repo\AGENTS.md'; Target = 'C:\destino\AGENTS.md' })
+
+      $divergencesOutput = Print-Divergences | Out-String
+
+      $divergencesOutput | Should -Match '\+- ! Divergencias -'
+      $divergencesOutput | Should -Match '\| 1\. C:\\destino\\AGENTS\.md'
+      $divergencesOutput | Should -Match 'git diff --no-index "C:\\repo\\AGENTS\.md" "C:\\destino\\AGENTS\.md"'
+      $divergencesOutput | Should -Match '--overwrite-diverged'
+    }
+
+    It 'Print-Summary muestra el contador de divergentes solo cuando hay alguno' {
+      $script:StartTime = Get-Date
+      (Print-Summary | Out-String) | Should -Not -Match 'divergentes'
+
+      $script:DivergedLinks.Add([PSCustomObject]@{ Source = 'C:\repo\a'; Target = 'C:\destino\a' })
+      (Print-Summary | Out-String) | Should -Match '! divergentes\s+1'
+    }
+
+    It 'Parse-Args habilita --overwrite-diverged' {
+      Parse-Args -CliArgs @('--overwrite-diverged')
+
+      $script:OverwriteDiverged | Should -BeTrue
+    }
+  }
+
+  It 'Get-ResolveProgressStatus rota mensajes segun el tiempo y muestra barra, contador y detalle' {
+    $script:UseIcons = $true
+
+    $firstStatus = Get-ResolveProgressStatus -Current 3 -Total 12 -Detail '.agents/skills/my-skills/*' -ElapsedSeconds 0
+    $laterStatus = Get-ResolveProgressStatus -Current 3 -Total 12 -Detail '.agents/skills/my-skills/*' -ElapsedSeconds 2
+
+    $firstStatus | Should -Be 'Resolviendo rutas ###......... 3/12 - .agents/skills/my-skills/* - 0s'
+    $laterStatus | Should -Match '^Recorriendo agrupadores'
+  }
+
+  It 'Test-ProgressEnabled respeta DOTFILER_PROGRESS y --quiet' {
+    $script:ProgressMode = 'never'
+    Test-ProgressEnabled | Should -BeFalse
+    $script:ProgressMode = 'always'
+    $script:Quiet = $true
+    Test-ProgressEnabled | Should -BeTrue
+    $script:ProgressMode = 'auto'
+    Test-ProgressEnabled | Should -BeFalse
+  }
+
+  It 'Write-BlockGap evita lineas en blanco consecutivas' {
+    $gapOutput = & {
+      Write-BlockGap
+      Write-FormattedLine -Segments @('contenido')
+      Write-BlockGap
+      Write-BlockGap
+      Write-FormattedLine -Segments @('otro')
+    }
+
+    @($gapOutput) | Should -Be @('contenido', '', 'otro')
+  }
+
+  It 'New-DotfileSymlink no recrea symlinks que ya apuntan a la fuente' {
+    Mock Test-SymlinkPointsToSource { $true }
+    Mock Initialize-TargetDirectory {}
+    Mock New-Item {}
+    Mock Remove-Item {}
+
+    New-DotfileSymlink -SourcePath 'C:\fuente' -TargetPath 'C:\destino'
+
+    $script:CountUnchanged | Should -Be 1
+    $script:GroupUnchangedCount | Should -Be 1
+    Should -Invoke New-Item -Times 0 -Exactly
+    Should -Invoke Remove-Item -Times 0 -Exactly
+  }
+
+  It 'Group-OperationsByTarget agrupa destinos repetidos conservando el orden interno' {
+    $operations = @(
+      [PSCustomObject]@{ Group = 'C:\b'; Target = 'C:\b\primero' },
+      [PSCustomObject]@{ Group = 'C:\a'; Target = 'C:\a\medio' },
+      [PSCustomObject]@{ Group = 'C:\b'; Target = 'C:\b\segundo' }
+    )
+
+    $grouped = @(Group-OperationsByTarget -Operations $operations)
+
+    @($grouped | ForEach-Object { $_.Target }) | Should -Be @('C:\a\medio', 'C:\b\primero', 'C:\b\segundo')
+  }
+
+  It 'Get-ConditionalExcludeReason devuelve la ruta de la regla que coincide con un agrupador' {
+    $rules = @([PSCustomObject]@{ Regex = [regex]::new('^\(refactor\)$'); ConditionPath = '~/.fury' })
+
+    Get-ConditionalExcludeReason -ActiveRules $rules -RootPath 'C:\skills' -ItemPath 'C:\skills\(code)\(refactor)\simplify' | Should -Be '~/.fury'
+    Get-ConditionalExcludeReason -ActiveRules $rules -RootPath 'C:\skills' -ItemPath 'C:\skills\(code)\otra' | Should -Be ''
+  }
+
+  It 'instala una dependencia faltante con winget cuando existe configuracion de paquete' {
+    $script:installInvocations = [System.Collections.Generic.List[string]]::new()
+    $script:commandInstalled = $false
+
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      return $Name -eq 'winget' -or $script:commandInstalled
+    }
+    Mock Test-CommandOperational {
+      param([string]$CommandName)
+      return $script:commandInstalled
+    }
+    Mock Install-WingetPackage {
+      param([string]$PackageId, [string]$CommandName)
+      $script:installInvocations.Add("$CommandName|$PackageId")
+      $script:commandInstalled = $true
+    }
+    Mock Update-ProcessPathFromEnvironment {}
+
+    Ensure-CommandAvailable -CommandName 'jq' -WingetPackageId 'jqlang.jq'
+
+    $script:installInvocations.Count | Should -Be 1
+    $script:installInvocations[0] | Should -Be 'jq|jqlang.jq'
+    Should -Invoke Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
+  }
+
+  It 'falla cuando falta una dependencia y winget no esta disponible' {
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      return $false
+    }
+    Mock Test-CommandOperational { $false }
+
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Throw -ExpectedMessage '*winget*'
+  }
+
+  It 'reintenta validar una dependencia despues de refrescar PATH tras instalar con winget' {
+    $script:pathWasRefreshed = $false
+
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      if ($Name -eq 'winget') {
+        return $true
+      }
+
+      return $script:pathWasRefreshed
+    }
+    Mock Test-CommandOperational { $script:pathWasRefreshed }
+    Mock Install-WingetPackage {}
+    Mock Update-ProcessPathFromEnvironment {
+      $script:pathWasRefreshed = $true
+    }
+
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Not -Throw
+    Should -Invoke Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
+  }
+
+  It 'omite un ejecutable previo roto y conserva la ruta operativa encontrada para usos posteriores' {
+    Mock Test-Path { $true } -ParameterFilter { $LiteralPath -eq 'C:\winget\yq.exe' }
+    Mock Get-Command {
+      param([string]$Name, [switch]$All)
+
+      if ($Name -eq 'yq' -and $All) {
+        return @(
+          [PSCustomObject]@{ Source = 'C:\broken\yq.exe'; Path = 'C:\broken\yq.exe' },
+          [PSCustomObject]@{ Source = 'C:\winget\yq.exe'; Path = 'C:\winget\yq.exe' }
+        )
+      }
+
+      if ($Name -eq 'yq') {
+        return [PSCustomObject]@{ Source = 'C:\broken\yq.exe'; Path = 'C:\broken\yq.exe' }
+      }
+
+      return $null
+    }
+    Mock Test-CommandOperational {
+      param([string]$CommandName, [string]$CommandPath)
+      return $CommandPath -eq 'C:\winget\yq.exe'
+    }
+
+    Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq'
+
+    $script:PreferredCommandPaths['yq'] | Should -Be 'C:\winget\yq.exe'
+    (Get-ResolvedCommandPath -CommandName 'yq') | Should -Be 'C:\winget\yq.exe'
+  }
+
+  It 'avisa cuando --dry-run necesita instalar una dependencia faltante' {
+    $script:DryRun = $true
+
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      if ($Name -eq 'winget') {
+        return $true
+      }
+
+      return $false
+    }
+    Mock Test-CommandOperational { $false }
+    Mock Install-WingetPackage {}
+    Mock Update-ProcessPathFromEnvironment {}
+    Mock Write-Warn {}
+
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Throw -ExpectedMessage '*sigue sin estar disponible*'
+
+    Should -Invoke Write-Warn -Times 1 -Exactly -Scope It -ParameterFilter {
+      $Message -like '*--dry-run*' -and $Message -like "*'yq'*"
+    }
+  }
+
+  It 'falla cuando winget instala pero el comando sigue sin aparecer despues de refrescar PATH' {
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      if ($Name -eq 'winget') {
+        return $true
+      }
+
+      return $false
+    }
+    Mock Test-CommandOperational { $false }
+    Mock Install-WingetPackage {}
+    Mock Update-ProcessPathFromEnvironment {}
+
+    { Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq' } | Should -Throw -ExpectedMessage '*sigue sin estar disponible*'
+  }
+
+  It 'reinstala una dependencia cuando el ejecutable existe pero no funciona' {
+    $script:installInvocations = [System.Collections.Generic.List[string]]::new()
+    $script:commandOperational = $false
+
+    Mock Test-CommandAvailable {
+      param([string]$Name)
+      return $true
+    }
+    Mock Test-CommandOperational {
+      param([string]$CommandName)
+      return $script:commandOperational
+    }
+    Mock Install-WingetPackage {
+      param([string]$PackageId, [string]$CommandName)
+      $script:installInvocations.Add("$CommandName|$PackageId")
+      $script:commandOperational = $true
+    }
+    Mock Update-ProcessPathFromEnvironment {}
+
+    Ensure-CommandAvailable -CommandName 'yq' -WingetPackageId 'MikeFarah.yq'
+
+    $script:installInvocations.Count | Should -Be 1
+    $script:installInvocations[0] | Should -Be 'yq|MikeFarah.yq'
+    Should -Invoke Update-ProcessPathFromEnvironment -Times 1 -Exactly -Scope It
+  }
+
+  It 'considera yq no operativo cuando no soporta la sintaxis requerida por dotfiler' {
+    Mock Invoke-ExternalCommand {
+      [PSCustomObject]@{
+        ExitCode = 1
+        Output = 'unsupported'
+      }
+    }
+
+    (Test-YqCommandOperational) | Should -Be $false
+  }
+
+  It 'resuelve comandos por la ruta preferida cuando ya fue validada' {
+    $script:PreferredCommandPaths['jq'] = 'C:\winget\jq.exe'
+    Mock Test-Path { $true } -ParameterFilter { $LiteralPath -eq 'C:\winget\jq.exe' }
+
+    Mock Get-Command {
+      throw 'Get-Command no deberia ejecutarse cuando existe una ruta preferida'
+    }
+
+    (Get-ResolvedCommandPath -CommandName 'jq') | Should -Be 'C:\winget\jq.exe'
+  }
+
+  It 'prioriza PATH de User y Machine sobre Process al recomponer entradas unicas' {
+    $mergedPath = Join-UniquePathEntries -RawPathValues @(
+      'C:\Users\guido\AppData\Local\Microsoft\WinGet\Links;C:\Tools',
+      'C:\Program Files\Git\cmd;C:\Windows\System32',
+      'C:\BrokenTools;C:\Tools;C:\Windows\System32'
+    )
+
+    $mergedPath | Should -Be 'C:\Users\guido\AppData\Local\Microsoft\WinGet\Links;C:\Tools;C:\Program Files\Git\cmd;C:\Windows\System32;C:\BrokenTools'
+  }
+
+  It 'convierte paths desde JSON generado por yq' {
+    $script:ConfigPathsFile = 'C:\repo\symlinks.yml'
+
+    Mock Get-YamlPathsJson {
+      @'
+[
+  {
+    "path": "PowerShell/Microsoft.PowerShell_profile.ps1",
+    "target": "Documents/PowerShell"
+  }
+]
+'@
+    }
+    Mock Test-JsonArray { $true }
+
+    $entries = @(Get-ConfigEntries)
+
+    $entries.Count | Should -Be 1
+    $entries[0].path | Should -Be 'PowerShell/Microsoft.PowerShell_profile.ps1'
+    $entries[0].target | Should -Be 'Documents/PowerShell'
+  }
+
+  It 'convierte JSON anidado sin depender de parametros no disponibles en PowerShell 5.1' {
+    $script:ConfigPathsFile = 'C:\repo\symlinks.yml'
+
+    Mock Get-YamlPathsJson {
+      @'
+[
+  {
+    "path": "git/.gitconfig",
+    "overrides": [
+      {
+        "windows": true,
+        "target": "Documents/Git"
+      }
+    ]
+  }
+]
+'@
+    }
+    Mock Test-JsonArray { $true }
+
+    $entries = @(Get-ConfigEntries)
+
+    $entries.Count | Should -Be 1
+    $entries[0].overrides.Count | Should -Be 1
+    $entries[0].overrides[0].target | Should -Be 'Documents/Git'
+  }
+
+  It 'valida con jq cuando el JSON representa un arreglo' {
+    Mock Invoke-ExternalCommand {
+      [PSCustomObject]@{
+        ExitCode = 0
+        Output = 'true'
+      }
+    }
+
+    (Test-JsonArray -JsonText '[{"path":"example"}]') | Should -Be $true
+  }
+
+  It 'drena stdout y stderr abundantes sin bloquear el proceso hijo' {
+    $dotfilerPath = Join-Path -Path $PSScriptRoot -ChildPath 'dotfiler.ps1'
+    $heavyOutputScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'invoke-external-command-heavy-output.ps1'
+    $currentPowerShellPath = (Get-Process -Id $PID).Path
+
+    $job = Start-Job -ArgumentList $dotfilerPath, $currentPowerShellPath, $heavyOutputScriptPath -ScriptBlock {
+      param($ImportedScriptPath, $ExecutablePath, $ScriptPath)
+
+      $env:DOTFILER_PS1_SKIP_MAIN = '1'
+      . $ImportedScriptPath
+
+      Invoke-ExternalCommand -FilePath $ExecutablePath -ArgumentList @(
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        $ScriptPath
+      )
+    }
+
+    try {
+      $completedJob = Wait-Job -Job $job -Timeout 10
+
+      $completedJob | Should -Not -BeNullOrEmpty
+
+      $result = Receive-Job -Job $job
+
+      $result.ExitCode | Should -Be 0
+      $result.Output | Should -Match 'stdout line 0'
+      $result.Output | Should -Match 'stderr line 0'
+    } finally {
+      if ($job.State -eq 'Running') {
+        Stop-Job -Job $job
+      }
+
+      Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    }
+  }
+
+  It 'detecta errores de permisos insuficientes para symlinks' {
+    $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+      [System.UnauthorizedAccessException]::new('The required privilege is not held by the client'),
+      'PrivilegeError',
+      [System.Management.Automation.ErrorCategory]::PermissionDenied,
+      $null
+    )
+
+    (Test-IsPrivilegeElevationError -ErrorRecord $errorRecord) | Should -Be $true
+  }
+
+  It 'acumula los enlaces cuando falla New-Item por permisos sin solicitar UAC por enlace' {
+
+    Mock Test-IsSymlink { $false }
+    Mock Test-PathEntry { $false }
+    Mock Test-Path { $true }
+    Mock Write-Info {}
+    Mock Add-Diagnostic {}
+    Mock Test-ElevationTargetAllowed { $true }
+    Mock Start-Process { throw 'No debe solicitar UAC al acumular enlaces' }
+    Mock New-Item {
+      throw [System.UnauthorizedAccessException]::new('The required privilege is not held by the client')
+    } -ParameterFilter { $ItemType -eq 'SymbolicLink' }
+
+    New-DotfileSymlink -SourcePath 'C:\fuente' -TargetPath 'C:\destino'
+    New-DotfileSymlink -SourcePath 'C:\otra fuente' -TargetPath 'C:\otro destino'
+
+    $script:PendingElevatedSymlinks.Count | Should -Be 2
+    $script:PendingElevatedSymlinks[0].Source | Should -Be 'C:\fuente'
+    $script:PendingElevatedSymlinks[0].Target | Should -Be 'C:\destino'
+    $script:CountErrors | Should -Be 0
+    Should -Invoke Start-Process -Times 0 -Exactly
+  }
+
+  Context 'Elevacion agrupada' {
+    BeforeEach {
+      $script:PendingElevatedSymlinks.Add([PSCustomObject]@{ Source = 'C:\fuente'; Target = 'C:\destino' })
+      $script:PendingElevatedSymlinks.Add([PSCustomObject]@{ Source = 'C:\otra fuente'; Target = 'C:\otro destino' })
+      Mock Get-PowerShellExecutablePath { 'powershell.exe' }
+      Mock Write-Info {}
+      Mock Write-ItemLine {}
+      Mock Write-ErrorLog {}
+    }
+
+    It 'solicita UAC una vez y conserva los errores individuales del lote' {
+      Mock Start-Process {
+        param($ArgumentList)
+        $requestMatch = [regex]::Match($ArgumentList, '-RequestPath (?:"([^"]+)"|(\S+))')
+        $resultMatch = [regex]::Match($ArgumentList, '-ResultPath (?:"([^"]+)"|(\S+))')
+        $script:BatchRequestPath = ($requestMatch.Groups[1].Value + $requestMatch.Groups[2].Value)
+        $script:BatchResultPath = ($resultMatch.Groups[1].Value + $resultMatch.Groups[2].Value)
+        $requests = Get-Content -LiteralPath $script:BatchRequestPath -Raw | ConvertFrom-Json
+        $requests.Count | Should -Be 2
+        $requests[1].Source | Should -Be 'C:\otra fuente'
+        @(
+          @{ Success = $true; Error = $null },
+          @{ Success = $false; Error = 'Destino ocupado' }
+        ) | ConvertTo-Json | Set-Content -LiteralPath $script:BatchResultPath
+        [PSCustomObject]@{ ExitCode = 0 }
+      }
+
+      Complete-PendingElevatedSymlinks
+      Complete-PendingElevatedSymlinks
+
+      Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter { $Verb -eq 'RunAs' -and $Wait -and $WindowStyle -eq 'Hidden' }
+      Should -Invoke Write-ItemLine -Times 1 -Exactly
+      $script:CountErrors | Should -Be 1
+      $script:Diagnostics[0].Target | Should -Be 'C:\otro destino'
+      Test-Path -LiteralPath $script:BatchRequestPath | Should -BeFalse
+      Test-Path -LiteralPath $script:BatchResultPath | Should -BeFalse
+    }
+
+    It 'registra todos los pendientes y no vuelve a preguntar cuando se cancela UAC' {
+      Mock Start-Process { throw 'El usuario cancelo la solicitud' }
+
+      Complete-PendingElevatedSymlinks
+      Complete-PendingElevatedSymlinks
+
+      Should -Invoke Start-Process -Times 1 -Exactly
+      $script:CountErrors | Should -Be 2
+      $script:Diagnostics.Count | Should -Be 2
+    }
+
+    It 'no solicita elevacion durante una simulacion' {
+      $script:DryRun = $true
+      Mock Start-Process {}
+
+      Complete-PendingElevatedSymlinks
+
+      Should -Invoke Start-Process -Times 0 -Exactly
+    }
+
+    It 'registra todos los pendientes cuando el proceso elevado falla' {
+      Mock Start-Process { [PSCustomObject]@{ ExitCode = 1 } }
+
+      Complete-PendingElevatedSymlinks
+
+      $script:CountErrors | Should -Be 2
+      $script:PendingElevatedSymlinks.Count | Should -Be 0
+    }
+
+    It 'registra errores si el proceso no devuelve resultados completos' {
+      Mock Start-Process { [PSCustomObject]@{ ExitCode = 0 } }
+
+      Complete-PendingElevatedSymlinks
+
+      $script:CountErrors | Should -Be 2
+    }
+
+    It 'el worker continua despues de un error y devuelve el resultado de cada enlace' {
+      $requestPath = Join-Path $TestDrive 'solicitud con espacios.json'
+      $resultPath = Join-Path $TestDrive 'resultados con espacios.json'
+      ConvertTo-Json -InputObject $script:PendingElevatedSymlinks.ToArray() | Set-Content -LiteralPath $requestPath
+      # Se simula solo la operacion privilegiada del sistema para no abrir UAC en tests.
+      Mock New-Item {
+        param($Path)
+        if ($Path -eq 'C:\destino') { throw 'Destino ocupado' }
+      } -ParameterFilter { $ItemType -eq 'SymbolicLink' }
+
+      & (Join-Path $PSScriptRoot 'create-symlinks-elevated.ps1') -RequestPath $requestPath -ResultPath $resultPath
+
+      $results = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+      $results.Count | Should -Be 2
+      $results[0].Success | Should -BeFalse
+      $results[0].Error | Should -Be 'Destino ocupado'
+      $results[1].Success | Should -BeTrue
+      Should -Invoke New-Item -Times 2 -Exactly -ParameterFilter { $ItemType -eq 'SymbolicLink' -and -not $Force }
+    }
+
+    It 'el worker crea HardLink cuando la operacion lo solicita' {
+      $requestPath = Join-Path $TestDrive 'hard-request.json'
+      $resultPath = Join-Path $TestDrive 'hard-result.json'
+      $sourcePath = Join-Path $TestDrive 'hard-source.txt'
+      $targetPath = Join-Path $TestDrive 'hard-target.txt'
+      Set-Content -LiteralPath $sourcePath -Value 'origen'
+      ConvertTo-Json -InputObject @(@{ Source = $sourcePath; Target = $targetPath; HardLink = $true }) | Set-Content -LiteralPath $requestPath
+      Mock New-Item {} -ParameterFilter { $ItemType -eq 'HardLink' }
+
+      & (Join-Path $PSScriptRoot 'create-symlinks-elevated.ps1') -RequestPath $requestPath -ResultPath $resultPath
+
+      $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+      $result.Success | Should -BeTrue
+      Should -Invoke New-Item -Times 1 -Exactly -ParameterFilter { $ItemType -eq 'HardLink' -and -not $Force }
+    }
+
+    It 'el worker preserva un archivo que aparecio en el destino' {
+      $requestPath = Join-Path $TestDrive 'request.json'
+      $resultPath = Join-Path $TestDrive 'result.json'
+      $sourcePath = Join-Path $TestDrive 'source.txt'
+      $targetPath = Join-Path $TestDrive 'existing.txt'
+      Set-Content -LiteralPath $sourcePath -Value 'origen'
+      Set-Content -LiteralPath $targetPath -Value 'conservar'
+      ConvertTo-Json -InputObject @(@{ Source = $sourcePath; Target = $targetPath }) | Set-Content -LiteralPath $requestPath
+
+      & (Join-Path $PSScriptRoot 'create-symlinks-elevated.ps1') -RequestPath $requestPath -ResultPath $resultPath
+
+      $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+      $result.Success | Should -BeFalse
+      Get-Content -LiteralPath $targetPath | Should -Be 'conservar'
+      (Get-Item -LiteralPath $targetPath).LinkType | Should -BeNullOrEmpty
+    }
+  }
+
+  It 'cita argumentos con espacios antes de relanzar el proceso elevado' {
+    $processArguments = Get-ElevatedSymlinkProcessArguments `
+      -ScriptPath 'C:\Users\guido\Source Repos\system-config\scripts\dotfiler\dotfiler.ps1' `
+      -SourcePath 'C:\Users\guido\Source Repos\config file.ps1' `
+      -TargetPath 'C:\Users\guido\AppData\Roaming\My Folder\profile.ps1'
+
+    $processArguments | Should -Be @(
+      '-NoLogo',
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      '"C:\Users\guido\Source Repos\system-config\scripts\dotfiler\dotfiler.ps1"',
+      '--internal-create-link',
+      '--internal-source',
+      '"C:\Users\guido\Source Repos\config file.ps1"',
+      '--internal-target',
+      '"C:\Users\guido\AppData\Roaming\My Folder\profile.ps1"'
+    )
+  }
+
+  It 'incluye el flag interno de hard link al solicitar elevacion' {
+    $processArguments = Get-ElevatedSymlinkProcessArguments `
+      -ScriptPath 'C:\dotfiler.ps1' `
+      -SourcePath 'C:\source.txt' `
+      -TargetPath 'C:\target.txt' `
+      -HardLink
+
+    $processArguments | Should -Contain '--internal-hard-link'
+  }
+
+  It 'arma una cadena de argumentos compatible con Windows PowerShell 5.1' {
+    $argumentString = ConvertTo-WindowsProcessArgumentsString -ArgumentList @(
+      'eval',
+      '.paths',
+      'C:\Users\guido\Source Repos\symlinks file.yml',
+      'value "with quotes"'
+    )
+
+    $argumentString | Should -Be 'eval .paths "C:\Users\guido\Source Repos\symlinks file.yml" "value \"with quotes\""'
+  }
+
+  It 'no clasifica errores genericos como problemas de elevacion' {
+    $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+      [System.InvalidOperationException]::new('Generic failure'),
+      'GenericError',
+      [System.Management.Automation.ErrorCategory]::InvalidOperation,
+      $null
+    )
+
+    (Test-IsPrivilegeElevationError -ErrorRecord $errorRecord) | Should -Be $false
+  }
+
+  It 'incluye entradas Windows con onlyFor win32 legacy' {
+    $entry = [PSCustomObject]@{
+      path = 'PowerShell/Microsoft.PowerShell_profile.ps1'
+      onlyFor = @(
+        [PSCustomObject]@{
+          win32 = $true
+        }
+      )
+    }
+
+    (Test-EntryIncluded -Entry $entry) | Should -Be $true
+  }
+
+  It 'resuelve overrides Windows con alias documentados' {
+    $entry = [PSCustomObject]@{
+      target = 'Documents'
+      overrides = @(
+        [PSCustomObject]@{
+          windows = $true
+          target = 'AppData/Roaming'
+        }
+      )
+    }
+
+    $overrideTarget = Get-OverrideTarget -Entry $entry
+
+    $overrideTarget.UsesExactTarget | Should -Be $false
+    $overrideTarget.ConfiguredTarget | Should -Be 'AppData/Roaming'
+  }
+
+  It 'expande ~, $HOME, $DOCUMENTS y $USER en rutas de usuario' {
+    $script:HomeDir = 'C:\Users\tester'
+    $script:DocumentsDir = 'C:\Users\tester\Documentos'
+    $script:WindowsUser = 'windows-user'
+
+    (Expand-UserPath -Path '~') | Should -Be 'C:\Users\tester'
+    (Expand-UserPath -Path '~\Documents') | Should -Be 'C:\Users\tester\Documents'
+    (Expand-UserPath -Path '$DOCUMENTS\PowerShell') | Should -Be 'C:\Users\tester\Documentos\PowerShell'
+    (Expand-UserPath -Path '$HOME\AppData\$USER\file.txt') | Should -Be 'C:\Users\tester\AppData\windows-user\file.txt'
+  }
+
+  It 'resuelve targets base por defecto, absolutos y relativos' {
+    $script:HomeDir = 'C:\Users\tester'
+
+    (Resolve-TargetBase -Target $null) | Should -Be 'C:\Users\tester'
+    (Resolve-TargetBase -Target 'Documents\PowerShell') | Should -Be 'C:\Users\tester\Documents\PowerShell'
+    (Resolve-TargetBase -Target 'D:\dotfiles\target') | Should -Be 'D:\dotfiles\target'
+  }
+
+  It 'ordena resultados wildcard y devuelve vacio para fuentes inexistentes' {
+    $testRootDirectory = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([System.Guid]::NewGuid().ToString())
+    $script:ConfigsDir = Join-Path -Path $testRootDirectory -ChildPath 'configs'
+    New-Item -ItemType Directory -Path (Join-Path -Path $script:ConfigsDir -ChildPath 'wild') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path -Path $script:ConfigsDir -ChildPath 'wild\b-file.txt') -Value 'b'
+    Set-Content -LiteralPath (Join-Path -Path $script:ConfigsDir -ChildPath 'wild\a-file.txt') -Value 'a'
+
+    $resolvedSources = @(Get-ResolvedSources -OriginalPath 'wild\*')
+    $missingSources = @(Get-ResolvedSources -OriginalPath 'missing*')
+
+    $resolvedSources.Count | Should -Be 2
+    $resolvedSources[0].Name | Should -Be 'a-file.txt'
+    $resolvedSources[1].Name | Should -Be 'b-file.txt'
+    $missingSources.Count | Should -Be 0
+
+    Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
+  }
+
+  It 'genera operaciones con exactTarget como ruta final del symlink' {
+    $testRootDirectory = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([System.Guid]::NewGuid().ToString())
+    $script:HomeDir = Join-Path -Path $testRootDirectory -ChildPath 'home'
+    $script:ConfigsDir = Join-Path -Path $testRootDirectory -ChildPath 'configs'
+
+    New-Item -ItemType Directory -Path $script:HomeDir -Force | Out-Null
+    $sourceDirectory = Join-Path -Path $script:ConfigsDir -ChildPath '.codex/skills/.system'
+    New-Item -ItemType Directory -Path $sourceDirectory -Force | Out-Null
+
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = '.codex/skills/.system'
+          exactTarget = '.agents/.codex/skills/.system'
+        }
+      )
+    }
+
+    $operations = @(Resolve-Operations)
+
+    $operations.Count | Should -Be 1
+    $operations[0].Source | Should -Be $sourceDirectory
+    $operations[0].Target | Should -Be (Join-Path -Path $script:HomeDir -ChildPath '.agents/.codex/skills/.system')
+    $operations[0].Group | Should -Be (Join-Path -Path $script:HomeDir -ChildPath '.agents/.codex/skills')
+
+    Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
+  }
+
+  It 'propaga hardLink al resolver de operaciones' {
+    $script:HomeDir = 'C:\Users\tester'
+    $script:ConfigsDir = 'C:\repo\configs'
+
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'hard-source.txt'
+          target = 'linked-files'
+          hardLink = $true
+        }
+      )
+    }
+    Mock Get-ResolvedSources {
+      @([PSCustomObject]@{ Name = 'hard-source.txt'; FullName = 'C:\repo\configs\hard-source.txt' })
+    }
+
+    $operations = @(Resolve-Operations)
+
+    $operations.Count | Should -Be 1
+    $operations[0].HardLink | Should -BeTrue
+  }
+
+  It 'rechaza exactTarget con wildcard y registra diagnostico' {
+    $testRootDirectory = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath ([System.Guid]::NewGuid().ToString())
+    $script:HomeDir = Join-Path -Path $testRootDirectory -ChildPath 'home'
+    $script:ConfigsDir = Join-Path -Path $testRootDirectory -ChildPath 'configs'
+
+    New-Item -ItemType Directory -Path $script:HomeDir -Force | Out-Null
+    $wildcardDirectory = Join-Path -Path $script:ConfigsDir -ChildPath 'wildcard'
+    New-Item -ItemType Directory -Path $wildcardDirectory -Force | Out-Null
+    New-Item -ItemType File -Path (Join-Path -Path $wildcardDirectory -ChildPath 'example.conf') -Force | Out-Null
+
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'wildcard/*.conf'
+          exactTarget = 'single-target.conf'
+        }
+      )
+    }
+
+    $operations = @(Resolve-Operations)
+
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 1
+    if ($script:Diagnostics.Count -gt 0) {
+      $script:Diagnostics[0].Reason | Should -Match 'exactTarget no admite patrones wildcard'
+    }
+
+    Remove-Item -LiteralPath $testRootDirectory -Recurse -Force
+  }
+
+  It 'omite targets con esquema invalido en Resolve-Operations' {
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'example.conf'
+          target = 'WSL://Desktop'
+        }
+      )
+    }
+    Mock Get-ResolvedSources { @([PSCustomObject]@{ Name = 'example.conf'; FullName = 'C:\repo\configs\example.conf' }) }
+
+    $operations = @(Resolve-Operations)
+
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 0
+  }
+
+  It 'registra diagnostico cuando falta una ruta de origen sin wildcard' {
+    $script:HomeDir = 'C:\Users\tester'
+
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'missing.conf'
+          target = 'Documents'
+        }
+      )
+    }
+    Mock Get-ResolvedSources { @() } -ParameterFilter { $OriginalPath -eq 'missing.conf' }
+    Mock Add-Diagnostic {
+      param(
+        [string]$Target,
+        [string]$Reason
+      )
+
+      $script:Diagnostics.Add([PSCustomObject]@{
+          Target = $Target
+          Reason = $Reason
+        })
+    }
+
+    $operations = @(Resolve-Operations)
+
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 1
+    $script:Diagnostics.Count | Should -Be 1
+    $script:Diagnostics[0].Reason | Should -Match 'Ruta de origen inexistente'
+  }
+
+  It 'omite entradas excluidas por onlyFor cuando no matchean Windows' {
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'linux-only.conf'
+          onlyFor = @(
+            [PSCustomObject]@{
+              platform = 'linux'
+            }
+          )
+        }
+      )
+    }
+
+    $operations = @(Resolve-Operations)
+
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 0
+  }
+
+  It 'rechaza entradas que definen target y exactTarget al mismo tiempo' {
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'example.conf'
+          target = 'Documents'
+          exactTarget = 'Documents/example.conf'
+        }
+      )
+    }
+
+    $operations = @(Resolve-Operations)
+
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 1
+    if ($script:Diagnostics.Count -gt 0) {
+      $script:Diagnostics[0].Reason | Should -Match 'target y exactTarget al mismo tiempo'
+    }
+  }
+
+  It 'rechaza overrides que definen target y exactTarget al mismo tiempo' {
+    Mock Get-ConfigEntries {
+      @(
+        [PSCustomObject]@{
+          path = 'example.conf'
+          overrides = @(
+            [PSCustomObject]@{
+              windows = $true
+              target = 'Documents'
+              exactTarget = 'Documents/example.conf'
+            }
+          )
+        }
+      )
+    }
+
+    $operations = @(Resolve-Operations)
+
+    $operations.Count | Should -Be 0
+    $script:CountErrors | Should -Be 1
+    if ($script:Diagnostics.Count -gt 0) {
+      $script:Diagnostics[0].Reason | Should -Match 'override no puede definir target y exactTarget'
+    }
+  }
+
+  It 'Parse-Args activa flags y captura argumentos internos elevados' {
+    $script:DryRun = $false
+    $script:UseColor = $true
+    $script:UseIcons = $true
+    $script:VerboseMode = $false
+    $script:Quiet = $false
+    $script:IsElevatedSymlinkMode = $false
+    $script:ElevatedSymlinkSource = $null
+    $script:ElevatedSymlinkTarget = $null
+
+    Parse-Args -CliArgs @(
+      '--dry-run',
+      '--plain',
+      '--verbose',
+      '--quiet',
+      '--internal-create-link',
+      '--internal-source', 'C:\source',
+      '--internal-target', 'C:\target',
+      '--internal-hard-link'
+    )
+
+    $script:DryRun | Should -Be $true
+    $script:UseColor | Should -Be $false
+    $script:UseIcons | Should -Be $false
+    $script:VerboseMode | Should -Be $true
+    $script:Quiet | Should -Be $true
+    $script:IsElevatedSymlinkMode | Should -Be $true
+    $script:ElevatedSymlinkSource | Should -Be 'C:\source'
+    $script:ElevatedSymlinkTarget | Should -Be 'C:\target'
+    $script:ElevatedSymlinkHardLink | Should -BeTrue
+  }
+
+  It 'el modo interno elevado devuelve false cuando no fue solicitado' {
+    (Invoke-InternalElevatedSymlinkMode) | Should -Be $false
+  }
+
+  It 'valida el repositorio antes de instalar dependencias globales' {
+    $script:CliArgs = @()
+    $script:MainCallOrder = [System.Collections.Generic.List[string]]::new()
+
+    Mock Parse-Args {}
+    Mock Invoke-InternalElevatedSymlinkMode { $false }
+    Mock Get-RepoRoot {
+      $script:MainCallOrder.Add('Get-RepoRoot')
+      return 'C:\repo'
+    }
+    Mock Assert-ConfigPathsFileExists {
+      $script:MainCallOrder.Add('Assert-ConfigPathsFileExists')
+    }
+    Mock Ensure-DotfilerDependencies {
+      $script:MainCallOrder.Add('Ensure-DotfilerDependencies')
+    }
+    Mock Resolve-Operations { throw 'stop-after-order-check' }
+    Mock Print-Summary {}
+    Mock Print-Diagnostics {}
+
+    { Main } | Should -Throw 'stop-after-order-check'
+
+    $script:MainCallOrder | Should -Be @('Get-RepoRoot', 'Assert-ConfigPathsFileExists', 'Ensure-DotfilerDependencies')
+  }
+
+  Context 'Filtros descendInto / markerFile / exclude' {
+    BeforeEach {
+      $script:FilterRoot = Join-Path -Path $TestDrive -ChildPath ("filters-{0}" -f ([guid]::NewGuid().ToString('N')))
+      New-Item -ItemType Directory -Path $script:FilterRoot -Force | Out-Null
+
+      $script:OriginalConfigsDir = $script:ConfigsDir
+      $script:ConfigsDir = $script:FilterRoot
+
+      $treeRoot = Join-Path -Path $script:FilterRoot -ChildPath 'skills-tree'
+      New-Item -ItemType Directory -Path $treeRoot -Force | Out-Null
+
+      foreach ($leaf in @('leaf-a', 'leaf-b', 'no-marker')) {
+        $leafPath = Join-Path -Path $treeRoot -ChildPath $leaf
+        New-Item -ItemType Directory -Path $leafPath -Force | Out-Null
+        if ($leaf -ne 'no-marker') {
+          New-Item -ItemType File -Path (Join-Path -Path $leafPath -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+        }
+      }
+
+      $group1 = Join-Path -Path $treeRoot -ChildPath '(group1)'
+      New-Item -ItemType Directory -Path $group1 -Force | Out-Null
+      $innerLeaf = Join-Path -Path $group1 -ChildPath 'inner-leaf'
+      New-Item -ItemType Directory -Path $innerLeaf -Force | Out-Null
+      New-Item -ItemType File -Path (Join-Path -Path $innerLeaf -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+
+      $deep = Join-Path -Path $group1 -ChildPath '(deep)'
+      New-Item -ItemType Directory -Path $deep -Force | Out-Null
+      $veryDeep = Join-Path -Path $deep -ChildPath 'very-deep'
+      New-Item -ItemType Directory -Path $veryDeep -Force | Out-Null
+      New-Item -ItemType File -Path (Join-Path -Path $veryDeep -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+
+      $dist = Join-Path -Path $treeRoot -ChildPath 'dist'
+      New-Item -ItemType Directory -Path $dist -Force | Out-Null
+      $distInner = Join-Path -Path $dist -ChildPath 'anything'
+      New-Item -ItemType Directory -Path $distInner -Force | Out-Null
+      New-Item -ItemType File -Path (Join-Path -Path $distInner -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+
+      New-Item -ItemType File -Path (Join-Path -Path $treeRoot -ChildPath 'file.txt') -Value 'top' -Force | Out-Null
+      New-Item -ItemType File -Path (Join-Path -Path $treeRoot -ChildPath 'excluded.tmp') -Value 'tmp' -Force | Out-Null
+    }
+
+    AfterEach {
+      $script:ConfigsDir = $script:OriginalConfigsDir
+      if (Test-Path -LiteralPath $script:FilterRoot) {
+        Remove-Item -LiteralPath $script:FilterRoot -Recurse -Force -ErrorAction SilentlyContinue
+      }
+    }
+
+    It 'ConvertTo-StrippedRegexPattern stripea slashes decorativos' {
+      $regex = ConvertTo-StrippedRegexPattern -Pattern '/^foo$/'
+      $regex.ToString() | Should -Be '^foo$'
+      $regex.IsMatch('foo') | Should -BeTrue
+      $regex.IsMatch('foobar') | Should -BeFalse
+    }
+
+    It 'ConvertTo-StrippedRegexPattern acepta pattern sin slashes' {
+      $regex = ConvertTo-StrippedRegexPattern -Pattern '^foo$'
+      $regex.IsMatch('foo') | Should -BeTrue
+    }
+
+    It 'ConvertTo-StrippedRegexPattern lanza con regex invalido' {
+      { ConvertTo-StrippedRegexPattern -Pattern '/[/' } | Should -Throw '*regex invalido*'
+    }
+
+    It 'Test-LeafHasMarkerFile retorna true sin marker definido' {
+      Test-LeafHasMarkerFile -Path $script:FilterRoot -MarkerFile $null | Should -BeTrue
+      Test-LeafHasMarkerFile -Path $script:FilterRoot -MarkerFile '' | Should -BeTrue
+    }
+
+    It 'Test-LeafHasMarkerFile valida presencia del archivo en la carpeta' {
+      $leafA = Join-Path $script:FilterRoot 'skills-tree/leaf-a'
+      Test-LeafHasMarkerFile -Path $leafA -MarkerFile 'SKILL.md' | Should -BeTrue
+      $noMarker = Join-Path $script:FilterRoot 'skills-tree/no-marker'
+      Test-LeafHasMarkerFile -Path $noMarker -MarkerFile 'SKILL.md' | Should -BeFalse
+    }
+
+    It 'Get-ResolvedSources sin filtros enlaza todos los hijos top-level' {
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Contain 'no-marker'
+      $names | Should -Contain '(group1)'
+      $names | Should -Contain 'dist'
+      $names | Should -Contain 'file.txt'
+    }
+
+    It 'Get-ResolvedSources con exclude descarta basenames matcheados' {
+      $excludeRegex = ConvertTo-StrippedRegexPattern -Pattern '/^(dist|excluded\.tmp)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -ExcludeRegex $excludeRegex
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Not -Contain 'dist'
+      $names | Should -Not -Contain 'excluded.tmp'
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'file.txt'
+    }
+
+    It 'Get-ResolvedSources con markerFile filtra folders sin el archivo' {
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Not -Contain 'no-marker'
+      # archivos top-level pasan porque markerFile no aplica
+      $names | Should -Contain 'file.txt'
+    }
+
+    It 'Get-ResolvedSources con descendInto recursivo aplana hojas anidadas' {
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Contain 'inner-leaf'
+      $names | Should -Contain 'very-deep'
+      $names | Should -Not -Contain '(group1)'
+      $names | Should -Not -Contain '(deep)'
+      $names | Should -Not -Contain 'no-marker'
+    }
+
+    It 'Get-ResolvedSources con exclude profundo evita descender en subtree' {
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $excludeRegex = ConvertTo-StrippedRegexPattern -Pattern '/^dist$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend -ExcludeRegex $excludeRegex -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Not -Contain 'anything'
+      $names | Should -Not -Contain 'dist'
+    }
+
+    It 'Combinacion (-,markerFile,exclude): filtra ambos en top-level' {
+      $excludeRegex = ConvertTo-StrippedRegexPattern -Pattern '/^dist$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -ExcludeRegex $excludeRegex -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Not -Contain 'dist'
+      $names | Should -Not -Contain 'no-marker'
+      $names | Should -Contain 'file.txt'
+      $names | Should -Contain 'excluded.tmp'
+    }
+
+    It 'Combinacion (descendInto,-,-): solo descendInto trata no-matches como hojas' {
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'no-marker'
+      $names | Should -Contain 'dist'
+      $names | Should -Contain 'file.txt'
+      $names | Should -Not -Contain '(group1)'
+      $names | Should -Contain 'inner-leaf'
+    }
+
+    It 'Combinacion (descendInto,-,exclude): poda subtrees sin requerir marker' {
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $excludeRegex = ConvertTo-StrippedRegexPattern -Pattern '/^(dist|no-marker)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend -ExcludeRegex $excludeRegex
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Contain 'inner-leaf'
+      $names | Should -Not -Contain 'no-marker'
+      $names | Should -Not -Contain 'dist'
+    }
+
+    It 'Combinacion (-,-,-): sin ningun filtro produce el comportamiento del glob original' {
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'leaf-a'
+      $names | Should -Contain 'leaf-b'
+      $names | Should -Contain 'no-marker'
+      $names | Should -Contain '(group1)'
+      $names | Should -Contain 'dist'
+      $names | Should -Contain 'file.txt'
+      $names | Should -Contain 'excluded.tmp'
+      $names | Should -Not -Contain 'inner-leaf'
+    }
+
+    It 'Get-ResolvedSources con descendInto enlaza archivos sueltos del agrupador' {
+      $files = Join-Path $script:FilterRoot 'skills-tree/(group1)/utility.js'
+      New-Item -ItemType File -Path $files -Value 'js' -Force | Out-Null
+
+      $descend = ConvertTo-StrippedRegexPattern -Pattern '/^\(.*\)$/'
+      $sources = Get-ResolvedSources -OriginalPath 'skills-tree/*' -DescendIntoRegex $descend -MarkerFile 'SKILL.md'
+      $names = @($sources | ForEach-Object { $_.Name })
+      $names | Should -Contain 'utility.js'
+    }
+
+    It 'Test-PathEndsWithGlobStar detecta paths terminados con /* o \*' {
+      Test-PathEndsWithGlobStar -Path 'foo/*' | Should -BeTrue
+      Test-PathEndsWithGlobStar -Path 'foo\*' | Should -BeTrue
+      Test-PathEndsWithGlobStar -Path 'foo' | Should -BeFalse
+      Test-PathEndsWithGlobStar -Path 'foo/*/bar' | Should -BeFalse
+      Test-PathEndsWithGlobStar -Path '' | Should -BeFalse
+    }
+
+    It 'Get-DescendIntoRegex retorna null si el campo no existe' {
+      $entry = [PSCustomObject]@{ path = 'foo/*'; target = 'bar' }
+      Get-DescendIntoRegex -Entry $entry | Should -BeNullOrEmpty
+    }
+
+    It 'Get-DescendIntoRegex compila el regex stripeando slashes' {
+      $entry = [PSCustomObject]@{ descendInto = '/^\(.*\)$/' }
+      $regex = Get-DescendIntoRegex -Entry $entry
+      $regex | Should -Not -BeNullOrEmpty
+      $regex.IsMatch('(javascript)') | Should -BeTrue
+      $regex.IsMatch('plain') | Should -BeFalse
+    }
+
+    It 'Get-MarkerFileName retorna null si el campo no existe' {
+      $entry = [PSCustomObject]@{ path = 'foo/*' }
+      Get-MarkerFileName -Entry $entry | Should -BeNullOrEmpty
+    }
+
+    It 'Get-MarkerFileName retorna el nombre cuando esta presente' {
+      $entry = [PSCustomObject]@{ markerFile = 'SKILL.md' }
+      Get-MarkerFileName -Entry $entry | Should -Be 'SKILL.md'
+    }
+  }
+
+  Context 'conditionalExcludes' {
+    BeforeEach {
+      $script:ConditionalRoot = Join-Path -Path $TestDrive -ChildPath ("conditional-{0}" -f ([guid]::NewGuid().ToString('N')))
+      $script:OriginalHomeDir = $script:HomeDir
+      $script:OriginalConfigsDir = $script:ConfigsDir
+      $script:HomeDir = Join-Path -Path $script:ConditionalRoot -ChildPath 'home'
+      $script:ConfigsDir = Join-Path -Path $script:ConditionalRoot -ChildPath 'configs'
+      New-Item -ItemType Directory -Path $script:HomeDir -Force | Out-Null
+
+      foreach ($leafRelativePath in @('skills-tree/leaf-a', 'skills-tree/(group1)/inner-leaf')) {
+        $leafPath = Join-Path -Path $script:ConfigsDir -ChildPath $leafRelativePath
+        New-Item -ItemType Directory -Path $leafPath -Force | Out-Null
+        New-Item -ItemType File -Path (Join-Path -Path $leafPath -ChildPath 'SKILL.md') -Value 'x' -Force | Out-Null
+      }
+
+      $script:InnerLeafSource = (Get-Item -LiteralPath (Join-Path -Path $script:ConfigsDir -ChildPath 'skills-tree/(group1)/inner-leaf')).FullName
+      $script:LinkedFilesDir = Join-Path -Path $script:HomeDir -ChildPath 'linked-files'
+      $script:InnerLeafTarget = Join-Path -Path $script:LinkedFilesDir -ChildPath 'inner-leaf'
+
+      Mock Get-ConfigEntries {
+        @(
+          [PSCustomObject]@{
+            path = 'skills-tree/*'
+            target = 'linked-files'
+            descendInto = '/^\(.*\)$/'
+            markerFile = 'SKILL.md'
+            conditionalExcludes = @(
+              [PSCustomObject]@{ pattern = '/^inner-leaf$/'; whenPathExists = '~/.work-marker' }
+            )
+          }
+        )
+      }
+    }
+
+    AfterEach {
+      $script:HomeDir = $script:OriginalHomeDir
+      $script:ConfigsDir = $script:OriginalConfigsDir
+    }
+
+    It 'Join-RegexPatterns combina patrones ignorando nulos' {
+      $combined = Join-RegexPatterns -Patterns @([regex]::new('^a$'), $null, [regex]::new('^b$'))
+      $combined.IsMatch('a') | Should -BeTrue
+      $combined.IsMatch('b') | Should -BeTrue
+      $combined.IsMatch('c') | Should -BeFalse
+      Join-RegexPatterns -Patterns @($null) | Should -BeNullOrEmpty
+    }
+
+    It 'Get-ConditionalExcludeRegex falla con regex invalido' {
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:HomeDir -ChildPath '.work-marker') -Force | Out-Null
+      $entry = [PSCustomObject]@{
+        conditionalExcludes = @([PSCustomObject]@{ pattern = '/^(unclosed$/'; whenPathExists = '~/.work-marker' })
+      }
+      { Get-ConditionalExcludeRegex -Entry $entry } | Should -Throw
+    }
+
+    It 'no excluye cuando la ruta condicional no existe' {
+      $operations = @(Resolve-Operations)
+      $targets = @($operations | ForEach-Object { $_.Target })
+      $targets | Should -Contain $script:InnerLeafTarget
+      @($operations | Where-Object { $_.Remove }).Count | Should -Be 0
+    }
+
+    It 'excluye cuando la ruta condicional existe' {
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:HomeDir -ChildPath '.work-marker') -Force | Out-Null
+      $operations = @(Resolve-Operations)
+      $targets = @($operations | ForEach-Object { $_.Target })
+      $targets | Should -Not -Contain $script:InnerLeafTarget
+      $targets | Should -Contain (Join-Path -Path $script:LinkedFilesDir -ChildPath 'leaf-a')
+    }
+
+    It 'genera y ejecuta eliminacion del symlink previo que queda excluido' {
+      New-Item -ItemType Directory -Path $script:LinkedFilesDir -Force | Out-Null
+      try {
+        New-Item -ItemType SymbolicLink -Path $script:InnerLeafTarget -Target $script:InnerLeafSource -ErrorAction Stop | Out-Null
+      } catch {
+        Set-ItResult -Skipped -Because 'el entorno no permite crear symlinks reales'
+        return
+      }
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:HomeDir -ChildPath '.work-marker') -Force | Out-Null
+
+      $removals = @(Resolve-Operations | Where-Object { $_.Remove })
+      $removals.Count | Should -Be 1
+      $removals[0].Target | Should -Be $script:InnerLeafTarget
+
+      $script:DryRun = $true
+      Remove-StaleSymlink -SourcePath $removals[0].Source -TargetPath $removals[0].Target
+      Test-IsSymlink -Path $script:InnerLeafTarget | Should -BeTrue
+      $script:CountPlannedRemoved | Should -Be 1
+
+      $script:DryRun = $false
+      Remove-StaleSymlink -SourcePath $removals[0].Source -TargetPath $removals[0].Target
+      Test-PathEntry -Path $script:InnerLeafTarget | Should -BeFalse
+      $script:CountRemoved | Should -Be 1
+      $script:CountErrors | Should -Be 0
+    }
+
+    It 'no elimina archivos reales en el destino excluido' {
+      New-Item -ItemType Directory -Path $script:LinkedFilesDir -Force | Out-Null
+      New-Item -ItemType File -Path $script:InnerLeafTarget -Value 'real' -Force | Out-Null
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:HomeDir -ChildPath '.work-marker') -Force | Out-Null
+
+      @(Resolve-Operations | Where-Object { $_.Remove }).Count | Should -Be 0
+      Remove-StaleSymlink -SourcePath $script:InnerLeafSource -TargetPath $script:InnerLeafTarget
+      Get-Content -LiteralPath $script:InnerLeafTarget | Should -Be 'real'
+    }
+  }
+
+  Context 'Initialize-TargetDirectory' {
+    BeforeEach {
+      $script:MigrationRoot = Join-Path -Path $TestDrive -ChildPath ("migration-{0}" -f ([guid]::NewGuid().ToString('N')))
+      $script:OriginalConfigsDir = $script:ConfigsDir
+      $script:ConfigsDir = Join-Path -Path $script:MigrationRoot -ChildPath 'configs'
+      $script:RepoSkillsDir = Join-Path -Path $script:ConfigsDir -ChildPath 'skills-tree'
+      $script:MigrationHome = Join-Path -Path $script:MigrationRoot -ChildPath 'home'
+      New-Item -ItemType File -Path (Join-Path -Path $script:RepoSkillsDir -ChildPath 'leaf-a/SKILL.md') -Value 'x' -Force | Out-Null
+      New-Item -ItemType Directory -Path $script:MigrationHome -Force | Out-Null
+      $script:LinkedDirectory = Join-Path -Path $script:MigrationHome -ChildPath 'linked-files'
+    }
+
+    AfterEach {
+      $script:ConfigsDir = $script:OriginalConfigsDir
+    }
+
+    It 'Test-PathInsideConfigsDir distingue rutas dentro y fuera del repo' {
+      Test-PathInsideConfigsDir -Path $script:RepoSkillsDir | Should -BeTrue
+      Test-PathInsideConfigsDir -Path $script:ConfigsDir | Should -BeTrue
+      Test-PathInsideConfigsDir -Path "$($script:ConfigsDir)-other" | Should -BeFalse
+      Test-PathInsideConfigsDir -Path $script:MigrationHome | Should -BeFalse
+    }
+
+    It 'reemplaza symlink de directorio hacia el repo sin borrar contenido' {
+      try {
+        New-Item -ItemType SymbolicLink -Path $script:LinkedDirectory -Target $script:RepoSkillsDir -ErrorAction Stop | Out-Null
+      } catch {
+        Set-ItResult -Skipped -Because 'el entorno no permite crear symlinks reales'
+        return
+      }
+
+      $script:DryRun = $true
+      Initialize-TargetDirectory -DirectoryPath $script:LinkedDirectory
+      Initialize-TargetDirectory -DirectoryPath $script:LinkedDirectory
+      Test-IsSymlink -Path $script:LinkedDirectory | Should -BeTrue
+      $script:CountPlannedRemoved | Should -Be 1
+
+      $script:DryRun = $false
+      Initialize-TargetDirectory -DirectoryPath $script:LinkedDirectory
+      Test-PathEntry -Path $script:LinkedDirectory | Should -BeFalse
+      Test-Path -LiteralPath (Join-Path -Path $script:RepoSkillsDir -ChildPath 'leaf-a/SKILL.md') | Should -BeTrue
+      $script:CountRemoved | Should -Be 1
+    }
+
+    It 'rechaza un destino real dentro del repo' {
+      { Initialize-TargetDirectory -DirectoryPath $script:RepoSkillsDir } | Should -Throw '*dentro del repositorio*'
+    }
+
+    It 'no hace nada con directorios reales fuera del repo' {
+      New-Item -ItemType Directory -Path $script:LinkedDirectory -Force | Out-Null
+      { Initialize-TargetDirectory -DirectoryPath $script:LinkedDirectory } | Should -Not -Throw
+      Test-Path -LiteralPath $script:LinkedDirectory -PathType Container | Should -BeTrue
+    }
+  }
+
+  Context 'Salida ASCII y colores del resumen' {
+    It 'toda la decoracion es ASCII' {
+      $script:UseColor = $false
+      $script:StartTime = Get-Date
+      $output = & { Write-Banner; Print-Summary } | Out-String
+      ($output -replace '[áéíóúñÁÉÍÓÚÑ]', '') | Should -Not -Match '[^\x00-\x7F]'
+      (Format-ProgressBar -Current 6 -Total 12) | Should -Be '######......'
+      (Format-LinkDetail -SourcePath 'C:\fuente') | Should -Be '-> C:\fuente'
+    }
+
+    It 'colorea solo los contadores mayores a cero' {
+      $script:UseColor = $true
+      $script:CountCreated = 3
+      $escape = [char]27
+      (Format-SummaryCell -Icon '+' -Label 'creados' -Value 3 -Color Green) | Should -Match ([regex]::Escape("$escape[1;32m+ creados"))
+      (Format-SummaryCell -Icon '~' -Label 'reemplazados' -Value 0 -Color Blue) | Should -Match ([regex]::Escape("$escape[90m~ reemplazados"))
+    }
+
+    It 'la ayuda ya no ofrece --ascii ni --unicode' {
+      $helpText = Write-HelpText | Out-String
+      $helpText | Should -Not -Match '--unicode|--ascii'
+    }
+  }
+}

@@ -1,0 +1,22 @@
+[
+  {"query":"Tengo una skill existente en `/Users/me/.claude/skills/review/SKILL.md` que tarda por repetir lecturas y contexto. Compará snapshot anterior contra candidato, medí tokens/tool calls y preservá todos sus guards.","should_trigger":true},
+  {"query":"En `configs/.agents/skills/my-skills/(workflow)/(pr)/inline-thread-autofix/SKILL.md` quiero reducir pasos redundantes sin perder closeout, OID checks ni backups. Hacé auditoría y benchmark old-vs-new.","should_trigger":true},
+  {"query":"Necesito optimizar una Agent Skill ya publicada para mejorar precision/recall de activación. Usá queries positivas y near-miss con holdout, no cambies solo description sin medir.","should_trigger":true},
+  {"query":"Mi skill de despliegue tiene 600 líneas y muchas fases seriales; encontrá fan-out seguro, fast paths y referencias repetidas, y demostrí paridad funcional antes de editar.","should_trigger":true},
+  {"query":"Compará `/tmp/skill-v1` y `/tmp/skill-v2` como baseline/candidato. Reportá p50/p95, tokens reales, tool calls, regresiones de seguridad y qué versión conviene conservar.","should_trigger":true},
+  {"query":"Una skill con `evals/evals.json` pasó tests pero no tiene timing ni transcript de herramientas. Auditá si se puede afirmar que es más rápida y generá un reporte honesto.","should_trigger":true},
+  {"query":"Quiero compactar instrucciones de una skill, pero sus referencias contienen estados de error, permisos y pasos de rollback. Identificá duplicación sin eliminar invariantes.","should_trigger":true},
+  {"query":"Optimizá workflow de una skill que usa un backend delegado: reducí round-trips, mantené mutations seriales y verificá que handoff y output sigan compatibles.","should_trigger":true},
+  {"query":"Revisá una skill existente que tiene evals viejas y un nuevo objetivo de latencia. Congelá baseline, agregá casos de seguridad y compará candidato con holdout.","should_trigger":true},
+  {"query":"Tengo dos versiones de `SKILL.md` y quiero elegir la más rápida sin aceptar una caída de calidad, cobertura, autorización o comportamiento ante errores.","should_trigger":true},
+  {"query":"Optimizá este componente React en `app/components/Table.tsx`: typing lento, renders repetidos y filtros costosos; agregá memoización y tests.","should_trigger":false},
+  {"query":"Hacé una performance review de API para encontrar N+1, latencia de base de datos y allocations innecesarias en `api/services/users.ts`.","should_trigger":false},
+  {"query":"Creá desde cero una skill llamada `pdf-processing` con SKILL.md, ejemplos y evals para extraer tablas.","should_trigger":false},
+  {"query":"Empaquetá la skill existente en `/tmp/my-skill` como `.skill` y subila al marketplace.","should_trigger":false},
+  {"query":"Creá una issue de Jira describiendo optimización del workflow de onboarding y agregá criterios de aceptación.","should_trigger":false},
+  {"query":"Configurá settings.json para que Claude Code permita `npm run test` automáticamente sin prompts.","should_trigger":false},
+  {"query":"Revisá este PR contra develop y corregí bugs de autorización en `api/routes/users.ts`; commiteá y pusheá el fix.","should_trigger":false},
+  {"query":"Reducí bundle JavaScript, mejorá LCP y corré Lighthouse sobre la aplicación web sin tocar ninguna Agent Skill.","should_trigger":false},
+  {"query":"Actualizá `CLAUDE.md` con instrucciones más cortas para el equipo y eliminá texto duplicado.","should_trigger":false},
+  {"query":"Corré todos los tests de un repositorio y arreglá assertions flaky hasta dejar CI verde.","should_trigger":false}
+]

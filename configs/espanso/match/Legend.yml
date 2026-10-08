@@ -1,0 +1,105 @@
+global_vars:
+  - name: question_mark
+    type: echo
+    params:
+      echo: ❓
+  - name: request_changes
+    type: echo
+    params:
+      echo: 🔧
+  - name: arrow
+    type: echo
+    params:
+      echo: =>
+  - name: black_circle
+    type: echo
+    params:
+      echo: ⚫
+  - name: green_circle
+    type: echo
+    params:
+      echo: 🟢
+  - name: yellow_circle
+    type: echo
+    params:
+      echo: 🟡
+  - name: red_circle
+    type: echo
+    params:
+      echo: 🔴
+  - name: white_circle
+    type: echo
+    params:
+      echo: ⚪
+  - name: legend
+    type: echo
+    params:
+      echo: "### {{green_circle}} Test Legend
+
+
+        | Symbol                | Meaning                                                              |
+
+        | --------------------- | -------------------------------------------------------------------- |
+
+        | {{black_circle}}      | The test hasn't started yet.                                         |
+
+        | {{green_circle}}      | All checks passed.                                                   |
+
+        | {{yellow_circle}}     | There is at least one expected fail or skipped test and no failures. |
+
+        | {{red_circle}}        | There is at least one failed check.                                  |
+
+        | {{white_circle}}      | Doesn't apply.                                                       |
+
+        | {{request_changes}}   | Request changes.                                                     |
+
+        | {{question_mark}}     | Needs more information.                                              |
+
+        "
+
+matches:
+  - trigger: ";leg"
+    force_clipboard: true
+    replace: "{{legend}}"
+  - trigger: ";cir"
+    force_clipboard: true
+    replace: '{{circle}}'
+    vars:
+      - name: circle
+        type: choice
+        params:
+          values:
+            - label: Black
+              id: "{{black_circle}}"
+            - label: Green
+              id: "{{green_circle}}"
+            - label: Yellow
+              id: "{{yellow_circle}}"
+            - label: Red
+              id: "{{red_circle}}"
+            - label: White
+              id: "{{white_circle}}"
+  - trigger: ";que"
+    force_clipboard: true
+    replace: "{{question_mark}}"
+  - trigger: ";req"
+    force_clipboard: true
+    replace: "{{request_changes}}"
+  - trigger: ";arr"
+    force_clipboard: true
+    replace: "{{arrow}}"
+  - trigger: ";bla"
+    force_clipboard: true
+    replace: "{{black_circle}}"
+  - trigger: ";gre"
+    force_clipboard: true
+    replace: "{{green_circle}}"
+  - trigger: ";yel"
+    force_clipboard: true
+    replace: "{{yellow_circle}}"
+  - trigger: ";red"
+    force_clipboard: true
+    replace: "{{red_circle}}"
+  - trigger: ";whi"
+    force_clipboard: true
+    replace: "{{white_circle}}"

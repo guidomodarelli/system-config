@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fix Tests Intelligently"
+  short_description: "Diagnose test vs implementation mismatches"
+  default_prompt: "Use $fix-tests-intelligently to fix failing tests without weakening assertions."

@@ -1,0 +1,30 @@
+matches:
+  - triggers: [";link", ";in"]
+    label: "LinkedIn"
+    replace: "https://www.linkedin.com/in/guidomodarelli"
+    force_clipboard: true
+  - triggers: [";link", ";gh"]
+    label: "GitHub"
+    replace: "https://www.github.com/guidomodarelli"
+    force_clipboard: true
+  - triggers: [";link", ";tel"]
+    label: "Telephone"
+    replace: "2284354993"
+    force_clipboard: true
+  - triggers: [";link", ";mail"]
+    label: "Email"
+    replace: "guidomodarelli25@gmail.com"
+    force_clipboard: true
+  - triggers: [";link", ";x", ";tw"]
+    label: "X Profile"
+    replace: "https://x.com/guidomodarelli"
+    force_clipboard: true
+  - triggers: [";link", ";fb"]
+    label: "Facebook"
+    replace: "https://www.facebook.com/guido.modarelli/"
+    force_clipboard: true
+  - triggers: [";link", ";ig"]
+    label: "Instagram"
+    replace: "https://www.instagram.com/guido.modarelli/"
+    force_clipboard: true
+

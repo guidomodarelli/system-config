@@ -1,0 +1,23 @@
+{
+  "skill_name": "refactor-decouple-ts-react",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Refactorizá un componente React TypeScript de 900 líneas que mezcla render, scanner, búsqueda, paginación y confirmación. Conservá comportamiento y no hagas un refactor gigante.",
+      "expected_output": "Mide archivo principal y feature, acuerda fases antes de editar, extrae una frontera cohesionada por fase y valida typecheck, lint y tests después de cada una.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Extraé la búsqueda de una lista React a componente hijo. El parent debe seguir deshabilitando scanner mientras foco está en búsqueda y debe limpiar búsqueda al agregar operador.",
+      "expected_output": "Estado de búsqueda queda en hijo y coordinación usa props explícitas para foco y reset; no modifica timing ni comportamiento observable.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Mové un type público y helper desde un archivo TypeScript grande sin romper imports existentes.",
+      "expected_output": "Type y helper se mueven a frontera neutral, símbolo público se reexporta cuando hay consumers externos y se valida compilación más tests de comportamiento.",
+      "files": []
+    }
+  ]
+}

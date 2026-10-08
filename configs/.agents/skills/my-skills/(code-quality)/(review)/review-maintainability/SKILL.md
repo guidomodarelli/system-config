@@ -1,0 +1,102 @@
+---
+name: review-maintainability
+description: Review maintainability risks in HEAD, uncommitted changes, or the current branch against develop, falling back to main or master when develop does not exist. Use when the user asks for a maintainability review, Review Maintainability HEAD, review including uncommitted changes, review against develop/main/master, or focused review of concurrency and thread safety, race conditions, deadlocks, unbounded concurrency, logic bugs, null handling, edge cases, type errors, memory leaks, connection leaks, resource leaks, or unbounded growth in changed code.
+---
+
+# Review Maintainability
+
+## Goal
+
+Review only the changes introduced by the current branch against the best available base branch. Prioritize defects that can cause incorrect behavior, unsafe concurrent execution, or resource growth/leaks. Report findings first, in Spanish, with precise file and line references.
+
+## Review Scope
+
+If the user has not already chosen the scope, ask in Spanish before reviewing:
+
+> Seleccioná un preset de review
+> 1. Review contra develop (PR Style)
+> 2. Review contra main/master (PR Style)
+> 3. Review cambios no commiteados
+> 4. Review con instrucciones personalizadas
+
+Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
+
+Fetch remote refs (with pruning) before resolving branches or reading diffs, because a stale base produces a diff that does not match what the PR will actually merge. If the fetch fails, stop and report the error rather than reviewing against stale refs.
+
+Use these scopes:
+
+- **Uncommitted only**: inspect staged, unstaged, and untracked files relative to `HEAD`.
+- **HEAD against develop including uncommitted changes**: inspect commits from the merge base with `develop` to `HEAD`, then include staged, unstaged, and untracked files.
+- **HEAD against main/master including uncommitted changes**: inspect commits from the merge base with `main` or `master` to `HEAD`, then include staged, unstaged, and untracked files.
+- **Custom review instructions**: ask the user for the exact scope and review focus, then apply the closest matching scope above.
+
+## Base Selection
+
+For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`. Remote tracking branches come first because they reflect the shared base more reliably. Option `3` needs no base branch: review staged, unstaged, and untracked files relative to `HEAD`. For option `4`, get the custom instructions first, then pick the requested base or file scope.
+
+Review from the merge base with the selected base to `HEAD`. When the scope includes uncommitted changes, cover staged, unstaged, and untracked files too, and say explicitly in the report that the review includes them.
+
+## Review Approach
+
+Resolve the base and merge base before reading code, since everything else depends on reviewing the right diff. Classifying changed files by runtime responsibility (UI, API route, service, persistence, background job, shared utility, test, config, or documentation) helps decide where concurrency, correctness, or leak risks are plausible.
+
+- Start from the diff and open surrounding implementation when changed code depends on invariants outside it.
+- Follow control flow across module boundaries when changed functions call each other, because many defects live in the interaction rather than in either side.
+- Prefer concrete failures over style comments: a maintainability opinion belongs in the report only when it creates a plausible defect in one of the focus areas.
+- Check likely findings against code context before reporting. If a risk depends on an assumption, state it, or drop the finding when the assumption is weak.
+
+## Focus Areas
+
+### Concurrency And Thread Safety
+
+Look for:
+
+- Race conditions from async operations resolving out of order.
+- Missing cancellation, stale writes, or state updates after teardown.
+- Shared mutable state used across requests, sessions, jobs, or tests.
+- Deadlocks, lock-order inversions, missing unlocks, or blocking waits inside async/event-loop code.
+- Unbounded concurrency from `Promise.all`, loops that start async work without limits, worker pools without caps, queue consumers without backpressure, or retries without bounds.
+- Timer, listener, subscription, stream, or observer lifecycles that can overlap unexpectedly.
+
+### Incorrect Behavior Bugs
+
+Look for:
+
+- Logic errors, inverted conditions, unreachable branches, and off-by-one mistakes.
+- Null, undefined, empty, missing, or malformed input paths.
+- Edge cases around pagination, sorting, filtering, retries, dates, time zones, locale, numeric conversion, and partial API responses.
+- Type mismatches, unsafe casts, shape drift between API/service/UI layers, and assumptions not enforced by validation.
+- Error handling that swallows failures, reports success after partial failure, retries the wrong operation, or returns inconsistent state.
+
+### Leaks And Resource Management
+
+Look for:
+
+- Memory leaks from retained closures, caches, maps, arrays, global registries, event listeners, or subscriptions.
+- Connection, file, stream, transaction, lock, browser, worker, or interval resources not closed on success and failure paths.
+- Unbounded growth in caches, queues, logs, telemetry buffers, retry state, polling, or accumulated DOM/application state.
+- Missing cleanup in tests that can leak timers, listeners, mocks, servers, or global state into later tests.
+
+## Reporting
+
+Return findings first, ordered by severity. Use Spanish for all review findings and visible explanation.
+
+For each finding include:
+
+- Severity: `P0`, `P1`, `P2`, or `P3`.
+- A concise title.
+- File and line reference.
+- The concrete failure mode.
+- Why the changed code introduced or exposed the issue.
+- A brief remediation direction.
+
+When the environment supports inline review comments, emit one `::code-comment{...}` directive per finding with a tight line range and Spanish body. Keep the final summary short.
+
+If there are no findings, say that clearly and mention residual risk, such as tests not run or areas not inspectable from the diff.
+
+## Boundaries
+
+- Do not report formatting, naming, architecture, or style issues unless they directly cause one of the focus-area defects.
+- Do not review unchanged code as a standalone cleanup target.
+- Do not ask for broad rewrites when a focused fix can remove the risk.
+- Do not assume tests pass. If relevant tests are known or cheap to run, run them; otherwise state what was not validated.

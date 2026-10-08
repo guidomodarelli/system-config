@@ -1,0 +1,85 @@
+{
+  "skill_name": "typed-errors-refactor",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "En un servicio TypeScript, una dependencia externa rechaza con response.data, headers, stack y un token. El handler registra el error completo y devuelve response.data al cliente. Analizá y aplicá un refactor de errores tipados sin cambiar los códigos/status públicos válidos.",
+      "expected_output": "Inventario upstream→service→API→logs, contrato tipado con code/cause/metadata allowlisted, mapping de transporte separado y DTO/log sanitizados. Incluye tests negativos contra response raw, stack, headers, token y PII.",
+      "files": [],
+      "expectations": [
+        "Clasifica el error por boundary y semántica upstream/dependency",
+        "Preserva códigos y status públicos salvo cambio explícito",
+        "Conserva cause solo para diagnóstico interno",
+        "No expone response, stack, headers, token ni PII",
+        "Separa dominio, mapping HTTP y DTO público",
+        "Agrega tests observables de sanitización"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Un repositorio JS/TS usa throw new Error('user not found'), throws de strings y consumers que hacen message.includes('timeout'). Queremos custom errors pero no sabemos si conviene crear clases. Diseñá una migración segura y aplicá solo el patrón que encaje con el repositorio.",
+      "expected_output": "Detecta throws sin contrato y discriminación por copy, propone guards/factories/unions o clases solo si aportan valor, mantiene un bridge legacy temporal y migra producers/consumers por boundary con tests de regresión.",
+      "files": [],
+      "expectations": [
+        "Inventaría throws de strings, Error genérico y discriminación por message",
+        "No impone clases ni jerarquía si no son necesarias",
+        "Define códigos estables y guards o normalizer",
+        "Preserva retry/status/fallback/copy observables",
+        "Propone migración incremental con bridge y retiro verificable",
+        "Evita tests de implementación textual"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Una búsqueda React aborta el request anterior cuando cambia el término, pero el catch muestra un toast para cualquier error. También existe una carrera donde una respuesta vieja pisa el estado nuevo. Revisá el manejo de errores y proponé implementación y tests.",
+      "expected_output": "Distingue AbortError/cancelación de fallos reales, conserva cleanup y signal, evita feedback visible para abort y protege contra respuestas stale. Incluye tests de éxito, error, abort y carrera.",
+      "files": [],
+      "expectations": [
+        "Trata cancelación como camino no-error para usuario",
+        "Propaga signal y limpia listeners/timers en cleanup",
+        "Evita que una respuesta stale actualice estado",
+        "Mantiene feedback seguro para errores reales",
+        "Incluye tests de abort, error, éxito y carrera"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Un loader SSR rechaza una Promise y el equipo propone envolver toda la pantalla en un React Error Boundary para manejar todos los fallos. Diseñá el flujo correcto para loader, API, HTML inicial y UI.",
+      "expected_output": "Rechaza usar Error Boundary como solución global: maneja loader/SSR server-side con props controladas, serializa un DTO seguro y usa Error Boundary únicamente para fallos de render. Incluye tests separados.",
+      "files": [],
+      "expectations": [
+        "Distingue Error Boundary de errores async, API y SSR",
+        "Captura el fallo en loader/SSR y devuelve props controladas",
+        "Evita stack/cause/raw error en HTML inicial",
+        "Propone fallback UI accionable y seguro",
+        "Incluye tests de loader, serializer y render fallback"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Un cliente produce timeout, respuesta inválida, 401 y 409, y todos los consumers los convierten en Error genérico. Diseñá una taxonomía y mapping que permita decidir retry, autorización, conflicto y fallback sin acoplar el dominio a números HTTP.",
+      "expected_output": "Clasifica errores por semántica, define codes específicos, separa retryability y mapping HTTP, y especifica metadata allowlisted y tests de cada consumer.",
+      "files": [],
+      "expectations": [
+        "Distingue dependency unavailable, upstream invalid, authentication y conflict",
+        "Define codes estables independientes de HTTP status",
+        "Separa retryability del mapping de transporte",
+        "Define metadata allowlisted por código",
+        "Incluye tests de mapping, retry y respuesta pública"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Una librería puede lanzar null, un string o un objeto con PII; AggregateError incluye una causa con credenciales y stack. Proponé un normalizer robusto y una salida segura. No devuelvas el valor raw al cliente.",
+      "expected_output": "Normaliza unknown sin asumir message, conserva causa solo internamente, aplica redaction/allowlist y produce fallback estable sin PII, credenciales, stack ni cause raw. Incluye tests negativos.",
+      "files": [],
+      "expectations": [
+        "Acepta y normaliza null, string, objeto, Error y AggregateError",
+        "No usa any ni devuelve valores lanzados raw",
+        "Conserva cause únicamente en contexto interno",
+        "Elimina PII, credenciales, stack y campos no allowlisted",
+        "Incluye tests negativos de serialización segura"
+      ]
+    }
+  ]
+}

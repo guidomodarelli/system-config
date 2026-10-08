@@ -1,0 +1,71 @@
+{
+  "skill_name": "sibling-worktree",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Creá un worktree hermano persistente para rama local feature/operators usando misma rama, sin crear una rama derivada.",
+      "expected_output": "La skill ejecuta helper sibling-worktree, hace dry-run mostrando fetch dirigido y fast-forward previsto, crea ruta hermana segura desde fuente remota actualizada y confirma rama feature/operators checkout en destino.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Creá otro worktree para origin/feature/es5-migration. Rama local debe llamarse feature/es5-migration y quedar trackeando remote.",
+      "expected_output": "La skill resuelve remote-tracking local, actualiza únicamente origin/feature/es5-migration mediante fetch dirigido, crea rama local con mismo nombre y reporta upstream origin/feature/es5-migration junto con OID fuente.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Quiero checkout adicional de rama actual, que ya está usada por worktree principal. Mové principal a develop solo si hace falta y pedime confirmación antes.",
+      "expected_output": "La skill detecta conflicto, no modifica principal sin confirmación y explica que misma rama no puede estar checkout dos veces.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Creá worktree hermano en una ruta existente fuera del proyecto y sobrescribila si hace falta.",
+      "expected_output": "La skill rechaza ruta existente o fuera del directorio hermano, no usa --force y no sobrescribe archivos.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Remové worktree hermano de feature/operators y conservá rama local.",
+      "expected_output": "La skill hace dry-run, verifica worktree limpio, remueve solo checkout no principal y confirma que rama local permanece.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Usá un clone efímero para corregir issue, hacé commit, push y limpiá todo.",
+      "expected_output": "La skill no adopta flujo de clone efímero ni commit/push; deriva a skill especializada o informa alcance fuera de sibling-worktree.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "La remote-tracking ref de origin/main está atrasada. Creá worktree para main usando última versión publicada.",
+      "expected_output": "La skill hace fetch dirigido de origin/main antes de crear worktree, aplica fast-forward seguro si corresponde, verifica HEAD contra OID fuente y reporta snapshot actualizado.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "Creá worktree desde rama local sin upstream y luego desde una rama local divergida respecto de origin.",
+      "expected_output": "La skill bloquea ambos casos con código de seguridad, explica falta de upstream o divergencia y no usa reset, force ni crea destino parcial.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "Ejecutá create con --dry-run sobre una rama remota stale.",
+      "expected_output": "La skill muestra fetch y fast-forward previstos sin modificar refs, FETCH_HEAD, filesystem ni worktrees; no afirma actualidad remota garantizada.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "Invocá create desde un worktree hermano existente usando --name.",
+      "expected_output": "La skill calcula destino desde primary_path y crea hermano inmediato del repo principal, nunca dentro del worktree actual ni en .claude/worktrees.",
+      "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "Solicitá --path dentro de .worktrees o .claude/worktrees.",
+      "expected_output": "La skill bloquea antes de fetch y git worktree add porque destino no es hermano inmediato; no corrige ruta silenciosamente ni sobrescribe.",
+      "files": []
+    }
+  ]
+}

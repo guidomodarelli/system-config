@@ -1,0 +1,154 @@
+{
+  "skill_name": "fix-in-ephemeral-clone",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "https://github.com/acme/widgets/pull/42#discussion_r123456789\nResuelve este comentario inline.",
+      "expected_output": "Delegá exactamente una vez en inline-thread-autofix y no ejecutes clone, edición, commit, push ni closeout desde este flujo.",
+      "files": [],
+      "expectations": [
+        "Reconoce URL PR inline válida",
+        "Invoca inline-thread-autofix como orquestadora",
+        "Detiene el flujo local antes de crear clone",
+        "No duplica commit, push ni closeout"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-handoff-1\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nfinding_anchor: src/service.js:42\nfinding_summary: Evitar exposición de datos upstream\nacceptance_criteria: DTO allowlisted y test negativo\nstack_plan: none\nissue: none",
+      "expected_output": "Ejecuta un único clone efímero sobre branch y OIDs entregados, valida, commitea, pushea solo branch autorizada, devuelve HANDOFF_RESULT y no muta GitHub.",
+      "files": [],
+      "expectations": [
+        "Acepta modo INLINE_THREAD_AUTOFIX_HANDOFF",
+        "Usa implementation_repo y implementation_branch sin inferir destino",
+        "Valida expected_head_oid antes de editar",
+        "Devuelve SHA completo y evidencia de validación",
+        "No invoca inline-thread-autofix recursivamente",
+        "No publica reply, review, issue o resolución"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-handoff-1\nexpected_head_oid: 0123456789012345678901234567890123456789",
+      "expected_output": "Rechaza handoff incompleto antes de editar o pushear; devuelve fallo explícito al orquestador y conserva cualquier recurso creado.",
+      "files": [],
+      "expectations": [
+        "Exige campos obligatorios del contrato",
+        "No inventa ancla ni criterios de aceptación",
+        "No crea commit ni push con handoff incompleto",
+        "No inicia closeout GitHub"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Corregí issue #901 en un clone efímero, validá, commiteá, pusheá a la branch actual y limpiá el clone.",
+      "expected_output": "Mantiene modo DIRECT y ejecuta el flujo genérico completo sin intentar invocar inline-thread-autofix.",
+      "files": [],
+      "expectations": [
+        "Clasifica solicitud sin URL PR como DIRECT",
+        "Descubre branch y upstream actuales",
+        "Crea clone depth-1 nuevo",
+        "Valida antes de commit y push",
+        "Limpia únicamente clone creado"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "https://github.com/acme/widgets/pull/42#pullrequestreview-invalid\nAplicá cualquier fix.",
+      "expected_output": "Trata entrada como intento de PR review, delega validación a inline-thread-autofix y no la interpreta como issue genérica.",
+      "files": [],
+      "expectations": [
+        "Reconoce fragment inválido de review",
+        "Delega validación al orquestador",
+        "No inventa review ID",
+        "No crea clone ni mutación"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-handoff-1\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nsnapshot_id: run-1\nfinding_anchor: src/service.js:42\nfinding_summary: Evitar exposición de datos upstream\nacceptance_criteria: DTO allowlisted y test negativo\nvalidation_plan: paths=src/service.js;focused_tests=service.spec.js\nstack_plan: {schema_version:1,layers:[],order:[]}\nbackup_manifest: none\nissue: none",
+      "expected_output": "Ejecuta handoff con schema versionado, valida HEAD/base, devuelve BACKUPS_NOT_APPLICABLE cuando no hay stack y no hace closeout GitHub.",
+      "files": [],
+      "expectations": [
+        "Valida schema_version y campos completos del handoff",
+        "Compara expected_head_oid y expected_base_oid antes de editar",
+        "Devuelve BACKUPS_NOT_APPLICABLE sin inventar refs",
+        "No publica reply, review, issue o resolución"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Corregí issue #901 en clone efímero. Push devuelve non-fast-forward dos veces y luego error de autenticación; reintentá hasta que pase.",
+      "expected_output": "Reintenta únicamente NFF dentro del límite de tres ciclos, detiene error de autenticación y conserva clone/recursos sin loop infinito.",
+      "files": [],
+      "expectations": [
+        "Clasifica NFF como reintentable",
+        "Limita reintentos a tres ciclos por branch",
+        "No reintenta error de autenticación o permisos",
+        "Reporta estado fallido y conserva clone"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Corregí issue #901 desde zsh: copiá configuración opcional `.env.*` y publicá el commit a la branch autorizada.",
+      "expected_output": "Maneja glob opcional sin abortar por `nomatch`, usa expansión segura de variables al construir refspecs con `:`, valida el comando y no reintenta un error local de shell.",
+      "files": [],
+      "expectations": [
+        "Enumera `.env` y `.env.*` sin depender de un glob zsh sin coincidencias",
+        "Cita paths con paréntesis y metacaracteres antes de pasarlos a comandos zsh",
+        "No usa `path` como variable zsh porque modifica el array especial de `$PATH`",
+        "Usa `${variable}:suffix` al concatenar variables y dos puntos en refspecs",
+        "Distingue error local de expansión o refspec de NFF remoto",
+        "No deja paths temporales sin ownership o cleanup verificable"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Después del rebase del clone, el remoto solo cambió un mensaje de timeout y el test aislado correspondiente; servicio, dependencias, configuración, fixtures compartidos y finding permanecen iguales. Publicá sin repetir todos los gates.",
+      "expected_output": "Clasifica REMOTE_DRIFT_INDEPENDENT, conserva fingerprints y resultados previos, ejecuta solo integridad final y reporta validation_reused sin afirmar tests/lint/build rerun.",
+      "files": [],
+      "expectations": [
+        "Compara manifest y superficie antes de clasificar",
+        "No trata rebase como rerun completo automático",
+        "Ejecuta integridad final de diff, paths, manifest y OIDs",
+        "Reporta gates reutilizados y comandos realmente ejecutados"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Después del rebase, cambió lockfile, configuración de build y fixture compartido usado por los tests del fix. El servicio no cambió; publicá sin revalidar.",
+      "expected_output": "Clasifica REMOTE_DRIFT_RELATED, invalida resultados previos y ejecuta gates integrados afectados o gate completo; conserva clone y detiene publicación si validación falla.",
+      "files": [],
+      "expectations": [
+        "Trata lockfile, configuración y fixture compartido como drift relacionado",
+        "No reutiliza silenciosamente resultados anteriores",
+        "Revalida tests y superficies integradas requeridas",
+        "No publica éxito con validación incompleta"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-in-context-1\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nfinding_anchor: src/service.js:42\nfinding_summary: Corregir contrato\nacceptance_criteria: Test focal verde\nvalidation_plan: tests/service.spec.js\nstack_plan: none\nbackup_manifest: none\nissue: none\nSe cargaron instrucciones mediante Skill, no existe task handle. Ejecutá el handoff en contexto actual.",
+      "expected_output": "Ejecuta modo in_context de forma síncrona, no espera agente y devuelve HANDOFF_RESULT solo tras clone, validación, commit, push y verificación reales.",
+      "files": [],
+      "expectations": [
+        "Distingue carga Skill síncrona de executor background",
+        "Usa executor_mode in_context y executor_tool in_context",
+        "No anuncia executor iniciado ni deja trabajo pendiente",
+        "Devuelve resultado completo solo después de evidencia real"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "HANDOFF: INLINE_THREAD_AUTOFIX\nsource_url: https://github.com/acme/widgets/pull/42#discussion_r123456789\nimplementation_repo: acme/widgets\nimplementation_pr: 42\nimplementation_branch: feature/fix-review\nimplementation_base: master\nhandoff_id: eval-no-executor-1\nexpected_head_oid: 0123456789012345678901234567890123456789\nexpected_base_oid: 9876543210987654321098765432109876543210\nfinding_anchor: src/service.js:42\nfinding_summary: Corregir contrato\nacceptance_criteria: Test focal verde\nvalidation_plan: tests/service.spec.js\nstack_plan: none\nbackup_manifest: none\nissue: none\nNo existe herramienta Agent/job, no hay handle y contexto no puede continuar.",
+      "expected_output": "Devuelve HANDOFF_EXECUTOR_MISSING inmediatamente; no inventa clone, commit, push, progreso ni espera background.",
+      "files": [],
+      "expectations": [
+        "Reporta ausencia real de executor",
+        "No inventa path, branch, HEAD ni resultado",
+        "No hace polling ni closeout GitHub",
+        "Requiere nueva ejecución autorizada"
+      ]
+    }
+  ]
+}

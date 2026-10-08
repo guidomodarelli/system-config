@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactor Decouple TS React"
+  short_description: "Decouple JS/TS and React code safely"
+  default_prompt: "Use $refactor-decouple-ts-react to decouple this JS/TS React code into clearer helpers, constants, types, components, and hooks."

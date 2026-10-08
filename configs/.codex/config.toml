@@ -1,0 +1,151 @@
+# :schema https://developers.openai.com/codex/config-schema.json
+
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"
+model_context_window = 1000000
+model_auto_compact_token_limit = 900000
+personality = "pragmatic"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+approvals_reviewer = "auto_review"
+
+[desktop]
+ambient-suggestions-enabled = true
+appearanceDarkCodeThemeId = "github"
+appearanceLightCodeThemeId = "one"
+appearanceTheme = "system"
+composerEnterBehavior = "enter"
+conversationDetailMode = "STEPS_COMMANDS"
+followUpQueueMode = "steer"
+git-branch-prefix = "feature/"
+git-create-pull-request-as-draft = true
+git-pull-request-merge-method = "merge"
+git-show-sidebar-pr-icons = true
+keepRemoteControlAwakeWhilePluggedIn = true
+localeOverride = "en-US"
+notifications-turn-mode = "always"
+preventSleepWhileRunning = true
+reviewDelivery = "detached"
+selected-avatar-id = "codex"
+show-context-window-usage = true
+usePointerCursors = true
+dock-icon-preference = "codex-system"
+
+[desktop.appearanceDarkChromeTheme]
+accent = "#1f6feb"
+contrast = 60
+ink = "#e6edf3"
+opaqueWindows = false
+surface = "#0d1117"
+
+[desktop.appearanceDarkChromeTheme.fonts]
+ui = "Inter"
+
+[desktop.appearanceDarkChromeTheme.semanticColors]
+diffAdded = "#3fb950"
+diffRemoved = "#f85149"
+skill = "#bc8cff"
+
+[desktop.appearanceLightChromeTheme]
+accent = "#526fff"
+contrast = 45
+ink = "#383a42"
+opaqueWindows = true
+surface = "#fafafa"
+
+[desktop.appearanceLightChromeTheme.fonts]
+ui = "Inter"
+
+[desktop.appearanceLightChromeTheme.semanticColors]
+diffAdded = "#3bba54"
+diffRemoved = "#e45649"
+skill = "#526fff"
+
+[desktop.open-in-target-preferences]
+global = "vscode"
+
+[features]
+# Habilita modos de colaboración como plan mode.
+#
+# Beneficio: ayuda a que Codex trabaje con modos más estructurados para
+# planificar antes de ejecutar.
+collaboration_modes = true
+default_mode_request_user_input = false
+goals = true
+hooks = true
+js_repl = false
+memories = true
+mentions_v2 = true
+multi_agent = false
+prevent_idle_sleep = true
+responses_websockets = true
+# Sirve para capturar el entorno del shell y acelerar comandos repetidos. La
+# docs la describen como una forma de “snapshot your shell environment to speed
+# up repeated commands”.
+#
+# Beneficia más cuando trabajás en repos con muchos comandos iterativos, shells
+# con bastante inicialización, o sesiones largas.
+#
+# Mi recomendación: sí la usaría en local, salvo que notes comportamientos raros
+# con variables de entorno que cambian mucho durante la sesión.
+shell_snapshot = true
+terminal_resize_reflow = true
+plugin_hooks = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+[memories]
+disable_on_external_context = false
+generate_memories = false
+use_memories = false
+
+[plugins."browser-use@openai-bundled"]
+enabled = true
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."chrome@openai-bundled"]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[plugins."grid-sharing@tech-plugins-marketplace"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[tui]
+notification_method = "osc9"
+notifications = [
+    "agent-turn-complete",
+    "user-input-requested",
+    "approval-requested",
+]
+status_line = [
+    "model-with-reasoning",
+    "git-branch",
+    "pull-request-number",
+    "task-progress",
+    "project-name",
+    "context-remaining",
+    "run-state",
+]
+status_line_use_colors = true
+theme = "two-dark"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+"gpt-5.6-sol" = 1
+
+[windows]
+sandbox = "unelevated"
+
+[notice.model_migrations]
+"gpt-5.5" = "gpt-5.6-sol"

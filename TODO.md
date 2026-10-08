@@ -1,0 +1,1 @@
+- [ ] Convertir setup.ps1 en un script similar a setup.sh, para que se pueda seleccionar los paquetes a instalar de manera interactiva (preferentemente usando fzf).
