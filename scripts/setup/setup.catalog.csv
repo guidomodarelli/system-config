@@ -28,7 +28,7 @@ fd_find|fd-find|install_fd_find|Install-FdFind|1|0|linux,wsl,darwin,windows|0
 yq|yq|install_yq||1|0|linux,wsl,darwin|0
 xclip|xclip|install_xclip||1|1|linux|0
 win32yank|win32yank (WSL clipboard)|install_win32yank||1|0|wsl|0
-espanso|Espanso|install_espanso|Install-Espanso|1|0|linux,darwin,windows|0
+espanso|Espanso|install_espanso||1|0|linux,darwin|0
 git|Git|install_git||1|1|linux,wsl|0
 git|Git||Install-Git|1|0|windows|0
 git_filter_repo|git-filter-repo|install_git_filter_repo||1|1|linux,wsl|0
@@ -49,13 +49,14 @@ powershell|PowerShell||Install-PowerShell|1|0|windows|0
 pester|Pester||Install-Pester|1|0|windows|0
 python|Python||Install-Python|1|0|windows|0
 powertoys|PowerToys||Install-PowerToys|1|0|windows|0
+wsl|WSL||Install-WSL|1|1|windows|1
+bitwarden|Bitwarden||Install-Bitwarden|1|0|windows|0
+seven_zip|7-Zip||Install-7z|1|0|windows|0
+espanso|Espanso||Install-Espanso|0|0|windows|0
 scoop|Scoop||Install-Scoop|0|0|windows|0
 ghostty|Ghostty||Install-Ghostty|0|0|windows|0
-wsl|WSL||Install-WSL|0|1|windows|1
 autohotkey|AutoHotkey||Install-AutoHotkey|0|0|windows|0
 vlc|VLC||Install-Vlc|0|0|windows|0
 whatsapp|WhatsApp||Install-WhatsApp|0|0|windows|0
-bitwarden|Bitwarden||Install-Bitwarden|0|0|windows|0
-seven_zip|7-Zip||Install-7z|0|0|windows|0
 hyper_v|Hyper-V||Enable-HyperV|0|1|windows|1
 iosevka_term_curly|Font: Iosevka Term Curly|install_font_IosevkaTermCurly||0|0|linux,darwin|0

@@ -33,6 +33,8 @@ Si Homebrew está en otra ruta, ajusta la función `_brew` en
   `Ghostty`.
 - En Windows, `Ghostty` queda disponible como ítem opcional y muestra un aviso
   porque aún no hay instalador oficial para esa plataforma.
+- En Windows, `WSL`, `Bitwarden` y `7-Zip` se seleccionan por defecto;
+  `Espanso`, `Scoop`, `Ghostty`, `AutoHotkey`, `VLC` y `WhatsApp` son opcionales.
 - `wget` y Java 21 ya no forman parte de los paquetes recomendados.
 
 ### Ejecutar el script completo
