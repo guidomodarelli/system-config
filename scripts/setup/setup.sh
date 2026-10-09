@@ -783,6 +783,31 @@ install_ghostty() {
   _brew install --cask ghostty # https://ghostty.org/
 }
 
+install_claude_code() {
+  # El instalador oficial instala Claude Code o actualiza una instalación existente.
+  local temp_dir install_script
+  temp_dir="$(_setup_create_temp_dir)"
+  install_script="$temp_dir/claude-code-install.sh"
+  if ! curl -fsSLo "$install_script" "https://claude.ai/install.sh"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  if ! bash "$install_script"; then
+    _setup_remove_temp_dir "$temp_dir"
+    return 1
+  fi
+  _setup_remove_temp_dir "$temp_dir"
+}
+
+install_codex() {
+  # Instala Codex o actualiza una instalación existente de la cask.
+  if _brew list --cask codex >/dev/null 2>&1; then
+    _brew upgrade --cask codex
+  else
+    _brew install --cask codex
+  fi
+}
+
 install_zsh() {
   if command -v zsh >/dev/null 2>&1; then
     echo "Zsh ya está instalado; se omite la instalación del paquete."

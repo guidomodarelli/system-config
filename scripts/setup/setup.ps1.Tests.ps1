@@ -6,6 +6,7 @@
     # solo sus funciones en el scope del test.
     $script:SetupScriptPath = Join-Path $PSScriptRoot 'setup.ps1'
     $script:SetupChocolateyPolicy = Import-PowerShellDataFile -LiteralPath (Join-Path $PSScriptRoot 'constants/chocolatey.psd1')
+    $script:SetupOfficialInstallers = Import-PowerShellDataFile -LiteralPath (Join-Path $PSScriptRoot 'constants/official-installers.psd1')
     $tokens = $null
     $parseErrors = $null
     $setupScriptAst = [System.Management.Automation.Language.Parser]::ParseFile($script:SetupScriptPath, [ref]$tokens, [ref]$parseErrors)
@@ -28,6 +29,7 @@
     function scoop { }
     function fnm { }
     function npm { }
+    function powershell.exe { }
     function uvTestExecutable { }
 
     # Get-FilteredSetupMenuIndexes devuelve el array envuelto (return ,$indexes); se desenvuelve acá.
@@ -757,6 +759,84 @@
       Install-Ghostty
 
       Should -Invoke LogWarning -Times 1 -Exactly -ParameterFilter { $message -like '*https://ghostty.org/download*' }
+    }
+  }
+
+  Context 'catálogo de Codex y Claude Code' {
+    It 'figura como recomendado en todas las plataformas del catálogo' -ForEach @(
+      @{ CatalogId = 'codex'; PowerShellFunctionName = 'Install-Codex' },
+      @{ CatalogId = 'claude_code'; PowerShellFunctionName = 'Install-ClaudeCode' }
+    ) {
+      $catalogItem = Import-Csv -LiteralPath (Join-Path $PSScriptRoot 'setup.catalog.csv') -Delimiter '|' |
+        Where-Object { $_.Id -eq $CatalogId }
+
+      $catalogItem.PowerShellFunctionName | Should -Be $PowerShellFunctionName
+      $catalogItem.DefaultSelected | Should -Be '1'
+      $catalogItem.Platforms | Should -Be 'linux,wsl,darwin,windows'
+    }
+  }
+
+  Context 'Install-Codex' {
+    BeforeEach {
+      $script:PreviousCodexNonInteractive = $env:CODEX_NON_INTERACTIVE
+      $env:CODEX_NON_INTERACTIVE = 'valor-previo'
+      Mock LogInfo { }
+      Mock LogSuccess { }
+      Mock npm { }
+    }
+
+    AfterEach {
+      $env:CODEX_NON_INTERACTIVE = $script:PreviousCodexNonInteractive
+    }
+
+    It 'instala o actualiza con el instalador oficial, sin preguntas y sin npm' {
+      Mock powershell.exe {
+        $script:CodexNonInteractiveDuringInstall = $env:CODEX_NON_INTERACTIVE
+        $global:LASTEXITCODE = 0
+      }
+
+      Install-Codex
+
+      Should -Invoke powershell.exe -Times 1 -Exactly -ParameterFilter {
+        ($args -join ' ') -eq '-NoProfile -ExecutionPolicy Bypass -Command irm https://chatgpt.com/codex/install.ps1 | iex'
+      }
+      Should -Invoke npm -Times 0 -Exactly
+      $script:CodexNonInteractiveDuringInstall | Should -Be '1'
+      $env:CODEX_NON_INTERACTIVE | Should -Be 'valor-previo'
+      Should -Invoke LogSuccess -Times 1 -Exactly
+    }
+
+    It 'falla con el código de salida del instalador y restaura CODEX_NON_INTERACTIVE' {
+      Mock powershell.exe { $global:LASTEXITCODE = 1 }
+
+      { Install-Codex } | Should -Throw '*instalador oficial de Codex*código 1*'
+      $env:CODEX_NON_INTERACTIVE | Should -Be 'valor-previo'
+      Should -Invoke LogSuccess -Times 0 -Exactly
+    }
+  }
+
+  Context 'Install-ClaudeCode' {
+    BeforeEach {
+      Mock LogInfo { }
+      Mock LogSuccess { }
+    }
+
+    It 'instala o actualiza con el instalador oficial en Windows PowerShell con Bypass' {
+      Mock powershell.exe { $global:LASTEXITCODE = 0 }
+
+      Install-ClaudeCode
+
+      Should -Invoke powershell.exe -Times 1 -Exactly -ParameterFilter {
+        ($args -join ' ') -eq '-NoProfile -ExecutionPolicy Bypass -Command irm https://claude.ai/install.ps1 | iex'
+      }
+      Should -Invoke LogSuccess -Times 1 -Exactly
+    }
+
+    It 'falla con el código de salida del instalador' {
+      Mock powershell.exe { $global:LASTEXITCODE = 5 }
+
+      { Install-ClaudeCode } | Should -Throw '*instalador oficial de Claude Code*código 5*'
+      Should -Invoke LogSuccess -Times 0 -Exactly
     }
   }
 

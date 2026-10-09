@@ -46,6 +46,18 @@ Si Homebrew está en otra ruta, ajusta la función `_brew` en
   `Ghostty`.
 - En Windows, `Ghostty` queda disponible como ítem opcional y muestra un aviso
   porque aún no hay instalador oficial para esa plataforma.
+- `Codex` y `Claude Code` se recomiendan en todas las plataformas. El mismo
+  ítem instala la herramienta o la actualiza si ya existe:
+  - Codex en macOS/Linux: `brew install --cask codex` o, si ya está,
+    `brew upgrade --cask codex`.
+  - Claude Code en macOS/Linux: instalador oficial `https://claude.ai/install.sh`
+    (se descarga a un temporal y se ejecuta con `bash`).
+  - En Windows, ambos usan su instalador oficial `irm <url> | iex` en un Windows
+    PowerShell hijo con `-ExecutionPolicy Bypass`. Codex corre con
+    `CODEX_NON_INTERACTIVE=1` para que no haga preguntas. Las URLs están en
+    `constants/official-installers.psd1`.
+  - Fuera del setup, `cx upgrade` usa el mismo método (instalador oficial en
+    Windows, `brew upgrade --cask codex` en macOS/Linux).
 - En Windows, `WSL`, `Bitwarden` y `7-Zip` se seleccionan por defecto;
   `Espanso`, `Scoop`, `Ghostty`, `AutoHotkey`, `VLC` y `WhatsApp` son opcionales.
 - En Windows, `ripgrep` prepara Scoop como dependencia aunque no se seleccione

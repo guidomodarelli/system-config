@@ -356,6 +356,8 @@ $script:CxCommitSkillPrompt = '$generate-commit-messages'
 # Defaults for `cx --commit`; explicit -m/-re flags still take precedence.
 $script:CxCommitModel = 'gpt-6-luna'
 $script:CxCommitReasoning = 'max'
+# Official installer used by `cx upgrade`: installs Codex or upgrades an existing install.
+$script:CxCodexInstallerUri = 'https://chatgpt.com/codex/install.ps1'
 
 function Get-CxPluginIdForMcpServer {
     param([string]$ServerName)
@@ -522,8 +524,9 @@ function cx {
     $cliArgs = @($args)
 
     if ($cliArgs.Count -gt 0 -and $cliArgs[0] -eq 'upgrade') {
-        # PowerShell-only behavior: upgrade Codex through npm.
-        npm i -g @openai/codex
+        # PowerShell-only behavior: upgrade Codex with the official installer.
+        # A child Windows PowerShell with Bypass runs it regardless of this session's execution policy.
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm $script:CxCodexInstallerUri | iex"
         return
     }
 

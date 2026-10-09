@@ -2,6 +2,7 @@
 
 $SetupLatestVersionPolicy = 'latest-stable-official'
 $script:SetupChocolateyPolicy = Import-PowerShellDataFile -LiteralPath (Join-Path $PSScriptRoot 'constants/chocolatey.psd1')
+$script:SetupOfficialInstallers = Import-PowerShellDataFile -LiteralPath (Join-Path $PSScriptRoot 'constants/official-installers.psd1')
 
 # ASCII-only markers: the setup runs on fresh machines and in terminals
 # without Unicode or emoji fonts (same symbols as setup.sh).
@@ -669,6 +670,38 @@ function Install-WSL {
 
 function Install-Python {
   Install-WingetPackage 9PNRBTZXMB4Z
+}
+
+# Ejecuta un instalador oficial `irm <uri> | iex`, que instala la herramienta o actualiza una
+# instalación existente. Un Windows PowerShell hijo con Bypass lo corre sin depender de la
+# política de ejecución de esta sesión.
+function Invoke-SetupOfficialInstallerCommand {
+  param (
+    [string]$ToolName,
+    [string]$Uri
+  )
+
+  LogInfo "Instalando o actualizando $ToolName con el instalador oficial."
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "irm $Uri | iex"
+  if ($LASTEXITCODE -ne 0) {
+    throw "El instalador oficial de $ToolName ($Uri) terminó con código $LASTEXITCODE."
+  }
+  LogSuccess "$ToolName se instaló o actualizó correctamente."
+}
+
+function Install-Codex {
+  $previousNonInteractive = $env:CODEX_NON_INTERACTIVE
+  try {
+    # Sin preguntas (por ejemplo, "Start Codex now?") para no frenar el setup.
+    $env:CODEX_NON_INTERACTIVE = '1'
+    Invoke-SetupOfficialInstallerCommand -ToolName 'Codex' -Uri $script:SetupOfficialInstallers.CodexUri
+  } finally {
+    $env:CODEX_NON_INTERACTIVE = $previousNonInteractive
+  }
+}
+
+function Install-ClaudeCode {
+  Invoke-SetupOfficialInstallerCommand -ToolName 'Claude Code' -Uri $script:SetupOfficialInstallers.ClaudeCodeUri
 }
 
 function Install-Ghostty {

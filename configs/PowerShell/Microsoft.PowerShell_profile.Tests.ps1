@@ -488,7 +488,8 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
     $scriptVariableNamesUnderTest = @(
       '$script:CxCommitSkillPrompt',
       '$script:CxCommitModel',
-      '$script:CxCommitReasoning'
+      '$script:CxCommitReasoning',
+      '$script:CxCodexInstallerUri'
     )
     foreach ($scriptVariableName in $scriptVariableNamesUnderTest) {
       $assignment = $profileAst.Find({
@@ -506,6 +507,9 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
     # aunque ghq no esté instalado donde corren los tests.
     function ghq { }
     function codex { }
+    # Borde externo de `cx upgrade`: evita ejecutar el instalador real de Codex.
+    function powershell.exe { }
+    function npm { }
 
     function New-TestGitRepository {
       param([string]$RepositoryPath)
@@ -690,6 +694,25 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
         $args[2] -eq '-c' -and
         $args[3] -eq 'model_reasoning_effort=max'
       }
+    }
+  }
+
+  Context 'cx upgrade' {
+    BeforeEach {
+      Mock Clear-Host { }
+      Mock codex { }
+      Mock npm { }
+      Mock powershell.exe { }
+    }
+
+    It 'actualiza Codex con el instalador oficial en Windows PowerShell con Bypass, sin npm ni iniciar Codex' {
+      cx upgrade
+
+      Should -Invoke powershell.exe -Times 1 -Exactly -ParameterFilter {
+        ($args -join ' ') -eq '-NoProfile -ExecutionPolicy Bypass -Command irm https://chatgpt.com/codex/install.ps1 | iex'
+      }
+      Should -Invoke npm -Times 0 -Exactly
+      Should -Invoke codex -Times 0 -Exactly
     }
   }
 }

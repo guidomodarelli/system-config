@@ -36,6 +36,8 @@ gh|GitHub CLI|install_gh|Install-Gh|1|0|linux,wsl,darwin,windows|0
 hunk|hunk|install_hunk|Install-Hunk|1|0|linux,wsl,darwin,windows|0
 ghostty|Ghostty|install_ghostty||1|0|linux,darwin|0
 ghq|ghq|install_ghq|Install-Ghq|1|0|linux,wsl,darwin,windows|0
+codex|Codex|install_codex|Install-Codex|1|0|linux,wsl,darwin,windows|0
+claude_code|Claude Code|install_claude_code|Install-ClaudeCode|1|0|linux,wsl,darwin,windows|0
 docker|Docker|install_docker||1|1|linux|1
 lazydocker|lazydocker|install_lazydocker||1|0|linux,wsl,darwin|0
 fonts|Fonts (JetBrains Mono, DejaVu, Cascadia Code)|install_fonts||1|0|linux,wsl,darwin|0

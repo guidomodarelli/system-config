@@ -229,6 +229,24 @@ assert_failure "Bash catalog should not include Java JDK 21 as a recommended set
 
 (
   set_test_platform "darwin"
+  _brew() {
+    printf "%s
+" "$*"
+    [[ "$*" != "list --cask codex" ]]
+  }
+  codex_install_output="$(install_codex)"
+  assert_contains "$codex_install_output" "install --cask codex" "El setup debe instalar Codex con Homebrew Cask si no está instalado."
+  assert_not_contains "$codex_install_output" "upgrade --cask codex" "El setup no debe actualizar Codex si no está instalado."
+
+  _brew() { printf "%s
+" "$*"; }
+  codex_upgrade_output="$(install_codex)"
+  assert_contains "$codex_upgrade_output" "upgrade --cask codex" "El setup debe actualizar Codex con Homebrew Cask si ya está instalado."
+  assert_not_contains "$codex_upgrade_output" "install --cask codex" "El setup no debe reinstalar Codex si ya está instalado."
+)
+
+(
+  set_test_platform "darwin"
   _brew() { printf "%s\n" "$*"; }
   gh_install_output="$(install_gh)"
   assert_contains "$gh_install_output" "install gh" "macOS setup should install GitHub CLI through Homebrew."
@@ -261,6 +279,8 @@ assert_equals "1" "$(get_menu_default_selection_by_id gh)" "macOS setup recommen
 assert_equals "1" "$(get_menu_default_selection_by_id ghostty)" "macOS setup recommendations should include Ghostty."
 assert_equals "1" "$(get_menu_default_selection_by_id hunk)" "Las recomendaciones de setup para macOS deben incluir hunk."
 assert_equals "1" "$(get_menu_default_selection_by_id bash)" "Las recomendaciones de setup para macOS deben incluir Bash."
+assert_equals "1" "$(get_menu_default_selection_by_id codex)" "Las recomendaciones de setup para macOS deben incluir Codex."
+assert_equals "1" "$(get_menu_default_selection_by_id claude_code)" "Las recomendaciones de setup para macOS deben incluir Claude Code."
 assert_less_than "$(_find_menu_item_index bash)" "$(_find_menu_item_index sdkman)" "El setup de macOS debe instalar Bash antes que SDKMAN."
 
 set_test_platform "linux"
@@ -268,6 +288,8 @@ _initialize_menu_catalog
 _validate_menu_catalog
 assert_menu_defaults_are_first "Linux setup menu should keep defaults first before allowlist checks."
 assert_equals "1" "$(get_menu_default_selection_by_id ghostty)" "Linux setup recommendations should include Ghostty."
+assert_equals "1" "$(get_menu_default_selection_by_id codex)" "Las recomendaciones de setup para Linux deben incluir Codex."
+assert_equals "1" "$(get_menu_default_selection_by_id claude_code)" "Las recomendaciones de setup para Linux deben incluir Claude Code."
 
 assert_success "Catalog allowlist should find setup installer functions." _find_menu_function_index install_git >/dev/null
 assert_success "Catalog allowlist should include GitHub CLI installer functions." _find_menu_function_index install_gh >/dev/null
@@ -358,6 +380,41 @@ assert_equals "v9.9.9" "$(curl() { printf "https://github.com/example/tool/relea
   install_golang >/dev/null
   if [[ -d "$temporary_directory" ]]; then
     printf "ERROR: Go installer should remove temporary downloads after updating.\n" >&2
+    exit 1
+  fi
+)
+
+(
+  temporary_directory="$(mktemp -d)"
+  executed_installer_log="$temporary_directory.log"
+  _setup_create_temp_dir() { printf "%s" "$temporary_directory"; }
+  _setup_remove_temp_dir() { rm -rf "$1"; }
+  curl() {
+    local target="" source_url=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -fsSLo) target="$2"; source_url="$3"; shift 3 ;;
+        *) shift ;;
+      esac
+    done
+    printf "echo \"instalador de %s\" >> \"%s\"
+" "$source_url" "$executed_installer_log" > "$target"
+  }
+  install_claude_code
+  assert_equals "instalador de https://claude.ai/install.sh" "$(cat "$executed_installer_log")" "El setup debe ejecutar el instalador oficial de Claude Code."
+  if [[ -d "$temporary_directory" ]]; then
+    printf "ERROR: El instalador de Claude Code debe borrar la descarga temporal.
+" >&2
+    exit 1
+  fi
+
+  rm -f "$executed_installer_log"
+  temporary_directory="$(mktemp -d)"
+  curl() { return 22; }
+  assert_failure "El setup debe fallar si no puede descargar el instalador de Claude Code." install_claude_code
+  if [[ -e "$executed_installer_log" || -d "$temporary_directory" ]]; then
+    printf "ERROR: Sin descarga no se debe ejecutar nada y se debe borrar el temporal.
+" >&2
     exit 1
   fi
 )
