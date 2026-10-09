@@ -169,7 +169,11 @@ Chocolatey.
 
 ### Consideraciones
 
-- Asegúrate de ejecutar PowerShell como Administrador.
+- No hace falta abrir PowerShell como Administrador. Si la selección incluye
+  ítems marcados `# admin` (Chocolatey, Fuentes, WSL, Hyper-V), el script pide
+  elevación (UAC) una sola vez y los ejecuta juntos en una ventana elevada. El
+  resto sigue en la sesión actual para que winget y Scoop instalen en el
+  contexto del usuario, y el resumen final reúne ambos resultados.
 
 ### Ejecutar el script completo
 

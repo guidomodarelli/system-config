@@ -148,6 +148,17 @@
       $parsedSetupArguments.AssumeYes | Should -BeTrue
       ($parsedSetupArguments.CommandArguments -join ' ') | Should -Be 'Install-Git fd_find'
     }
+
+    It 'acepta --results-file con su ruta sin tratarla como ítem' {
+      $parsedSetupArguments = ConvertTo-SetupArguments -Arguments @('--results-file', 'C:\Temp Dir\resultados.json', 'Install-Choco')
+
+      $parsedSetupArguments.ResultsFile | Should -Be 'C:\Temp Dir\resultados.json'
+      ($parsedSetupArguments.CommandArguments -join ' ') | Should -Be 'Install-Choco'
+    }
+
+    It 'rechaza --results-file sin ruta' {
+      { ConvertTo-SetupArguments -Arguments @('--results-file') } | Should -Throw '*requiere una ruta*'
+    }
   }
 
   Context 'instaladores remotos' {
@@ -823,6 +834,110 @@
     It 'formatea duraciones cortas en segundos y largas en minutos' {
       Format-SetupDuration -TotalSeconds 45 | Should -Be '45s'
       Format-SetupDuration -TotalSeconds 125 | Should -Be '2m 05s'
+    }
+  }
+
+  Context 'elevación única para ítems de administrador' {
+    BeforeAll {
+      function Install-TestAdminPackage { $global:LASTEXITCODE = 0 }
+      function Install-TestUserPackage { $global:LASTEXITCODE = 0 }
+
+      function Get-TestResultsFileFromArguments {
+        param([string]$ArgumentList)
+        $resultsFileMatch = [regex]::Match($ArgumentList, '--results-file (?:"([^"]+)"|(\S+))')
+        if ($resultsFileMatch.Groups[1].Success) { return $resultsFileMatch.Groups[1].Value }
+        return $resultsFileMatch.Groups[2].Value
+      }
+    }
+
+    BeforeEach {
+      $script:ElevationMenuCatalog = @(
+        [PSCustomObject]@{ Id = 'admin'; Label = 'Admin package'; FunctionName = 'Install-TestAdminPackage'; DefaultSelected = $true; RequiresAdmin = $true; Platforms = 'windows'; RequiresRestart = $true },
+        [PSCustomObject]@{ Id = 'user'; Label = 'User package'; FunctionName = 'Install-TestUserPackage'; DefaultSelected = $true; RequiresAdmin = $false; Platforms = 'windows'; RequiresRestart = $false }
+      )
+    }
+
+    It 'pide elevación una sola vez para los ítems admin y ejecuta el resto en la sesión actual' {
+      Mock Test-CurrentUserIsAdministrator { $false }
+      Mock Install-TestAdminPackage { }
+      Mock Install-TestUserPackage { $global:LASTEXITCODE = 0 }
+      Mock Start-SetupElevatedProcess {
+        $elevatedResults = @([PSCustomObject]@{ Label = 'Admin package'; Status = 'OK'; Detail = ''; RequiresRestart = $true; DurationSeconds = 3 })
+        Export-SetupExecutionResults -results $elevatedResults -ResultsFile (Get-TestResultsFileFromArguments -ArgumentList $ArgumentList)
+        [PSCustomObject]@{ ExitCode = 0 }
+      }
+
+      $combinedResults = @(Invoke-SetupMenuItemsWithElevation -menuCatalog $script:ElevationMenuCatalog -selectedIndexes @(1, 0))
+
+      Should -Invoke Start-SetupElevatedProcess -Times 1 -Exactly -ParameterFilter {
+        $ArgumentList -like '*--yes*' -and $ArgumentList -like '*Install-TestAdminPackage*' -and $ArgumentList -notlike '*Install-TestUserPackage*'
+      }
+      Should -Invoke Install-TestAdminPackage -Times 0 -Exactly
+      Should -Invoke Install-TestUserPackage -Times 1 -Exactly
+      ($combinedResults | ForEach-Object Label) -join ',' | Should -Be 'Admin package,User package'
+      ($combinedResults | ForEach-Object Status) -join ',' | Should -Be 'OK,OK'
+      $combinedResults[0].RequiresRestart | Should -BeTrue
+    }
+
+    It 'marca los ítems admin como fallidos si se rechaza la elevación y sigue con el resto' {
+      Mock Test-CurrentUserIsAdministrator { $false }
+      Mock Install-TestUserPackage { $global:LASTEXITCODE = 0 }
+      Mock Start-SetupElevatedProcess { throw 'The operation was canceled by the user.' }
+
+      $combinedResults = @(Invoke-SetupMenuItemsWithElevation -menuCatalog $script:ElevationMenuCatalog -selectedIndexes @(0, 1))
+
+      $combinedResults[0].Status | Should -Be 'Falló'
+      $combinedResults[0].Detail | Should -BeLike '*permisos de administrador*canceled by the user*'
+      $combinedResults[1].Status | Should -Be 'OK'
+      Test-SetupExecutionResultsHaveFailures -results $combinedResults | Should -BeTrue
+    }
+
+    It 'marca los ítems admin como fallidos si el proceso elevado no reporta resultados' {
+      Mock Test-CurrentUserIsAdministrator { $false }
+      Mock Start-SetupElevatedProcess { [PSCustomObject]@{ ExitCode = 9 } }
+
+      $elevatedResults = @(Invoke-SetupMenuItemsWithElevation -menuCatalog $script:ElevationMenuCatalog -selectedIndexes @(0))
+
+      $elevatedResults | Should -HaveCount 1
+      $elevatedResults[0].Status | Should -Be 'Falló'
+      $elevatedResults[0].Detail | Should -BeLike '*código 9*'
+    }
+
+    It 'ejecuta todo en la sesión actual cuando ya es administrador' {
+      Mock Test-CurrentUserIsAdministrator { $true }
+      Mock Start-SetupElevatedProcess { }
+
+      $localResults = @(Invoke-SetupMenuItemsWithElevation -menuCatalog $script:ElevationMenuCatalog -selectedIndexes @(0, 1))
+
+      Should -Invoke Start-SetupElevatedProcess -Times 0 -Exactly
+      ($localResults | ForEach-Object Status) -join ',' | Should -Be 'OK,OK'
+    }
+
+    It 'no pide elevación en dry-run' {
+      Mock Test-CurrentUserIsAdministrator { $false }
+      Mock Start-SetupElevatedProcess { }
+
+      $dryRunResults = @(Invoke-SetupMenuItemsWithElevation -menuCatalog $script:ElevationMenuCatalog -selectedIndexes @(0, 1) -DryRun $true)
+
+      Should -Invoke Start-SetupElevatedProcess -Times 0 -Exactly
+      ($dryRunResults | ForEach-Object Status) -join ',' | Should -Be 'Dry-run,Dry-run'
+    }
+
+    It 'conserva un único resultado al exportarlo e importarlo' {
+      $resultsFile = Join-Path $TestDrive 'resultados elevados.json'
+      Export-SetupExecutionResults -results @([PSCustomObject]@{ Label = 'Fuentes'; Status = 'Falló'; Detail = 'choco: código 1'; RequiresRestart = $false; DurationSeconds = 5 }) -ResultsFile $resultsFile
+
+      $importedResults = @(Import-SetupExecutionResults -ResultsFile $resultsFile)
+
+      $importedResults | Should -HaveCount 1
+      $importedResults[0].Label | Should -Be 'Fuentes'
+      $importedResults[0].Detail | Should -Be 'choco: código 1'
+      $importedResults[0].DurationSeconds | Should -Be 5
+    }
+
+    It 'entrecomilla los argumentos del proceso elevado que tienen espacios' {
+      ConvertTo-SetupProcessArgument -Argument 'C:\Users\Ana Pérez\setup.ps1' | Should -Be '"C:\Users\Ana Pérez\setup.ps1"'
+      ConvertTo-SetupProcessArgument -Argument 'Install-Choco' | Should -Be 'Install-Choco'
     }
   }
 

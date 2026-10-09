@@ -1,4 +1,4 @@
-﻿# NOTA: Ejecutar este script como Administrador.
+﻿# NOTA: Si la selección incluye ítems que requieren administrador, se pide elevación (UAC) una sola vez.
 
 $SetupLatestVersionPolicy = 'latest-stable-official'
 $script:SetupChocolateyPolicy = Import-PowerShellDataFile -LiteralPath (Join-Path $PSScriptRoot 'constants/chocolatey.psd1')
@@ -983,20 +983,136 @@ function Test-CurrentUserIsAdministrator {
   return ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 }
 
-function Assert-SetupAdminRequirement {
+function ConvertTo-SetupProcessArgument {
+  param (
+    [string]$Argument
+  )
+
+  if ($Argument -notmatch '[\s"]') {
+    return $Argument
+  }
+
+  return '"' + ($Argument -replace '"', '\"') + '"'
+}
+
+function Get-SetupElevatedProcessArguments {
+  param (
+    [PSCustomObject[]]$menuCatalog,
+    [int[]]$adminIndexes,
+    [string]$ResultsFile
+  )
+
+  # Se pasa FunctionName porque los Id pueden repetirse entre plataformas.
+  $setupArguments = @('-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, '--yes', '--results-file', $ResultsFile)
+  $setupArguments += @($adminIndexes | ForEach-Object { $menuCatalog[$_].FunctionName })
+  return (@($setupArguments | ForEach-Object { ConvertTo-SetupProcessArgument -Argument $_ }) -join ' ')
+}
+
+function New-SetupFailedResults {
+  param (
+    [PSCustomObject[]]$menuCatalog,
+    [int[]]$selectedIndexes,
+    [string]$Detail
+  )
+
+  return @($selectedIndexes | ForEach-Object {
+      [PSCustomObject]@{ Label = $menuCatalog[$_].Label; Status = 'Falló'; Detail = $Detail; RequiresRestart = $false; DurationSeconds = 0 }
+    })
+}
+
+function Export-SetupExecutionResults {
+  param (
+    [PSCustomObject[]]$results,
+    [string]$ResultsFile
+  )
+
+  $resultsJson = ConvertTo-Json -InputObject @($results) -Depth 3
+  [System.IO.File]::WriteAllText($ResultsFile, $resultsJson, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Import-SetupExecutionResults {
+  param (
+    [string]$ResultsFile
+  )
+
+  $parsedResults = Get-Content -LiteralPath $ResultsFile -Raw -Encoding UTF8 | ConvertFrom-Json
+  # En Windows PowerShell 5.1 ConvertFrom-Json devuelve el array como un único objeto: foreach lo enumera.
+  $results = @()
+  foreach ($parsedResult in $parsedResults) {
+    $results += [PSCustomObject]@{
+      Label = [string]$parsedResult.Label
+      Status = [string]$parsedResult.Status
+      Detail = [string]$parsedResult.Detail
+      RequiresRestart = [bool]$parsedResult.RequiresRestart
+      DurationSeconds = [int]$parsedResult.DurationSeconds
+    }
+  }
+
+  return $results
+}
+
+function Start-SetupElevatedProcess {
+  param (
+    [string]$ArgumentList
+  )
+
+  $powerShellPath = (Get-Process -Id $PID).Path
+  return Start-Process -FilePath $powerShellPath -ArgumentList $ArgumentList -Verb RunAs -Wait -PassThru
+}
+
+function Invoke-SetupElevatedMenuItems {
+  param (
+    [PSCustomObject[]]$menuCatalog,
+    [int[]]$adminIndexes
+  )
+
+  $resultsFile = Join-Path ([System.IO.Path]::GetTempPath()) "setup-admin-results-$([guid]::NewGuid()).json"
+  $argumentList = Get-SetupElevatedProcessArguments -menuCatalog $menuCatalog -adminIndexes $adminIndexes -ResultsFile $resultsFile
+
+  Write-Host ''
+  LogInfo "Solicitando permisos de administrador una sola vez para $($adminIndexes.Count) ítem(s). Se abrirá una ventana elevada."
+  try {
+    $elevatedProcess = Start-SetupElevatedProcess -ArgumentList $argumentList
+  } catch {
+    return New-SetupFailedResults -menuCatalog $menuCatalog -selectedIndexes $adminIndexes -Detail "no se obtuvieron permisos de administrador: $($_.Exception.Message)"
+  }
+
+  try {
+    if (-not (Test-Path -LiteralPath $resultsFile)) {
+      return New-SetupFailedResults -menuCatalog $menuCatalog -selectedIndexes $adminIndexes -Detail "el proceso elevado terminó con código $($elevatedProcess.ExitCode) sin reportar resultados"
+    }
+
+    return Import-SetupExecutionResults -ResultsFile $resultsFile
+  } finally {
+    Remove-Item -LiteralPath $resultsFile -Force -ErrorAction SilentlyContinue
+  }
+}
+
+function Invoke-SetupMenuItemsWithElevation {
   param (
     [PSCustomObject[]]$menuCatalog,
     [int[]]$selectedIndexes,
     [bool]$DryRun = $false
   )
 
-  if ($DryRun) {
-    return
+  $requiresElevation = -not $DryRun -and
+    (Test-SetupMenuIndexesRequireAdmin -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes) -and
+    -not (Test-CurrentUserIsAdministrator)
+  if (-not $requiresElevation) {
+    return Invoke-SelectedSetupMenuItems -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
   }
 
-  if ((Test-SetupMenuIndexesRequireAdmin -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes) -and -not (Test-CurrentUserIsAdministrator)) {
-    throw "La selección incluye ítems que requieren ejecutar PowerShell como Administrador."
+  # Los ítems admin corren primero en un único proceso elevado; el resto sigue en la sesión
+  # del usuario para que winget y scoop instalen en su contexto y no en el del administrador.
+  $adminIndexes = @($selectedIndexes | Sort-Object | Where-Object { $menuCatalog[$_].RequiresAdmin })
+  $userIndexes = @($selectedIndexes | Sort-Object | Where-Object { -not $menuCatalog[$_].RequiresAdmin })
+
+  $results = @(Invoke-SetupElevatedMenuItems -menuCatalog $menuCatalog -adminIndexes $adminIndexes)
+  if ($userIndexes.Count -gt 0) {
+    $results += @(Invoke-SelectedSetupMenuItems -menuCatalog $menuCatalog -selectedIndexes $userIndexes -DryRun $DryRun)
   }
+
+  return $results
 }
 
 function Get-SetupMenuDisplayLabel {
@@ -2179,8 +2295,7 @@ function Invoke-InteractiveSetupMenu {
     return
   }
 
-  Assert-SetupAdminRequirement -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
-  $results = Invoke-SelectedSetupMenuItems -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
+  $results = Invoke-SetupMenuItemsWithElevation -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
   Write-SetupExecutionSummary -results $results
   if (Test-SetupExecutionResultsHaveFailures -results $results) {
     throw 'Uno o más ítems de setup fallaron.'
@@ -2196,6 +2311,8 @@ Opciones:
   --dry-run  Muestra qué se ejecutaría sin instalar nada.
   --yes      Omite la confirmación antes de ejecutar los ítems seleccionados.
   --list     Lista los ítems del catálogo (tabla en consola, TSV al redirigir).
+  --results-file <ruta>
+             Uso interno: guarda los resultados en JSON (lo usa el proceso elevado).
   --help     Muestra esta ayuda.
 '@
 }
@@ -2211,6 +2328,7 @@ function ConvertTo-SetupArguments {
     AssumeYes = $false
     ShowHelp = $false
     ListItems = $false
+    ResultsFile = ''
     CommandArguments = @()
   }
 
@@ -2223,6 +2341,13 @@ function ConvertTo-SetupArguments {
       '--help' { $parsedArguments.ShowHelp = $true }
       '-h' { $parsedArguments.ShowHelp = $true }
       '--list' { $parsedArguments.ListItems = $true }
+      '--results-file' {
+        if ($argumentIndex + 1 -ge $Arguments.Count) {
+          throw 'La opción --results-file requiere una ruta.'
+        }
+        $argumentIndex++
+        $parsedArguments.ResultsFile = $Arguments[$argumentIndex]
+      }
       '--' {
         if ($argumentIndex + 1 -lt $Arguments.Count) {
           $commandArguments += @($Arguments[($argumentIndex + 1)..($Arguments.Count - 1)])
@@ -2271,7 +2396,8 @@ function Invoke-SetupItemsByIdentifier {
     [PSCustomObject[]]$menuCatalog,
     [string[]]$itemIdentifiers,
     [bool]$DryRun = $false,
-    [bool]$AssumeYes = $false
+    [bool]$AssumeYes = $false,
+    [string]$ResultsFile = ''
   )
 
   $selectedIndexes = @()
@@ -2284,13 +2410,15 @@ function Invoke-SetupItemsByIdentifier {
   }
 
   Write-SetupBanner -menuCatalog $menuCatalog -DryRun $DryRun
-  Assert-SetupAdminRequirement -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
   if (-not $AssumeYes -and -not (Confirm-SetupMenuSelection -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun)) {
     LogWarning 'Instalación cancelada.'
     return
   }
 
-  $results = Invoke-SelectedSetupMenuItems -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
+  $results = Invoke-SetupMenuItemsWithElevation -menuCatalog $menuCatalog -selectedIndexes $selectedIndexes -DryRun $DryRun
+  if (-not [string]::IsNullOrWhiteSpace($ResultsFile)) {
+    Export-SetupExecutionResults -results $results -ResultsFile $ResultsFile
+  }
   Write-SetupExecutionSummary -results $results
   if (Test-SetupExecutionResultsHaveFailures -results $results) {
     throw 'Uno o más ítems de setup fallaron.'
@@ -2319,7 +2447,7 @@ if ($parsedArguments.ListItems) {
 
 if ($parsedArguments.CommandArguments.Count -gt 0) {
   try {
-    Invoke-SetupItemsByIdentifier -menuCatalog $menuCatalog -itemIdentifiers $parsedArguments.CommandArguments -DryRun $parsedArguments.DryRun -AssumeYes $parsedArguments.AssumeYes
+    Invoke-SetupItemsByIdentifier -menuCatalog $menuCatalog -itemIdentifiers $parsedArguments.CommandArguments -DryRun $parsedArguments.DryRun -AssumeYes $parsedArguments.AssumeYes -ResultsFile $parsedArguments.ResultsFile
   } catch {
     LogError $_.Exception.Message
     exit 1
