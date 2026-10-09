@@ -51,18 +51,13 @@
 - `$IsWindows`, `$IsLinux` y `$IsMacOS` no existen en 5.1; usar `$PSVersionTable.PSEdition` o `[Environment]::OSVersion` cuando haga falta distinguir plataforma.
 - Validar cada cambio abriendo una sesión nueva de `pwsh` y otra de `powershell.exe`. Fuera de Windows no hay 5.1: validar la sintaxis con `pwsh`, revisar a mano los puntos anteriores e informar en la respuesta final que 5.1 no se pudo validar.
 
-## Validación de PowerShell y Oh My Posh sin instalación
+## Validación de PowerShell sin instalación
 
-En macOS no suelen estar instalados `pwsh` ni `oh-my-posh`. Para validarlos, bajar binarios portables a `/tmp`, sin `brew` ni cambios en el sistema, y borrarlos al terminar.
+En macOS no suele estar instalado `pwsh`. Para validarlo, bajar un binario portable a `/tmp`, sin `brew` ni cambios en el sistema, y borrarlo al terminar.
 
-### Descarga (macOS arm64; en Intel usar `amd64` / `x64`)
+### Descarga (macOS arm64; en Intel usar `x64`)
 
 ```bash
-# oh-my-posh: binario único
-curl -fsSL -o /tmp/omp https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-darwin-arm64
-chmod +x /tmp/omp && /tmp/omp version
-
-# pwsh: tarball de la última release
 tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/PowerShell/PowerShell/releases/latest | sed 's#.*/tag/v##')
 curl -fsSL -o /tmp/pwsh.tar.gz "https://github.com/PowerShell/PowerShell/releases/download/v$tag/powershell-$tag-osx-arm64.tar.gz"
 mkdir -p /tmp/pwsh-portable && tar -xzf /tmp/pwsh.tar.gz -C /tmp/pwsh-portable
@@ -79,50 +74,35 @@ $tokens = $null; $errors = $null
 "parse errors: $($errors.Count)"; $errors | ForEach-Object { $_.Message }'
 ```
 
-### Renderizar `murilasso.omp.json` sin PowerShell
+### Probar el prompt murilasso
 
-`oh-my-posh print` renderiza el theme contra un directorio y un estado simulado. Usar un repo git temporal en `/tmp` para armar cada escenario (cambios, stash, rebase, HEAD detached).
+El prompt es nativo de PowerShell, sin Oh My Posh. Vive entre `# --- Prompt murilasso` y `# --- Fin prompt murilasso` del profile, y los tests Pester de `configs/PowerShell/Microsoft.PowerShell_profile.Tests.ps1` lo cargan de la misma forma. El profile completo depende de Windows, así que fuera de Windows se prueba solo esa sección:
 
-```bash
-CFG=configs/PowerShell/murilasso.omp.json
-/tmp/omp print primary --config $CFG --shell pwsh --plain --pwd /tmp/repo-prueba
-/tmp/omp print right   --config $CFG --shell pwsh --plain --pwd /tmp/repo-prueba --status 130 --execution-time 75000
-MURILASSO_JOB_COUNT=2 /tmp/omp print primary --config $CFG --shell pwsh --plain --pwd /tmp/repo-prueba
-/tmp/omp print secondary --config $CFG --shell pwsh --plain
-```
-
-- Las env vars `MURILASSO_*` (PR, CI, jobs) se simulan exportándolas antes de `print`.
-- Para inspeccionar qué expone un segmento (por ejemplo, contadores de git), usar un config mínimo con template de debug, como `{{ .Working.Unmerged }}`.
-
-### Probar el wrapper `prompt` del profile con OMP real
-
-El profile completo depende de Windows. Probar solo la sección `# --- Prompt murilasso para Oh My Posh` … `# --- Fin prompt murilasso`:
-
-- Poner OMP en `PATH` con el nombre `oh-my-posh` (`mkdir -p /tmp/ompbin && cp /tmp/omp /tmp/ompbin/oh-my-posh`).
-- Definir `LOCALAPPDATA=/tmp/lad` (el cache de init lo usa) y `$script:ProfileScriptDirectory` con la ruta de `configs/PowerShell`.
-- Dot-sourcear las líneas de esa sección. El init cacheado falla porque `Get-ExecutableFingerprint` no está definido, y cae al init en vivo de OMP. Es lo esperado.
-- Llamar `prompt` y verificar efectos. Ejemplo: `$global:LASTEXITCODE = 7; prompt; $LASTEXITCODE` debe devolver `7`. Los fetches de PR/CI corren como procesos `gh` (no jobs), así que `MURILASSO_JOB_COUNT` debe quedar en `0` sin jobs del usuario.
+- La sección usa `Get-StableExecutablePath` y `Get-ExecutableFingerprint` para la versión de Node. Fuera del profile no existen y el segmento de Node queda vacío, salvo que también se dot-sourceen esas funciones.
+- Usar un repo git temporal en `/tmp` para armar cada escenario (cambios, stash, rebase, HEAD detached) y llamar `prompt` desde ahí.
+- Las env vars `MURILASSO_PR_*` (PR y CI) se simulan exportándolas antes de llamar `prompt`. El estado se recalcula en cada render.
+- `$global:LASTEXITCODE = 7; prompt; $LASTEXITCODE` debe devolver `7`.
 
 ```bash
-PATH=/tmp/ompbin:$PATH LOCALAPPDATA=/tmp/lad /tmp/pwsh-portable/pwsh -NoProfile -c '
+/tmp/pwsh-portable/pwsh -NoProfile -c '
 $lines = Get-Content configs/PowerShell/Microsoft.PowerShell_profile.ps1
-$start = ($lines | Select-String -SimpleMatch "# --- Prompt murilasso para Oh My Posh").LineNumber
+$start = ($lines | Select-String -SimpleMatch "# --- Prompt murilasso ").LineNumber
 $end = ($lines | Select-String -SimpleMatch "# --- Fin prompt murilasso").LineNumber
-$script:ProfileScriptDirectory = (Resolve-Path configs/PowerShell).Path
 . ([scriptblock]::Create(($lines[($start-1)..($end-1)] -join [Environment]::NewLine)))
+Set-Location /tmp/repo-prueba
 $global:LASTEXITCODE = 7; $rendered = prompt; "LASTEXITCODE: $LASTEXITCODE"
-($rendered -join "`n") -replace "\e\[[0-9;?]*[A-Za-z]", "" -replace "\e\][^\a]*\a", "" -replace "\e[78]", ""'
+$rendered -replace "\e\[[0-9;]*m", "" -replace "\e\]8;;[^\a]*\a", ""'
 ```
 
 ### Limitaciones conocidas
 
-- En `pwsh -c` no hay historial, así que OMP no calcula status (`NoExitCode`). El color de `❯` y el segmento `✘` con un comando fallido real solo se validan en una sesión interactiva; informarlo en la respuesta final.
-- OMP cuenta los conflictos `AA` como staged, no como `Unmerged`. `BISECT` no se detecta.
+- En `pwsh -c` no hay historial, así que el prompt no detecta un comando nuevo: no muestra exit status ni duración y `❯` queda verde. El color rojo de `❯`, el segmento de exit code y la duración de un comando real solo se validan en una sesión interactiva; informarlo en la respuesta final.
+- El indicador de carpeta sin permiso de escritura del theme zsh no se porta: calcular permisos efectivos en Windows en cada render es caro.
 
 ### Limpieza
 
 ```bash
-rm -rf /tmp/omp /tmp/ompbin /tmp/lad /tmp/pwsh-portable /tmp/pwsh.tar.gz
+rm -rf /tmp/pwsh-portable /tmp/pwsh.tar.gz
 ```
 
 ## Tests De PowerShell Con Pester
@@ -130,7 +110,7 @@ rm -rf /tmp/omp /tmp/ompbin /tmp/lad /tmp/pwsh-portable /tmp/pwsh.tar.gz
 - Todos los tests de PowerShell son Pester y se nombran `*.Tests.ps1`: `scripts/dotfiler/dotfiler.ps1.Tests.ps1`, `scripts/setup/setup.ps1.Tests.ps1` y `configs/PowerShell/Microsoft.PowerShell_profile.Tests.ps1`. Se ejecutan con la última versión de Pester (6.x) y siguen siendo compatibles con Pester 5. No agregar scripts de test con asserts propios.
 - Los scripts que ejecutan lógica al cargarse (`setup.ps1`, el profile) no se dot-sourcean completos: el `BeforeAll` del test extrae sus funciones con el AST y las dot-sourcea en el scope del test. Los CLIs externos (`winget`, `scoop`, `ghq`, etc.) se declaran como funciones vacías para poder mockearlos aunque no estén instalados.
 - En tests nuevos o modificados, verificar mocks con `Should -Invoke`. No usar `Assert-MockCalled` ni `Assert-VerifiableMock`, que Pester 6 eliminó.
-- Si no hay `pwsh`, bajarlo portable a `/tmp` siguiendo "Validación de PowerShell y Oh My Posh sin instalación".
+- Si no hay `pwsh`, bajarlo portable a `/tmp` siguiendo "Validación de PowerShell sin instalación".
 - Pester se descarga desde PowerShell Gallery (`https://www.powershellgallery.com/packages/Pester`) con `Save-Module` a una carpeta temporal. No usar `Install-Module`, que lo instala en el perfil del usuario.
 
 ```bash

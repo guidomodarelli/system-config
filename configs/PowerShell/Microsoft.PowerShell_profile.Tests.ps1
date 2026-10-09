@@ -190,7 +190,6 @@ Describe 'Microsoft.PowerShell_profile inicialización al usar comandos' {
     $script:CodexCompletionInitialized = $false
     $script:CodexCompletionAttempted = $false
     $script:ZoxideInitialized = $false
-    $script:MurilassoOmpInitialized = $true
     $script:FnmInitialized = $false
     $script:FnmInitializationAttempted = $false
     $script:FnmCommandInfo = $null
@@ -364,17 +363,6 @@ Describe 'Microsoft.PowerShell_profile inicialización al usar comandos' {
 
     $renderedPrompt | Should -Be 'prompt conservado'
     $global:LASTEXITCODE | Should -Be 7
-    Set-Location -LiteralPath $script:OriginalLocation
-  }
-
-  It 'debe registrar carpetas con el hook de zoxide cuando OMP no está activo' {
-    $script:MurilassoOmpInitialized = $false
-    $null = z example
-    Set-Location -LiteralPath $script:FixtureDirectory
-
-    $null = prompt
-
-    $global:FixtureZoxideVisitedDirectories | Should -Contain $script:FixtureDirectory
     Set-Location -LiteralPath $script:OriginalLocation
   }
 
@@ -781,5 +769,226 @@ Describe 'Microsoft.PowerShell_profile PR del prompt murilasso' {
 
     $env:MURILASSO_PR_STATE | Should -Be 'MERGED'
     $env:MURILASSO_PR_NUMBER | Should -Be '8'
+  }
+}
+
+Describe 'Microsoft.PowerShell_profile prompt murilasso nativo' {
+  BeforeAll {
+    $profilePath = Join-Path $PSScriptRoot 'Microsoft.PowerShell_profile.ps1'
+    $tokens = $null
+    $parseErrors = $null
+    $profileAst = [System.Management.Automation.Language.Parser]::ParseFile($profilePath, [ref]$tokens, [ref]$parseErrors)
+
+    # El prompt resuelve el path estable de node con los helpers del cache de init.
+    foreach ($functionName in @('Get-ExecutableTargetInfo', 'Resolve-FileSystemLinkTarget', 'Get-StableExecutablePath', 'Get-ExecutableFingerprint')) {
+      $functionDefinition = $profileAst.Find({
+          param($node)
+          $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
+        }, $true)
+      . ([scriptblock]::Create($functionDefinition.Extent.Text))
+    }
+
+    # La sección del prompt se carga completa: define constantes, estado y el `prompt` global.
+    $script:OriginalPrompt = $function:prompt
+    $script:OriginalLocation = (Get-Location).Path
+    $profileLines = [System.IO.File]::ReadAllLines($profilePath)
+    $sectionStart = [Array]::FindIndex($profileLines, [Predicate[string]] { param($line) $line.StartsWith('# --- Prompt murilasso ') })
+    $sectionEnd = [Array]::FindIndex($profileLines, [Predicate[string]] { param($line) $line.StartsWith('# --- Fin prompt murilasso') })
+    . ([scriptblock]::Create(($profileLines[$sectionStart..$sectionEnd] -join [Environment]::NewLine)))
+
+    function ConvertTo-PlainPromptText {
+      param([string]$Text)
+
+      return $Text -replace '\x1b\[[0-9;]*m', '' -replace '\x1b\]8;;[^\x07]*\x07', ''
+    }
+
+    function New-TestGitRepository {
+      param([string]$BranchName)
+
+      $repositoryPath = Join-Path $TestDrive ('repo-' + [guid]::NewGuid().ToString('N'))
+      New-Item -ItemType Directory -Path $repositoryPath | Out-Null
+      & git -C $repositoryPath init --quiet --initial-branch $BranchName
+      Set-Content -LiteralPath (Join-Path $repositoryPath 'tracked.txt') -Value 'original'
+      & git -C $repositoryPath add tracked.txt
+      & git -C $repositoryPath -c user.name='Prompt Test' -c user.email='prompt-test@example.com' -c commit.gpgsign=false commit --quiet -m 'commit inicial'
+      return $repositoryPath
+    }
+  }
+
+  AfterAll {
+    Set-Location -LiteralPath $script:OriginalLocation
+    Set-Item -LiteralPath Function:\global:prompt -Value $script:OriginalPrompt
+    Remove-Item -LiteralPath Function:\global:__zoxide_hook -ErrorAction SilentlyContinue
+  }
+
+  BeforeEach {
+    $env:MURILASSO_PR_URL = ''
+    $env:MURILASSO_PR_STATE = ''
+    $env:MURILASSO_PR_NUMBER = ''
+    $env:MURILASSO_PR_CI = ''
+    $script:ZoxideInitialized = $false
+  }
+
+  It 'debe contar cambios, sincronización y stash desde git status porcelain v2' {
+    $gitStatus = ConvertFrom-MurilassoGitStatus -StatusLines @(
+      '# branch.oid 0123456789abcdef0123456789abcdef01234567'
+      '# branch.head feature/prompt'
+      '# branch.upstream origin/feature/prompt'
+      '# branch.ab +2 -1'
+      '# stash 3'
+      '1 M. N... 100644 100644 100644 aaaa bbbb staged.txt'
+      '1 .M N... 100644 100644 100644 aaaa bbbb modified.txt'
+      '1 MM N... 100644 100644 100644 aaaa bbbb both.txt'
+      '2 R. N... 100644 100644 100644 aaaa bbbb R100 renamed.txt old.txt'
+      'u UU N... 100644 100644 100644 100644 aaaa bbbb cccc conflict.txt'
+      '? untracked.txt'
+    )
+
+    $gitStatus.Branch | Should -Be 'feature/prompt'
+    $gitStatus.Ahead | Should -Be 2
+    $gitStatus.Behind | Should -Be 1
+    $gitStatus.StashCount | Should -Be 3
+    $gitStatus.Staged | Should -Be 3
+    $gitStatus.Modified | Should -Be 2
+    $gitStatus.Unmerged | Should -Be 1
+    $gitStatus.Untracked | Should -Be 1
+    $gitStatus.Detached | Should -BeFalse
+    $gitStatus.UpstreamGone | Should -BeFalse
+  }
+
+  It 'debe marcar la branch remota borrada y el HEAD detached' {
+    $goneUpstreamStatus = ConvertFrom-MurilassoGitStatus -StatusLines @('# branch.head feature/gone', '# branch.upstream origin/feature/gone')
+    $detachedStatus = ConvertFrom-MurilassoGitStatus -StatusLines @('# branch.oid 0123456789abcdef', '# branch.head (detached)')
+
+    $goneUpstreamStatus.UpstreamGone | Should -BeTrue
+    $detachedStatus.Detached | Should -BeTrue
+    ConvertTo-PlainPromptText (Format-MurilassoGitSegment -GitStatus $detachedStatus -Operation '') | Should -Match '0123456'
+    ConvertTo-PlainPromptText (Format-MurilassoGitSegment -GitStatus $detachedStatus -Operation '') | Should -Not -Match '0123456789'
+  }
+
+  It 'debe acortar <Path> a <ExpectedPath>' -ForEach @(
+    @{ Path = 'C:\Users\guido'; ExpectedPath = '~' }
+    @{ Path = 'C:\Users\guido\system-config'; ExpectedPath = '~/system-config' }
+    @{ Path = 'C:\Users\guido\system-config\configs\PowerShell'; ExpectedPath = '~/../configs/PowerShell' }
+    @{ Path = 'C:\Windows'; ExpectedPath = 'C:/Windows' }
+    @{ Path = 'C:\Windows\System32\drivers'; ExpectedPath = 'C:/../System32/drivers' }
+    @{ Path = 'C:\'; ExpectedPath = 'C:/' }
+    @{ Path = 'C:\Users\guidoextra'; ExpectedPath = 'C:/Users/guidoextra' }
+  ) {
+    Get-MurilassoShortPath -Path $Path -HomePath 'C:\Users\guido' | Should -Be $ExpectedPath
+  }
+
+  It 'debe formatear <Milliseconds> ms como <ExpectedDuration>' -ForEach @(
+    @{ Milliseconds = 4200; ExpectedDuration = '4.2s' }
+    @{ Milliseconds = 75000; ExpectedDuration = '1m15s' }
+    @{ Milliseconds = 3720000; ExpectedDuration = '1h02m' }
+  ) {
+    Format-MurilassoDuration -Milliseconds $Milliseconds | Should -Be $ExpectedDuration
+  }
+
+  It 'debe mostrar el exit code con el nombre de la señal' {
+    ConvertTo-PlainPromptText (Format-MurilassoStatusSegment -ExitCode 130) | Should -Match '130 SIGINT$'
+    ConvertTo-PlainPromptText (Format-MurilassoStatusSegment -ExitCode 2) | Should -Match ' 2$'
+    Format-MurilassoStatusSegment -ExitCode 0 | Should -BeNullOrEmpty
+  }
+
+  It 'debe avisar la versión del .nvmrc solo cuando no coincide con <NodeVersion>' -ForEach @(
+    @{ NodeVersion = 'v24.14.1'; ExpectedVersion = '24'; ShowsMismatch = $false }
+    @{ NodeVersion = 'v24.14.1'; ExpectedVersion = '24.14.1'; ShowsMismatch = $false }
+    @{ NodeVersion = 'v24.14.1'; ExpectedVersion = '24.1'; ShowsMismatch = $true }
+    @{ NodeVersion = 'v24.14.1'; ExpectedVersion = '20'; ShowsMismatch = $true }
+    @{ NodeVersion = 'v24.14.1'; ExpectedVersion = 'lts/*'; ShowsMismatch = $false }
+  ) {
+    $nodeSegment = ConvertTo-PlainPromptText (Format-MurilassoNodeSegment -NodeVersion $NodeVersion -ExpectedVersion $ExpectedVersion)
+
+    $nodeSegment | Should -Match ([regex]::Escape($NodeVersion))
+    ($nodeSegment -match '\.nvmrc') | Should -Be $ShowsMismatch
+  }
+
+  It 'debe alinear el bloque derecho al ancho de la consola y ocultarlo si no entra' {
+    $leftText = Format-MurilassoText -Text 'izquierda' -Color 'Blue'
+    $rightText = Format-MurilassoText -Text 'derecha' -Color 'Frame'
+
+    $alignedLine = Join-MurilassoPromptLine -LeftText $leftText -RightText $rightText -ConsoleWidth 40
+    $narrowLine = Join-MurilassoPromptLine -LeftText $leftText -RightText $rightText -ConsoleWidth 15
+
+    Get-MurilassoDisplayWidth -Text $alignedLine | Should -Be (40 - $MURILASSO_RIGHT_PROMPT_MARGIN)
+    ConvertTo-PlainPromptText $alignedLine | Should -Match '^izquierda +derecha$'
+    $narrowLine | Should -Be $leftText
+  }
+
+  It 'debe mostrar la PR con link y el estado de su CI' {
+    $env:MURILASSO_PR_URL = 'https://github.com/owner/repo/pull/8'
+    $env:MURILASSO_PR_STATE = 'OPEN'
+    $env:MURILASSO_PR_NUMBER = '8'
+    $env:MURILASSO_PR_CI = 'FAILURE'
+
+    $prSegment = Format-MurilassoPrSegment
+
+    $prSegment | Should -Match ([regex]::Escape(']8;;https://github.com/owner/repo/pull/8'))
+    ConvertTo-PlainPromptText $prSegment | Should -Match ('#8 ' + [regex]::Escape($MURILASSO_GLYPHS.CiFailure) + '$')
+  }
+
+  It 'debe renderizar branch y cambios de un repo real y preservar LASTEXITCODE' {
+    Mock Start-MurilassoGhFetch { }
+    $repositoryPath = New-TestGitRepository -BranchName 'feature/prompt-test'
+    Set-Content -LiteralPath (Join-Path $repositoryPath 'tracked.txt') -Value 'modificado'
+    Set-Content -LiteralPath (Join-Path $repositoryPath 'nuevo.txt') -Value 'sin trackear'
+    Set-Location -LiteralPath $repositoryPath
+    try {
+      $global:LASTEXITCODE = 7
+
+      $promptLines = @((ConvertTo-PlainPromptText (prompt)) -split '\r?\n')
+
+      $global:LASTEXITCODE | Should -Be 7
+      $promptLines.Count | Should -Be 2
+      $promptLines[0] | Should -Match ([regex]::Escape($MURILASSO_GLYPHS.Branch + ' feature/prompt-test'))
+      $promptLines[0] | Should -Match ([regex]::Escape($MURILASSO_GLYPHS.Modified + ' 1'))
+      $promptLines[0] | Should -Match ([regex]::Escape($MURILASSO_GLYPHS.Untracked + ' 1'))
+      $promptLines[1] | Should -Match ([regex]::Escape($MURILASSO_GLYPHS.PromptArrow) + ' $|# $')
+      Should -Invoke Start-MurilassoGhFetch -Times 1 -Exactly
+    } finally {
+      Set-Location -LiteralPath $script:OriginalLocation
+    }
+  }
+
+  It 'debe mostrar el rebase en curso con su paso' {
+    Mock Start-MurilassoGhFetch { }
+    $repositoryPath = New-TestGitRepository -BranchName 'feature/rebase-test'
+    $rebaseDirectory = Join-Path $repositoryPath '.git/rebase-merge'
+    New-Item -ItemType Directory -Path $rebaseDirectory | Out-Null
+    Set-Content -LiteralPath (Join-Path $rebaseDirectory 'msgnum') -Value '2'
+    Set-Content -LiteralPath (Join-Path $rebaseDirectory 'end') -Value '5'
+    Set-Location -LiteralPath $repositoryPath
+    try {
+      ConvertTo-PlainPromptText (prompt) | Should -Match 'REBASE 2/5'
+    } finally {
+      Set-Location -LiteralPath $script:OriginalLocation
+    }
+  }
+
+  It 'debe omitir el segmento git fuera de un repo' {
+    Mock Start-MurilassoGhFetch { }
+    $plainDirectory = Join-Path $TestDrive ('plain-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $plainDirectory | Out-Null
+    Set-Location -LiteralPath $plainDirectory
+    try {
+      $firstPromptLine = (@((ConvertTo-PlainPromptText (prompt)) -split '\r?\n'))[0]
+
+      $firstPromptLine | Should -Not -Match ([regex]::Escape($MURILASSO_GLYPHS.Branch))
+      Should -Invoke Start-MurilassoGhFetch -Times 0 -Exactly
+    } finally {
+      Set-Location -LiteralPath $script:OriginalLocation
+    }
+  }
+
+  It 'debe registrar la carpeta en zoxide desde el prompt cuando zoxide está inicializado' {
+    $global:FixtureZoxideHookCalls = 0
+    function global:__zoxide_hook { $global:FixtureZoxideHookCalls++ }
+    $script:ZoxideInitialized = $true
+
+    $null = prompt
+
+    $global:FixtureZoxideHookCalls | Should -Be 1
   }
 }

@@ -1,13 +1,13 @@
-# ██████  ███████ ███████  █████  ██    ██ ██      ████████ ███████
+﻿# ██████  ███████ ███████  █████  ██    ██ ██      ████████ ███████
 # ██   ██ ██      ██      ██   ██ ██    ██ ██         ██    ██
 # ██   ██ █████   █████   ███████ ██    ██ ██         ██    ███████
 # ██   ██ ██      ██      ██   ██ ██    ██ ██         ██         ██
 # ██████  ███████ ██      ██   ██  ██████  ███████    ██    ███████
 
 # Console en UTF-8: sin esto [Console]::OutputEncoding queda en CP437 (OEM) y los
-# glifos del prompt (✔ ✗ ● ◦) salen como `?` cuando PSReadLine los repinta via
-# InvokePrompt (p.ej. tras un checkout con el widget fzf). El render normal de Oh
-# My Posh no lo necesita, pero el repintado de PSReadLine respeta este encoding.
+# glifos del prompt murilasso (╭─ ❯ y los iconos Nerd Font) salen como `?`, tanto
+# en el render normal como cuando PSReadLine los repinta via InvokePrompt (p.ej.
+# tras un checkout con el widget fzf).
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 
@@ -15,7 +15,7 @@
 # Spawnear un CLI (Node, Go, Rust) para generar su script de init o completion
 # cuesta 30-200 ms por arranque. Estos helpers cachean el script generado a
 # disco y lo regeneran solo cuando cambia el fingerprint (primera línea del
-# archivo). Definidos antes de cualquier init (zoxide, codex, oh-my-posh).
+# archivo). Definidos antes de cualquier init (zoxide, codex).
 
 # Ejecutable real detrás de un comando. Los shims de scoop son un .exe genérico
 # con un `<nombre>.shim` al lado (`path = "..."`); sin seguirlo, un
@@ -167,7 +167,6 @@ function rg { & rg.exe --glob "!.git/*" $args }
 
 $script:ZoxideCommandInfo = Get-Command zoxide -ErrorAction SilentlyContinue
 $script:ZoxideInitialized = $false
-$script:MurilassoOmpInitialized = $false
 
 # Se carga al usar z/zi, para que el primer prompt no pague su inicialización.
 function Initialize-Zoxide {
@@ -175,9 +174,10 @@ function Initialize-Zoxide {
     if (-not $script:ZoxideCommandInfo) { return $false }
 
     try {
-        # OMP administra el prompt; sin OMP se conserva el aprendizaje de zoxide.
-        $zoxideHook = if ($script:MurilassoOmpInitialized) { 'none' } else { 'pwd' }
-        $zoxideInitArguments = @('init', 'powershell', '--hook', $zoxideHook)
+        # El hook `pwd` reemplazaría el `prompt` murilasso por un wrapper que
+        # pisa $LASTEXITCODE con su `zoxide add`. Con `none`, el prompt murilasso
+        # llama a __zoxide_hook después de capturar el estado del último comando.
+        $zoxideInitArguments = @('init', 'powershell', '--hook', 'none')
         . (Get-CachedInitScriptPath `
             -CachePath (Join-Path $env:LOCALAPPDATA 'PowerShell\zoxide-init-cache.ps1') `
             -Fingerprint ('{0}|{1}' -f (Get-ExecutableFingerprint -CommandInfo $script:ZoxideCommandInfo), ($zoxideInitArguments -join ' ')) `
@@ -2695,10 +2695,15 @@ if ($psConsoleReadLineType) {
 # ██      ██   ██ ██    ██ ██  ██  ██ ██         ██
 # ██      ██   ██  ██████  ██      ██ ██         ██
 
-# --- Prompt murilasso para Oh My Posh ----------------------------------------
-# Port del theme configs/zsh/.oh-my-zsh/themes/murilasso.zsh-theme. El render
-# vive en murilasso.omp.json; aca solo se replica el cacheo async de PR/CI via
-# `gh` y el conteo de jobs del usuario, que Oh My Posh consume por env vars.
+# --- Prompt murilasso --------------------------------------------------------
+# Port nativo del theme configs/zsh/.oh-my-zsh/themes/murilasso.zsh-theme, sin
+# Oh My Posh: `prompt` arma con secuencias ANSI las dos líneas, el bloque
+# derecho (duración, Node, exit status y hora) y el prompt de continuación.
+# El estado de PR/CI se cachea en background via `gh`.
+#
+# Línea 1: ╭─ [venv] usuario[@host]:path — branch [operación] [ahead/behind]
+#          [cambios] [stash] — PR #N CI ............ [duración] [node] [exit] hora
+# Línea 2: ╰─ [jobs] ❯
 
 # Intervalos de refresco en background (mismos valores que el theme zsh).
 $MURILASSO_PR_REFRESH_SECONDS = 30
@@ -2706,14 +2711,154 @@ $MURILASSO_CI_REFRESH_SECONDS = 120
 # Tiempo máximo de un fetch de `gh` antes de matarlo y permitir reintentos.
 $MURILASSO_GH_FETCH_TIMEOUT_SECONDS = 60
 
-# Estado in-memory para evitar lanzar fetches en cada render del prompt.
-$global:MurilassoPromptState = @{
-    Branch      = ''
-    Repo        = ''
-    PrLastFetch = [datetime]::MinValue
-    CiKey       = ''
-    CiLastFetch = [datetime]::MinValue
+# Duración mínima de un comando para mostrarla en el bloque derecho.
+$MURILASSO_DURATION_THRESHOLD_MS = 3000
+$MURILASSO_MILLISECONDS_PER_SECOND = 1000
+$MURILASSO_MILLISECONDS_PER_MINUTE = 60000
+$MURILASSO_MILLISECONDS_PER_HOUR = 3600000
+$MURILASSO_TIME_FORMAT = 'HH:mm:ss'
+# Branches más largas se truncan con «…» para no desbordar la línea.
+$MURILASSO_BRANCH_MAX_LENGTH = 40
+$MURILASSO_SHORT_SHA_LENGTH = 7
+# Carpetas visibles al final del path; el resto se resume con `..`.
+$MURILASSO_PATH_MAX_DEPTH = 2
+# Columna libre al final de la primera línea: escribir en la última columna
+# deja a algunas terminales con un wrap pendiente que duplica el salto de línea.
+$MURILASSO_RIGHT_PROMPT_MARGIN = 1
+$MURILASSO_RIGHT_SEGMENT_GAP = '  '
+
+$MURILASSO_ESCAPE = [char]27
+$MURILASSO_BELL = [char]7
+# SGR (CSI ... m) y links OSC 8: no ocupan columnas en la terminal.
+$MURILASSO_ANSI_SEQUENCE_PATTERN = '\x1b\[[0-9;]*m|\x1b\]8;;[^\x07]*\x07'
+
+# Códigos SGR de foreground: nombres ANSI estándar y grises truecolor del theme.
+$MURILASSO_COLORS = @{
+    Blue         = '34'
+    Cyan         = '36'
+    Green        = '32'
+    Magenta      = '35'
+    Red          = '31'
+    White        = '37'
+    Yellow       = '33'
+    BrightWhite  = '38;2;255;255;255'
+    Frame        = '38;2;108;108;108'
+    Untracked    = '38;2;128;128;128'
+    Continuation = '38;2;138;138;138'
 }
+
+# Glifos por code point: los iconos Nerd Font viven en el área de uso privado
+# y no se distinguen a simple vista en el código fuente.
+$MURILASSO_GLYPHS = @{
+    FrameTop     = [string][char]0x256D + [char]0x2500
+    FrameBottom  = [string][char]0x2570 + [char]0x2500
+    Separator    = [string][char]0x2014
+    Ellipsis     = [string][char]0x2026
+    PromptArrow  = [string][char]0x276F
+    PromptRoot   = '#'
+    Continuation = [string][char]0x203A
+    PythonVenv   = [string][char]0xE73C
+    Branch       = [string][char]0xE725
+    Commit       = [string][char]0xF417
+    Ahead        = [string][char]0xF062
+    Behind       = [string][char]0xF063
+    Conflict     = [string][char]0xF071
+    Staged       = [string][char]0xF457
+    Modified     = [string][char]0xF459
+    Untracked    = [string][char]0xF128
+    Clean        = [string][char]0xF00C
+    Stash        = [string][char]0xF411
+    PrDefault    = [string][char]0xF4DD
+    PrOpen       = [string][char]0xF407
+    PrMerged     = [string][char]0xF419
+    PrClosed     = [string][char]0xF4DC
+    CiSuccess    = [string][char]0xF00C
+    CiFailure    = [string][char]0xF00D
+    CiPending    = [string][char]0xF444
+    CiUnknown    = [string][char]0xF10C
+    Duration     = [string][char]0xF017
+    Node         = [string][char]0xE718
+    NodeMismatch = [string][char]0xF071
+    ExitStatus   = [string][char]0xF057
+    Jobs         = [string][char]0xF085
+}
+
+# Contadores de cambios de git en orden de render.
+$MURILASSO_GIT_CHANGE_COUNTERS = @(
+    @{ Key = 'Unmerged'; Glyph = 'Conflict'; Color = 'Red'; Bold = $true }
+    @{ Key = 'Staged'; Glyph = 'Staged'; Color = 'Green'; Bold = $false }
+    @{ Key = 'Modified'; Glyph = 'Modified'; Color = 'Yellow'; Bold = $false }
+    @{ Key = 'Untracked'; Glyph = 'Untracked'; Color = 'Untracked'; Bold = $false }
+)
+
+# Rebase en curso: carpeta en el git dir y archivos con el paso actual/total.
+$MURILASSO_REBASE_LAYOUTS = @(
+    @{ Directory = 'rebase-merge'; StepFile = 'msgnum'; TotalFile = 'end' }
+    @{ Directory = 'rebase-apply'; StepFile = 'next'; TotalFile = 'last' }
+)
+$MURILASSO_GIT_OPERATION_MARKERS = @(
+    @{ File = 'MERGE_HEAD'; Label = 'MERGE' }
+    @{ File = 'CHERRY_PICK_HEAD'; Label = 'CHERRY-PICK' }
+    @{ File = 'REVERT_HEAD'; Label = 'REVERT' }
+    @{ File = 'BISECT_LOG'; Label = 'BISECT' }
+)
+$MURILASSO_DETACHED_HEAD_LABEL = '(detached)'
+
+$MURILASSO_PR_STATE_STYLES = @{
+    OPEN   = @{ Glyph = $MURILASSO_GLYPHS.PrOpen; Color = 'Green' }
+    MERGED = @{ Glyph = $MURILASSO_GLYPHS.PrMerged; Color = 'Magenta' }
+    CLOSED = @{ Glyph = $MURILASSO_GLYPHS.PrClosed; Color = 'Red' }
+}
+$MURILASSO_PR_DEFAULT_STYLE = @{ Glyph = $MURILASSO_GLYPHS.PrDefault; Color = 'Yellow' }
+$MURILASSO_CI_STATUS_STYLES = @{
+    SUCCESS = @{ Glyph = $MURILASSO_GLYPHS.CiSuccess; Color = 'Green' }
+    FAILURE = @{ Glyph = $MURILASSO_GLYPHS.CiFailure; Color = 'Red' }
+    PENDING = @{ Glyph = $MURILASSO_GLYPHS.CiPending; Color = 'Yellow' }
+}
+$MURILASSO_CI_UNKNOWN_STYLE = @{ Glyph = $MURILASSO_GLYPHS.CiUnknown; Color = 'BrightWhite' }
+
+# Exit codes 128+N de procesos terminados por la señal N (shells POSIX).
+$MURILASSO_SIGNAL_NAMES = @{
+    129 = 'HUP'
+    130 = 'INT'
+    131 = 'QUIT'
+    134 = 'ABRT'
+    137 = 'KILL'
+    139 = 'SEGV'
+    141 = 'PIPE'
+    143 = 'TERM'
+}
+
+# Versión de Node embebida en el path de instalación de fnm/nvm
+# (p.ej. ...\node-versions\v24.14.1\installation\node.exe).
+$MURILASSO_NODE_VERSION_PATH_PATTERN = '[\\/](v\d+\.\d+\.\d+)[\\/]'
+$MURILASSO_NVMRC_FILE_NAME = '.nvmrc'
+
+# Estado in-memory para evitar lanzar fetches o resolver Node en cada render.
+$global:MurilassoPromptState = @{
+    Branch        = ''
+    Repo          = ''
+    PrLastFetch   = [datetime]::MinValue
+    CiKey         = ''
+    CiLastFetch   = [datetime]::MinValue
+    LastHistoryId = 0
+    NodePathKey   = $null
+    NodeCommand   = $null
+}
+# `node -v` por fingerprint del ejecutable, para instalaciones sin versión en el path.
+$global:MurilassoNodeVersionCache = @{}
+
+# Sesión elevada: el prompt muestra `#` en lugar de `❯`, como root en zsh.
+$script:MurilassoIsElevated = $false
+try {
+    $currentWindowsPrincipal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    $script:MurilassoIsElevated = $currentWindowsPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+} catch {
+    # Fuera de Windows no hay WindowsIdentity; se asume sesión sin elevar.
+}
+
+# El prompt ya muestra el venv activo; evita el prefijo "(venv)" de Activate.ps1.
+$env:VIRTUAL_ENV_DISABLE_PROMPT = '1'
 
 function Get-MurilassoCachePath {
     param([string]$Kind, [string]$Repo, [string]$Branch)
@@ -2921,25 +3066,22 @@ function Update-MurilassoCiContext {
 # no todos los jobs de la sesión.
 $MURILASSO_ACTIVE_JOB_STATES = @('NotStarted', 'Running', 'Suspended', 'Blocked', 'AtBreakpoint')
 
-function Update-MurilassoJobContext {
+function Get-MurilassoActiveJobCount {
     $userJobs = @(Get-Job -ErrorAction SilentlyContinue | Where-Object {
             $_.State -in $MURILASSO_ACTIVE_JOB_STATES
         })
-    $env:MURILASSO_JOB_COUNT = [string]$userJobs.Count
+    return $userJobs.Count
 }
 
-# Mantiene actualizadas las env vars de PR/CI que consume murilasso.omp.json.
+# Mantiene actualizadas las env vars de PR/CI de la branch y el repo actuales.
+# Branch 'HEAD' (detached) o vacía limpia el contexto de PR.
 function Update-MurilassoPromptContext {
+    param([string]$Branch, [string]$Repo)
+
     # Primero se vuelcan los fetches terminados para que este render ya lea su cache.
     Complete-MurilassoGhFetches
 
-    # Un solo spawn de git por render: rev-parse acepta ambos flags y devuelve
-    # una línea por flag (branch primero, toplevel después).
-    $gitPromptInfo = @(& git rev-parse --abbrev-ref HEAD --show-toplevel 2>$null)
-    $branch = if ($gitPromptInfo.Count -ge 1) { $gitPromptInfo[0] } else { $null }
-    $repo = if ($gitPromptInfo.Count -ge 2) { $gitPromptInfo[1] } else { $null }
-
-    if ([string]::IsNullOrWhiteSpace($branch) -or $branch -eq 'HEAD' -or [string]::IsNullOrWhiteSpace($repo)) {
+    if ([string]::IsNullOrWhiteSpace($Branch) -or $Branch -eq 'HEAD' -or [string]::IsNullOrWhiteSpace($Repo)) {
         Clear-MurilassoPrContext
         $global:MurilassoPromptState.Branch = ''
         $global:MurilassoPromptState.Repo = ''
@@ -2975,103 +3117,474 @@ function Update-MurilassoPromptContext {
     Update-MurilassoCiContext -Repo $repo -Branch $branch
 }
 
-# $PSScriptRoot apunta a la carpeta del symlink, no a la del repo. El profile ya
-# resolvió el link al inicio ($script:ProfileScriptDirectory); el theme vive
-# junto al archivo real del profile.
-$murilassoThemePath = Join-Path $script:ProfileScriptDirectory 'murilasso.omp.json'
-$ohMyPoshCommand = Get-Command oh-my-posh -ErrorAction SilentlyContinue
-if ($ohMyPoshCommand -and (Test-Path -LiteralPath $murilassoThemePath)) {
-    # Cache del init de Oh My Posh: `oh-my-posh init pwsh | Invoke-Expression`
-    # devuelve un one-liner que re-invoca el binario en cada arranque (~170 ms).
-    # Se cachea el script real (salida de --print). El theme se lee en cada
-    # render del prompt, así que editar murilasso.omp.json no requiere
-    # regenerar; el binario de omp, el path del theme y la versión del
-    # generador forman el fingerprint.
-    $murilassoOmpInitCachePath = Join-Path $env:LOCALAPPDATA 'PowerShell\oh-my-posh-init-cache.ps1'
-    $script:MurilassoOmpInitialized = $false
-    try {
-        # 'inline-config-v2' versiona el generador de abajo: cambiar su lógica
-        # debe bumpear el sufijo para invalidar caches ya generados. El mtime
-        # del theme entra porque el prompt secundario se pre-renderiza.
-        $murilassoThemeTicks = [System.IO.File]::GetLastWriteTimeUtc($murilassoThemePath).Ticks
-        $murilassoOmpFingerprint = '{0}|{1}|{2}|inline-config-v2' -f (Get-ExecutableFingerprint -CommandInfo $ohMyPoshCommand), $murilassoThemePath, $murilassoThemeTicks
-        . (Get-CachedInitScriptPath `
-            -CachePath $murilassoOmpInitCachePath `
-            -Fingerprint $murilassoOmpFingerprint `
-            -GenerateScriptText {
-                $ompInitScript = (& $ohMyPoshCommand.Source init pwsh --config $murilassoThemePath --print) -join [Environment]::NewLine
+# Envuelve texto en un color SGR de $MURILASSO_COLORS; -Bold suma negrita.
+function Format-MurilassoText {
+    param([string]$Text, [string]$Color, [switch]$Bold)
 
-                # El script de --print NO embebe el config: `oh-my-posh init`
-                # lo persiste en un mapping session-id -> config
-                # (pwsh.<id>.omp.cache) que el render consulta via
-                # POSH_SESSION_ID. Como este cache evita correr `init`, una
-                # sesión con id nuevo no tendría mapping y el render caería al
-                # theme default. Inyectar --config en cada invocación de render
-                # hace el script autosuficiente.
-                $shellFlagToken = '"--shell=$script:ShellName"'
-                if (-not $ompInitScript.Contains($shellFlagToken)) {
-                    throw "oh-my-posh --print output no longer contains the expected token $shellFlagToken; review the --config injection"
+    if ([string]::IsNullOrEmpty($Text)) { return '' }
+    $sgrCodes = @()
+    if ($Bold) { $sgrCodes += '1' }
+    if ($Color) { $sgrCodes += $MURILASSO_COLORS[$Color] }
+    return '{0}[{1}m{2}{0}[0m' -f $MURILASSO_ESCAPE, ($sgrCodes -join ';'), $Text
+}
+
+# Link clickeable OSC 8: la terminal muestra $Text y abre $Url.
+function Format-MurilassoHyperlink {
+    param([string]$Text, [string]$Url)
+
+    return '{0}]8;;{1}{2}{3}{0}]8;;{2}' -f $MURILASSO_ESCAPE, $Url, $MURILASSO_BELL, $Text
+}
+
+# Columnas que ocupa un texto con secuencias ANSI: descarta SGR y OSC 8, y
+# cuenta cada par surrogate como un solo glifo.
+function Get-MurilassoDisplayWidth {
+    param([string]$Text)
+
+    $visibleText = $Text -replace $MURILASSO_ANSI_SEQUENCE_PATTERN, ''
+    $displayWidth = 0
+    foreach ($character in $visibleText.ToCharArray()) {
+        if (-not [char]::IsLowSurrogate($character)) { $displayWidth++ }
+    }
+    return $displayWidth
+}
+
+# Path corto estilo agnoster_short: `~` para el home, separadores `/` y solo
+# las últimas carpetas (p.ej. `~/../configs/PowerShell`, `C:/../System32/drivers`).
+function Get-MurilassoShortPath {
+    param([string]$Path, [string]$HomePath)
+
+    $normalizedPath = $Path -replace '\\', '/'
+    $normalizedHome = ($HomePath -replace '\\', '/').TrimEnd('/')
+    if ($normalizedHome -and $normalizedPath.TrimEnd('/').Equals($normalizedHome, [StringComparison]::OrdinalIgnoreCase)) {
+        return '~'
+    }
+
+    if ($normalizedHome -and $normalizedPath.StartsWith($normalizedHome + '/', [StringComparison]::OrdinalIgnoreCase)) {
+        $rootLabel = '~'
+        $relativePath = $normalizedPath.Substring($normalizedHome.Length + 1)
+    } else {
+        $rootSeparatorIndex = $normalizedPath.IndexOf('/')
+        if ($rootSeparatorIndex -lt 0) { return $normalizedPath }
+        $rootLabel = $normalizedPath.Substring(0, $rootSeparatorIndex)
+        $relativePath = $normalizedPath.Substring($rootSeparatorIndex + 1)
+    }
+
+    $folders = @($relativePath.Split([char[]]'/', [StringSplitOptions]::RemoveEmptyEntries))
+    if ($folders.Count -eq 0) { return $rootLabel + '/' }
+    if ($folders.Count -le $MURILASSO_PATH_MAX_DEPTH) {
+        return (@($rootLabel) + $folders) -join '/'
+    }
+
+    $visibleFolders = $folders[($folders.Count - $MURILASSO_PATH_MAX_DEPTH)..($folders.Count - 1)]
+    return (@($rootLabel, '..') + $visibleFolders) -join '/'
+}
+
+# Sube desde $Path buscando `.git` (carpeta, o archivo en worktrees y
+# submódulos), para no spawnear git fuera de un repo.
+function Find-MurilassoGitRoot {
+    param([string]$Path)
+
+    $directory = $Path
+    while (-not [string]::IsNullOrEmpty($directory)) {
+        $dotGitPath = [System.IO.Path]::Combine($directory, '.git')
+        if ([System.IO.Directory]::Exists($dotGitPath) -or [System.IO.File]::Exists($dotGitPath)) {
+            return $directory
+        }
+        $directory = [System.IO.Path]::GetDirectoryName($directory)
+    }
+    return $null
+}
+
+# Git dir real del worktree: `.git` o el destino de su línea `gitdir:`.
+function Get-MurilassoGitDirectory {
+    param([string]$RepoRoot)
+
+    $dotGitPath = [System.IO.Path]::Combine($RepoRoot, '.git')
+    if ([System.IO.Directory]::Exists($dotGitPath)) { return $dotGitPath }
+    if (-not [System.IO.File]::Exists($dotGitPath)) { return $null }
+
+    $gitDirLine = [System.IO.File]::ReadAllText($dotGitPath).Trim()
+    if ($gitDirLine -notmatch '^gitdir:\s*(.+)$') { return $null }
+    $gitDirectory = $Matches[1].Trim()
+    if (-not [System.IO.Path]::IsPathRooted($gitDirectory)) {
+        $gitDirectory = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($RepoRoot, $gitDirectory))
+    }
+    return $gitDirectory
+}
+
+# Operación en curso (REBASE con paso/total, MERGE, ...) o '' si no hay.
+function Get-MurilassoGitOperation {
+    param([string]$GitDirectory)
+
+    if (-not $GitDirectory) { return '' }
+
+    foreach ($rebaseLayout in $MURILASSO_REBASE_LAYOUTS) {
+        $rebaseDirectory = [System.IO.Path]::Combine($GitDirectory, $rebaseLayout.Directory)
+        if (-not [System.IO.Directory]::Exists($rebaseDirectory)) { continue }
+
+        $stepPath = [System.IO.Path]::Combine($rebaseDirectory, $rebaseLayout.StepFile)
+        $totalPath = [System.IO.Path]::Combine($rebaseDirectory, $rebaseLayout.TotalFile)
+        if ([System.IO.File]::Exists($stepPath) -and [System.IO.File]::Exists($totalPath)) {
+            return 'REBASE {0}/{1}' -f [System.IO.File]::ReadAllText($stepPath).Trim(), [System.IO.File]::ReadAllText($totalPath).Trim()
+        }
+        return 'REBASE'
+    }
+
+    foreach ($operationMarker in $MURILASSO_GIT_OPERATION_MARKERS) {
+        if ([System.IO.File]::Exists([System.IO.Path]::Combine($GitDirectory, $operationMarker.File))) {
+            return $operationMarker.Label
+        }
+    }
+    return ''
+}
+
+# Interpreta `git status --porcelain=v2 --branch --show-stash`. Con
+# `# branch.upstream` pero sin `# branch.ab`, la branch remota ya no existe.
+function ConvertFrom-MurilassoGitStatus {
+    param([string[]]$StatusLines = @())
+
+    $gitStatus = @{
+        Branch         = ''
+        HeadOid        = ''
+        Upstream       = ''
+        HasAheadBehind = $false
+        Ahead          = 0
+        Behind         = 0
+        Staged         = 0
+        Modified       = 0
+        Unmerged       = 0
+        Untracked      = 0
+        StashCount     = 0
+    }
+
+    foreach ($statusLine in $StatusLines) {
+        if ([string]::IsNullOrEmpty($statusLine)) { continue }
+        switch ([string]$statusLine[0]) {
+            '#' {
+                if ($statusLine -match '^# branch\.oid (.+)$') { $gitStatus.HeadOid = $Matches[1] }
+                elseif ($statusLine -match '^# branch\.head (.+)$') { $gitStatus.Branch = $Matches[1] }
+                elseif ($statusLine -match '^# branch\.upstream (.+)$') { $gitStatus.Upstream = $Matches[1] }
+                elseif ($statusLine -match '^# branch\.ab \+(\d+) -(\d+)$') {
+                    $gitStatus.HasAheadBehind = $true
+                    $gitStatus.Ahead = [int]$Matches[1]
+                    $gitStatus.Behind = [int]$Matches[2]
                 }
-                $ompInitScript = $ompInitScript.Replace($shellFlagToken, "'--config=$murilassoThemePath', $shellFlagToken")
-
-                # El init renderiza el prompt secundario spawneando omp en cada
-                # arranque (~130 ms). Solo depende del theme, así que se
-                # pre-renderiza acá; si OMP cambia esa línea, queda el render en vivo.
-                $secondaryPromptPattern = 'Set-PSReadLineOption -ContinuationPrompt \(\(Invoke-Utf8Posh @\("print", "secondary"[^\r\n]*'
-                $secondaryPromptText = (& $ohMyPoshCommand.Source print secondary "--config=$murilassoThemePath" '--shell=pwsh') -join "`n"
-                if ($LASTEXITCODE -eq 0 -and $ompInitScript -match $secondaryPromptPattern) {
-                    $escapedSecondaryPrompt = $secondaryPromptText.Replace("'", "''")
-                    $ompInitScript = $ompInitScript.Replace($Matches[0], "Set-PSReadLineOption -ContinuationPrompt '$escapedSecondaryPrompt'")
+                elseif ($statusLine -match '^# stash (\d+)$') { $gitStatus.StashCount = [int]$Matches[1] }
+            }
+            # Entradas ordinarias (1) y renombres/copias (2): `<tipo> XY ...`,
+            # X = index (staged) e Y = working tree; `.` es sin cambios.
+            { $_ -eq '1' -or $_ -eq '2' } {
+                if ($statusLine.Length -ge 4) {
+                    if ($statusLine[2] -ne '.') { $gitStatus.Staged++ }
+                    if ($statusLine[3] -ne '.') { $gitStatus.Modified++ }
                 }
-                $ompInitScript
-            })
-
-        # El script cacheado embebe el POSH_SESSION_ID de cuando se generó.
-        # Regenerarlo da a cada sesión su propio scope de cache de omp; el
-        # theme no depende del id porque el config va inline en cada render.
-        $env:POSH_SESSION_ID = [guid]::NewGuid().ToString()
-        $script:MurilassoOmpInitialized = $true
-    } catch {
-        # Cache corrupto o invalidación fallida: descartarlo y caer al init en
-        # vivo para no perder el prompt.
-        Remove-Item -LiteralPath $murilassoOmpInitCachePath -Force -ErrorAction SilentlyContinue
-        try {
-            oh-my-posh init pwsh --config $murilassoThemePath | Invoke-Expression
-            $script:MurilassoOmpInitialized = $true
-        } catch {
-            Write-Warning "Unable to initialize Oh My Posh (murilasso): $($_.Exception.Message)"
+            }
+            'u' { $gitStatus.Unmerged++ }
+            '?' { $gitStatus.Untracked++ }
         }
     }
 
-    if ($script:MurilassoOmpInitialized) {
-        # El hook Set-PoshContext de Oh My Posh vive DENTRO de su modulo dinamico
-        # `oh-my-posh-core` y su `prompt` resuelve esa version del modulo, no un
-        # override global. Por eso envolvemos el `prompt` de OMP: guardamos su
-        # scriptblock (queda ligado al scope del modulo) y definimos un `prompt`
-        # global que corre nuestro updater de PR/CI ANTES de delegar en el de OMP,
-        # de modo que las env vars ya esten seteadas cuando OMP renderiza.
-        $global:MurilassoOmpPrompt = (Get-Command prompt).ScriptBlock
-        function global:prompt {
-            # OMP lee `$?` y `$LASTEXITCODE` al entrar a su `prompt`, o sea
-            # despues del `git` del updater (que fuera de un repo deja 128). Se
-            # capturan antes y se devuelven: `$LASTEXITCODE` se restaura y `$?`
-            # viaja por NVS_ORIGINAL_LASTEXECUTIONSTATUS, el hook que OMP
-            # prioriza sobre `$?` cuando es bool.
-            $lastExecutionStatus = $?
-            $lastNativeExitCode = $global:LASTEXITCODE
+    $gitStatus.Detached = $gitStatus.Branch -eq $MURILASSO_DETACHED_HEAD_LABEL
+    $gitStatus.UpstreamGone = [bool]$gitStatus.Upstream -and -not $gitStatus.HasAheadBehind
+    return $gitStatus
+}
 
-            # El updater corre `git`/`gh`/`Start-Job` en cada render. Si una de
-            # esas llamadas nativas lanza un error terminante (p.ej. queda un stop
-            # pendiente tras un Ctrl+C), la excepcion escaparia de `prompt` y
-            # PowerShell caeria a su prompt de fallback (`PS>`), perdiendo el theme.
-            # Aislar el updater garantiza que siempre se delegue al render de OMP.
-            try { Update-MurilassoPromptContext } catch { }
-            try { Update-MurilassoJobContext } catch { }
+# Un solo spawn de git por render para branch, upstream, contadores y stash.
+function Get-MurilassoGitStatus {
+    $statusLines = @(& git --no-optional-locks status --porcelain=v2 --branch --show-stash 2>$null)
+    if ($LASTEXITCODE -ne 0) { return $null }
+    return ConvertFrom-MurilassoGitStatus -StatusLines $statusLines
+}
 
-            $global:NVS_ORIGINAL_LASTEXECUTIONSTATUS = $lastExecutionStatus
-            $global:LASTEXITCODE = $lastNativeExitCode
-            & $global:MurilassoOmpPrompt
+function Format-MurilassoGitSegment {
+    param([hashtable]$GitStatus, [string]$Operation)
+
+    $glyphs = $MURILASSO_GLYPHS
+    if ($GitStatus.Detached) {
+        $shortShaLength = [Math]::Min($MURILASSO_SHORT_SHA_LENGTH, $GitStatus.HeadOid.Length)
+        $branchText = '{0} {1}' -f $glyphs.Commit, $GitStatus.HeadOid.Substring(0, $shortShaLength)
+        $branchLabel = Format-MurilassoText -Text $branchText -Color 'Yellow' -Bold
+    } else {
+        $displayBranch = $GitStatus.Branch
+        if ($displayBranch.Length -gt $MURILASSO_BRANCH_MAX_LENGTH) {
+            $displayBranch = $displayBranch.Substring(0, $MURILASSO_BRANCH_MAX_LENGTH - 1) + $glyphs.Ellipsis
         }
+        $branchColor = if ($GitStatus.UpstreamGone) { 'Red' } else { 'Blue' }
+        $branchLabel = Format-MurilassoText -Text ('{0} {1}' -f $glyphs.Branch, $displayBranch) -Color $branchColor -Bold
+    }
+
+    $gitSegment = ' {0} {1}' -f (Format-MurilassoText -Text $glyphs.Separator -Color 'Frame'), $branchLabel
+    if ($Operation) {
+        $gitSegment += ' ' + (Format-MurilassoText -Text $Operation -Color 'Magenta' -Bold)
+    }
+
+    $syncText = ''
+    if ($GitStatus.Ahead -gt 0) { $syncText += Format-MurilassoText -Text ($glyphs.Ahead + $GitStatus.Ahead) -Color 'Cyan' }
+    if ($GitStatus.Behind -gt 0) { $syncText += Format-MurilassoText -Text ($glyphs.Behind + $GitStatus.Behind) -Color 'Cyan' }
+    if ($syncText) { $gitSegment += ' ' + $syncText }
+
+    $hasChanges = $false
+    foreach ($changeCounter in $MURILASSO_GIT_CHANGE_COUNTERS) {
+        $changeCount = $GitStatus[$changeCounter.Key]
+        if ($changeCount -gt 0) {
+            $changeText = '{0} {1}' -f $glyphs[$changeCounter.Glyph], $changeCount
+            $gitSegment += ' ' + (Format-MurilassoText -Text $changeText -Color $changeCounter.Color -Bold:$changeCounter.Bold)
+            $hasChanges = $true
+        }
+    }
+    if (-not $hasChanges) {
+        $gitSegment += ' ' + (Format-MurilassoText -Text $glyphs.Clean -Color 'Green')
+    }
+
+    if ($GitStatus.StashCount -gt 0) {
+        $gitSegment += ' ' + (Format-MurilassoText -Text ('{0} {1}' -f $glyphs.Stash, $GitStatus.StashCount) -Color 'Cyan')
+    }
+    return $gitSegment
+}
+
+# PR de la branch (con link) y estado de su CI, desde las env vars MURILASSO_PR_*.
+function Format-MurilassoPrSegment {
+    if ([string]::IsNullOrEmpty($env:MURILASSO_PR_URL)) { return '' }
+
+    $prStyle = $MURILASSO_PR_STATE_STYLES[[string]$env:MURILASSO_PR_STATE]
+    if (-not $prStyle) { $prStyle = $MURILASSO_PR_DEFAULT_STYLE }
+    $ciStyle = $MURILASSO_CI_STATUS_STYLES[[string]$env:MURILASSO_PR_CI]
+    if (-not $ciStyle) { $ciStyle = $MURILASSO_CI_UNKNOWN_STYLE }
+
+    $prLabel = Format-MurilassoText -Text ('{0} #{1}' -f $prStyle.Glyph, $env:MURILASSO_PR_NUMBER) -Color $prStyle.Color
+    return ' {0} {1} {2}' -f `
+        (Format-MurilassoText -Text $MURILASSO_GLYPHS.Separator -Color 'Frame'),
+        (Format-MurilassoHyperlink -Text $prLabel -Url $env:MURILASSO_PR_URL),
+        (Format-MurilassoText -Text $ciStyle.Glyph -Color $ciStyle.Color)
+}
+
+# Versión del `node` del PATH. fnm/nvm la llevan en el path de instalación;
+# otras instalaciones corren `node -v` una vez por ejecutable.
+function Get-MurilassoNodeVersion {
+    $promptState = $global:MurilassoPromptState
+    # `fnm use` cambia el destino del link del multishell, no el PATH: el
+    # comando se resuelve por PATH y su path estable se recalcula en cada render.
+    if ($promptState.NodePathKey -ne $env:PATH) {
+        $promptState.NodePathKey = $env:PATH
+        $promptState.NodeCommand = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    }
+
+    $nodeCommand = $promptState.NodeCommand
+    if (-not $nodeCommand) { return '' }
+
+    $nodeExecutablePath = Get-StableExecutablePath -CommandInfo $nodeCommand
+    if ($nodeExecutablePath -match $MURILASSO_NODE_VERSION_PATH_PATTERN) { return $Matches[1] }
+
+    $nodeFingerprint = Get-ExecutableFingerprint -CommandInfo $nodeCommand
+    if (-not $global:MurilassoNodeVersionCache.ContainsKey($nodeFingerprint)) {
+        $nodeVersionOutput = @(& $nodeCommand.Source -v 2>$null)
+        $global:MurilassoNodeVersionCache[$nodeFingerprint] = if ($nodeVersionOutput.Count -gt 0) { ([string]$nodeVersionOutput[0]).Trim() } else { '' }
+    }
+    return $global:MurilassoNodeVersionCache[$nodeFingerprint]
+}
+
+# Versión pedida por el `.nvmrc` más cercano (sin `v`), subiendo desde $Path
+# hasta antes del home; '' si no hay.
+function Find-MurilassoNvmrcVersion {
+    param([string]$Path, [string]$HomePath)
+
+    $directory = $Path
+    while (-not [string]::IsNullOrEmpty($directory) -and -not $directory.Equals($HomePath, [StringComparison]::OrdinalIgnoreCase)) {
+        $nvmrcPath = [System.IO.Path]::Combine($directory, $MURILASSO_NVMRC_FILE_NAME)
+        if ([System.IO.File]::Exists($nvmrcPath)) {
+            return ([System.IO.File]::ReadAllText($nvmrcPath) -replace '\s', '').TrimStart('v')
+        }
+        $directory = [System.IO.Path]::GetDirectoryName($directory)
+    }
+    return ''
+}
+
+# Versión de Node en verde y, si no coincide con el `.nvmrc`, la esperada en
+# amarillo. Solo se comparan `.nvmrc` numéricos (no alias como `lts/*`).
+function Format-MurilassoNodeSegment {
+    param([string]$NodeVersion, [string]$ExpectedVersion)
+
+    if (-not $NodeVersion) { return '' }
+
+    $nodeSegment = Format-MurilassoText -Text ('{0} {1}' -f $MURILASSO_GLYPHS.Node, $NodeVersion) -Color 'Green'
+    $runningVersion = $NodeVersion.TrimStart('v') + '.'
+    if ($ExpectedVersion -match '^\d' -and -not $runningVersion.StartsWith($ExpectedVersion + '.')) {
+        $mismatchText = '{0} v{1} {2}' -f $MURILASSO_GLYPHS.NodeMismatch, $ExpectedVersion, $MURILASSO_NVMRC_FILE_NAME
+        $nodeSegment += ' ' + (Format-MurilassoText -Text $mismatchText -Color 'Yellow')
+    }
+    return $nodeSegment
+}
+
+# Duración compacta: 4.2s, 3m07s, 1h02m.
+function Format-MurilassoDuration {
+    param([double]$Milliseconds)
+
+    if ($Milliseconds -lt $MURILASSO_MILLISECONDS_PER_MINUTE) {
+        return [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, '{0:0.0}s', $Milliseconds / $MURILASSO_MILLISECONDS_PER_SECOND)
+    }
+
+    $wholeSeconds = [Math]::Floor($Milliseconds / $MURILASSO_MILLISECONDS_PER_SECOND)
+    if ($Milliseconds -lt $MURILASSO_MILLISECONDS_PER_HOUR) {
+        return '{0}m{1:00}s' -f [Math]::Floor($Milliseconds / $MURILASSO_MILLISECONDS_PER_MINUTE), ($wholeSeconds % 60)
+    }
+    $wholeMinutes = [Math]::Floor($Milliseconds / $MURILASSO_MILLISECONDS_PER_MINUTE)
+    return '{0}h{1:00}m' -f [Math]::Floor($Milliseconds / $MURILASSO_MILLISECONDS_PER_HOUR), ($wholeMinutes % 60)
+}
+
+# Exit code en rojo, con el nombre de la señal para los códigos 128+N.
+function Format-MurilassoStatusSegment {
+    param([int]$ExitCode)
+
+    if ($ExitCode -eq 0) { return '' }
+    $statusText = '{0} {1}' -f $MURILASSO_GLYPHS.ExitStatus, $ExitCode
+    if ($MURILASSO_SIGNAL_NAMES.ContainsKey($ExitCode)) {
+        $statusText += ' SIG' + $MURILASSO_SIGNAL_NAMES[$ExitCode]
+    }
+    return Format-MurilassoText -Text $statusText -Color 'Red'
+}
+
+# Exit code y duración del último comando del historial. Un Enter vacío no
+# agrega historial: no hay comando nuevo y no se muestra estado ni duración.
+function Get-MurilassoLastCommandResult {
+    param([bool]$LastExecutionStatus, [object]$LastNativeExitCode)
+
+    $lastCommandResult = @{ ExitCode = 0; DurationMs = 0 }
+    $lastHistoryEntry = Get-History -Count 1
+    $promptState = $global:MurilassoPromptState
+    if (-not $lastHistoryEntry -or $lastHistoryEntry.Id -eq $promptState.LastHistoryId) {
+        return $lastCommandResult
+    }
+
+    $promptState.LastHistoryId = $lastHistoryEntry.Id
+    $lastCommandResult.DurationMs = ($lastHistoryEntry.EndExecutionTime - $lastHistoryEntry.StartExecutionTime).TotalMilliseconds
+    if (-not $LastExecutionStatus) {
+        # Si el error más reciente salió de este comando falló un cmdlet: código
+        # 1. Si no, falló un ejecutable nativo y vale su $LASTEXITCODE.
+        $lastError = $global:Error | Select-Object -First 1
+        $errorFromLastCommand = $lastError -is [System.Management.Automation.ErrorRecord] -and
+            $lastError.InvocationInfo -and $lastError.InvocationInfo.HistoryId -eq $lastHistoryEntry.Id
+        $lastCommandResult.ExitCode = if (-not $errorFromLastCommand -and $LastNativeExitCode -is [int] -and $LastNativeExitCode -ne 0) {
+            $LastNativeExitCode
+        } else {
+            1
+        }
+    }
+    return $lastCommandResult
+}
+
+function Format-MurilassoRightPrompt {
+    param([hashtable]$LastCommandResult, [string]$NodeSegment)
+
+    $rightSegments = @()
+    if ($LastCommandResult.DurationMs -ge $MURILASSO_DURATION_THRESHOLD_MS) {
+        $durationText = '{0} {1}' -f $MURILASSO_GLYPHS.Duration, (Format-MurilassoDuration -Milliseconds $LastCommandResult.DurationMs)
+        $rightSegments += Format-MurilassoText -Text $durationText -Color 'Yellow'
+    }
+    if ($NodeSegment) { $rightSegments += $NodeSegment }
+    $statusSegment = Format-MurilassoStatusSegment -ExitCode $LastCommandResult.ExitCode
+    if ($statusSegment) { $rightSegments += $statusSegment }
+    $rightSegments += Format-MurilassoText -Text (Get-Date -Format $MURILASSO_TIME_FORMAT) -Color 'Frame'
+    return $rightSegments -join $MURILASSO_RIGHT_SEGMENT_GAP
+}
+
+# Alinea $RightText al borde derecho; si no entra, lo oculta para no partir la línea.
+function Join-MurilassoPromptLine {
+    param([string]$LeftText, [string]$RightText, [int]$ConsoleWidth)
+
+    $paddingWidth = $ConsoleWidth - $MURILASSO_RIGHT_PROMPT_MARGIN - (Get-MurilassoDisplayWidth -Text $LeftText) - (Get-MurilassoDisplayWidth -Text $RightText)
+    if ($ConsoleWidth -le 0 -or $paddingWidth -lt 1) { return $LeftText }
+    return $LeftText + (' ' * $paddingWidth) + $RightText
+}
+
+function Get-MurilassoPromptText {
+    param([bool]$LastExecutionStatus, [object]$LastNativeExitCode)
+
+    $glyphs = $MURILASSO_GLYPHS
+    $lastCommandResult = Get-MurilassoLastCommandResult -LastExecutionStatus $LastExecutionStatus -LastNativeExitCode $LastNativeExitCode
+
+    $currentLocation = $ExecutionContext.SessionState.Path.CurrentLocation
+    $isFileSystem = $currentLocation.Provider.Name -eq 'FileSystem'
+    $currentPath = if ($isFileSystem) { $currentLocation.ProviderPath } else { $currentLocation.Path }
+
+    $repoRoot = if ($isFileSystem) { Find-MurilassoGitRoot -Path $currentPath } else { $null }
+    $gitStatus = if ($repoRoot) { Get-MurilassoGitStatus } else { $null }
+    $gitSegment = ''
+    # El updater de PR/CI no debe tumbar el render (p.ej. un stop pendiente
+    # tras un Ctrl+C en una llamada nativa).
+    if ($gitStatus) {
+        $prBranch = if ($gitStatus.Detached) { 'HEAD' } else { $gitStatus.Branch }
+        try { Update-MurilassoPromptContext -Branch $prBranch -Repo $repoRoot } catch { }
+        $gitOperation = Get-MurilassoGitOperation -GitDirectory (Get-MurilassoGitDirectory -RepoRoot $repoRoot)
+        $gitSegment = (Format-MurilassoGitSegment -GitStatus $gitStatus -Operation $gitOperation) + (Format-MurilassoPrSegment)
+    } else {
+        try { Update-MurilassoPromptContext -Branch '' -Repo '' } catch { }
+    }
+
+    if ($script:ZoxideInitialized) {
+        try { $null = __zoxide_hook } catch { }
+    }
+
+    $contextText = ''
+    if ($env:VIRTUAL_ENV) {
+        $venvName = [System.IO.Path]::GetFileName($env:VIRTUAL_ENV.TrimEnd('\', '/'))
+        $contextText += Format-MurilassoText -Text ('{0} {1} ' -f $glyphs.PythonVenv, $venvName) -Color 'Yellow'
+    }
+    $contextText += Format-MurilassoText -Text ([Environment]::UserName) -Color 'Green' -Bold
+    if ($env:SSH_CONNECTION -or $env:SSH_CLIENT) {
+        $contextText += (Format-MurilassoText -Text '@' -Color 'Frame') + (Format-MurilassoText -Text ([Environment]::MachineName) -Color 'Magenta')
+    }
+    $contextText += (Format-MurilassoText -Text ':' -Color 'BrightWhite') +
+        (Format-MurilassoText -Text (Get-MurilassoShortPath -Path $currentPath -HomePath $HOME) -Color 'Blue')
+
+    $expectedNodeVersion = if ($isFileSystem) { Find-MurilassoNvmrcVersion -Path $currentPath -HomePath $HOME } else { '' }
+    # Un node roto o un link inaccesible solo pierde el segmento, no el prompt.
+    $nodeVersion = ''
+    try { $nodeVersion = Get-MurilassoNodeVersion } catch { }
+    $nodeSegment = Format-MurilassoNodeSegment -NodeVersion $nodeVersion -ExpectedVersion $expectedNodeVersion
+    $rightText = Format-MurilassoRightPrompt -LastCommandResult $lastCommandResult -NodeSegment $nodeSegment
+
+    $consoleWidth = 0
+    try { $consoleWidth = $Host.UI.RawUI.WindowSize.Width } catch { }
+    $firstLine = '{0} {1}{2}' -f (Format-MurilassoText -Text $glyphs.FrameTop -Color 'Frame'), $contextText, $gitSegment
+    $firstLine = Join-MurilassoPromptLine -LeftText $firstLine -RightText $rightText -ConsoleWidth $consoleWidth
+
+    $secondLine = (Format-MurilassoText -Text $glyphs.FrameBottom -Color 'Frame') + ' '
+    $activeJobCount = Get-MurilassoActiveJobCount
+    if ($activeJobCount -gt 0) {
+        $secondLine += (Format-MurilassoText -Text ('{0} {1}' -f $glyphs.Jobs, $activeJobCount) -Color 'Yellow') + ' '
+    }
+    $arrowColor = if ($lastCommandResult.ExitCode -eq 0) { 'Green' } else { 'Red' }
+    $arrowGlyph = if ($script:MurilassoIsElevated) { $glyphs.PromptRoot } else { $glyphs.PromptArrow }
+    $secondLine += (Format-MurilassoText -Text $arrowGlyph -Color $arrowColor) + ' '
+
+    return $firstLine + [Environment]::NewLine + $secondLine
+}
+
+function global:prompt {
+    # `$?` y `$LASTEXITCODE` se capturan antes de que el render los pise con
+    # git, gh o node; `$LASTEXITCODE` se restaura para el próximo comando.
+    $lastExecutionStatus = $?
+    $lastNativeExitCode = $global:LASTEXITCODE
+
+    try {
+        $promptText = Get-MurilassoPromptText -LastExecutionStatus $lastExecutionStatus -LastNativeExitCode $lastNativeExitCode
+    } catch {
+        # Sin esto PowerShell caería a su prompt `PS>` y perdería la ubicación.
+        $promptText = 'PS {0}> ' -f $ExecutionContext.SessionState.Path.CurrentLocation
+    }
+
+    $global:LASTEXITCODE = $lastNativeExitCode
+    return $promptText
+}
+
+if ($psConsoleReadLineType) {
+    try {
+        Set-PSReadLineOption `
+            -ContinuationPrompt ('   {0} ' -f $MURILASSO_GLYPHS.Continuation) `
+            -Colors @{ ContinuationPrompt = '{0}[{1}m' -f $MURILASSO_ESCAPE, $MURILASSO_COLORS.Continuation }
+    } catch {
+        Write-Warning "Prompt murilasso: no se pudo configurar el prompt de continuación de PSReadLine: $($_.Exception.Message)"
     }
 }
+# --- Fin prompt murilasso ----------------------------------------------------
 # --- Fin prompt murilasso ----------------------------------------------------

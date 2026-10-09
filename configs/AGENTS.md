@@ -18,5 +18,5 @@ Estas instrucciones aplican a las implementaciones de Codex bajo `configs/`, inc
 
 ## Validación específica de shells
 
-- Ejecutar validación de sintaxis en Zsh (`zsh -n ...`) y validación equivalente en PowerShell. Si `pwsh` u `oh-my-posh` no están instalados, bajarlos portables siguiendo "Validación de PowerShell y Oh My Posh sin instalación" en el `AGENTS.md` raíz.
+- Ejecutar validación de sintaxis en Zsh (`zsh -n ...`) y validación equivalente en PowerShell. Si `pwsh` no está instalado, bajarlo portable siguiendo "Validación de PowerShell sin instalación" en el `AGENTS.md` raíz.
 - Si la ejecución de validación de uno de los shells no está disponible en el entorno, informar de forma explícita y concreta en la respuesta final.
