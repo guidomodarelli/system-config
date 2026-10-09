@@ -169,6 +169,17 @@
       $script:DownloadedScriptPath | Should -Not -BeNullOrEmpty
       Test-Path -LiteralPath (Split-Path -Path $script:DownloadedScriptPath -Parent) | Should -BeFalse
     }
+
+    It 'transmite parámetros al script oficial descargado' {
+      Mock Invoke-RestMethod {
+        Set-Content -LiteralPath $OutFile -Value 'param([switch]$RunAsAdmin) $global:LASTEXITCODE = 0; $RunAsAdmin.ToString()'
+      }
+
+      $received = Invoke-SetupLatestOfficialScript -Uri 'https://example.test/install.ps1' -FileName 'install.ps1' -ScriptParameters @{ RunAsAdmin = $true }
+
+      $received | Should -Be 'True'
+      Should -Invoke Invoke-RestMethod -Times 1 -Exactly -ParameterFilter { $Uri -eq 'https://example.test/install.ps1' }
+    }
   }
 
   Context 'Install-Choco' {
@@ -392,6 +403,83 @@
 
     It 'instala el paquete npm hunkdiff' {
       Should -Invoke npm -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'i -g hunkdiff' }
+    }
+  }
+
+  Context 'Install-Scoop' {
+    BeforeEach {
+      Mock Test-Path { $false }
+      Mock Get-ExecutionPolicy { 'RemoteSigned' }
+      Mock Set-ExecutionPolicy { }
+      Mock Test-CurrentUserIsAdministrator { $false }
+      Mock Invoke-SetupLatestOfficialScript { $global:LASTEXITCODE = 0 }
+      Mock LogInfo { }
+      Mock LogSuccess { }
+    }
+
+    It 'respeta la política efectiva <Policy> sin escribir CurrentUser' -ForEach @(
+      @{ Policy = 'RemoteSigned' }
+      @{ Policy = 'Unrestricted' }
+      @{ Policy = 'Bypass' }
+    ) {
+      Mock Get-ExecutionPolicy { $Policy }
+
+      Install-Scoop
+
+      Should -Invoke Get-ExecutionPolicy -Times 1 -Exactly
+      Should -Invoke Set-ExecutionPolicy -Times 0 -Exactly
+      Should -Invoke Invoke-SetupLatestOfficialScript -Times 1 -Exactly -ParameterFilter {
+        $Uri -eq 'https://get.scoop.sh' -and $ScriptParameters.Count -eq 0
+      }
+    }
+
+    It 'pasa RunAsAdmin al instalador oficial en una sesión elevada' {
+      Mock Test-CurrentUserIsAdministrator { $true }
+
+      Install-Scoop
+
+      Should -Invoke Test-CurrentUserIsAdministrator -Times 1 -Exactly
+      Should -Invoke Invoke-SetupLatestOfficialScript -Times 1 -Exactly -ParameterFilter { $ScriptParameters.RunAsAdmin -eq $true }
+    }
+
+    It 'ajusta una política restrictiva y verifica la política efectiva antes de instalar' {
+      $script:PolicyChanged = $false
+      Mock Get-ExecutionPolicy { if ($script:PolicyChanged) { 'RemoteSigned' } else { 'Restricted' } }
+      Mock Set-ExecutionPolicy { $script:PolicyChanged = $true }
+
+      Install-Scoop
+
+      Should -Invoke Set-ExecutionPolicy -Times 1 -Exactly -ParameterFilter {
+        $ExecutionPolicy -eq 'RemoteSigned' -and $Scope -eq 'CurrentUser' -and $Force -and $ErrorAction -eq 'Stop'
+      }
+      Should -Invoke Get-ExecutionPolicy -Times 2 -Exactly
+      Should -Invoke Invoke-SetupLatestOfficialScript -Times 1 -Exactly
+    }
+
+    It 'muestra ErrorDetails en vez del mensaje genérico de seguridad' {
+      Mock Get-ExecutionPolicy { 'AllSigned' }
+      Mock Set-ExecutionPolicy {
+        $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+          [System.Management.Automation.PSSecurityException]::new('Security error.'),
+          'ExecutionPolicyOverride', [System.Management.Automation.ErrorCategory]::SecurityError, $null)
+        $errorRecord.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('La política de grupo tiene prioridad sobre CurrentUser.')
+        throw $errorRecord
+      }
+
+      { Install-Scoop } | Should -Throw '*La política de grupo tiene prioridad sobre CurrentUser*'
+
+      Should -Invoke Set-ExecutionPolicy -Times 1 -Exactly
+      Should -Invoke Invoke-SetupLatestOfficialScript -Times 0 -Exactly
+    }
+
+    It 'no instala si la política sigue siendo restrictiva después del cambio' {
+      Mock Get-ExecutionPolicy { 'AllSigned' }
+
+      { Install-Scoop } | Should -Throw '*política efectiva*'
+
+      Should -Invoke Set-ExecutionPolicy -Times 1 -Exactly
+      Should -Invoke Get-ExecutionPolicy -Times 2 -Exactly
+      Should -Invoke Invoke-SetupLatestOfficialScript -Times 0 -Exactly
     }
   }
 

@@ -39,6 +39,9 @@ Si Homebrew está en otra ruta, ajusta la función `_brew` en
   porque aún no hay instalador oficial para esa plataforma.
 - En Windows, `WSL`, `Bitwarden` y `7-Zip` se seleccionan por defecto;
   `Espanso`, `Scoop`, `Ghostty`, `AutoHotkey`, `VLC` y `WhatsApp` son opcionales.
+- En Windows, `ripgrep` prepara Scoop como dependencia aunque no se seleccione
+  por separado. Si la política efectiva ya permite scripts, se conserva;
+  en una sesión elevada se pasa `-RunAsAdmin` al instalador oficial de Scoop.
 - `wget` y Java 21 ya no forman parte de los paquetes recomendados.
 
 ### Ejecutar el script completo

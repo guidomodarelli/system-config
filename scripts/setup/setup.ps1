@@ -197,14 +197,15 @@ function Remove-SetupTemporaryDirectory {
 function Invoke-SetupLatestOfficialScript {
   param (
     [string]$Uri,
-    [string]$FileName
+    [string]$FileName,
+    [hashtable]$ScriptParameters = @{}
   )
 
   $temporaryDirectoryPath = New-SetupTemporaryDirectory
   try {
     $scriptPath = Join-Path $temporaryDirectoryPath $FileName
     Invoke-RestMethod -Uri $Uri -OutFile $scriptPath -ErrorAction Stop
-    & $scriptPath
+    & $scriptPath @ScriptParameters
     if ($LASTEXITCODE -ne 0) {
       throw "El instalador oficial terminó con código $LASTEXITCODE."
     }
@@ -248,9 +249,27 @@ function Install-Choco {
 
 function Install-Scoop {
   if (-Not (Test-Path "$env:USERPROFILE\scoop\shims\scoop.ps1")) {
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
     LogInfo 'Instalando la última versión estable oficial de Scoop.'
-    Invoke-SetupLatestOfficialScript -Uri 'https://get.scoop.sh' -FileName 'scoop-install.ps1'
+    $allowedPolicies = @('RemoteSigned', 'Unrestricted', 'Bypass')
+    try {
+      # Una política de Process como Bypass tiene prioridad sobre CurrentUser.
+      # No intentar cambiarla si Scoop ya puede ejecutarse: PowerShell puede
+      # devolver PSSecurityException aunque haya escrito la configuración.
+      if ((Get-ExecutionPolicy).ToString() -notin $allowedPolicies) {
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction Stop
+        if ((Get-ExecutionPolicy).ToString() -notin $allowedPolicies) {
+          throw "La política efectiva de PowerShell sigue impidiendo ejecutar Scoop."
+        }
+      }
+    } catch {
+      $detail = if ($_.ErrorDetails -and -not [string]::IsNullOrWhiteSpace($_.ErrorDetails.Message)) { $_.ErrorDetails.Message } else { $_.Exception.Message }
+      throw "No se pudo preparar la política de ejecución para Scoop: $detail"
+    }
+    $installerParameters = @{}
+    if (Test-CurrentUserIsAdministrator) {
+      $installerParameters.RunAsAdmin = $true
+    }
+    Invoke-SetupLatestOfficialScript -Uri 'https://get.scoop.sh' -FileName 'scoop-install.ps1' -ScriptParameters $installerParameters
     LogSuccess "Scoop se instaló correctamente."
   } else {
     LogInfo "Scoop ya está instalado. Actualizando buckets para resolver últimas versiones estables."
