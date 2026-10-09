@@ -17,6 +17,11 @@ En Windows, la actualización de Chocolatey se ejecuta desde una copia temporal
 del binario principal para permitir que el instalador reemplace `choco.exe`.
 La copia se elimina al terminar, incluso si la actualización falla.
 
+Las instalaciones y actualizaciones de paquetes con Chocolatey reintentan hasta
+tres veces los errores HTTP transitorios, con esperas de 2 y 4 segundos. Un error
+de resolución del paquete se informa como fallo aunque el CLI devuelva código 0
+o muestre un resumen exitoso. La política está en `constants/chocolatey.psd1`.
+
 Si `hunk` necesita preparar Node.js en Windows, el setup activa el entorno de
 fnm, instala y activa la última versión estable con `fnm install --latest --use`
 y configura como default el número de versión que devuelve `fnm current`.

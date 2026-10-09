@@ -1,6 +1,7 @@
 ﻿# NOTA: Ejecutar este script como Administrador.
 
 $SetupLatestVersionPolicy = 'latest-stable-official'
+$script:SetupChocolateyPolicy = Import-PowerShellDataFile -LiteralPath (Join-Path $PSScriptRoot 'constants/chocolatey.psd1')
 
 # ASCII-only markers: the setup runs on fresh machines and in terminals
 # without Unicode or emoji fonts (same symbols as setup.sh).
@@ -319,8 +320,52 @@ function Test-ChocoPackageInstalled {
     [string]$Package
   )
 
-  $installedPackage = choco list --local-only --exact $Package --limit-output 2>$null | Select-Object -First 1
-  return -not [string]::IsNullOrWhiteSpace($installedPackage)
+  $installedPackages = @(choco list --exact $Package --limit-output 2>$null)
+  if ($LASTEXITCODE -ne 0) {
+    throw "Chocolatey no pudo consultar si '$Package' está instalado. Código: $LASTEXITCODE."
+  }
+  $packagePattern = $script:SetupChocolateyPolicy.InstalledPackagePattern -f [regex]::Escape($Package)
+  return @($installedPackages | Where-Object { $_ -match $packagePattern }).Count -gt 0
+}
+
+function Invoke-SetupChocoPackageCommand {
+  param (
+    [ValidateSet('install', 'upgrade')]
+    [string]$Operation,
+    [string]$Package
+  )
+
+  $action = if ($Operation -eq 'upgrade') { 'actualizar' } else { 'instalar' }
+  for ($attempt = 1; $attempt -le $script:SetupChocolateyPolicy.MaximumAttempts; $attempt++) {
+    $commandOutput = [System.Collections.Generic.List[string]]::new()
+    choco $Operation $Package --confirm --no-progress 2>&1 | ForEach-Object {
+      $commandOutput.Add($_.ToString())
+      $_ | Out-Host
+    }
+    $exitCode = $LASTEXITCODE
+    $outputText = $commandOutput -join [Environment]::NewLine
+    $transientHttpError = [regex]::Match($outputText, $script:SetupChocolateyPolicy.TransientHttpErrorPattern)
+    $resolverFailure = $outputText -match $script:SetupChocolateyPolicy.ResolverFailurePattern
+    if ($exitCode -eq 0 -and -not $resolverFailure -and -not $transientHttpError.Success) {
+      return
+    }
+
+    if ($transientHttpError.Success -and $attempt -lt $script:SetupChocolateyPolicy.MaximumAttempts) {
+      LogWarning "El repositorio respondió con HTTP $($transientHttpError.Groups[1].Value) para '$Package'. Reintentando ($($attempt + 1)/$($script:SetupChocolateyPolicy.MaximumAttempts))..."
+      Start-Sleep -Seconds ($attempt * $script:SetupChocolateyPolicy.RetryDelaySeconds)
+      continue
+    }
+
+    # Un error del resolver puede acompañar un código 0 y un resumen exitoso.
+    $global:LASTEXITCODE = if ($exitCode -eq 0) { 1 } else { $exitCode }
+    if ($transientHttpError.Success) {
+      throw "Chocolatey no pudo $action '$Package': el repositorio respondió con HTTP $($transientHttpError.Groups[1].Value) después de $attempt intentos."
+    }
+    if ($resolverFailure) {
+      throw "Chocolatey no pudo $action '$Package': falló la resolución del paquete en el repositorio. Código: $exitCode."
+    }
+    throw "Chocolatey no pudo $action '$Package'. Código: $exitCode."
+  }
 }
 
 function Install-ChocoPackage {
@@ -330,17 +375,11 @@ function Install-ChocoPackage {
   foreach ($package in $packages) {
     if (Test-ChocoPackageInstalled -Package $package) {
       LogWarning "El paquete '$package' ya está instalado. Actualizando..."
-      choco upgrade $package --confirm --no-progress
-      if ($LASTEXITCODE -ne 0) {
-        throw "Chocolatey no pudo actualizar '$package'. Código: $LASTEXITCODE."
-      }
+      Invoke-SetupChocoPackageCommand -Operation upgrade -Package $package
       LogSuccess "El paquete '$package' se actualizó correctamente."
     } else {
       LogInfo "Instalando el paquete '$package'..."
-      choco install $package --confirm --no-progress
-      if ($LASTEXITCODE -ne 0) {
-        throw "Chocolatey no pudo instalar '$package'. Código: $LASTEXITCODE."
-      }
+      Invoke-SetupChocoPackageCommand -Operation install -Package $package
       LogSuccess "El paquete '$package' se instaló correctamente."
     }
   }

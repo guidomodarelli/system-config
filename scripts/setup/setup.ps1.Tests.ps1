@@ -5,6 +5,7 @@
     # setup.ps1 ejecuta el menú al final, así que no se dot-sourcea completo: se cargan
     # solo sus funciones en el scope del test.
     $script:SetupScriptPath = Join-Path $PSScriptRoot 'setup.ps1'
+    $script:SetupChocolateyPolicy = Import-PowerShellDataFile -LiteralPath (Join-Path $PSScriptRoot 'constants/chocolatey.psd1')
     $tokens = $null
     $parseErrors = $null
     $setupScriptAst = [System.Management.Automation.Language.Parser]::ParseFile($script:SetupScriptPath, [ref]$tokens, [ref]$parseErrors)
@@ -23,6 +24,7 @@
     # Bordes externos (CLIs nativos). Existen como funciones para que Mock pueda
     # reemplazarlos aunque la herramienta no esté instalada donde corren los tests.
     function winget { }
+    function choco { }
     function scoop { }
     function fnm { }
     function npm { }
@@ -452,6 +454,128 @@
 
       Should -Invoke fnm -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'default v26.1.0' }
       Should -Invoke npm -Times 0 -Exactly
+    }
+  }
+
+  Context 'paquetes de Chocolatey' {
+    # El CLI y las esperas se simulan para reproducir fallos HTTP de forma
+    # determinista, sin instalar fuentes ni depender de la disponibilidad del feed.
+    BeforeEach {
+      Mock LogInfo { }
+      Mock LogWarning { }
+      Mock LogSuccess { }
+      Mock Start-Sleep { }
+      Mock choco { $global:LASTEXITCODE = 0 }
+    }
+
+    It 'consulta paquetes locales con el formato de Chocolatey 2.x y reconoce el id sin distinguir mayúsculas' {
+      Mock choco { $global:LASTEXITCODE = 0; 'nerd-fonts-VictorMono|3.4.0' }
+
+      Test-ChocoPackageInstalled -Package 'nerd-fonts-victormono' | Should -BeTrue
+
+      Should -Invoke choco -Times 1 -Exactly -ParameterFilter {
+        ($args -join ' ') -eq 'list --exact nerd-fonts-victormono --limit-output'
+      }
+    }
+
+    It 'no confunde avisos ni otros ids con un paquete instalado' {
+      Mock choco { $global:LASTEXITCODE = 0; 'Aviso de Chocolatey'; 'otro-paquete|3.4.0' }
+
+      Test-ChocoPackageInstalled -Package 'nerd-fonts-victormono' | Should -BeFalse
+
+      Should -Invoke choco -Times 1 -Exactly
+    }
+
+    It 'no intenta instalar cuando falla la consulta de paquetes locales' {
+      Mock choco { $global:LASTEXITCODE = 1 }
+
+      { Install-ChocoPackage -packages @('nerd-fonts-victormono') } | Should -Throw '*no pudo consultar*'
+
+      Should -Invoke choco -Times 1 -Exactly -ParameterFilter { $args[0] -eq 'list' }
+      Should -Invoke choco -Times 0 -Exactly -ParameterFilter { $args[0] -eq 'install' -or $args[0] -eq 'upgrade' }
+      Should -Invoke LogSuccess -Times 0 -Exactly
+    }
+
+    It 'reintenta un 504 con código 0 y resumen exitoso antes de confirmar la actualización' {
+      $script:ChocoUpgradeAttempts = 0
+      Mock choco { $global:LASTEXITCODE = 0; 'nerd-fonts-VictorMono|3.4.0' } -ParameterFilter { $args[0] -eq 'list' }
+      Mock choco {
+        $script:ChocoUpgradeAttempts++
+        $global:LASTEXITCODE = 0
+        if ($script:ChocoUpgradeAttempts -eq 1) {
+          'Failed to fetch results from V2 feed: Response status code does not indicate success: 504 (Gateway Timeout).'
+          "Unable to find package 'nerd-fonts-VictorMono'. Existing packages must be restored before performing an install or update."
+          'Chocolatey upgraded 1/1 packages.'
+        } else {
+          'Actualización simulada completada.'
+        }
+      } -ParameterFilter { $args[0] -eq 'upgrade' }
+
+      Install-ChocoPackage -packages @('nerd-fonts-victormono')
+
+      Should -Invoke choco -Times 2 -Exactly -ParameterFilter { ($args -join ' ') -eq 'upgrade nerd-fonts-victormono --confirm --no-progress' }
+      Should -Invoke Start-Sleep -Times 1 -Exactly -ParameterFilter { $Seconds -eq 2 }
+      Should -Invoke LogSuccess -Times 1 -Exactly
+      $global:LASTEXITCODE | Should -Be 0
+    }
+
+    It 'falla después de tres errores HTTP <HttpCode> aunque el CLI devuelva 0' -ForEach @(
+      @{ HttpCode = 429 }
+      @{ HttpCode = 503 }
+      @{ HttpCode = 504 }
+    ) {
+      Mock choco { $global:LASTEXITCODE = 0; "Failed to fetch results from V2 feed: Response status code does not indicate success: $HttpCode (Error)." }
+
+      { Invoke-SetupChocoPackageCommand -Operation upgrade -Package 'fuente-prueba' } | Should -Throw "*HTTP $HttpCode después de 3 intentos*"
+
+      Should -Invoke choco -Times 3 -Exactly
+      Should -Invoke Start-Sleep -Times 1 -Exactly -ParameterFilter { $Seconds -eq 2 }
+      Should -Invoke Start-Sleep -Times 1 -Exactly -ParameterFilter { $Seconds -eq 4 }
+      $global:LASTEXITCODE | Should -Be 1
+    }
+
+    It 'no reintenta un error permanente ni lo presenta como éxito' {
+      Mock choco { $global:LASTEXITCODE = 0; "Unable to find package 'fuente-prueba'." }
+
+      { Invoke-SetupChocoPackageCommand -Operation install -Package 'fuente-prueba' } | Should -Throw '*falló la resolución*'
+
+      Should -Invoke choco -Times 1 -Exactly
+      Should -Invoke Start-Sleep -Times 0 -Exactly
+      $global:LASTEXITCODE | Should -Be 1
+    }
+
+    It 'no anuncia una actualización exitosa cuando el feed sigue fallando' {
+      Mock choco { $global:LASTEXITCODE = 0; 'nerd-fonts-VictorMono|3.4.0' } -ParameterFilter { $args[0] -eq 'list' }
+      Mock choco {
+        $global:LASTEXITCODE = 1
+        'Failed to fetch results from V2 feed: Response status code does not indicate success: 504 (Gateway Timeout).'
+        'Chocolatey upgraded 1/1 packages.'
+      } -ParameterFilter { $args[0] -eq 'upgrade' }
+
+      { Install-ChocoPackage -packages @('nerd-fonts-victormono') } | Should -Throw '*HTTP 504 después de 3 intentos*'
+
+      Should -Invoke choco -Times 3 -Exactly -ParameterFilter { $args[0] -eq 'upgrade' }
+      Should -Invoke Start-Sleep -Times 2 -Exactly
+      Should -Invoke LogSuccess -Times 0 -Exactly
+    }
+
+    It 'propaga los errores de instalación sin reintentar fallos ajenos a HTTP' {
+      Mock choco { $global:LASTEXITCODE = 5; 'Acceso denegado.' }
+
+      { Invoke-SetupChocoPackageCommand -Operation install -Package 'fuente-prueba' } | Should -Throw '*Código: 5*'
+
+      Should -Invoke choco -Times 1 -Exactly
+      Should -Invoke Start-Sleep -Times 0 -Exactly
+      $global:LASTEXITCODE | Should -Be 5
+    }
+
+    It 'instala paquetes ausentes sin reintentos cuando el CLI termina correctamente' {
+      Install-ChocoPackage -packages @('fuente-prueba')
+
+      Should -Invoke choco -Times 1 -Exactly -ParameterFilter { $args[0] -eq 'list' }
+      Should -Invoke choco -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'install fuente-prueba --confirm --no-progress' }
+      Should -Invoke Start-Sleep -Times 0 -Exactly
+      Should -Invoke LogSuccess -Times 1 -Exactly
     }
   }
 
