@@ -38,6 +38,31 @@ function Get-ExecutableTargetInfo {
     return $executableInfo
 }
 
+# Destino final de un symlink/junction, o $null si el item no es un link.
+# ResolveLinkTarget es .NET 6+ (PowerShell 7); Windows PowerShell 5.1 solo
+# expone las propiedades ETS `LinkType`/`Target`, así que ahí se sigue a mano.
+function Resolve-FileSystemLinkTarget {
+    param([Parameter(Mandatory = $true)][System.IO.FileSystemInfo]$Item)
+
+    if ($Item.PSObject.Methods['ResolveLinkTarget']) {
+        return $Item.ResolveLinkTarget($true)
+    }
+
+    if ($Item.LinkType -notin 'SymbolicLink', 'Junction') { return $null }
+
+    $currentItem = $Item
+    for ($depth = 0; $depth -lt 32 -and $currentItem.LinkType -in 'SymbolicLink', 'Junction'; $depth++) {
+        $linkTarget = @($currentItem.Target)[0]
+        if (-not $linkTarget) { return $null }
+        if (-not [System.IO.Path]::IsPathRooted($linkTarget)) {
+            $linkTarget = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($currentItem.FullName), $linkTarget)
+        }
+        $currentItem = Get-Item -LiteralPath $linkTarget -Force -ErrorAction SilentlyContinue
+        if (-not $currentItem) { return $null }
+    }
+    return $currentItem
+}
+
 # Path estable del ejecutable de un comando: si su directorio es un link (p.ej.
 # los multishell dirs por sesión de fnm o `current` de scoop), se resuelve al
 # directorio real para que el fingerprint no cambie entre sesiones.
@@ -50,8 +75,14 @@ function Get-StableExecutablePath {
     }
 
     $executableDirectoryInfo = $executableInfo.Directory
-    if ($executableDirectoryInfo -and $executableDirectoryInfo.LinkTarget) {
-        $resolvedDirectory = $executableDirectoryInfo.ResolveLinkTarget($true)
+    # LinkTarget no existe en .NET Framework (5.1); ahí se recurre a la propiedad ETS LinkType.
+    $directoryIsLink = if ($executableDirectoryInfo -and $executableDirectoryInfo.PSObject.Properties['LinkTarget']) {
+        [bool]$executableDirectoryInfo.LinkTarget
+    } else {
+        $executableDirectoryInfo -and $executableDirectoryInfo.LinkType
+    }
+    if ($directoryIsLink) {
+        $resolvedDirectory = Resolve-FileSystemLinkTarget -Item $executableDirectoryInfo
         if ($resolvedDirectory) {
             return [System.IO.Path]::Combine($resolvedDirectory.FullName, $executableInfo.Name)
         }
@@ -307,7 +338,7 @@ if ($opensslExecutablePath) {
 # (<repo>/configs/PowerShell).
 $script:ProfileScriptItem = Get-Item -LiteralPath $PSCommandPath -ErrorAction SilentlyContinue
 $script:ProfileScriptRealItem = if ($script:ProfileScriptItem -and $script:ProfileScriptItem.LinkType) {
-    $script:ProfileScriptItem.ResolveLinkTarget($true)
+    Resolve-FileSystemLinkTarget -Item $script:ProfileScriptItem
 } else {
     $script:ProfileScriptItem
 }
@@ -1572,7 +1603,9 @@ function git_patch_create {
         return
     }
 
-    Set-Content -LiteralPath $patchFile -Value $diffOutput -Encoding UTF8
+    # Sin BOM: Set-Content -Encoding UTF8 lo agrega en Windows PowerShell 5.1.
+    $patchPath = Join-Path (Get-Location).ProviderPath $patchFile
+    [System.IO.File]::WriteAllText($patchPath, (@($diffOutput) -join [Environment]::NewLine) + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
     Write-Host "Patch file created: $patchFile" -ForegroundColor Green
 }
 
@@ -1955,7 +1988,7 @@ function Invoke-FzfGitCheckoutCommit {
     }
 
     $selectedLine = if ($selection -is [System.Array]) { $selection[0] } else { $selection }
-    $cleanLine = $selectedLine -replace "`e\[[0-9;]*m", ''
+    $cleanLine = $selectedLine -replace "$([char]27)\[[0-9;]*m", ''
     $commitHash = ($cleanLine -split '\s+')[0]
     if ([string]::IsNullOrWhiteSpace($commitHash)) {
         return
@@ -2690,6 +2723,22 @@ function Get-MurilassoCachePath {
 # de stdout/stderr y a qué archivo de cache volcar el resultado.
 $global:MurilassoPendingGhFetches = [System.Collections.Generic.List[hashtable]]::new()
 
+# Une argumentos en una línea de comandos con el quoting de CommandLineToArgvW,
+# el mismo que aplica ProcessStartInfo.ArgumentList en .NET 6+.
+function ConvertTo-ProcessArgumentString {
+    param([string[]]$Arguments = @())
+
+    $quotedArguments = foreach ($argument in $Arguments) {
+        if ($argument -and $argument -notmatch '[\s"]') {
+            $argument
+        } else {
+            $escapedArgument = $argument -replace '(\\*)"', '$1$1\"' -replace '(\\+)$', '$1$1'
+            '"{0}"' -f $escapedArgument
+        }
+    }
+    return $quotedArguments -join ' '
+}
+
 # Lanza `gh` como proceso hijo sin esperarlo (~5 ms). Start-Job bloqueaba el
 # prompt ~200 ms por llamada porque arranca un pwsh completo. WorkingDirectory
 # da a `gh` el contexto del repo, que no resolvía bien desde un hilo del mismo
@@ -2714,7 +2763,12 @@ function Start-MurilassoGhFetch {
     }
 
     $processStartInfo = [System.Diagnostics.ProcessStartInfo]::new($global:MurilassoGhExecutablePath)
-    foreach ($ghArgument in $GhArgs) { $processStartInfo.ArgumentList.Add($ghArgument) }
+    if ($null -ne $processStartInfo.ArgumentList) {
+        foreach ($ghArgument in $GhArgs) { $processStartInfo.ArgumentList.Add($ghArgument) }
+    } else {
+        # .NET Framework (Windows PowerShell 5.1) no tiene ArgumentList.
+        $processStartInfo.Arguments = ConvertTo-ProcessArgumentString -Arguments $GhArgs
+    }
     $processStartInfo.WorkingDirectory = $Repo
     $processStartInfo.UseShellExecute = $false
     $processStartInfo.CreateNoWindow = $true
