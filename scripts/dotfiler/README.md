@@ -7,7 +7,7 @@
 
 En Windows, `dotfiler.bat` invoca `dotfiler.ps1` y soporta los mismos flags
 principales (`--dry-run`, `--no-color`, `--plain`, `--verbose`, `--quiet`,
-`--overwrite-diverged`, `--help`) para trabajar contra `symlinks.yml` desde PowerShell nativo.
+`--overwrite-diverged`, `--hard-links-only`, `--help`) para trabajar contra `symlinks.yml` desde PowerShell nativo.
 En ese entorno, `dotfiler.ps1` requiere `yq` y `jq` para interpretar el YAML.
 Si alguno no esta disponible, intenta instalarlo automaticamente con `winget`
 antes de continuar. Si la instalacion falla o `winget` no existe, el script
@@ -309,6 +309,10 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
   con el origen (por ejemplo, otra herramienta lo reescribió con un reemplazo
   atómico y rompió el enlace):
   - Con el mismo contenido, rehace el hard link sin crear respaldo.
+  - Con una versión del origen que git ya registró (`git log --all` del
+    archivo), lo reemplaza sin respaldo: no tiene cambios propios, solo quedó
+    con la copia anterior cuando git recreó el origen (checkout, merge,
+    rebase). El contenido sigue recuperable desde el historial.
   - Con contenido distinto, lo marca como `divergente`, no lo modifica y lo
     lista al final en una caja `Divergencias` con el comando para compararlo
     (`diff -u` en bash, `git diff --no-index` en PowerShell). No cuenta como
@@ -324,6 +328,27 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
   sin volver a solicitar permisos. `--dry-run` no solicita elevacion.
 - El lote elevado conserva los resultados individuales y no sobrescribe destinos
   que hayan aparecido mientras se esperaba la autorizacion.
+
+### Reenlace automático tras operaciones de git
+
+Git recrea los archivos que cambia en `checkout`, `merge`, `pull` y `rebase`:
+borra el archivo y escribe uno nuevo, con otro inode. Eso deja a los destinos
+con `hardLink: true` apuntando a la copia anterior.
+
+- `scripts/git-hooks/` versiona los hooks `post-checkout`, `post-merge` y
+  `post-rewrite`. Los tres delegan en `relink-hard-links.sh` (POSIX `sh`), que
+  ejecuta dotfiler con `--hard-links-only --quiet`: `dotfiler.ps1` en Windows
+  (Git Bash) y `dotfiler.sh` en Linux, macOS y WSL.
+- Los hooks corren dotfiler solo cuando la operación tocó `configs/`; un
+  checkout de archivos y un `rebase` lo corren siempre. Un `commit --amend` no
+  lo corre. Nunca hacen fallar la operación de git: si dotfiler falla, avisan.
+- En un worktree secundario no hacen nada: reenlazar desde ahí apuntaría los
+  destinos a archivos de ese worktree.
+- dotfiler configura `core.hooksPath=scripts/git-hooks` en el repo cuando no
+  hay otro valor. Si `core.hooksPath` ya apunta a otra carpeta, avisa y no la
+  cambia. `--dry-run` y `--hard-links-only` no tocan la configuración.
+- `core.hooksPath` reemplaza a `.git/hooks`: herramientas como `pre-commit
+  install` se niegan a instalarse mientras esté configurado.
 
 ### Ciclo de vida del contenido de un hard link
 

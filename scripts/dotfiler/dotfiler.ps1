@@ -17,6 +17,11 @@ $script:VerboseMode = $false
 # Hard link destinations whose content diverged from the source (another tool
 # rewrote the file) are reported and left untouched unless this is enabled.
 $script:OverwriteDiverged = $false
+# Restricts the run to hard link entries; used by the git hooks to relink
+# destinations detached when a git operation recreates their source.
+$script:HardLinksOnly = $false
+# Versioned git hooks directory, relative to the repository root.
+$script:GitHooksRelativeDir = 'scripts/git-hooks'
 $script:CliArgs = @($args)
 $script:IsElevatedSymlinkMode = $false
 $script:ElevatedSymlinkSource = $null
@@ -489,6 +494,8 @@ Opciones:
   --quiet     Oculta logs por item y deja resumen/errores
   --overwrite-diverged
               Respalda y reenlaza los hard links cuyo destino tiene cambios propios
+  --hard-links-only
+              Procesa solo las entradas con hardLink (lo usan los git hooks)
   --help      Muestra esta ayuda
 '@ | Write-Output
 }
@@ -510,6 +517,7 @@ function Parse-Args {
       '--verbose' { $script:VerboseMode = $true }
       '--quiet' { $script:Quiet = $true }
       '--overwrite-diverged' { $script:OverwriteDiverged = $true }
+      '--hard-links-only' { $script:HardLinksOnly = $true }
       '--internal-create-link' { $script:IsElevatedSymlinkMode = $true }
       '--internal-source' {
         if ($index + 1 -ge $CliArgs.Count) {
@@ -1853,6 +1861,49 @@ function Test-FileContentEqual {
   return $firstHash -eq $secondHash
 }
 
+# True when a detached hard link destination holds a version of its source
+# that git already tracked, so it carries no own changes: git recreated the
+# source (checkout, rebase, merge) and left the destination with the old copy.
+function Test-HardLinkTargetMatchesRepoHistory {
+  param(
+    [string]$SourcePath,
+    [string]$TargetPath
+  )
+
+  if ([string]::IsNullOrEmpty($script:RootDir)) {
+    return $false
+  }
+
+  # Windows PowerShell 5.1 turns native stderr into terminating errors under
+  # 'Stop'; git failures are handled through $LASTEXITCODE instead.
+  $ErrorActionPreference = 'Continue'
+  $rootPrefix = $script:RootDir.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+  $normalizedSourcePath = $SourcePath -replace '/', [System.IO.Path]::DirectorySeparatorChar
+  $normalizedRootPrefix = $rootPrefix -replace '/', [System.IO.Path]::DirectorySeparatorChar
+  if (-not $normalizedSourcePath.StartsWith($normalizedRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return $false
+  }
+  $relativePath = $normalizedSourcePath.Substring($normalizedRootPrefix.Length) -replace '\\', '/'
+
+  $targetBlob = & git -C $script:RootDir hash-object "--path=$relativePath" -- $TargetPath 2>$null
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($targetBlob)) {
+    return $false
+  }
+
+  $historyLines = @(& git -C $script:RootDir log --all --format= --raw --no-abbrev -- $relativePath 2>$null)
+  if ($LASTEXITCODE -ne 0) {
+    return $false
+  }
+
+  $blobMarker = " $($targetBlob.Trim()) "
+  foreach ($historyLine in $historyLines) {
+    if ($historyLine.Contains($blobMarker)) {
+      return $true
+    }
+  }
+  return $false
+}
+
 function Register-DivergedHardLink {
   param(
     [string]$SourcePath,
@@ -1904,7 +1955,10 @@ function New-DotfileSymlink {
 
     # A regular file at a hard link destination may have been rewritten by
     # another tool, breaking the link. Identical content is relinked in place
-    # without a backup; different content is reported and preserved.
+    # without a backup; a previous version of the source from git history is
+    # relinked as a replacement without a backup; different content is
+    # reported and preserved.
+    $relinkStaleHardLink = $false
     if (-not $targetDirectoryPendingReplacement -and $HardLink -and (Test-HardLinkTargetIsRegularFile -TargetPath $TargetPath)) {
       if (Test-FileContentEqual -FirstPath $SourcePath -SecondPath $TargetPath) {
         if (-not $script:DryRun) {
@@ -1918,7 +1972,9 @@ function New-DotfileSymlink {
         return
       }
 
-      if (-not $script:OverwriteDiverged) {
+      if (Test-HardLinkTargetMatchesRepoHistory -SourcePath $SourcePath -TargetPath $TargetPath) {
+        $relinkStaleHardLink = $true
+      } elseif (-not $script:OverwriteDiverged) {
         Register-DivergedHardLink -SourcePath $SourcePath -TargetPath $TargetPath
         return
       }
@@ -1937,6 +1993,14 @@ function New-DotfileSymlink {
     $isReplacement = $false
     if ($targetDirectoryPendingReplacement) {
       $script:CountPlannedCreated += 1
+    } elseif ($relinkStaleHardLink) {
+      # New-Item -Force overwrites the stale copy; git history keeps its content.
+      $isReplacement = $true
+      if ($script:DryRun) {
+        $script:CountPlannedReplaced += 1
+      } else {
+        $script:CountReplaced += 1
+      }
     } elseif (Test-IsSymlink -Path $TargetPath) {
       Remove-ExistingSymlink -Path $TargetPath
       $isReplacement = $true
@@ -2353,6 +2417,49 @@ function Resolve-ItemNameWidth {
   return [Math]::Min($script:MaxItemNameWidth, [Math]::Max($script:MinItemNameWidth, $longestName))
 }
 
+function Select-HardLinkOperations {
+  param([object[]]$Operations)
+
+  foreach ($operation in $Operations) {
+    if ($operation.HardLink -eq $true -and $operation.Remove -ne $true) {
+      $operation
+    }
+  }
+}
+
+# Points core.hooksPath to the versioned hooks so git relinks hard links after
+# checkout, merge and rewrite. A value configured by someone else is kept.
+function Ensure-GitHooksPath {
+  if (-not (Test-Path -LiteralPath (Join-Path -Path $script:RootDir -ChildPath $script:GitHooksRelativeDir) -PathType Container)) {
+    return
+  }
+
+  # Windows PowerShell 5.1 turns native stderr into terminating errors under
+  # 'Stop'; git failures are handled through $LASTEXITCODE instead.
+  $ErrorActionPreference = 'Continue'
+  $currentHooksPath = [string](& git -C $script:RootDir config --local --get core.hooksPath 2>$null)
+  if ($currentHooksPath -eq $script:GitHooksRelativeDir) {
+    return
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($currentHooksPath)) {
+    Write-Warn "core.hooksPath ya apunta a '$currentHooksPath'; los hard links no se reenlazan solos tras operaciones de git."
+    return
+  }
+
+  if ($script:DryRun) {
+    Write-Info "Se configuraria core.hooksPath=$($script:GitHooksRelativeDir) para reenlazar hard links tras operaciones de git."
+    return
+  }
+
+  & git -C $script:RootDir config --local core.hooksPath $script:GitHooksRelativeDir 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warn "No se pudo configurar core.hooksPath=$($script:GitHooksRelativeDir) en $($script:RootDir)."
+    return
+  }
+  Write-Info "core.hooksPath=$($script:GitHooksRelativeDir): git reenlaza los hard links tras checkout, merge y rebase."
+}
+
 function Main {
   Parse-Args -CliArgs $script:CliArgs
   [void](Invoke-InternalElevatedSymlinkMode)
@@ -2365,6 +2472,11 @@ function Main {
 
   Write-Banner
   $operations = @(Group-OperationsByTarget -Operations @(Resolve-Operations))
+  if ($script:HardLinksOnly) {
+    $operations = @(Select-HardLinkOperations -Operations $operations)
+  } else {
+    Ensure-GitHooksPath
+  }
   $script:ItemNameWidth = Resolve-ItemNameWidth -Operations $operations
   $lastGroup = $null
 

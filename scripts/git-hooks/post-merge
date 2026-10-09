@@ -1,0 +1,6 @@
+#!/bin/sh
+# A merge (including git pull) only rewrites paths that differ between the
+# previous HEAD and the merged one.
+HOOKS_DIR=$(dirname "$0")
+
+exec sh "$HOOKS_DIR/relink-hard-links.sh" ORIG_HEAD HEAD

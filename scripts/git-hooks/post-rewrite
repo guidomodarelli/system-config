@@ -1,0 +1,9 @@
+#!/bin/sh
+# Argument: the rewriting command (amend or rebase).
+# A rebase rewinds and replays the working tree, recreating files even when
+# the final content matches, so it always relinks; amend leaves files intact.
+REBASE_COMMAND="rebase"
+HOOKS_DIR=$(dirname "$0")
+
+[ "$1" = "$REBASE_COMMAND" ] || exit 0
+exec sh "$HOOKS_DIR/relink-hard-links.sh"

@@ -1,0 +1,10 @@
+#!/bin/sh
+# Arguments: <previous-head> <new-head> <branch-checkout-flag>.
+# A file checkout (flag 0) can rewrite any path, so it always relinks.
+BRANCH_CHECKOUT_FLAG="1"
+HOOKS_DIR=$(dirname "$0")
+
+if [ "$3" = "$BRANCH_CHECKOUT_FLAG" ]; then
+  exec sh "$HOOKS_DIR/relink-hard-links.sh" "$1" "$2"
+fi
+exec sh "$HOOKS_DIR/relink-hard-links.sh"

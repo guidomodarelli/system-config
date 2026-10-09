@@ -270,6 +270,129 @@
 
       $script:OverwriteDiverged | Should -BeTrue
     }
+
+    It 'reenlaza sin respaldo un destino con una version anterior del repo' {
+      Mock Test-HardLinkTargetMatchesRepoHistory { $true }
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'version anterior del repo' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:DivergedLinks.Count | Should -Be 0
+      $script:CountReplaced | Should -Be 1
+      Should -Invoke Move-ToBackup -Times 0 -Exactly
+      Should -Invoke New-Item -Times 1 -Exactly -ParameterFilter { $ItemType -eq 'HardLink' -and $Force }
+    }
+
+    It 'solo planifica el reemplazo de una version anterior durante una simulacion' {
+      $script:DryRun = $true
+      Mock Test-HardLinkTargetMatchesRepoHistory { $true }
+      Set-Content -LiteralPath $script:HardLinkTargetPath -Value 'version anterior del repo' -NoNewline
+
+      New-DotfileSymlink -SourcePath $script:HardLinkSourcePath -TargetPath $script:HardLinkTargetPath -HardLink $true
+
+      $script:CountPlannedReplaced | Should -Be 1
+      Should -Invoke New-Item -Times 0 -Exactly
+      Should -Invoke Move-ToBackup -Times 0 -Exactly
+    }
+
+    It 'Parse-Args habilita --hard-links-only' {
+      Parse-Args -CliArgs @('--hard-links-only')
+
+      $script:HardLinksOnly | Should -BeTrue
+    }
+  }
+
+  Context 'Historial git y hooks' {
+    BeforeAll {
+      $script:PreviousRootDir = $script:RootDir
+    }
+
+    AfterAll {
+      $script:RootDir = $script:PreviousRootDir
+    }
+
+    BeforeEach {
+      $script:HardLinksOnly = $false
+      $script:RootDir = Join-Path -Path $TestDrive -ChildPath ([guid]::NewGuid().ToString('N'))
+      $script:HistorySourcePath = Join-Path -Path $script:RootDir -ChildPath 'configs\fuente.md'
+      $script:HistoryTargetPath = Join-Path -Path $TestDrive -ChildPath "destino-$([guid]::NewGuid().ToString('N')).md"
+      New-Item -ItemType Directory -Path (Split-Path -Path $script:HistorySourcePath -Parent) -Force | Out-Null
+      & git init -q $script:RootDir
+      & git -C $script:RootDir config --local core.autocrlf false
+    }
+
+    It 'Test-HardLinkTargetMatchesRepoHistory reconoce una version commiteada del origen' {
+      [System.IO.File]::WriteAllText($script:HistorySourcePath, "version 1`n")
+      & git -C $script:RootDir add -- 'configs/fuente.md'
+      & git -C $script:RootDir -c user.name=dotfiler-test -c user.email=dotfiler-test@example.com commit -q -m 'version 1'
+      [System.IO.File]::WriteAllText($script:HistorySourcePath, "version 2`n")
+      [System.IO.File]::WriteAllText($script:HistoryTargetPath, "version 1`n")
+
+      Test-HardLinkTargetMatchesRepoHistory -SourcePath $script:HistorySourcePath -TargetPath $script:HistoryTargetPath | Should -BeTrue
+    }
+
+    It 'Test-HardLinkTargetMatchesRepoHistory rechaza contenido que git nunca registro' {
+      [System.IO.File]::WriteAllText($script:HistorySourcePath, "version 1`n")
+      & git -C $script:RootDir add -- 'configs/fuente.md'
+      & git -C $script:RootDir -c user.name=dotfiler-test -c user.email=dotfiler-test@example.com commit -q -m 'version 1'
+      [System.IO.File]::WriteAllText($script:HistoryTargetPath, "version 1`nbloque local`n")
+
+      Test-HardLinkTargetMatchesRepoHistory -SourcePath $script:HistorySourcePath -TargetPath $script:HistoryTargetPath | Should -BeFalse
+    }
+
+    It 'Test-HardLinkTargetMatchesRepoHistory rechaza origenes fuera del repo' {
+      [System.IO.File]::WriteAllText($script:HistoryTargetPath, "contenido`n")
+
+      Test-HardLinkTargetMatchesRepoHistory -SourcePath (Join-Path -Path $TestDrive -ChildPath 'externo.md') -TargetPath $script:HistoryTargetPath | Should -BeFalse
+    }
+
+    It 'Ensure-GitHooksPath configura core.hooksPath cuando el repo versiona los hooks' {
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:RootDir -ChildPath 'scripts\git-hooks') -Force | Out-Null
+
+      Ensure-GitHooksPath | Out-Null
+
+      (& git -C $script:RootDir config --local --get core.hooksPath) | Should -Be 'scripts/git-hooks'
+    }
+
+    It 'Ensure-GitHooksPath no escribe la configuracion durante una simulacion' {
+      $script:DryRun = $true
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:RootDir -ChildPath 'scripts\git-hooks') -Force | Out-Null
+
+      (Ensure-GitHooksPath | Out-String) | Should -Match 'Se configuraria core\.hooksPath'
+
+      & git -C $script:RootDir config --local --get core.hooksPath
+      $LASTEXITCODE | Should -Not -Be 0
+    }
+
+    It 'Ensure-GitHooksPath respeta un core.hooksPath configurado por otra herramienta' {
+      New-Item -ItemType Directory -Path (Join-Path -Path $script:RootDir -ChildPath 'scripts\git-hooks') -Force | Out-Null
+      & git -C $script:RootDir config --local core.hooksPath '.husky'
+      Mock Write-Warn {}
+
+      Ensure-GitHooksPath
+
+      (& git -C $script:RootDir config --local --get core.hooksPath) | Should -Be '.husky'
+      Should -Invoke Write-Warn -Times 1 -Exactly -ParameterFilter { $Message -match "core\.hooksPath ya apunta a '\.husky'" }
+    }
+
+    It 'Ensure-GitHooksPath no hace nada si el repo no versiona los hooks' {
+      Ensure-GitHooksPath
+
+      & git -C $script:RootDir config --local --get core.hooksPath
+      $LASTEXITCODE | Should -Not -Be 0
+    }
+
+    It 'Select-HardLinkOperations conserva solo enlaces duros que no son eliminaciones' {
+      $operations = @(
+        [PSCustomObject]@{ Target = 'duro'; HardLink = $true; Remove = $false },
+        [PSCustomObject]@{ Target = 'simbolico'; HardLink = $false; Remove = $false },
+        [PSCustomObject]@{ Target = 'obsoleto'; HardLink = $false; Remove = $true }
+      )
+
+      $selectedTargets = @(Select-HardLinkOperations -Operations $operations | ForEach-Object { $_.Target })
+
+      $selectedTargets | Should -Be @('duro')
+    }
   }
 
   It 'Get-ResolveProgressStatus rota mensajes segun el tiempo y muestra barra, contador y detalle' {

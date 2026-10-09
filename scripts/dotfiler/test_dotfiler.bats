@@ -169,6 +169,161 @@ YAML
   assert_item_line "$output" "divergente" "hard-source"
 }
 
+commit_repo_files() {
+  local commit_message="$1"
+  shift
+
+  git -C "$REPO_DIR" add -- "$@"
+  git -C "$REPO_DIR" -c user.name="dotfiler-test" -c user.email="dotfiler-test@example.com" \
+    commit -q -m "$commit_message"
+}
+
+@test "hardLink con una versión anterior del repo se reenlaza sin respaldo" {
+  printf "repo-version-1\n" > "$REPO_DIR/configs/hard-source"
+  commit_repo_files "versión 1" "configs/hard-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "repo-version-1\n" > "$HOME_DIR/linked-files/hard-source"
+  printf "repo-version-2\n" > "$REPO_DIR/configs/hard-source"
+  commit_repo_files "versión 2" "configs/hard-source"
+  write_hard_link_config
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_hard_link_points_to \
+    "$HOME_DIR/linked-files/hard-source" \
+    "$REPO_DIR/configs/hard-source"
+  [ "$(cat "$HOME_DIR/linked-files/hard-source")" = "repo-version-2" ]
+  [ ! -e "$HOME_DIR/linked-files/hard-source.bak" ]
+  assert_item_line "$output" "reemplazado" "hard-source"
+  [[ "$output" != *"Divergencias"* ]]
+}
+
+@test "hardLink con contenido ausente del historial sigue divergente" {
+  printf "repo-version-1\n" > "$REPO_DIR/configs/hard-source"
+  commit_repo_files "versión 1" "configs/hard-source"
+  mkdir -p "$HOME_DIR/linked-files"
+  printf "repo-version-1\nlocal-block\n" > "$HOME_DIR/linked-files/hard-source"
+  write_hard_link_config
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$HOME_DIR/linked-files/hard-source")" = $'repo-version-1\nlocal-block' ]
+  assert_item_line "$output" "divergente" "hard-source"
+}
+
+@test "--hard-links-only procesa solo las entradas con hardLink" {
+  printf "hard-content\n" > "$REPO_DIR/configs/hard-source"
+  printf "symlink-content\n" > "$REPO_DIR/configs/symlink-source"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: hard-source
+    target: linked-files
+    hardLink: true
+  - path: symlink-source
+    target: linked-files
+YAML
+
+  run_dotfiler "false" "--hard-links-only" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_hard_link_points_to \
+    "$HOME_DIR/linked-files/hard-source" \
+    "$REPO_DIR/configs/hard-source"
+  assert_path_missing "$HOME_DIR/linked-files/symlink-source"
+}
+
+@test "configura core.hooksPath cuando el repo versiona scripts/git-hooks" {
+  mkdir -p "$REPO_DIR/scripts/git-hooks"
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$REPO_DIR" config --local --get core.hooksPath)" = "scripts/git-hooks" ]
+  [[ "$output" == *"core.hooksPath=scripts/git-hooks"* ]]
+}
+
+@test "no configura core.hooksPath en dry-run ni con --hard-links-only" {
+  mkdir -p "$REPO_DIR/scripts/git-hooks"
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--dry-run" "--no-color"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Se configuraría core.hooksPath"* ]]
+
+  run_dotfiler "false" "--hard-links-only" "--no-color"
+  [ "$status" -eq 0 ]
+
+  run git -C "$REPO_DIR" config --local --get core.hooksPath
+  [ "$status" -ne 0 ]
+}
+
+@test "respeta un core.hooksPath configurado por otra herramienta" {
+  mkdir -p "$REPO_DIR/scripts/git-hooks"
+  git -C "$REPO_DIR" config --local core.hooksPath ".husky"
+  install_fixture "debug_flow"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$REPO_DIR" config --local --get core.hooksPath)" = ".husky" ]
+  [[ "$output" == *"core.hooksPath ya apunta a '.husky'"* ]]
+}
+
+@test "el hook post-checkout reenlaza el hard link que git recreó" {
+  case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*)
+    skip "En Windows el hook delega en dotfiler.ps1, que usa el perfil real del usuario"
+    ;;
+  esac
+  mkdir -p "$REPO_DIR/scripts/git-hooks"
+  cp -R "$SCRIPT_DIR/../git-hooks/." "$REPO_DIR/scripts/git-hooks/"
+  chmod +x "$REPO_DIR/scripts/git-hooks/"*
+  write_hard_link_config
+  printf "repo-version-1\n" > "$REPO_DIR/configs/hard-source"
+  commit_repo_files "versión 1" "configs/hard-source"
+  git -C "$REPO_DIR" branch base-branch
+  printf "repo-version-2\n" > "$REPO_DIR/configs/hard-source"
+  commit_repo_files "versión 2" "configs/hard-source"
+  run_dotfiler "false" "--no-color"
+  [ "$status" -eq 0 ]
+  [ "$(git -C "$REPO_DIR" config --local --get core.hooksPath)" = "scripts/git-hooks" ]
+
+  run env -i \
+    HOME="$HOME_DIR" \
+    USER="test-user" \
+    PATH="$FAKE_BIN_DIR:$PATH" \
+    LANG="${LANG:-C.UTF-8}" \
+    LC_ALL="${LC_ALL:-C.UTF-8}" \
+    git -C "$REPO_DIR" checkout -q base-branch
+
+  [ "$status" -eq 0 ]
+  assert_hard_link_points_to \
+    "$HOME_DIR/linked-files/hard-source" \
+    "$REPO_DIR/configs/hard-source"
+  [ "$(cat "$HOME_DIR/linked-files/hard-source")" = "repo-version-1" ]
+}
+
+@test "el hook no reenlaza desde un worktree secundario" {
+  mkdir -p "$REPO_DIR/scripts/git-hooks"
+  cp -R "$SCRIPT_DIR/../git-hooks/." "$REPO_DIR/scripts/git-hooks/"
+  chmod +x "$REPO_DIR/scripts/git-hooks/"*
+  printf "repo-version-1\n" > "$REPO_DIR/configs/hard-source"
+  commit_repo_files "versión 1" "configs/hard-source"
+  git -C "$REPO_DIR" worktree add -q --detach "$TEST_DIR/secondary-worktree"
+  git -C "$REPO_DIR" config --local core.hooksPath "$REPO_DIR/scripts/git-hooks"
+
+  run env -i \
+    HOME="$HOME_DIR" \
+    PATH="$FAKE_BIN_DIR:$PATH" \
+    sh -c 'cd "$1" && sh "$2"' sh "$TEST_DIR/secondary-worktree" "$REPO_DIR/scripts/git-hooks/relink-hard-links.sh"
+
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 @test "darwin excludes entries even when excludeFor has multiple items" {
   install_fixture "darwin_exclude"
 

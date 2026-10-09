@@ -55,6 +55,12 @@ VERBOSE=false
 # rewrote the file, breaking the link) are reported and left untouched unless
 # this is enabled.
 OVERWRITE_DIVERGED=false
+# Restricts the run to hard link entries; used by the git hooks to relink
+# destinations detached when a git operation recreates their source.
+HARD_LINKS_ONLY=false
+
+# Versioned git hooks directory, relative to the repository root.
+GIT_HOOKS_RELATIVE_DIR="scripts/git-hooks"
 
 EXIT_CODE_SUCCESS=0
 EXIT_CODE_RUNTIME_ERROR=1
@@ -644,6 +650,8 @@ Opciones:
   --quiet     Oculta logs por ítem y muestra solo resumen/errores
   --overwrite-diverged
               Respalda y reenlaza los hard links cuyo destino tiene cambios propios
+  --hard-links-only
+              Procesa solo las entradas con hardLink (lo usan los git hooks)
   --help      Muestra esta ayuda
 
 Variables:
@@ -674,6 +682,9 @@ parse_args() {
       ;;
     --overwrite-diverged)
       OVERWRITE_DIVERGED=true
+      ;;
+    --hard-links-only)
+      HARD_LINKS_ONLY=true
       ;;
     --help)
       print_help
@@ -998,12 +1009,13 @@ make_symlink() {
   fi
 
   # A regular file at a hard link destination that is no longer the same inode
-  # was rewritten by someone else: identical content is relinked without a
-  # backup, different content is reported and preserved.
-  local relink_identical_hard_link="false"
+  # was rewritten by someone else: identical content or a previous version of
+  # the source from git history is relinked without a backup, different
+  # content is reported and preserved.
+  local relink_detached_hard_link="false"
   if [ "$target_dir_pending_replacement" != "true" ] && hard_link_target_is_detached "$path" "$target" "$hard_link"; then
-    if cmp -s "$path" "$target"; then
-      relink_identical_hard_link="true"
+    if cmp -s "$path" "$target" || hard_link_target_matches_repo_history "$path" "$target"; then
+      relink_detached_hard_link="true"
     elif [ "$OVERWRITE_DIVERGED" != "true" ]; then
       record_diverged_hard_link "$path" "$target"
       return 0
@@ -1021,7 +1033,7 @@ make_symlink() {
   local link_action="created"
   if [ "$target_dir_pending_replacement" = "true" ]; then
     COUNT_CREATED=$((COUNT_CREATED + 1))
-  elif [ -L "$target" ] || [ "$relink_identical_hard_link" = "true" ]; then
+  elif [ -L "$target" ] || [ "$relink_detached_hard_link" = "true" ]; then
     if ! remove_old_symlink "$target" "${command_prefix[@]}"; then
       return 1
     fi
@@ -1144,6 +1156,24 @@ hard_link_target_is_detached() {
   [ "$hard_link" = "true" ] || return 1
   [[ ! $path =~ "\\\\wsl\$" ]] || return 1
   [ ! -L "$target" ] && [ -f "$target" ] && [ -f "$path" ] && [ ! "$target" -ef "$path" ]
+}
+
+# True when a detached hard link destination holds a version of its source
+# that git already tracked, so it carries no own changes: git recreated the
+# source (checkout, rebase, merge) and left the destination with the old copy.
+hard_link_target_matches_repo_history() {
+  local path="$1"
+  local target="$2"
+  local relative_path="${path#"$ROOT_DIR"/}"
+
+  [ "$relative_path" != "$path" ] || return 1
+
+  local target_blob
+  target_blob=$(git -C "$ROOT_DIR" hash-object --path="$relative_path" -- "$target" 2>/dev/null) || return 1
+  [ -n "$target_blob" ] || return 1
+
+  git -C "$ROOT_DIR" log --all --format= --raw --no-abbrev -- "$relative_path" 2>/dev/null |
+    grep -qF " $target_blob "
 }
 
 record_diverged_hard_link() {
@@ -1993,6 +2023,41 @@ print_banner() {
   LAST_OUTPUT_WAS_BLANK=false
 }
 
+# Keeps only hard link operations: the TSV columns are group, source, target,
+# hard link and removal flag.
+filter_hard_link_operations() {
+  awk -F '\t' '$4 == "true" && $5 != "true"'
+}
+
+# Points core.hooksPath to the versioned hooks so git relinks hard links after
+# checkout, merge and rewrite. A value configured by someone else is kept.
+ensure_git_hooks_path() {
+  [ -d "$ROOT_DIR/$GIT_HOOKS_RELATIVE_DIR" ] || return 0
+
+  local current_hooks_path
+  current_hooks_path=$(git -C "$ROOT_DIR" config --local --get core.hooksPath 2>/dev/null)
+
+  if [ "$current_hooks_path" = "$GIT_HOOKS_RELATIVE_DIR" ]; then
+    return 0
+  fi
+
+  if [ -n "$current_hooks_path" ]; then
+    log_warn_action "core.hooksPath ya apunta a '$current_hooks_path'; los hard links no se reenlazan solos tras operaciones de git."
+    return 0
+  fi
+
+  if [ "$DRY_RUN" = "true" ]; then
+    log_info_action "Se configuraría core.hooksPath=$GIT_HOOKS_RELATIVE_DIR para reenlazar hard links tras operaciones de git."
+    return 0
+  fi
+
+  if ! git -C "$ROOT_DIR" config --local core.hooksPath "$GIT_HOOKS_RELATIVE_DIR"; then
+    log_warn_action "No se pudo configurar core.hooksPath=$GIT_HOOKS_RELATIVE_DIR en $(print_path "$ROOT_DIR")."
+    return 0
+  fi
+  log_info_action "core.hooksPath=$GIT_HOOKS_RELATIVE_DIR: git reenlaza los hard links tras checkout, merge y rebase."
+}
+
 main() {
   parse_args "$@"
 
@@ -2010,6 +2075,11 @@ main() {
   start_spinner
   paths="$(retrieve_paths_for_platform)"
   stop_spinner
+  if [ "$HARD_LINKS_ONLY" = "true" ]; then
+    paths="$(printf "%s" "$paths" | filter_hard_link_operations)"
+  else
+    ensure_git_hooks_path
+  fi
   local last_group=""
   ITEM_NAME_WIDTH=$(resolve_item_name_width "$paths")
   local total_operations=0
