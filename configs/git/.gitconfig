@@ -1,0 +1,15 @@
+[user]
+	name = Guido Modarelli
+	email = guidomodarelli25@gmail.com
+	# Cada equipo firma con su propia clave; debe estar cargada en GitHub como "Signing Key".
+	signingkey = ~/.ssh/id_ed25519.pub
+[gpg]
+	format = ssh
+[commit]
+	gpgsign = true
+[tag]
+	gpgsign = true
+# Overrides propios de cada equipo (identidad de trabajo, credential helpers, etc.).
+# Va al final para que sus valores tengan prioridad; si el archivo no existe, git lo ignora.
+[include]
+	path = ~/.gitconfig.local

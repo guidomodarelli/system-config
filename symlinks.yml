@@ -8,6 +8,10 @@ paths:
     overrides:
       - target: Library/Application Support/Code/User
         platform: darwin
+  - path: git/.gitconfig
+    target: .
+    conditionalExcludes:
+      - whenPathExists: ~/.fury
   - path: tmux/.tmux.conf
     target: .
     excludeFor:
