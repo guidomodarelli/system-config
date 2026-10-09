@@ -40,6 +40,17 @@
 
 - Los hechos duraderos específicos de este repositorio deben guardarse en `configs/.mcp-memory/memory.json` y commitearse en `system-config`.
 
+## Compatibilidad De PowerShell (Mandatorio)
+
+- Todo código PowerShell del repositorio (`*.ps1`, el profile, los `.bat` que invocan PowerShell y los scripts que genera o ejecuta) debe funcionar en **PowerShell 7+ (`pwsh`)** y en **Windows PowerShell 5.1 (`powershell.exe`)**.
+- No usar sintaxis exclusiva de PowerShell 7: `??`, `??=`, `?.`, `?[]`, el ternario `a ? b : c`, `&&`/`||` entre pipelines, los escapes `` `e `` y `` `u{...} ``, `ForEach-Object -Parallel`, bloques `clean {}` ni `-replace` con scriptblock. Para ESC usar `[char]27`.
+- No usar APIs exclusivas de .NET Core/.NET 6+ sin fallback para .NET Framework, por ejemplo `FileSystemInfo.ResolveLinkTarget`/`LinkTarget`, `ProcessStartInfo.ArgumentList`, `Path.Join` o `Path.GetRelativePath`. Detectarlas con `$obj.PSObject.Methods['Name']` o `$obj.PSObject.Properties['Name']`, y en 5.1 usar alternativas como las propiedades ETS `LinkType`/`Target` de `Get-Item` o `ProcessStartInfo.Arguments` con quoting explícito.
+- No usar parámetros de cmdlets que solo existen en PowerShell 7 sin alternativa para 5.1, por ejemplo `ConvertFrom-Json -AsHashtable`, `Get-Content -AsByteStream`, `-Encoding utf8NoBOM`, `Split-Path -LeafBase`, `Join-Path -AdditionalChildPath`, `Sort-Object -Top`, `Select-String -Raw`/`-NoEmphasis`, `Test-Json` o `Join-String`.
+- Guardar los `.ps1` que contengan caracteres no ASCII en UTF-8 **con BOM**. Sin BOM, Windows PowerShell 5.1 los lee como ANSI y corrompe los textos o rompe el parseo.
+- En 5.1, `Set-Content`/`Out-File -Encoding UTF8` escriben BOM. Si el archivo no debe llevarlo (patches, caches, archivos leídos por otras herramientas), usar `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))`.
+- `$IsWindows`, `$IsLinux` y `$IsMacOS` no existen en 5.1; usar `$PSVersionTable.PSEdition` o `[Environment]::OSVersion` cuando haga falta distinguir plataforma.
+- Validar cada cambio abriendo una sesión nueva de `pwsh` y otra de `powershell.exe`. Fuera de Windows no hay 5.1: validar la sintaxis con `pwsh`, revisar a mano los puntos anteriores e informar en la respuesta final que 5.1 no se pudo validar.
+
 ## Validación de PowerShell y Oh My Posh sin instalación
 
 En macOS no suelen estar instalados `pwsh` ni `oh-my-posh`. Para validarlos, bajar binarios portables a `/tmp`, sin `brew` ni cambios en el sistema, y borrarlos al terminar.
