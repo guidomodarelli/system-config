@@ -527,17 +527,22 @@ function Install-NodeWithFnm {
     throw 'fnm se instaló, pero no se encontró el ejecutable en PATH ni en WinGet Links.'
   }
 
-  & $fnmExecutable install latest
+  Invoke-FnmEnvironment -FnmExecutable $fnmExecutable
+
+  & $fnmExecutable install --latest --use | Out-Host
   if ($LASTEXITCODE -ne 0) {
     throw "fnm no pudo instalar la última versión estable oficial de Node.js. Código: $LASTEXITCODE."
   }
 
-  & $fnmExecutable default latest
+  $installedVersion = (& $fnmExecutable current | Out-String).Trim()
+  if ($LASTEXITCODE -ne 0 -or $installedVersion -notmatch '^v?\d+\.\d+\.\d+$') {
+    throw "fnm no pudo identificar la versión estable de Node.js recién activada. Código: $LASTEXITCODE."
+  }
+
+  & $fnmExecutable default $installedVersion | Out-Host
   if ($LASTEXITCODE -ne 0) {
     throw "fnm no pudo configurar la última versión estable oficial de Node.js como versión predeterminada. Código: $LASTEXITCODE."
   }
-
-  Invoke-FnmEnvironment -FnmExecutable $fnmExecutable
 
   $npmExecutable = Resolve-NpmExecutable
   if ([string]::IsNullOrWhiteSpace($npmExecutable)) {

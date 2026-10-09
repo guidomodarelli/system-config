@@ -17,6 +17,10 @@ En Windows, la actualización de Chocolatey se ejecuta desde una copia temporal
 del binario principal para permitir que el instalador reemplace `choco.exe`.
 La copia se elimina al terminar, incluso si la actualización falla.
 
+Si `hunk` necesita preparar Node.js en Windows, el setup activa el entorno de
+fnm, instala y activa la última versión estable con `fnm install --latest --use`
+y configura como default el número de versión que devuelve `fnm current`.
+
 ### Requisitos
 
 - Homebrew instalado en `/opt/homebrew`.

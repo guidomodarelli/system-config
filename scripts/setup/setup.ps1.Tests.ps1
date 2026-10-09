@@ -365,6 +365,7 @@
   Context 'Install-Hunk' {
     BeforeEach {
       $script:NpmAvailableInCurrentSession = $false
+      $script:FnmEnvironmentReady = $false
       Mock Get-Command { $null }
       # CommandType replica la forma real de Get-Command, que Resolve-NpmExecutable inspecciona.
       Mock Get-Command {
@@ -376,33 +377,81 @@
       Mock Install-fnm { $global:LASTEXITCODE = 0 }
       Mock fnm { $global:LASTEXITCODE = 0 }
       Mock fnm {
+        if (-not $script:FnmEnvironmentReady) { throw 'El entorno de fnm debe activarse antes de usar Node.js.' }
         $script:NpmAvailableInCurrentSession = $true
         $global:LASTEXITCODE = 0
-      } -ParameterFilter { ($args -join ' ') -eq 'default latest' }
+        'Instalación de Node.js simulada.'
+      } -ParameterFilter { ($args -join ' ') -eq 'install --latest --use' }
       Mock fnm {
+        $global:LASTEXITCODE = 0
+        'v26.1.0'
+      } -ParameterFilter { ($args -join ' ') -eq 'current' }
+      Mock fnm {
+        $script:FnmEnvironmentReady = $true
         '$env:PATH = $env:PATH'
         $global:LASTEXITCODE = 0
       } -ParameterFilter { ($args -join ' ') -eq 'env --use-on-cd --shell powershell' }
       Mock npm { $global:LASTEXITCODE = 0 }
 
-      Install-Hunk
     }
 
     It 'asegura fnm cuando npm no está disponible en la sesión' {
+      Install-Hunk
+
       Should -Invoke Install-fnm -Times 1 -Exactly
     }
 
     It 'instala y deja por defecto la última versión estable de Node.js con fnm' {
-      Should -Invoke fnm -ParameterFilter { ($args -join ' ') -eq 'install latest' }
-      Should -Invoke fnm -ParameterFilter { ($args -join ' ') -eq 'default latest' }
+      Install-Hunk
+
+      Should -Invoke fnm -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'install --latest --use' }
+      Should -Invoke fnm -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'current' }
+      Should -Invoke fnm -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'default v26.1.0' }
     }
 
     It 'activa fnm en la misma sesión de PowerShell' {
+      Install-Hunk
+
       Should -Invoke fnm -ParameterFilter { ($args -join ' ') -eq 'env --use-on-cd --shell powershell' }
     }
 
     It 'instala el paquete npm hunkdiff' {
+      Install-Hunk
+
       Should -Invoke npm -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'i -g hunkdiff' }
+    }
+
+    It 'detiene la instalación de hunk si fnm no instala Node.js' {
+      Mock fnm { $global:LASTEXITCODE = 1 } -ParameterFilter { ($args -join ' ') -eq 'install --latest --use' }
+
+      { Install-Hunk } | Should -Throw '*no pudo instalar*Node.js*Código: 1*'
+
+      Should -Invoke fnm -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'install --latest --use' }
+      Should -Invoke fnm -Times 0 -Exactly -ParameterFilter { $args[0] -eq 'default' -or $args[0] -eq 'current' }
+      Should -Invoke npm -Times 0 -Exactly
+    }
+
+    It 'no configura como default una versión activa que no sea estable' -ForEach @(
+      @{ CurrentVersion = 'system'; ExitCode = 0 }
+      @{ CurrentVersion = 'v26.1.0-rc.1'; ExitCode = 0 }
+      @{ CurrentVersion = 'v26.1.0'; ExitCode = 1 }
+    ) {
+      Mock fnm { $global:LASTEXITCODE = $ExitCode; $CurrentVersion } -ParameterFilter { ($args -join ' ') -eq 'current' }
+
+      { Install-Hunk } | Should -Throw '*no pudo identificar*'
+
+      Should -Invoke fnm -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'current' }
+      Should -Invoke fnm -Times 0 -Exactly -ParameterFilter { $args[0] -eq 'default' }
+      Should -Invoke npm -Times 0 -Exactly
+    }
+
+    It 'detiene la instalación de hunk si fnm no puede guardar el default' {
+      Mock fnm { $global:LASTEXITCODE = 1 } -ParameterFilter { ($args -join ' ') -eq 'default v26.1.0' }
+
+      { Install-Hunk } | Should -Throw '*no pudo configurar*Código: 1*'
+
+      Should -Invoke fnm -Times 1 -Exactly -ParameterFilter { ($args -join ' ') -eq 'default v26.1.0' }
+      Should -Invoke npm -Times 0 -Exactly
     }
   }
 
