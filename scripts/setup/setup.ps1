@@ -215,7 +215,8 @@ function Invoke-SetupLatestOfficialScript {
 
 
 function Install-Choco {
-  if (-Not (Test-Path 'C:\ProgramData\chocolatey\bin\choco.exe')) {
+  $installDirectory = if ([string]::IsNullOrWhiteSpace($env:ChocolateyInstall)) { 'C:\ProgramData\chocolatey' } else { $env:ChocolateyInstall }
+  if (-Not (Test-Path (Join-Path $installDirectory 'bin\choco.exe'))) {
     LogInfo 'Instalando la última versión estable oficial de Chocolatey.'
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
     Invoke-SetupLatestOfficialScript -Uri 'https://community.chocolatey.org/install.ps1' -FileName 'chocolatey-install.ps1'
@@ -225,9 +226,22 @@ function Install-Choco {
     LogSuccess "Chocolatey se instaló correctamente."
   } else {
     LogInfo "Chocolatey ya está instalado. Actualizando paquetes del propio gestor a la última versión estable oficial disponible."
-    choco upgrade chocolatey --confirm --no-progress
-    if ($LASTEXITCODE -ne 0) {
-      throw "Chocolatey no pudo actualizarse. Código: $LASTEXITCODE."
+    $temporaryDirectoryPath = New-SetupTemporaryDirectory
+    $previousInstallDirectory = $env:ChocolateyInstall
+    try {
+      # Ejecutar una copia del binario real, no el shim de bin: el instalador
+      # debe poder reemplazar choco.exe sin que este proceso lo bloquee.
+      $temporaryExecutablePath = Join-Path $temporaryDirectoryPath 'choco.exe'
+      Copy-Item -LiteralPath (Join-Path $installDirectory 'choco.exe') -Destination $temporaryExecutablePath -ErrorAction Stop
+      $env:ChocolateyInstall = $installDirectory
+      $upgradeProcess = Start-Process -FilePath $temporaryExecutablePath -ArgumentList @('upgrade', 'chocolatey', '--confirm', '--no-progress') -NoNewWindow -Wait -PassThru -ErrorAction Stop
+      $global:LASTEXITCODE = $upgradeProcess.ExitCode
+      if ($LASTEXITCODE -ne 0) {
+        throw "Chocolatey no pudo actualizarse. Código: $LASTEXITCODE."
+      }
+    } finally {
+      $env:ChocolateyInstall = $previousInstallDirectory
+      Remove-SetupTemporaryDirectory -Path $temporaryDirectoryPath
     }
   }
 }

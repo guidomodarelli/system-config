@@ -13,6 +13,10 @@ el setup recomendado ya no instala ni fija Java 21 por defecto. La política
 general del setup es instalar o actualizar siempre a la última versión estable
 disponible desde la fuente oficial de cada herramienta.
 
+En Windows, la actualización de Chocolatey se ejecuta desde una copia temporal
+del binario principal para permitir que el instalador reemplace `choco.exe`.
+La copia se elimina al terminar, incluso si la actualización falla.
+
 ### Requisitos
 
 - Homebrew instalado en `/opt/homebrew`.

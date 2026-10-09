@@ -171,6 +171,83 @@
     }
   }
 
+  Context 'Install-Choco' {
+    BeforeEach {
+      $script:PreviousChocolateyInstall = $env:ChocolateyInstall
+      $env:ChocolateyInstall = 'C:\ChocolateyPrueba'
+      $script:ChocoTemporaryDirectory = Join-Path ([System.IO.Path]::GetTempPath()) 'setup-choco-prueba'
+      Mock Test-Path { $true }
+      Mock New-SetupTemporaryDirectory { $script:ChocoTemporaryDirectory }
+      Mock Copy-Item { }
+      Mock Remove-SetupTemporaryDirectory { }
+      $script:ChocoProcessInstallDirectory = $null
+      Mock Start-Process {
+        $script:ChocoProcessInstallDirectory = $env:ChocolateyInstall
+        [PSCustomObject]@{ ExitCode = 0 }
+      }
+      Mock LogInfo { }
+    }
+
+    AfterEach {
+      $env:ChocolateyInstall = $script:PreviousChocolateyInstall
+    }
+
+    It 'actualiza desde una copia del binario real y conserva el destino de instalación' {
+      Install-Choco
+
+      Should -Invoke Copy-Item -Times 1 -Exactly -ParameterFilter {
+        $LiteralPath -eq 'C:\ChocolateyPrueba\choco.exe' -and $Destination -eq (Join-Path $script:ChocoTemporaryDirectory 'choco.exe')
+      }
+      Should -Invoke Start-Process -Times 1 -Exactly -ParameterFilter {
+        $FilePath -eq (Join-Path $script:ChocoTemporaryDirectory 'choco.exe') -and
+        ($ArgumentList -join ' ') -eq 'upgrade chocolatey --confirm --no-progress' -and
+        $Wait -and $PassThru -and $NoNewWindow
+      }
+      Should -Invoke Remove-SetupTemporaryDirectory -Times 1 -Exactly -ParameterFilter { $Path -eq $script:ChocoTemporaryDirectory }
+      $global:LASTEXITCODE | Should -Be 0
+      $script:ChocoProcessInstallDirectory | Should -Be 'C:\ChocolateyPrueba'
+      $env:ChocolateyInstall | Should -Be 'C:\ChocolateyPrueba'
+    }
+
+    It 'propaga un fallo de actualización y limpia la copia temporal' {
+      Mock Start-Process { [PSCustomObject]@{ ExitCode = -1 } }
+
+      { Install-Choco } | Should -Throw '*Código: -1*'
+
+      Should -Invoke Start-Process -Times 1 -Exactly
+      Should -Invoke Remove-SetupTemporaryDirectory -Times 1 -Exactly
+      $global:LASTEXITCODE | Should -Be -1
+      $env:ChocolateyInstall | Should -Be 'C:\ChocolateyPrueba'
+    }
+
+    It 'limpia la copia y restaura el entorno cuando no puede iniciar el proceso' {
+      Mock Start-Process {
+        $script:ChocoProcessInstallDirectory = $env:ChocolateyInstall
+        throw 'No se pudo iniciar Chocolatey.'
+      }
+      $env:ChocolateyInstall = $null
+
+      { Install-Choco } | Should -Throw '*No se pudo iniciar Chocolatey*'
+
+      Should -Invoke Copy-Item -Times 1 -Exactly -ParameterFilter { $LiteralPath -eq 'C:\ProgramData\chocolatey\choco.exe' }
+      Should -Invoke Start-Process -Times 1 -Exactly
+      Should -Invoke Remove-SetupTemporaryDirectory -Times 1 -Exactly
+      $script:ChocoProcessInstallDirectory | Should -Be 'C:\ProgramData\chocolatey'
+      $env:ChocolateyInstall | Should -BeNullOrEmpty
+    }
+
+    It 'no inicia la actualización si falla la copia del binario' {
+      Mock Copy-Item { throw 'No se pudo copiar Chocolatey.' }
+
+      { Install-Choco } | Should -Throw '*No se pudo copiar Chocolatey*'
+
+      Should -Invoke Copy-Item -Times 1 -Exactly
+      Should -Invoke Start-Process -Times 0 -Exactly
+      Should -Invoke Remove-SetupTemporaryDirectory -Times 1 -Exactly
+      $env:ChocolateyInstall | Should -Be 'C:\ChocolateyPrueba'
+    }
+  }
+
   Context 'Install-WingetPackage' {
     It 'actualiza paquetes ya instalados a la última versión estable' {
       Mock winget { $global:LASTEXITCODE = 0 }
