@@ -230,14 +230,16 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
 
   ### Exclusiones dependientes de la máquina con `conditionalExcludes`
 
-  `conditionalExcludes` agrega patrones a `exclude` solo cuando existe una ruta
-  en la máquina actual. Sirve para omitir enlaces según el entorno, por ejemplo
-  en la máquina de trabajo.
+  `conditionalExcludes` omite enlaces solo cuando existe una ruta en la máquina
+  actual. Sirve para omitir enlaces según el entorno, por ejemplo en la máquina
+  de trabajo.
 
   | Campo | Tipo | Significado |
   | --- | --- | --- |
-  | `pattern` | string (regex con `/.../` opcional) | Misma semántica que `exclude`: aplica a basenames de carpetas y archivos. |
+  | `pattern` | string (regex con `/.../` opcional), opcional | Misma semántica que `exclude`: aplica a basenames de carpetas y archivos. Si se omite, la regla aplica a todo lo que genera la entrada. |
   | `whenPathExists` | string | Archivo o carpeta cuya existencia activa la regla. Admite `~`, `$HOME` y `$USER`; las rutas relativas se resuelven desde `$HOME`. |
+
+  Con `path` terminado en `/*`, cada `pattern` activo se suma a `exclude`:
 
   ```yaml
   - path: .agents/skills/my-skills/*
@@ -250,9 +252,21 @@ El script incluye soporte especial para entornos WSL con el prefijo `WSL://`:
         whenPathExists: ~/.fury   # solo en la máquina de trabajo
   ```
 
+  Con `path` a un único archivo o carpeta (sin wildcard), una regla activa
+  excluye la entrada completa. Si tiene `pattern`, solo aplica cuando coincide
+  con el basename de `path`. Funciona con `target` y con `exactTarget`:
+
+  ```yaml
+  - path: git/.gitconfig
+    target: .
+    conditionalExcludes:
+      - whenPathExists: ~/.fury   # no enlazar en la máquina de trabajo
+  ```
+
   **Reglas**:
 
-  - Requiere `path` con `/*` final, igual que `exclude`. No aplica con `exactTarget`.
+  - Con wildcard, requiere `path` con `/*` final, igual que `exclude`, y no aplica con `exactTarget`.
+  - Con wildcard, si la regla excluye todas las fuentes, igual se eliminan los symlinks previos y no se avisa que el patrón no produjo resultados.
   - Si la regla está activa y en el destino quedó un symlink de una ejecución
     anterior que apunta exactamente a la fuente ahora excluida, se elimina.
     Con `--dry-run` solo se informa. Se cuenta en la fila `Eliminados` del resumen.

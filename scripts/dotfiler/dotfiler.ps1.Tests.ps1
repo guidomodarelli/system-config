@@ -1473,6 +1473,103 @@
       $script:CountErrors | Should -Be 0
     }
 
+    Context 'entradas cuyo origen es un unico archivo' {
+      BeforeEach {
+        $script:SingleFileSource = Join-Path -Path $script:ConfigsDir -ChildPath 'single-file/.config-file'
+        New-Item -ItemType File -Path $script:SingleFileSource -Value 'x' -Force | Out-Null
+        $script:SingleFileSource = (Get-Item -LiteralPath $script:SingleFileSource -Force).FullName
+        $script:SingleFileTarget = [System.IO.Path]::GetFullPath((Join-Path -Path $script:HomeDir -ChildPath '.config-file'))
+        $script:WorkMarkerPath = Join-Path -Path $script:HomeDir -ChildPath '.work-marker'
+        # Simulates the symlink left by a previous run: this environment may not allow creating real symlinks.
+        Mock Test-SymlinkPointsToSource {
+          [System.IO.Path]::GetFullPath($LinkPath) -eq $script:SingleFileTarget -and $SourcePath -eq $script:SingleFileSource
+        }
+        Mock Write-Warn {}
+      }
+
+      It 'elimina el symlink previo aunque la regla excluya todas las fuentes del wildcard' {
+        New-Item -ItemType Directory -Path $script:WorkMarkerPath -Force | Out-Null
+        Mock Get-ConfigEntries {
+          @([PSCustomObject]@{
+              path = 'single-file/*'
+              target = '.'
+              conditionalExcludes = @([PSCustomObject]@{ pattern = '/^\.config-file$/'; whenPathExists = '~/.work-marker' })
+            })
+        }
+
+        $operations = @(Resolve-Operations)
+
+        $operations.Count | Should -Be 1
+        $operations[0].Remove | Should -BeTrue
+        [System.IO.Path]::GetFullPath($operations[0].Target) | Should -Be $script:SingleFileTarget
+        Should -Invoke Write-Warn -Times 0 -Exactly
+      }
+
+      It 'enlaza el path unico cuando la ruta condicional no existe' {
+        Mock Get-ConfigEntries {
+          @([PSCustomObject]@{
+              path = 'single-file/.config-file'
+              target = '.'
+              conditionalExcludes = @([PSCustomObject]@{ whenPathExists = '~/.work-marker' })
+            })
+        }
+
+        $operations = @(Resolve-Operations)
+
+        $operations.Count | Should -Be 1
+        $operations[0].Remove | Should -BeFalse
+        [System.IO.Path]::GetFullPath($operations[0].Target) | Should -Be $script:SingleFileTarget
+        Should -Invoke Write-Warn -Times 0 -Exactly
+      }
+
+      It 'excluye el path unico sin pattern y elimina su symlink previo cuando la ruta condicional existe' {
+        New-Item -ItemType Directory -Path $script:WorkMarkerPath -Force | Out-Null
+        Mock Get-ConfigEntries {
+          @([PSCustomObject]@{
+              path = 'single-file/.config-file'
+              target = '.'
+              conditionalExcludes = @([PSCustomObject]@{ whenPathExists = '~/.work-marker' })
+            })
+        }
+
+        $operations = @(Resolve-Operations)
+
+        $operations.Count | Should -Be 1
+        $operations[0].Remove | Should -BeTrue
+        $operations[0].Source | Should -Be $script:SingleFileSource
+        $operations[0].Reason | Should -Be '~/.work-marker'
+      }
+
+      It 'no crea el enlace con exactTarget cuando la ruta condicional existe' {
+        New-Item -ItemType Directory -Path $script:WorkMarkerPath -Force | Out-Null
+        Mock Get-ConfigEntries {
+          @([PSCustomObject]@{
+              path = 'single-file/.config-file'
+              exactTarget = 'renamed-config'
+              conditionalExcludes = @([PSCustomObject]@{ whenPathExists = '~/.work-marker' })
+            })
+        }
+
+        @(Resolve-Operations).Count | Should -Be 0
+      }
+
+      It 'conserva el enlace del path unico cuando el pattern no coincide con su basename' {
+        New-Item -ItemType Directory -Path $script:WorkMarkerPath -Force | Out-Null
+        Mock Get-ConfigEntries {
+          @([PSCustomObject]@{
+              path = 'single-file/.config-file'
+              target = '.'
+              conditionalExcludes = @([PSCustomObject]@{ pattern = '/^otro-archivo$/'; whenPathExists = '~/.work-marker' })
+            })
+        }
+
+        $operations = @(Resolve-Operations)
+
+        $operations.Count | Should -Be 1
+        $operations[0].Remove | Should -BeFalse
+      }
+    }
+
     It 'no elimina archivos reales en el destino excluido' {
       New-Item -ItemType Directory -Path $script:LinkedFilesDir -Force | Out-Null
       New-Item -ItemType File -Path $script:InnerLeafTarget -Value 'real' -Force | Out-Null

@@ -24,6 +24,9 @@ $script:ElevatedSymlinkTarget = $null
 $script:ElevatedSymlinkHardLink = $false
 $script:PendingElevatedSymlinks = [System.Collections.Generic.List[object]]::new()
 
+# `conditionalExcludes` rules without `pattern` exclude every name of the entry.
+$script:MatchAnyNamePattern = '.*'
+
 $script:RootDir = $null
 $script:ConfigsDir = $null
 $script:ConfigPathsFile = $null
@@ -1490,8 +1493,11 @@ function Get-ActiveConditionalExcludeRules {
   foreach ($rule in @(Get-PropertyArray -Object $Entry -Name 'conditionalExcludes')) {
     $patternText = Get-TextPropertyValue -Object $rule -Name 'pattern'
     $conditionPath = Get-TextPropertyValue -Object $rule -Name 'whenPathExists'
-    if ([string]::IsNullOrEmpty($patternText) -or [string]::IsNullOrEmpty($conditionPath)) {
+    if ([string]::IsNullOrEmpty($conditionPath)) {
       continue
+    }
+    if ([string]::IsNullOrEmpty($patternText)) {
+      $patternText = $script:MatchAnyNamePattern
     }
 
     $pattern = ConvertTo-StrippedRegexPattern -Pattern $patternText
@@ -2054,17 +2060,27 @@ function Get-StaleSymlinkRemovals {
       continue
     }
 
-    $removals.Add([PSCustomObject]@{
-        Group    = (Split-Path -Path $targetPath -Parent)
-        Source   = $candidate.FullName
-        Target   = $targetPath
-        HardLink = $false
-        Remove   = $true
-        Reason   = (Get-ConditionalExcludeReason -ActiveRules $ActiveRules -RootPath $rootPath -ItemPath $candidate.FullName)
-      })
+    $removals.Add((New-StaleSymlinkRemovalOperation -SourcePath $candidate.FullName -TargetPath $targetPath -Reason (Get-ConditionalExcludeReason -ActiveRules $ActiveRules -RootPath $rootPath -ItemPath $candidate.FullName)))
   }
 
   return $removals.ToArray()
+}
+
+function New-StaleSymlinkRemovalOperation {
+  param(
+    [string]$SourcePath,
+    [string]$TargetPath,
+    [string]$Reason
+  )
+
+  return [PSCustomObject]@{
+    Group    = (Split-Path -Path $TargetPath -Parent)
+    Source   = $SourcePath
+    Target   = $TargetPath
+    HardLink = $false
+    Remove   = $true
+    Reason   = $Reason
+  }
 }
 
 function Resolve-Operations {
@@ -2119,8 +2135,10 @@ function Resolve-Operations {
       $activeConditionalRules = @(Get-ActiveConditionalExcludeRules -Entry $entry)
       $conditionalExcludeRegex = Join-RegexPatterns -Patterns @($activeConditionalRules | ForEach-Object { $_.Regex })
       $markerFile = Get-MarkerFileName -Entry $entry
+      # On a single file or folder entry, conditionalExcludes excludes the whole entry instead of filtering children.
+      $isSinglePathEntry = -not (Test-GlobPattern -Path $entryPath)
       $hasFilters = ($null -ne $descendIntoRegex) -or ($null -ne $excludeRegex) -or (-not [string]::IsNullOrEmpty($markerFile)) -or
-        (Test-PropertyPresent -Object $entry -Name 'conditionalExcludes')
+        ((Test-PropertyPresent -Object $entry -Name 'conditionalExcludes') -and -not $isSinglePathEntry)
     } catch {
       $script:CountErrors += 1
       Add-Diagnostic -Target $entryPath -Reason $_.Exception.Message
@@ -2132,11 +2150,13 @@ function Resolve-Operations {
       Write-Warn "descendInto/markerFile/exclude/conditionalExcludes solo aplican con path terminado en '/*'. Ignorando filtros para: $entryPath"
       $descendIntoRegex = $null
       $excludeRegex = $null
-      $conditionalExcludeRegex = $null
       $markerFile = $null
+      if (-not $isSinglePathEntry) {
+        $conditionalExcludeRegex = $null
+      }
     }
 
-    if ($selectedTargetDefinition.UsesExactTarget) {
+    if ($selectedTargetDefinition.UsesExactTarget -and -not $isSinglePathEntry) {
       $conditionalExcludeRegex = $null
     }
 
@@ -2145,6 +2165,14 @@ function Resolve-Operations {
 
     $sources = @(Get-ResolvedSources -OriginalPath $entryPath -DescendIntoRegex $descendIntoRegex -ExcludeRegex $effectiveExcludeRegex -MarkerFile $markerFile)
     if ($sources.Count -eq 0) {
+      # An active conditional rule may exclude every source: still remove the stale symlinks it leaves behind.
+      if ($null -ne $conditionalExcludeRegex -and -not $isSinglePathEntry) {
+        $noLinkedBasenames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($removal in @(Get-StaleSymlinkRemovals -EntryPath $entryPath -TargetBase $targetBase -LinkedSources @() -SeenBasenames $noLinkedBasenames -DescendIntoRegex $descendIntoRegex -ExcludeRegex $excludeRegex -MarkerFile $markerFile -ActiveRules $activeConditionalRules)) {
+          $operations.Add($removal)
+        }
+        continue
+      }
       if (Test-GlobPattern -Path $entryPath) {
         Write-Warn "El patron no produjo resultados: $entryPath"
       } else {
@@ -2160,6 +2188,18 @@ function Resolve-Operations {
       Add-Diagnostic -Target $targetBase -Reason "exactTarget no admite patrones wildcard: $entryPath"
       Write-Warn "No se permite exactTarget con patrones wildcard: $entryPath"
       continue
+    }
+
+    if ($isSinglePathEntry -and $null -ne $conditionalExcludeRegex) {
+      $singleSource = $sources[0]
+      if ($conditionalExcludeRegex.IsMatch($singleSource.Name)) {
+        $singleTargetPath = if ($selectedTargetDefinition.UsesExactTarget) { $targetBase } else { Join-Path -Path $targetBase -ChildPath $singleSource.Name }
+        if (Test-SymlinkPointsToSource -LinkPath $singleTargetPath -SourcePath $singleSource.FullName) {
+          $removalReason = Get-ConditionalExcludeReason -ActiveRules $activeConditionalRules -RootPath (Split-Path -Path $singleSource.FullName -Parent) -ItemPath $singleSource.FullName
+          $operations.Add((New-StaleSymlinkRemovalOperation -SourcePath $singleSource.FullName -TargetPath $singleTargetPath -Reason $removalReason))
+        }
+        continue
+      }
     }
 
     $seenBasenames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -2189,7 +2229,7 @@ function Resolve-Operations {
         })
     }
 
-    if ($null -ne $conditionalExcludeRegex) {
+    if ($null -ne $conditionalExcludeRegex -and -not $isSinglePathEntry) {
       foreach ($removal in @(Get-StaleSymlinkRemovals -EntryPath $entryPath -TargetBase $targetBase -LinkedSources $sources -SeenBasenames $seenBasenames -DescendIntoRegex $descendIntoRegex -ExcludeRegex $excludeRegex -MarkerFile $markerFile -ActiveRules $activeConditionalRules)) {
         $operations.Add($removal)
       }

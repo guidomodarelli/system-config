@@ -1024,6 +1024,79 @@ YAML
   [ "$(cat "$HOME_DIR/linked-files/inner-leaf")" = "real" ]
 }
 
+write_single_path_conditional_excludes_config() {
+  mkdir -p "$REPO_DIR/configs/single-file"
+  printf "x" > "$REPO_DIR/configs/single-file/.config-file"
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: single-file/.config-file
+    target: .
+    conditionalExcludes:
+      - whenPathExists: ~/.work-marker
+YAML
+}
+
+@test "conditionalExcludes sin pattern en path unico enlaza cuando la ruta condicional no existe" {
+  write_single_path_conditional_excludes_config
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/.config-file" "$REPO_DIR/configs/single-file/.config-file"
+  [[ "$output" != *"solo aplican con path terminado en"* ]]
+}
+
+@test "conditionalExcludes sin pattern en path unico elimina el symlink previo cuando la ruta condicional existe" {
+  write_single_path_conditional_excludes_config
+  run_dotfiler "false" "--no-color"
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/.config-file" "$REPO_DIR/configs/single-file/.config-file"
+
+  mkdir -p "$HOME_DIR/.work-marker"
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_path_missing "$HOME_DIR/.config-file"
+  assert_item_line "$output" "eliminado" ".config-file"
+  [[ "$output" == *"(excluido por ~/.work-marker)"* ]]
+  assert_summary_value "$output" "eliminados" 1
+}
+
+@test "conditionalExcludes en path unico con exactTarget no crea el enlace cuando la ruta condicional existe" {
+  write_single_path_conditional_excludes_config
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: single-file/.config-file
+    exactTarget: renamed-config
+    conditionalExcludes:
+      - whenPathExists: ~/.work-marker
+YAML
+  mkdir -p "$HOME_DIR/.work-marker"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_path_missing "$HOME_DIR/renamed-config"
+}
+
+@test "conditionalExcludes en path unico con pattern que no coincide conserva el enlace" {
+  write_single_path_conditional_excludes_config
+  cat > "$REPO_DIR/symlinks.yml" <<'YAML'
+paths:
+  - path: single-file/.config-file
+    target: .
+    conditionalExcludes:
+      - pattern: /^otro-archivo$/
+        whenPathExists: ~/.work-marker
+YAML
+  mkdir -p "$HOME_DIR/.work-marker"
+
+  run_dotfiler "false" "--no-color"
+
+  [ "$status" -eq 0 ]
+  assert_symlink_points_to "$HOME_DIR/.config-file" "$REPO_DIR/configs/single-file/.config-file"
+}
+
 @test "conditionalExcludes con regex invalido falla con diagnostico" {
   seed_filter_tree
   mkdir -p "$HOME_DIR/.work-marker"

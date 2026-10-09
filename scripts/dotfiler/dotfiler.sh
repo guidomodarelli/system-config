@@ -60,6 +60,9 @@ EXIT_CODE_SUCCESS=0
 EXIT_CODE_RUNTIME_ERROR=1
 EXIT_CODE_INPUT_ERROR=2
 
+# `conditionalExcludes` rules without `pattern` exclude every name of the entry.
+MATCH_ANY_NAME_PATTERN='.*'
+
 # ASCII-only decorations so the output works in any terminal and font.
 ICON_APP=${ICON_APP:-""}
 ICON_REAL_RUN=${ICON_REAL_RUN:-">"}
@@ -1412,7 +1415,10 @@ read_active_conditional_exclude_rules() {
   local condition_path
 
   while IFS= read -r pattern && IFS= read -r condition_path; do
-    [ -z "$pattern" ] || [ -z "$condition_path" ] && continue
+    [ -z "$condition_path" ] && continue
+    if [ -z "$pattern" ]; then
+      pattern="$MATCH_ANY_NAME_PATTERN"
+    fi
     pattern=$(strip_regex_slashes "$pattern")
     if ! validate_regex "$pattern"; then
       return 1
@@ -1654,9 +1660,17 @@ process_path_entry() {
 
   marker_file=$(read_marker_file "$line")
 
+  # On a single file or folder entry, conditionalExcludes excludes the whole
+  # entry instead of filtering children.
+  local is_single_path_entry="true"
+  if [[ "$path" == *"*"* ]]; then
+    is_single_path_entry="false"
+  fi
+
   local has_filters="false"
-  if [ -n "$descend_into_pat" ] || [ -n "$exclude_pat" ] || [ -n "$marker_file" ] ||
-    json_has_key "$line" "conditionalExcludes"; then
+  if [ -n "$descend_into_pat" ] || [ -n "$exclude_pat" ] || [ -n "$marker_file" ]; then
+    has_filters="true"
+  elif [ "$is_single_path_entry" = "false" ] && json_has_key "$line" "conditionalExcludes"; then
     has_filters="true"
   fi
 
@@ -1664,11 +1678,13 @@ process_path_entry() {
     log_warn_action "descendInto/markerFile/exclude/conditionalExcludes solo aplican con path terminado en '/*'. Ignorando filtros para: $path"
     descend_into_pat=""
     exclude_pat=""
-    conditional_exclude_pat=""
     marker_file=""
+    if [ "$is_single_path_entry" = "false" ]; then
+      conditional_exclude_pat=""
+    fi
   fi
 
-  if [ "$uses_exact_target" = "true" ]; then
+  if [ "$uses_exact_target" = "true" ] && [ "$is_single_path_entry" = "false" ]; then
     conditional_exclude_pat=""
   fi
 
@@ -1719,6 +1735,24 @@ process_path_entry() {
     output+="$(build_operation_line "$item" "$link_path" "false" "true" "$removal_reason")"$'\n'
   }
 
+  # Emits a removal operation for the previous symlink of a single file or
+  # folder entry excluded by an active `conditionalExcludes` rule.
+  add_excluded_single_path_removal() {
+    local source_path
+    source_path=$(get_abs_path "$path")
+    [ -z "$source_path" ] && return 0
+    local link_path="$target"
+    if [ "$uses_exact_target" != "true" ]; then
+      link_path="$target/${source_path##*/}"
+    fi
+    if ! symlink_points_to_source "$link_path" "$source_path"; then
+      return 0
+    fi
+    local removal_reason
+    removal_reason=$(find_conditional_exclude_reason "$active_conditional_rules" "${source_path%/*}" "$source_path")
+    output+="$(build_operation_line "$source_path" "$link_path" "false" "true" "$removal_reason")"$'\n'
+  }
+
   if [[ "$path" == *"*" ]]; then
     local dir_path="${path%/*}"
     local abs_dir_path
@@ -1751,10 +1785,13 @@ process_path_entry() {
         add_stale_symlink_removal "$item"
       done < <(list_glob_sources "$abs_dir_path" "$descend_into_pat" "$exclude_pat" "$marker_file")
     fi
+  elif [ -n "$conditional_exclude_pat" ] && [[ "${path##*/}" =~ $conditional_exclude_pat ]]; then
+    add_excluded_single_path_removal
   else
     add_path_to_output "$path" "$target" "$uses_exact_target" "$hard_link"
   fi
 
+  unset -f add_excluded_single_path_removal
   unset -f add_stale_symlink_removal
   unset -f add_with_collision_check
   printf "%s" "$output"

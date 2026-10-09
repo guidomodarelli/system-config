@@ -146,15 +146,15 @@
           },
           "conditionalExcludes": {
             "type": "array",
-            "description": "Machine-dependent exclude rules. Each pattern is added to exclude only when whenPathExists exists on the current machine; previously created symlinks to newly excluded sources are removed. Only applies when path ends with /*.",
+            "description": "Machine-dependent exclude rules. A rule is active only when whenPathExists exists on the current machine. When path ends with /*, its pattern is added to exclude; on a single file or folder path, an active rule whose pattern is omitted or matches the basename excludes the whole entry. Previously created symlinks to newly excluded sources are removed.",
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["pattern", "whenPathExists"],
+              "required": ["whenPathExists"],
               "properties": {
                 "pattern": {
                   "type": "string",
-                  "description": "Regex pattern (optional surrounding slashes /pattern/) matching folder OR file basenames to discard, with the same semantics as exclude."
+                  "description": "Regex pattern (optional surrounding slashes /pattern/) matching folder OR file basenames to discard, with the same semantics as exclude. When omitted, the rule matches every name of the entry."
                 },
                 "whenPathExists": {
                   "type": "string",
