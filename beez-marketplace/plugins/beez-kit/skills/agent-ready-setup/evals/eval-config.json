@@ -491,6 +491,38 @@
       ]
     },
     {
+      "id": "frontend-logger-installs-or-detects-library",
+      "description": "Detecta un logger ya declarado o instala pino con el package manager del lockfile antes de crear utils/logger.ts.",
+      "input": "Voy a ejecutar `/logger` de agent-ready-setup en un proyecto frontend con `pnpm-lock.yaml` cuyo `package.json` no declara ninguna librería de logging. Explicá qué debe hacer la skill antes de crear `utils/logger.ts`, qué comando corre y qué cambia si `package.json` ya declara `winston`. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
+      "assertions": [
+        {
+          "type": "contains",
+          "value": "package.json",
+          "description": "Revisa las dependencias declaradas en package.json"
+        },
+        {
+          "type": "contains",
+          "value": "pnpm add pino",
+          "description": "Instala pino con el package manager del lockfile"
+        },
+        {
+          "type": "contains",
+          "value": "winston",
+          "description": "Reutiliza el logger ya declarado en lugar de instalar pino"
+        },
+        {
+          "type": "contains_any",
+          "values": ["antes de crear", "before creating", "antes de generar", "previo"],
+          "description": "Resuelve la dependencia antes de crear el archivo"
+        },
+        {
+          "type": "contains_any",
+          "values": ["tsc --noEmit", "módulo inexistente", "missing module", "no compila"],
+          "description": "Explica que sin la dependencia falla la verificación de tipos"
+        }
+      ]
+    },
+    {
       "id": "frontend-middleend-known-errors-use-4xx",
       "description": "Traduce causas conocidas de middleend a 4xx sin fallback 5xx genérico.",
       "input": "Estoy implementando un endpoint REST middleend para crear y consultar productos. El servicio puede devolver errores de validación de dominio, recurso inexistente o conflicto de estado, y el request ya pasó la validación de forma. Explicá cómo debe manejar esos errores agent-ready-setup, qué statuses públicos elegir, qué registrar y qué respuesta evitar. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
