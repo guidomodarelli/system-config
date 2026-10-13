@@ -587,6 +587,65 @@
       ]
     },
     {
+      "id": "frontend-service-moves-dev-only-runtime-dependencies",
+      "description": "Considera disponibles el cliente HTTP, el módulo de config y el logger solo si están en dependencies y mueve a runtime los que están únicamente en devDependencies.",
+      "input": "Voy a ejecutar `/service` y `/logger` de agent-ready-setup en un proyecto SSR con `package-lock.json` cuyo `package.json` declara `axios`, `config` y `pino` únicamente en `devDependencies`, y el deploy usa `npm ci --omit=dev`. Explicá qué detecta cada skill, si puede usar esos paquetes tal como están y qué comando corre antes de crear el service y `utils/logger.ts`. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
+      "assertions": [
+        {
+          "type": "contains",
+          "value": "dev-only",
+          "description": "Reporta los paquetes de runtime declarados solo en devDependencies"
+        },
+        {
+          "type": "contains",
+          "value": "npm install --save-prod",
+          "description": "Mueve los paquetes de runtime a dependencies con el package manager del lockfile"
+        },
+        {
+          "type": "contains_any",
+          "values": ["--omit=dev", "omit=dev"],
+          "description": "Explica que el deploy no instala devDependencies"
+        },
+        {
+          "type": "contains",
+          "value": "dependencies",
+          "description": "Exige que los paquetes de runtime queden en dependencies"
+        }
+      ]
+    },
+    {
+      "id": "frontend-service-undici-uses-mock-agent",
+      "description": "Con undici como cliente HTTP usa MockAgent con disableNetConnect y fixtures propios en lugar de instalar nock.",
+      "input": "Voy a ejecutar `/service` de agent-ready-setup en un proyecto SSR con `pnpm-lock.yaml` cuyo `package.json` declara `undici` en `dependencies` y no declara librería de mocks HTTP. Explicá qué debe hacer la skill para el test del service, si instala `nock` y cómo garantiza que el test no llegue a la red. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
+      "assertions": [
+        {
+          "type": "contains",
+          "value": "MockAgent",
+          "description": "Usa el MockAgent de undici"
+        },
+        {
+          "type": "contains",
+          "value": "disableNetConnect",
+          "description": "Bloquea la red en el test"
+        },
+        {
+          "type": "contains",
+          "value": "setGlobalDispatcher",
+          "description": "Reemplaza el dispatcher global"
+        },
+        {
+          "type": "contains",
+          "value": "2183",
+          "description": "Justifica no usar nock con el issue de Nock sobre undici"
+        },
+        {
+          "type": "contains",
+          "value": "fixtures",
+          "description": "Reproduce fixtures propios"
+        }
+      ]
+    },
+    {
       "id": "frontend-middleend-known-errors-use-4xx",
       "description": "Traduce causas conocidas de middleend a 4xx sin fallback 5xx genérico.",
       "input": "Estoy implementando un endpoint REST middleend para crear y consultar productos. El servicio puede devolver errores de validación de dominio, recurso inexistente o conflicto de estado, y el request ya pasó la validación de forma. Explicá cómo debe manejar esos errores agent-ready-setup, qué statuses públicos elegir, qué registrar y qué respuesta evitar. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",

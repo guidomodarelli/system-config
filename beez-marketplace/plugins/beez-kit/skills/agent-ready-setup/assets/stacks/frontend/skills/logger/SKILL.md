@@ -35,22 +35,23 @@ If the file exists, report it and stop:
 
 ## Step 3 — Detect or install the logger library
 
-`utils/logger.ts` imports a logger package, so that package must be declared before the file is created; otherwise `tsc --noEmit` fails with a missing module.
+`utils/logger.ts` imports a logger package, so that package must be declared before the file is created; otherwise `tsc --noEmit` fails with a missing module. The logger runs in production code, so it counts as available only when it is declared in `dependencies`: a deploy that runs `npm ci --omit=dev` (or the equivalent of the project's package manager) does not install `devDependencies`.
 
 ```bash
-# Print the first logger library declared in package.json, or NONE
-node -e "const p = require('./package.json'); const deps = { ...p.dependencies, ...p.devDependencies }; const known = ['pino', 'winston', 'bunyan', 'log4js', 'loglevel']; console.log(known.find((library) => deps[library]) ?? 'NONE');"
+# Print the first logger library declared in dependencies, "<library> dev-only" when it is only in devDependencies, or NONE
+node -e "const p = require('./package.json'); const runtimeDeps = p.dependencies ?? {}; const devDeps = p.devDependencies ?? {}; const known = ['pino', 'winston', 'bunyan', 'log4js', 'loglevel']; const runtimeLibrary = known.find((library) => runtimeDeps[library]); const devOnlyLibrary = known.find((library) => devDeps[library]); console.log(runtimeLibrary ?? (devOnlyLibrary ? devOnlyLibrary + ' dev-only' : 'NONE'));"
 ```
 
-- If it prints a library name, use that library in Step 4 and do not install anything else.
+- If it prints a library name alone, use that library in Step 4 and do not install anything else.
+- If it prints `<library> dev-only`, use that library in Step 4, but first move it to `dependencies` with the "Move to runtime" command of the table below. Run the detector again and continue only when it prints the library without `dev-only`.
 - If it prints `NONE`, install `pino` as a runtime dependency with the package manager that owns the project's lockfile:
 
-| Lockfile | Install command |
-|---|---|
-| `pnpm-lock.yaml` | `pnpm add pino` |
-| `yarn.lock` | `yarn add pino` |
-| `bun.lockb` or `bun.lock` | `bun add pino` |
-| `package-lock.json` or no lockfile | `npm install pino` |
+| Lockfile | Install command | Move to runtime (`dev-only`) |
+|---|---|---|
+| `pnpm-lock.yaml` | `pnpm add pino` | `pnpm add --save-prod <library>` |
+| `yarn.lock` | `yarn add pino` | `yarn remove <library> && yarn add <library>` |
+| `bun.lockb` or `bun.lock` | `bun add pino` | `bun remove <library> && bun add <library>` |
+| `package-lock.json` or no lockfile | `npm install pino` | `npm install --save-prod <library>` |
 
 If more than one lockfile exists, ask the user which package manager the project uses before installing. If the install fails, report the command and its error and stop: do not create `utils/logger.ts` without its dependency.
 
