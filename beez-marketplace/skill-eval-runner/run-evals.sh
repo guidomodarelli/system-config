@@ -30,12 +30,12 @@ EVAL_JOBS="${EVAL_JOBS:-4}"
 # The no-skill baseline is opt-in: assertions only score the with-skill
 # response, so the baseline is a manual comparison artifact that doubles cost.
 EVAL_BASELINE="${EVAL_BASELINE:-0}"
-GROOT_MARKETPLACE_EVAL_MODEL="${GROOT_MARKETPLACE_EVAL_MODEL:-}"
-GROOT_MARKETPLACE_EVAL_REASONING_EFFORT="${GROOT_MARKETPLACE_EVAL_REASONING_EFFORT:-}"
+BEEZ_MARKETPLACE_EVAL_MODEL="${BEEZ_MARKETPLACE_EVAL_MODEL:-}"
+BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT="${BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT:-}"
 # Machine-readable JSONL is the default so CI, tests, and real eval runs are
 # reproducible and easy to parse. Use --pretty for the human-readable report.
 EVAL_JSONL="${EVAL_JSONL:-1}"
-GROOT_MARKETPLACE_EVAL_PROVIDER="${GROOT_MARKETPLACE_EVAL_PROVIDER:-auto}"
+BEEZ_MARKETPLACE_EVAL_PROVIDER="${BEEZ_MARKETPLACE_EVAL_PROVIDER:-auto}"
 RESOLVED_EVAL_PROVIDER=""
 
 # ── Resolve paths ──────────────────────────────────────
@@ -61,13 +61,13 @@ usage() {
     echo "  --model M, -m M              Agent model to use (defaults: claude-sonnet-5-5:medium"
     echo "                               for Claude, gpt-6-luna:high for Codex)"
     echo "                               Accepts aliases (haiku, sonnet, opus) or full model IDs."
-    echo "                               Also configurable via GROOT_MARKETPLACE_EVAL_MODEL env var."
+    echo "                               Also configurable via BEEZ_MARKETPLACE_EVAL_MODEL env var."
     echo "  --reasoning-effort E, -e E   Reasoning effort: low, medium, high, max (default: medium"
     echo "                               for Claude, high for Codex)."
-    echo "                               Also configurable via GROOT_MARKETPLACE_EVAL_REASONING_EFFORT."
+    echo "                               Also configurable via BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT."
     echo "  --provider P                 Agent provider: auto, codex, or claude (default: auto,"
     echo "                               prefers codex > claude)."
-    echo "                               Also configurable via GROOT_MARKETPLACE_EVAL_PROVIDER env var."
+    echo "                               Also configurable via BEEZ_MARKETPLACE_EVAL_PROVIDER env var."
     echo "  --jsonl, -J                  Emit machine-readable JSONL on stdout. This is"
     echo "                               the default and can also be set with EVAL_JSONL=1."
     echo "  --pretty, -P                 Emit the human-readable colored report instead"
@@ -97,9 +97,9 @@ check_dependencies() {
 }
 
 resolve_eval_provider() {
-    case "$GROOT_MARKETPLACE_EVAL_PROVIDER" in
+    case "$BEEZ_MARKETPLACE_EVAL_PROVIDER" in
         claude|codex)
-            RESOLVED_EVAL_PROVIDER="$GROOT_MARKETPLACE_EVAL_PROVIDER"
+            RESOLVED_EVAL_PROVIDER="$BEEZ_MARKETPLACE_EVAL_PROVIDER"
             ;;
         auto)
             if command -v codex &> /dev/null; then
@@ -112,22 +112,22 @@ resolve_eval_provider() {
             fi
             ;;
         *)
-            echo -e "${RED}ERROR: Invalid provider '$GROOT_MARKETPLACE_EVAL_PROVIDER'. Use auto, codex, or claude.${NC}" >&2
+            echo -e "${RED}ERROR: Invalid provider '$BEEZ_MARKETPLACE_EVAL_PROVIDER'. Use auto, codex, or claude.${NC}" >&2
             exit 1
             ;;
     esac
 
-    if [ -z "$GROOT_MARKETPLACE_EVAL_MODEL" ]; then
+    if [ -z "$BEEZ_MARKETPLACE_EVAL_MODEL" ]; then
         case "$RESOLVED_EVAL_PROVIDER" in
-            codex) GROOT_MARKETPLACE_EVAL_MODEL="gpt-6-luna" ;;
-            *)     GROOT_MARKETPLACE_EVAL_MODEL="claude-sonnet-5-5" ;;
+            codex) BEEZ_MARKETPLACE_EVAL_MODEL="gpt-6-luna" ;;
+            *)     BEEZ_MARKETPLACE_EVAL_MODEL="claude-sonnet-5-5" ;;
         esac
     fi
 
-    if [ -z "$GROOT_MARKETPLACE_EVAL_REASONING_EFFORT" ]; then
+    if [ -z "$BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT" ]; then
         case "$RESOLVED_EVAL_PROVIDER" in
-            codex) GROOT_MARKETPLACE_EVAL_REASONING_EFFORT="high" ;;
-            *)     GROOT_MARKETPLACE_EVAL_REASONING_EFFORT="medium" ;;
+            codex) BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT="high" ;;
+            *)     BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT="medium" ;;
         esac
     fi
 }
@@ -148,8 +148,8 @@ run_agent_prompt() {
             local claude_json_file="${output_file}.json"
             local claude_status=0
             (cd "$cwd" && env -u CLAUDECODE claude -p "$input" \
-                --model "$GROOT_MARKETPLACE_EVAL_MODEL" \
-                --effort "$GROOT_MARKETPLACE_EVAL_REASONING_EFFORT" \
+                --model "$BEEZ_MARKETPLACE_EVAL_MODEL" \
+                --effort "$BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT" \
                 --setting-sources project \
                 --tools "Read,Glob,Grep" \
                 --allowedTools "Read,Glob,Grep" \
@@ -181,12 +181,12 @@ run_agent_prompt() {
             event_stream_file=$(mktemp)
 
             local reasoning_effort_flag=()
-            if [ -n "${GROOT_MARKETPLACE_EVAL_REASONING_EFFORT:-}" ]; then
-                reasoning_effort_flag=(-c "model_reasoning_effort=\"$GROOT_MARKETPLACE_EVAL_REASONING_EFFORT\"")
+            if [ -n "${BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT:-}" ]; then
+                reasoning_effort_flag=(-c "model_reasoning_effort=\"$BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT\"")
             fi
 
             CODEX_HOME="$codex_home" codex exec \
-                --model "$GROOT_MARKETPLACE_EVAL_MODEL" \
+                --model "$BEEZ_MARKETPLACE_EVAL_MODEL" \
                 "${reasoning_effort_flag[@]}" \
                 --cd "$cwd" \
                 --skip-git-repo-check \
@@ -280,7 +280,7 @@ preflight_eval_provider() {
         if [ "$RESOLVED_EVAL_PROVIDER" = "codex" ]; then
             echo "For Codex, verify $HOME/.codex/config.toml, auth, and proxy settings." >&2
         fi
-        echo "No fallback provider was used; set --provider claude or GROOT_MARKETPLACE_EVAL_PROVIDER=claude explicitly if that is intended." >&2
+        echo "No fallback provider was used; set --provider claude or BEEZ_MARKETPLACE_EVAL_PROVIDER=claude explicitly if that is intended." >&2
         echo "Preflight output:" >&2
         sed -n '1,40p' "$output_file" >&2
         rm -rf "$check_cwd" "$output_file" "$codex_home"
@@ -818,9 +818,9 @@ run_skill_evals() {
         echo -e "  Skill:     $skill_path"
         echo -e "  Cases:     $total"
         echo -e "  Jobs:      $EVAL_JOBS (parallel)"
-        echo -e "  Model:     $GROOT_MARKETPLACE_EVAL_MODEL"
-        if [ -n "${GROOT_MARKETPLACE_EVAL_REASONING_EFFORT:-}" ]; then
-            echo -e "  Effort:    $GROOT_MARKETPLACE_EVAL_REASONING_EFFORT"
+        echo -e "  Model:     $BEEZ_MARKETPLACE_EVAL_MODEL"
+        if [ -n "${BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT:-}" ]; then
+            echo -e "  Effort:    $BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT"
         fi
         echo -e "  Provider:  $RESOLVED_EVAL_PROVIDER"
         if [ "$EVAL_BASELINE" = "1" ]; then
@@ -1040,15 +1040,15 @@ while [ $# -gt 0 ]; do
             shift 2
             ;;
         --model|-m)
-            GROOT_MARKETPLACE_EVAL_MODEL="$2"
+            BEEZ_MARKETPLACE_EVAL_MODEL="$2"
             shift 2
             ;;
         --reasoning-effort|-e)
-            GROOT_MARKETPLACE_EVAL_REASONING_EFFORT="$2"
+            BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT="$2"
             shift 2
             ;;
         --provider)
-            GROOT_MARKETPLACE_EVAL_PROVIDER="$2"
+            BEEZ_MARKETPLACE_EVAL_PROVIDER="$2"
             shift 2
             ;;
         --jsonl|-J)

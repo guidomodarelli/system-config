@@ -6,19 +6,19 @@ setup() {
   repo_dir="$test_root/repo"
   mkdir -p \
     "$repo_dir/scripts" \
-    "$repo_dir/plugins/groot-kit/.claude-plugin" \
-    "$repo_dir/plugins/groot-kit/.codex-plugin"
+    "$repo_dir/plugins/beez-kit/.claude-plugin" \
+    "$repo_dir/plugins/beez-kit/.codex-plugin"
 
   cp "$repository_root/scripts/create-version.js" "$repo_dir/scripts/create-version.js"
-  cat > "$repo_dir/plugins/groot-kit/.claude-plugin/plugin.json" <<'JSON'
+  cat > "$repo_dir/plugins/beez-kit/.claude-plugin/plugin.json" <<'JSON'
 {
-  "name": "groot-kit",
+  "name": "beez-kit",
   "version": "1.12.0"
 }
 JSON
-  cat > "$repo_dir/plugins/groot-kit/.codex-plugin/plugin.json" <<'JSON'
+  cat > "$repo_dir/plugins/beez-kit/.codex-plugin/plugin.json" <<'JSON'
 {
-  "name": "groot-kit",
+  "name": "beez-kit",
   "version": "1.12.0"
 }
 JSON
@@ -47,14 +47,14 @@ teardown() {
 }
 
 assert_head_contains_only_manifests() {
-  git show --format= --name-only HEAD | grep -Fxq 'plugins/groot-kit/.claude-plugin/plugin.json'
-  git show --format= --name-only HEAD | grep -Fxq 'plugins/groot-kit/.codex-plugin/plugin.json'
+  git show --format= --name-only HEAD | grep -Fxq 'plugins/beez-kit/.claude-plugin/plugin.json'
+  git show --format= --name-only HEAD | grep -Fxq 'plugins/beez-kit/.codex-plugin/plugin.json'
   [ "$(git show --format= --name-only HEAD | wc -l | tr -d ' ')" = "2" ]
 }
 
 @test "auto-detects one changed plugin and commits only both manifests" {
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
   printf '%s\n' 'staged change' > staged.txt
   git add staged.txt
   printf '%s\n' 'untracked change' > untracked.txt
@@ -62,42 +62,42 @@ assert_head_contains_only_manifests() {
   run bash -c "printf '1\\n' | node scripts/create-version.js"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Detected changed plugin: groot-kit"* ]]
+  [[ "$output" == *"Detected changed plugin: beez-kit"* ]]
   [[ "$output" != *"Select a plugin by number"* ]]
-  [ "$(node -p "require('./plugins/groot-kit/.claude-plugin/plugin.json').version")" = "1.12.1" ]
-  [ "$(node -p "require('./plugins/groot-kit/.codex-plugin/plugin.json').version")" = "1.12.1" ]
-  [ "$(git log -1 --pretty=%s)" = 'Bump the version number from 1.12.0 to 1.12.1 in both "plugin.json" files for the "groot-kit" plugin' ]
+  [ "$(node -p "require('./plugins/beez-kit/.claude-plugin/plugin.json').version")" = "1.12.1" ]
+  [ "$(node -p "require('./plugins/beez-kit/.codex-plugin/plugin.json').version")" = "1.12.1" ]
+  [ "$(git log -1 --pretty=%s)" = 'Bump the version number from 1.12.0 to 1.12.1 in both "plugin.json" files for the "beez-kit" plugin' ]
   git log -1 --pretty=%B | grep -Fxq 'Co-Authored-By: Claude Code <noreply@anthropic.com>'
   assert_head_contains_only_manifests
   git status --porcelain | grep -Fxq 'A  staged.txt'
-  git status --porcelain | grep -Fxq '?? plugins/groot-kit/docs/'
+  git status --porcelain | grep -Fxq '?? plugins/beez-kit/docs/'
   git status --porcelain | grep -Fxq '?? untracked.txt'
   [ "$(git status --porcelain | wc -l | tr -d ' ')" = "3" ]
 }
 
 @test "auto-detects plugin changed in branch history" {
   git update-ref refs/remotes/origin/main "$(git rev-parse HEAD)"
-  git switch -q -c feature/groot-kit-change
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'committed plugin change' > plugins/groot-kit/docs/committed.md
-  git add plugins/groot-kit/docs/committed.md
-  git commit -qm "Change Groot Kit"
+  git switch -q -c feature/beez-kit-change
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'committed plugin change' > plugins/beez-kit/docs/committed.md
+  git add plugins/beez-kit/docs/committed.md
+  git commit -qm "Change Beez Kit"
 
   run bash -c "printf '1\\n' | node scripts/create-version.js"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Detected changed plugin: groot-kit"* ]]
+  [[ "$output" == *"Detected changed plugin: beez-kit"* ]]
   [[ "$output" != *"Select a plugin by number"* ]]
-  [ "$(node -p "require('./plugins/groot-kit/.claude-plugin/plugin.json').version")" = "1.12.1" ]
+  [ "$(node -p "require('./plugins/beez-kit/.claude-plugin/plugin.json').version")" = "1.12.1" ]
   [ -z "$(git status --porcelain)" ]
 }
 
 @test "keeps plugin menu when multiple plugins changed" {
   mkdir -p \
-    plugins/groot-kit/docs \
+    plugins/beez-kit/docs \
     plugins/other-plugin/.claude-plugin \
     plugins/other-plugin/.codex-plugin
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
   cat > plugins/other-plugin/.claude-plugin/plugin.json <<'JSON'
 {
   "name": "other-plugin",
@@ -116,68 +116,68 @@ JSON
   [ "$status" -eq 0 ]
   [[ "$output" == *"Detected changed plugins:"* ]]
   [[ "$output" == *"Select a plugin by number"* ]]
-  [ "$(git log -1 --pretty=%s)" = 'Bump the version number from 1.12.0 to 1.12.1 in both "plugin.json" files for the "groot-kit" plugin' ]
+  [ "$(git log -1 --pretty=%s)" = 'Bump the version number from 1.12.0 to 1.12.1 in both "plugin.json" files for the "beez-kit" plugin' ]
   assert_head_contains_only_manifests
   git status --porcelain | grep -Fxq '?? plugins/other-plugin/'
 }
 
 @test "pushes new feature branch and sets upstream" {
-  git switch -q -c feature/groot-kit-change
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  git switch -q -c feature/beez-kit-change
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
   run bash -c "printf '1\\n' | node scripts/create-version.js"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *'Pushed "feature/groot-kit-change" to origin'* ]]
-  [ "$(remote_head feature/groot-kit-change)" = "$(git rev-parse HEAD)" ]
-  [ "$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}')" = "origin/feature/groot-kit-change" ]
+  [[ "$output" == *'Pushed "feature/beez-kit-change" to origin'* ]]
+  [ "$(remote_head feature/beez-kit-change)" = "$(git rev-parse HEAD)" ]
+  [ "$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}')" = "origin/feature/beez-kit-change" ]
 }
 
 @test "pushes to existing upstream branch" {
-  git switch -q -c feature/groot-kit-change
+  git switch -q -c feature/beez-kit-change
   git push -q -u origin HEAD
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
   run bash -c "printf '2\\n' | node scripts/create-version.js"
 
   [ "$status" -eq 0 ]
-  [ "$(node -p "require('./plugins/groot-kit/.claude-plugin/plugin.json').version")" = "1.13.0" ]
-  [ "$(remote_head feature/groot-kit-change)" = "$(git rev-parse HEAD)" ]
+  [ "$(node -p "require('./plugins/beez-kit/.claude-plugin/plugin.json').version")" = "1.13.0" ]
+  [ "$(remote_head feature/beez-kit-change)" = "$(git rev-parse HEAD)" ]
 }
 
 @test "skips push on default branch" {
   initial_remote_main="$(remote_head main)"
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
   run bash -c "printf '1\\n' | node scripts/create-version.js"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *'Skipped push: "main" is a default branch'* ]]
   [ "$(remote_head main)" = "$initial_remote_main" ]
-  [ "$(git log -1 --pretty=%s)" = 'Bump the version number from 1.12.0 to 1.12.1 in both "plugin.json" files for the "groot-kit" plugin' ]
+  [ "$(git log -1 --pretty=%s)" = 'Bump the version number from 1.12.0 to 1.12.1 in both "plugin.json" files for the "beez-kit" plugin' ]
 }
 
 @test "reports push failure and keeps local commit" {
-  git switch -q -c feature/groot-kit-change
+  git switch -q -c feature/beez-kit-change
   git remote set-url origin "$test_root/missing-remote.git"
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
   run bash -c "printf '1\\n' | node scripts/create-version.js"
 
   [ "$status" -eq 1 ]
-  [[ "$output" == *'Version bump commit was created but "git push -u origin HEAD" failed for branch "feature/groot-kit-change"'* ]]
-  [ "$(git log -1 --pretty=%s)" = 'Bump the version number from 1.12.0 to 1.12.1 in both "plugin.json" files for the "groot-kit" plugin' ]
+  [[ "$output" == *'Version bump commit was created but "git push -u origin HEAD" failed for branch "feature/beez-kit-change"'* ]]
+  [ "$(git log -1 --pretty=%s)" = 'Bump the version number from 1.12.0 to 1.12.1 in both "plugin.json" files for the "beez-kit" plugin' ]
   assert_head_contains_only_manifests
-  [ "$(git status --porcelain)" = '?? plugins/groot-kit/docs/' ]
+  [ "$(git status --porcelain)" = '?? plugins/beez-kit/docs/' ]
 }
 
 @test "prints plain output when stdout is not a terminal" {
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
   run bash -c "printf '1\\n' | node scripts/create-version.js"
 
@@ -188,8 +188,8 @@ JSON
 }
 
 @test "colors output when FORCE_COLOR is set" {
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
   run bash -c "printf '1\\n' | FORCE_COLOR=1 node scripts/create-version.js"
 
@@ -198,8 +198,8 @@ JSON
 }
 
 @test "NO_COLOR overrides FORCE_COLOR" {
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
   run bash -c "printf '1\\n' | FORCE_COLOR=1 NO_COLOR=1 node scripts/create-version.js"
 
@@ -208,9 +208,9 @@ JSON
 }
 
 @test "dry run previews bump without writing, committing or pushing" {
-  git switch -q -c feature/groot-kit-change
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  git switch -q -c feature/beez-kit-change
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
   initial_head="$(git rev-parse HEAD)"
   initial_status="$(git status --porcelain)"
 
@@ -218,23 +218,23 @@ JSON
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"🧪 DRY RUN"* ]]
-  [[ "$output" == *"Would update plugins/groot-kit/.claude-plugin/plugin.json"* ]]
+  [[ "$output" == *"Would update plugins/beez-kit/.claude-plugin/plugin.json"* ]]
   [[ "$output" == *'Would commit only both manifests: Bump the version number from 1.12.0 to 1.12.1'* ]]
-  [[ "$output" == *'Would push "feature/groot-kit-change" to origin (git push -u origin HEAD)'* ]]
-  [ "$(node -p "require('./plugins/groot-kit/.claude-plugin/plugin.json').version")" = "1.12.0" ]
-  [ "$(node -p "require('./plugins/groot-kit/.codex-plugin/plugin.json').version")" = "1.12.0" ]
+  [[ "$output" == *'Would push "feature/beez-kit-change" to origin (git push -u origin HEAD)'* ]]
+  [ "$(node -p "require('./plugins/beez-kit/.claude-plugin/plugin.json').version")" = "1.12.0" ]
+  [ "$(node -p "require('./plugins/beez-kit/.codex-plugin/plugin.json').version")" = "1.12.0" ]
   [ "$(git rev-parse HEAD)" = "$initial_head" ]
   [ "$(git status --porcelain)" = "$initial_status" ]
-  [ -z "$(remote_head feature/groot-kit-change)" ]
+  [ -z "$(remote_head feature/beez-kit-change)" ]
 }
 
 @test "dry run shorthand works with plugin name on default branch" {
-  run bash -c "printf '3\\n' | node scripts/create-version.js -n groot-kit"
+  run bash -c "printf '3\\n' | node scripts/create-version.js -n beez-kit"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"1.12.0 → 2.0.0"* ]]
   [[ "$output" == *'Would skip push: "main" is a default branch'* ]]
-  [ "$(node -p "require('./plugins/groot-kit/.claude-plugin/plugin.json').version")" = "1.12.0" ]
+  [ "$(node -p "require('./plugins/beez-kit/.claude-plugin/plugin.json').version")" = "1.12.0" ]
   [ "$(git log -1 --pretty=%s)" = "Initialize fixture" ]
 }
 
@@ -256,36 +256,36 @@ JSON
 }
 
 @test "bumps without prompts using --bump" {
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
-  run bash -c "node scripts/create-version.js groot-kit --bump minor < /dev/null"
+  run bash -c "node scripts/create-version.js beez-kit --bump minor < /dev/null"
 
   [ "$status" -eq 0 ]
   [[ "$output" != *"Select an option"* ]]
-  [ "$(node -p "require('./plugins/groot-kit/.claude-plugin/plugin.json').version")" = "1.13.0" ]
-  [ "$(node -p "require('./plugins/groot-kit/.codex-plugin/plugin.json').version")" = "1.13.0" ]
+  [ "$(node -p "require('./plugins/beez-kit/.claude-plugin/plugin.json').version")" = "1.13.0" ]
+  [ "$(node -p "require('./plugins/beez-kit/.codex-plugin/plugin.json').version")" = "1.13.0" ]
 }
 
 @test "sets exact version using --set=value" {
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
   run bash -c "node scripts/create-version.js --set=3.1.4 < /dev/null"
 
   [ "$status" -eq 0 ]
-  [ "$(node -p "require('./plugins/groot-kit/.claude-plugin/plugin.json').version")" = "3.1.4" ]
+  [ "$(node -p "require('./plugins/beez-kit/.claude-plugin/plugin.json').version")" = "3.1.4" ]
 }
 
 @test "combines dry run with --set" {
-  mkdir -p plugins/groot-kit/docs
-  printf '%s\n' 'plugin change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs
+  printf '%s\n' 'plugin change' > plugins/beez-kit/docs/change.md
 
   run bash -c "node scripts/create-version.js -n --set 2.0.0 < /dev/null"
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"1.12.0 → 2.0.0"* ]]
-  [ "$(node -p "require('./plugins/groot-kit/.claude-plugin/plugin.json').version")" = "1.12.0" ]
+  [ "$(node -p "require('./plugins/beez-kit/.claude-plugin/plugin.json').version")" = "1.12.0" ]
 }
 
 @test "rejects invalid --bump and --set values" {
@@ -322,8 +322,8 @@ add_other_plugin_on_base() {
 
 @test "skips plugins already bumped in the branch and auto-selects the pending one" {
   add_other_plugin_on_base
-  mkdir -p plugins/groot-kit/docs plugins/other-plugin/docs
-  printf '%s\n' 'groot kit change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs plugins/other-plugin/docs
+  printf '%s\n' 'beez kit change' > plugins/beez-kit/docs/change.md
   printf '%s\n' 'other plugin change' > plugins/other-plugin/docs/change.md
   git add plugins
   git commit -qm "Change both plugins"
@@ -333,26 +333,26 @@ add_other_plugin_on_base() {
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"Already bumped in this branch: other-plugin (2.0.0 → 2.1.0)"* ]]
-  [[ "$output" == *"Detected changed plugin: groot-kit"* ]]
+  [[ "$output" == *"Detected changed plugin: beez-kit"* ]]
   [[ "$output" != *"Select a plugin by number"* ]]
-  [ "$(node -p "require('./plugins/groot-kit/.claude-plugin/plugin.json').version")" = "1.12.1" ]
+  [ "$(node -p "require('./plugins/beez-kit/.claude-plugin/plugin.json').version")" = "1.12.1" ]
   [ "$(node -p "require('./plugins/other-plugin/.claude-plugin/plugin.json').version")" = "2.1.0" ]
 }
 
 @test "marks bumped plugins in the menu when every changed plugin is bumped" {
   add_other_plugin_on_base
-  mkdir -p plugins/groot-kit/docs plugins/other-plugin/docs
-  printf '%s\n' 'groot kit change' > plugins/groot-kit/docs/change.md
+  mkdir -p plugins/beez-kit/docs plugins/other-plugin/docs
+  printf '%s\n' 'beez kit change' > plugins/beez-kit/docs/change.md
   printf '%s\n' 'other plugin change' > plugins/other-plugin/docs/change.md
   git add plugins
   git commit -qm "Change both plugins"
-  node scripts/create-version.js groot-kit --bump patch >/dev/null
+  node scripts/create-version.js beez-kit --bump patch >/dev/null
   node scripts/create-version.js other-plugin --bump patch >/dev/null
 
   run bash -c "printf '1\\n1\\n' | node scripts/create-version.js --dry-run"
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *"groot-kit  ✔ bumped 1.12.0 → 1.12.1"* ]]
+  [[ "$output" == *"beez-kit  ✔ bumped 1.12.0 → 1.12.1"* ]]
   [[ "$output" == *"other-plugin  ✔ bumped 2.0.0 → 2.0.1"* ]]
   [[ "$output" == *"Select a plugin by number"* ]]
   [[ "$output" != *"Detected changed plugin"* ]]

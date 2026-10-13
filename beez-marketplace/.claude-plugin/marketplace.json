@@ -1,9 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "groot-marketplace",
+  "name": "beez-marketplace",
   "owner": {
-    "name": "your-team",
-    "email": "your-team@mercadolibre.com"
+    "name": "Guido Modarelli"
   },
   "metadata": {
     "version": "1.0.0",
@@ -11,55 +10,21 @@
   },
   "plugins": [
     {
-      "name": "prepare-release",
-      "source": "./plugins/prepare-release",
-      "description": "Automates release branch creation from develop and PR to master. Reads last tag from master, calculates next MINOR version, and opens release/x.x.x PR.",
+      "name": "beez-kit",
+      "source": "./plugins/beez-kit",
+      "description": "Colección de skills del equipo Beez para agentes AI: setup Agent Ready con rules de plataforma y otros artefactos reutilizables.",
       "author": {
-        "name": "lpadularrosa"
+        "name": "Guido Modarelli"
       },
-      "repository": "https://github.com/melisource/fury_groot-marketplace",
-      "category": "development",
-      "keywords": [
-        "release",
-        "git",
-        "versioning",
-        "gitflow",
-        "github",
-        "prepare-release"
-      ]
-    },
-    {
-      "name": "groot-queue",
-      "source": "./plugins/groot-queue",
-      "description": "Support queue monitor for [Core] - Groot (SSHP). Lists, classifies, analyzes SLA risk, suggests solutions via runbooks, sends Slack alerts, and assigns unattended tickets using round-robin.",
-      "author": {
-        "name": "lpadularrosa"
-      },
-      "repository": "https://github.com/melisource/fury_groot-marketplace",
-      "category": "operations",
-      "keywords": [
-        "groot-queue",
-        "groot",
-        "support",
-        "jira",
-        "sshp",
-        "queue",
-        "triage",
-        "sla",
-        "slack",
-        "round-robin"
-      ]
-    },
-    {
-      "name": "groot-kit",
-      "source": "./plugins/groot-kit",
-      "description": "Colección de skills del equipo Groot para agentes AI: configuración de Jira, setup Agent Ready con rules de plataforma y otros artefactos reutilizables de meli, nordic y andes.",
-      "author": {
-        "name": "gmodarelli"
-      },
-      "repository": "https://github.com/melisource/fury_groot-marketplace",
+      "repository": "https://github.com/guidomodarelli/system-config",
       "category": "productivity",
-      "keywords": ["groot", "skills", "jira", "kraken", "nordic", "andes", "mercado-libre"]
+      "keywords": [
+        "beez",
+        "skills",
+        "agent-ready",
+        "frontend",
+        "testing"
+      ]
     }
   ]
 }

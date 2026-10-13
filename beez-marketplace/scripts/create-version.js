@@ -559,7 +559,7 @@ function renderHelp() {
   const section = (text) => paint('bold', text);
   const examples = [
     ['npm run create-version', 'interactive'],
-    [`npm run create-version -- groot-kit ${BUMP_FLAG} minor`, 'no prompts'],
+    [`npm run create-version -- beez-kit ${BUMP_FLAG} minor`, 'no prompts'],
     [`npm run create-version -- -n ${SET_FLAG} 2.0.0`, 'preview exact version'],
   ];
   const exampleColumnWidth = Math.max(...examples.map(([exampleCommand]) => exampleCommand.length));

@@ -44,10 +44,6 @@ coverage/
 
 # Claude Code local
 .claude/**
-!.claude/settings.json
-!.codex/config.toml
-
-.rp/
 
 # Skill creator eval workspaces (generated during skill development, not for distribution)
 skills/*-workspace/
@@ -61,11 +57,3 @@ __pycache__/
 *.pyc
 *.pyo
 **/.in_use/
-
-# groot-queue: per-user audit log of auto/manual derive & discard actions (one file per year)
-audit-log-*.jsonl
-
-# BEGIN AOC
-.agents/metadata/**
-.agents/skills/**
-# END AOC

@@ -1,6 +1,6 @@
 ## What This Repository Is
 
-A multi-provider marketplace of skills and plugins for AI agents at Mercado Libre. No application code — only skill definitions (SKILL.md), reference docs, eval configs, and installer scripts. Supports multiple providers: **Claude Code** and **Codex**.
+A multi-provider marketplace of skills and plugins for AI agents. No application code — only skill definitions (SKILL.md), reference docs, eval configs, and installer scripts. Supports multiple providers: **Claude Code** and **Codex**.
 
 - `plugins/` — Production-ready plugins for marketplace distribution. Each plugin has provider spec directories (`.claude-plugin/`, `.codex-plugin/`) + `skills/` directory.
 - `skills/` — Standalone skills for prototyping. Same internal structure, lighter packaging.
@@ -14,8 +14,7 @@ For local development, skills symlink into each provider's own skills folder (`~
 
 1. **Use `/skill-creator`** for all skill creation, modification, validation, and description optimization. Never create skills manually from scratch.
 2. **Every skill must have `evals/eval-config.json`** (test cases + assertions). Use the central `run-evals` CLI to execute them — no per-skill `run-evals.sh` needed. Use `/skill-creator` to generate evals. (Legacy skills may use `evals/evals.json` — prefer `eval-config.json` for new work.)
-3. **All names in kebab-case** — plugins, skills, directories, commands. Names should convey expertise (e.g., `fury-docs-expert` not `fury-doc-guidelines`).
-4. **Pre-commit hooks are mandatory** — websec and datasec (see `.pre-commit-config.yaml`). Do not skip or remove them.
+3. **All names in kebab-case** — plugins, skills, directories, commands. Names should convey expertise (e.g., `api-docs-expert` not `api-doc-guidelines`).
 
 ## Conventions
 
@@ -25,7 +24,6 @@ For local development, skills symlink into each provider's own skills folder (`~
 - **Reference files are loaded on-demand** — skills declare them but only load when the relevant command executes.
 - **Skills EXECUTE actions** — they write files, run installations, produce reports. They don't just show instructions.
 - **Start in `skills/`, promote to `plugins/`** when production-ready.
-- **Matcher signals must ALWAYS be trilingual (ES + PT + EN)** — any text-matching signal in a skill's knowledge base (e.g. triage rules, classifiers, ticket matchers like `triage-rules.md`) must list the Spanish, Portuguese, **and** English variants of the wording. The support queues (e.g. SSHP) receive tickets in all three languages; a signal written in a single language silently misses real tickets. Before writing or editing any signal, verify it against the real source (e.g. fetch the actual Jira issue) to capture exact wording, language, and status.
 
 ## Plugin Structure
 
@@ -47,7 +45,7 @@ plugins/<name>/
 }
 ```
 
-**Codex** `.codex-plugin/plugin.json` requires the following minimum schema (validated by the Marketplace Check pipeline — a manifest missing any of these fields will fail CI):
+**Codex** `.codex-plugin/plugin.json` requires the following minimum schema (a manifest missing any of these fields fails to load):
 
 ```json
 {
@@ -66,7 +64,7 @@ plugins/<name>/
 }
 ```
 
-Critical points (see `plugins/prepare-release/.codex-plugin/plugin.json` as the canonical reference):
+Critical points (see `plugins/beez-kit/.codex-plugin/plugin.json` as the canonical reference):
 
 - **`version` is mandatory** and must match the sibling `.claude-plugin/plugin.json`. This applies even when the plugin is being added to Codex for the first time while already existing on the Claude side — the "shared version" rule trumps "new plugins start at 1.0.0".
 - **`skills: "./skills/"`** is required so Codex's loader resolves the skill directory. Without it, the plugin loads but no skills appear.
@@ -103,13 +101,9 @@ Each registry references its provider's subdirectory path.
 ### Marketplace Registration Rules
 
 - A plugin is only installed for a provider if it appears in that provider's `marketplace.json`.
-- **Never add a `version` field to plugin entries in `marketplace.json`** — version is managed by the assets API.
+- **Never add a `version` field to plugin entries in `marketplace.json`** — version lives in each plugin manifest.
 - Plugins must be registered in at least one `marketplace.json`.
 - Codex plugin entries in `marketplace.json` must not include `commands`, `hooks`, or `agents`.
-
-### Porting to Codex
-
-Use the `codex-compatibility-analyzer` plugin (available via the assets CLI) to analyze and migrate existing Claude Code plugins to Codex. It validates prerequisites, assesses portability, creates `.codex-plugin/plugin.json`, and registers the plugin in `.agents/plugins/marketplace.json`.
 
 ### Subcommands pattern (multi-provider, no duplication)
 
@@ -159,11 +153,9 @@ Leé y seguí literalmente las instrucciones de `${CLAUDE_PLUGIN_ROOT}/skills/<p
 | Claude Code | `/myplugin setup` | Skill activates → dispatcher reads `subcommands/setup.md` |
 | Codex | `/myplugin setup` | Skill activates → dispatcher reads `subcommands/setup.md` |
 
-**Reference implementation**: see `plugins/groot-queue/`. Use it as the template when porting any multi-action plugin to be multi-provider.
-
 ## Local Testing
 
-Run the canonical shell test commands documented in [`README.md` → “Correr tests shell localmente”](README.md#-correr-tests-shell-localmente). Keep the real setup E2E opt-in.
+Run the canonical shell test commands documented in [`README.md` → “Correr tests shell localmente”](README.md#-correr-tests-shell-localmente).
 
 ```bash
 # One-time setup: install the eval runner (provider-agnostic)
@@ -188,7 +180,7 @@ run-evals plugins/<plugin-name>/skills/<skill-name> --pretty
 run-evals plugins/<plugin-name>/skills/<skill-name> --provider codex
 
 # Optional persistent provider override
-export GROOT_MARKETPLACE_EVAL_PROVIDER=codex
+export BEEZ_MARKETPLACE_EVAL_PROVIDER=codex
 ```
 
 ## Bumping a plugin version
@@ -213,32 +205,12 @@ npm run create-version -- --help
 
 Updates the `version` field in **both** provider manifests (`.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`) so they stay in sync. Detects changed plugin paths under `plugins/` from the current branch diff against the first available remote base (`origin/develop`, `origin/master`, or `origin/main`) plus working-tree changes, and auto-selects the plugin when exactly one changed, even when other files outside `plugins/` are modified. Changed plugins whose manifest version already differs from the merge-base with that remote base (bumped in branch commits or in the working tree) are reported as already bumped, excluded from auto-selection, and marked as `✔ bumped` in the menu, so with several changed plugins the one still pending is auto-selected. Offers a semver bump (`patch`/`minor`/`major`) or a custom exact version, and aborts if the two manifests are not already on the same version. After the version is selected, commits **only** the two updated `plugin.json` manifests with a descriptive message (other staged, unstaged or untracked changes are left untouched), then pushes the branch automatically (`git push -u origin HEAD` when no upstream exists). It never force-pushes and skips the push on default branches (`develop`, `master`, `main`); if the push fails, the local commit is kept and the script exits with an error. `--dry-run` (`-n`) runs the same prompts and prints the planned manifest updates, commit and push without changing anything. `--bump <patch|minor|major>` or `--set <version>` (mutually exclusive) skip the version prompt; `--help` (`-h`) prints usage. Implemented in `scripts/create-version.js` (zero external deps).
 
-## Identidad del equipo
-
-> Fuente de verdad: `plugins/groot-queue/skills/groot-queue/knowledge/teams/groot-team.md`
-
-- **Nosotros somos el equipo Groot**. Groot se compone de dos células: **Kraken** y **Nexus**. Ver [`groot-team.md`](./plugins/groot-queue/skills/groot-queue/knowledge/teams/groot-team.md) para estructura y ownership, y [`nexus-team.md`, sección `Productos a cargo`](./plugins/groot-queue/skills/groot-queue/knowledge/teams/nexus-team.md#productos-a-cargo) para el catálogo Nexus.
-- Nunca referirse al equipo como si fuera externo ("escalar al equipo dev Groot"). Somos nosotros.
-- Nunca mencionar ni sugerir `context_id` de Jira en soluciones, runbooks, guías ni respuestas. No es útil para diagnóstico ni resolución — es un dato interno de Jira sin valor operativo.
-
 ## Single source of truth
 
 - Toda pieza de información (procedimiento, roster, config, catálogo de IDs, formato, criterio) debe vivir en **un solo archivo** bien organizado con secciones claras.
 - El resto de archivos que necesiten esa información deben **referenciar** el archivo + sección, nunca copiar el contenido.
 - Antes de escribir un bloque de texto en un subcommand o regla, verificar si ya existe en otro archivo de `knowledge/`. Si existe, referenciar. Si no existe y es reutilizable, crearlo en `knowledge/` y referenciar.
 - Cuando se detecte información duplicada entre archivos, consolidarla en el archivo más apropiado y reemplazar las copias por referencias.
-
-## Reglas de contenido para archivos de knowledge base
-
-- **No incluir LDAPs ni identificadores de usuario específicos** en archivos de knowledge base (soluciones, reglas de triage, runbooks). Usar siempre referencias genéricas: `<ldap_usuario>`, `<ldap_externo>`, `<groot_id>`, `<nombre_usuario>`. Los patrones de prefijo sí son válidos (ej. `ext_*` para identificar el tipo de cuenta). El LDAP real pertenece al ticket SSHP, no a la KB.
-- **Orden canónico de campos en frontmatter** de archivos `solutions/**/*.md`: `ticket` → `category` → `summary` → `date` → `effectiveness` → `verdict` → `rule` → `destination` → `source`. Omitir campos opcionales que no apliquen. No usar `derived_to` (usar `destination`). No usar `subverdict`.
-
-## Paridad de flujos de resolución
-
-- Todo cambio funcional, fuente de evidencia, fact remoto, runbook o caso reusable agregado a `plugins/groot-queue/skills/groot-queue/subcommands/solve.md` debe evaluarse y reflejarse también en `subcommands/assign-unassigned.md`, porque este subcommand clasifica y genera resolución para tickets antes de asignarlos.
-- Revisar además `subcommands/detail.md`, que invoca explícitamente lógica de `solve`, y `subcommands/backfill-guides.md`, que genera guías con mismos runbooks, solutions y evidence. Aplicar cambio cuando corresponda al flujo; si no corresponde, dejar razón explícita en validación final.
-- No cerrar cambio relacionado con resolución sin revisar estos cuatro archivos: `solve.md`, `assign-unassigned.md`, `detail.md` y `backfill-guides.md`.
-- Mantener diferencias de superficie: `solve` y `detail` son read-only; `assign-unassigned` y `backfill-guides` conservan sus gates, confirmaciones y restricciones de escritura propios.
 
 ## Uso de subagentes
 
@@ -270,11 +242,3 @@ La referencia `@AGENTS.md` se resuelve relativa al directorio que contiene `CLAU
 - Si ambos archivos son contradictorios, no sobrescribir automáticamente; informar paths exactos y solicitar resolución explícita.
 
 Aplicar búsqueda recursiva cuando se solicite normalizar proyecto completo. Preservar contenido antes de migrarlo. No seguir ni sobrescribir symlinks automáticamente; tratar symlinks, directorios, archivos ilegibles y conflictos como resolución manual. Reportar archivos creados, migrados, normalizados, omitidos y conflictos.
-
-## 4. Plugin-change optimization
-
-After modifying any file under `plugins/<plugin-name>/`, invoke the
-`context-improver:skill-cost-optimizer` skill with `plugins/<plugin-name>` as its
-argument before completing the task. Apply its safe, relevant optimizations and
-report the result. This rule applies even when the edit is limited to a skill
-description, manifest, or documentation.

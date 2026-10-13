@@ -107,14 +107,14 @@ run_eval_runner() {
     local environment=(
         "PATH=${STUB_BIN}:${PATH}"
         "CLAUDE_ARGS_LOG=${CLAUDE_ARGS_LOG}"
-        "GROOT_MARKETPLACE_EVAL_PROVIDER=claude"
+        "BEEZ_MARKETPLACE_EVAL_PROVIDER=claude"
     )
 
-    if [[ -n "${GROOT_MARKETPLACE_EVAL_MODEL:-}" ]]; then
-        environment+=("GROOT_MARKETPLACE_EVAL_MODEL=${GROOT_MARKETPLACE_EVAL_MODEL}")
+    if [[ -n "${BEEZ_MARKETPLACE_EVAL_MODEL:-}" ]]; then
+        environment+=("BEEZ_MARKETPLACE_EVAL_MODEL=${BEEZ_MARKETPLACE_EVAL_MODEL}")
     fi
-    if [[ -n "${GROOT_MARKETPLACE_EVAL_REASONING_EFFORT:-}" ]]; then
-        environment+=("GROOT_MARKETPLACE_EVAL_REASONING_EFFORT=${GROOT_MARKETPLACE_EVAL_REASONING_EFFORT}")
+    if [[ -n "${BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT:-}" ]]; then
+        environment+=("BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT=${BEEZ_MARKETPLACE_EVAL_REASONING_EFFORT}")
     fi
     if [[ -n "${CLAUDE_RESPONSE_FILE:-}" ]]; then
         environment+=("CLAUDE_RESPONSE_FILE=${CLAUDE_RESPONSE_FILE}")
