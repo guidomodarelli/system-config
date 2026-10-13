@@ -142,6 +142,50 @@ is_marketplace_upgrade_recent() {
   [[ -n "$(find "$marketplace_upgrade_stamp" -mmin "-$MARKETPLACE_UPGRADE_INTERVAL_MINUTES" -print 2>/dev/null)" ]]
 }
 
+# Prints one value from the Codex marketplace section; accepts basic ("...")
+# and literal ('...') TOML strings because Codex may write either form.
+codex_marketplace_config_value() {
+  local config_key="$1"
+  local codex_config="$HOME/.codex/config.toml"
+
+  [[ -f "$codex_config" ]] || return 0
+  awk -v section="[marketplaces.$MARKETPLACE_NAME]" -v config_key="$config_key" '
+    /^[[:space:]]*\[/ {
+      current = $0
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", current)
+      in_section = (current == section)
+      next
+    }
+    in_section && match($0, "^[[:space:]]*" config_key "[[:space:]]*=[[:space:]]*") {
+      value = substr($0, RLENGTH + 1)
+      quote = substr(value, 1, 1)
+      if (quote != "\"" && quote != "\047") {
+        next
+      }
+      value = substr(value, 2)
+      closing_quote = index(value, quote)
+      if (closing_quote > 0) {
+        print substr(value, 1, closing_quote - 1)
+        exit
+      }
+    }
+  ' "$codex_config" 2>/dev/null || true
+}
+
+# `codex plugin marketplace upgrade` refreshes only Git marketplaces; a local
+# marketplace is read in place from its configured source.
+is_codex_local_marketplace() {
+  [[ "$(codex_marketplace_config_value source_type)" == "local" ]]
+}
+
+is_marketplace_upgrade_unsupported() {
+  [[ "$provider" == "codex" ]] && is_codex_local_marketplace
+}
+
+report_local_marketplace_upgrade_skip() {
+  echo "[marketplace-sync] $MARKETPLACE_NAME is a local Codex marketplace; upgrade skipped and its configured source is used."
+}
+
 # Each provider refreshes its own marketplace snapshot through its CLI.
 run_marketplace_upgrade() {
   if [[ "$provider" == "claude" ]]; then
@@ -160,6 +204,8 @@ record_marketplace_upgrade() {
 
 if [[ "$marketplace_already_upgraded" -eq 1 ]]; then
   echo "[marketplace-sync] Marketplace upgrade already completed by caller."
+elif is_marketplace_upgrade_unsupported; then
+  report_local_marketplace_upgrade_skip
 elif is_marketplace_upgrade_recent; then
   printf '[marketplace-sync] Marketplace upgraded less than %s minutes ago; upgrade skipped. Set AGENT_READY_SETUP_FORCE_UPGRADE=1 to force it.\n' \
     "$MARKETPLACE_UPGRADE_INTERVAL_MINUTES"
@@ -213,7 +259,6 @@ semantic_version_key() {
 marketplace_snapshot_root() {
   local marketplace_provider="$1"
   local known_marketplaces="$HOME/.claude/plugins/known_marketplaces.json"
-  local codex_config="$HOME/.codex/config.toml"
   local configured_location=""
 
   if [[ "$marketplace_provider" == "claude" ]]; then
@@ -234,30 +279,8 @@ PY
     return 0
   fi
 
-  if [[ -f "$codex_config" ]]; then
-    configured_location="$(awk -v section="[marketplaces.$MARKETPLACE_NAME]" '
-      /^[[:space:]]*\[/ {
-        current = $0
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", current)
-        in_section = (current == section)
-        next
-      }
-      in_section && /^[[:space:]]*source_type[[:space:]]*=/ {
-        source_type = $0
-        sub(/^[^"]*"/, "", source_type)
-        sub(/".*$/, "", source_type)
-      }
-      in_section && /^[[:space:]]*source[[:space:]]*=/ {
-        source_location = $0
-        sub(/^[^"]*"/, "", source_location)
-        sub(/".*$/, "", source_location)
-      }
-      END {
-        if (source_type == "local" && source_location != "") {
-          print source_location
-        }
-      }
-    ' "$codex_config" 2>/dev/null || true)"
+  if is_codex_local_marketplace; then
+    configured_location="$(codex_marketplace_config_value source)"
   fi
   printf '%s\n' "${configured_location:-$HOME/.codex/.tmp/marketplaces/$MARKETPLACE_NAME}"
 }
@@ -401,15 +424,19 @@ refresh_missing_asset_sync_helper() {
   fi
 
   echo "[marketplace-sync] Shared synchronization helper is missing; refreshing $MARKETPLACE_NAME for $provider..."
-  if ! command -v "$provider" >/dev/null 2>&1; then
-    printf 'ERROR: %s CLI is required to download %s\n' "$provider" "$ASSET_SYNC_HELPER_PATH" >&2
-    return 1
+  if is_marketplace_upgrade_unsupported; then
+    report_local_marketplace_upgrade_skip
+  else
+    if ! command -v "$provider" >/dev/null 2>&1; then
+      printf 'ERROR: %s CLI is required to download %s\n' "$provider" "$ASSET_SYNC_HELPER_PATH" >&2
+      return 1
+    fi
+    if ! run_marketplace_upgrade; then
+      printf 'ERROR: marketplace refresh failed while downloading %s\n' "$ASSET_SYNC_HELPER_PATH" >&2
+      return 1
+    fi
+    record_marketplace_upgrade
   fi
-  if ! run_marketplace_upgrade; then
-    printf 'ERROR: marketplace refresh failed while downloading %s\n' "$ASSET_SYNC_HELPER_PATH" >&2
-    return 1
-  fi
-  record_marketplace_upgrade
 
   if ! refreshed_skill_dir="$(resolve_skill_dir 1)"; then
     printf 'ERROR: refreshed %s source is unavailable; %s could not be downloaded\n' \

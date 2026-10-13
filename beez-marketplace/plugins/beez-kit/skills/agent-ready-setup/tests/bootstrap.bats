@@ -1953,6 +1953,102 @@ EOF
   grep -Fxq '# local snapshot template' .agents/rules/security.md
 }
 
+# Codex rejects `marketplace upgrade` for local sources, so the fake fails the
+# run if the scripts still call it for one.
+write_codex_marketplace_config() {
+  local source_type="$1"
+  local source_line="$2"
+
+  mkdir -p "$test_root/.codex"
+  cat > "$test_root/.codex/config.toml" <<CONFIG
+[marketplaces.beez-marketplace]
+source_type = "$source_type"
+$source_line
+CONFIG
+}
+
+write_recording_codex() {
+  cat > "$test_root/bin/codex" <<'FAKE'
+#!/bin/bash
+printf '%s %s\n' "${0##*/}" "$*" >> "$MARKETPLACE_INVOCATION_LOG"
+if [[ "$*" == "plugin marketplace upgrade beez-marketplace" && "$FAKE_CODEX_MARKETPLACE_TYPE" == local ]]; then
+  echo "Error: marketplace \`beez-marketplace\` is not configured as a Git marketplace" >&2
+  exit 1
+fi
+FAKE
+  chmod +x "$test_root/bin/codex"
+}
+
+@test "bootstrap skips Codex upgrade for a local marketplace and projects its source" {
+  invocation_log="$test_root/marketplace-invocation.log"
+  local_snapshot="$test_root/local-marketplace"
+  write_codex_marketplace_config local "source = \"$local_snapshot\""
+  create_marketplace_snapshot "$local_snapshot" "3.0.0" "# local snapshot template"
+  old_source="$(create_cache_source "$test_root/.codex" "1.0.0" "# stale cache template")"
+  write_recording_codex
+
+  MARKETPLACE_INVOCATION_LOG="$invocation_log" FAKE_CODEX_MARKETPLACE_TYPE=local \
+    run env -u AGENT_READY_SETUP_SKILL_DIR HOME="$test_root" PATH="$test_root/bin:$PATH" \
+      bash "$old_source/scripts/bootstrap.sh" \
+        --stack node --skill-dir "$old_source" --provider codex
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$invocation_log" ]
+  [[ "$output" == *"[marketplace-bootstrap] beez-marketplace is a local Codex marketplace; upgrade skipped"* ]]
+  grep -Fxq '# local snapshot template' .agents/rules/security.md
+}
+
+@test "bootstrap upgrades a Codex Git marketplace" {
+  invocation_log="$test_root/marketplace-invocation.log"
+  write_codex_marketplace_config git 'source = "https://example.invalid/beez-marketplace.git"'
+  write_recording_codex
+
+  MARKETPLACE_INVOCATION_LOG="$invocation_log" FAKE_CODEX_MARKETPLACE_TYPE=git \
+    run env HOME="$test_root" PATH="$test_root/bin:$PATH" bash "$skill_dir/scripts/bootstrap.sh" \
+      --stack node --skill-dir "$skill_dir" --provider codex
+
+  [ "$status" -eq 0 ]
+  grep -Fxq 'codex plugin marketplace upgrade beez-marketplace' "$invocation_log"
+  [[ "$output" == *"[marketplace-bootstrap] Marketplace upgrade completed."* ]]
+}
+
+@test "sync hook skips Codex upgrade for a local marketplace with a literal source" {
+  invocation_log="$test_root/marketplace-invocation.log"
+  local_snapshot="$test_root/local-marketplace"
+  write_codex_marketplace_config local "source = '$local_snapshot'"
+  create_marketplace_snapshot "$local_snapshot" "3.0.0" "# local snapshot template"
+  old_source="$(create_cache_source "$test_root/.codex" "1.0.0" "# stale cache template")"
+  write_recording_codex
+
+  MARKETPLACE_INVOCATION_LOG="$invocation_log" FAKE_CODEX_MARKETPLACE_TYPE=local \
+    run env HOME="$test_root" PATH="$test_root/bin:$PATH" \
+      bash "$old_source/assets/common/hooks/sync-marketplace.sh" \
+        --provider codex \
+        --stack node
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$invocation_log" ]
+  [[ "$output" == *"[marketplace-sync] beez-marketplace is a local Codex marketplace; upgrade skipped"* ]]
+  grep -Fxq '# local snapshot template' .agents/rules/security.md
+}
+
+@test "sync hook upgrades a Codex Git marketplace" {
+  invocation_log="$test_root/marketplace-invocation.log"
+  write_codex_marketplace_config git 'source = "https://example.invalid/beez-marketplace.git"'
+  old_source="$(create_cache_source "$test_root/.codex" "1.0.0" "# cache template")"
+  write_recording_codex
+
+  MARKETPLACE_INVOCATION_LOG="$invocation_log" FAKE_CODEX_MARKETPLACE_TYPE=git \
+    run env HOME="$test_root" PATH="$test_root/bin:$PATH" \
+      bash "$old_source/assets/common/hooks/sync-marketplace.sh" \
+        --provider codex \
+        --stack node
+
+  [ "$status" -eq 0 ]
+  grep -Fxq 'codex plugin marketplace upgrade beez-marketplace' "$invocation_log"
+  [[ "$output" == *"[marketplace-sync] Marketplace upgrade completed."* ]]
+}
+
 @test "sync hook keeps newer plugin cache over older marketplace snapshot" {
   create_marketplace_snapshot "$test_root/.claude/plugins/marketplaces/beez-marketplace" \
     "1.9.0" "# older snapshot template"

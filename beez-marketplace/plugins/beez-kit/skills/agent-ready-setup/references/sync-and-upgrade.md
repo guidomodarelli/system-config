@@ -7,6 +7,10 @@ El upgrade del marketplace usa la CLI del provider activo
 del marketplace; no vuelve a proyectar por sí mismo los templates sobre un proyecto
 ya preparado. `bootstrap.sh` ejecuta ese upgrade automáticamente para el provider
 activo antes de proyectar assets o adquirir lock local.
+`codex plugin marketplace upgrade` solo refresca marketplaces Git: si
+`~/.codex/config.toml` declara `source_type = "local"` para `beez-marketplace`
+(lo que registra `codex plugin marketplace add "$PWD/beez-marketplace"`),
+`bootstrap.sh` y el hook omiten el upgrade y resuelven assets desde ese `source`.
 El hook canónico `.agents/hooks/sync-marketplace.sh` ejecuta el upgrade salvo que
 haya uno exitoso de menos de 60 minutos para el mismo provider (marca en
 `${XDG_CACHE_HOME:-~/.cache}/agent-ready-setup/marketplace-upgrade-<provider>.stamp`,
