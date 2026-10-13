@@ -103,7 +103,7 @@ Rules:
 
 ## Option B — REST Endpoint (`/api` folder)
 
-The server mounts the `apiRouter` at `/api`. Use the project's validation middleware (for example, a `createValidationMiddleware` helper built on zod) as route middleware — it handles validation, error responses (422), and logging in one place.
+The server mounts the `apiRouter` at `/api`. Use the project's validation middleware factory as route middleware so validation and the `400` error response live in one place. Search for an existing factory first and reuse it with its error contract; if none exists, create `utils/validation/index.(js|ts)` with the `createValidationMiddleware` implementation from `../../rules/api-validation-middleware.md` before writing any module that imports it.
 
 Keep REST route schemas and middleware in `api/middlewares/validation/<resource>.(js|ts)`, then import their named exports from `api/middlewares/validation/index.js` or `index.ts`. See `../../rules/api-validation-middleware.md`.
 
@@ -183,6 +183,7 @@ export default apiRouter;
 
 Rules:
 - Define the validation middleware in `api/middlewares/validation/<resource>.(js|ts)` and mount its named export as the first route middleware — never access `req.body/params/query` without prior validation.
+- Never import `createValidationMiddleware` (or any validation helper) from a path that does not exist: reuse the project's factory or create it first.
 - For path/query params (always strings), coerce non-string types in the schema (for example, `z.coerce.number()`); for booleans, parse the allowed string values explicitly instead of relying on truthiness.
 - Never inline business logic — delegate to a service.
 - Never disable CSRF protection without a formal security review.

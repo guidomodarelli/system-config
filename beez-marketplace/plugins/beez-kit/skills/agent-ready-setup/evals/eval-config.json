@@ -74,6 +74,11 @@
           "type": "contains",
           "value": "createValidationMiddleware",
           "description": "Mantiene la validación del SDK como middleware"
+        },
+        {
+          "type": "contains",
+          "value": "utils/validation",
+          "description": "Indica reutilizar o crear la factory de validación antes de importarla"
         }
       ]
     },
