@@ -93,12 +93,38 @@ import path from 'node:path';
 import nock from 'nock';
 import { getResource } from '../index';
 
+const RECORD_FIXTURES_ENV_VAR = 'NOCK_BACK_RECORD';
+const REDACTED_VALUE = '[REDACTED]';
+const SENSITIVE_FIELD_NAMES = ['email', 'phone', 'document', 'token'];
+
+const isRecordingFixtures = process.env[RECORD_FIXTURES_ENV_VAR] === 'true' && !process.env.CI;
+
 nock.back.fixtures = path.join(__dirname, 'fixtures');
-nock.back.setMode(process.env.CI ? 'lockdown' : 'record');
+nock.back.setMode(isRecordingFixtures ? 'record' : 'lockdown');
+
+const redactSensitiveFields = <Value,>(value: Value): Value => {
+  if (Array.isArray(value)) return value.map(redactSensitiveFields) as Value;
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([fieldName, fieldValue]) => [
+      fieldName,
+      SENSITIVE_FIELD_NAMES.includes(fieldName) ? REDACTED_VALUE : redactSensitiveFields(fieldValue),
+    ]),
+  ) as Value;
+};
+
+const sanitizeRecordedDefinitions = (definitions: nock.Definition[]): nock.Definition[] =>
+  definitions.map(({ rawHeaders, reqheaders, ...definition }) => ({
+    ...definition,
+    body: redactSensitiveFields(definition.body),
+    response: redactSensitiveFields(definition.response),
+  }));
 
 describe('getResource', () => {
   it('returns the resource when the API responds successfully', async () => {
-    const { nockDone } = await nock.back('get-resource.json');
+    const { nockDone } = await nock.back('get-resource.json', {
+      afterRecord: sanitizeRecordedDefinitions,
+    });
 
     const result = await getResource('1');
     nockDone();
@@ -109,7 +135,7 @@ describe('getResource', () => {
 });
 ```
 
-Usá fixtures del interceptor HTTP del proyecto (por ejemplo, `nock.back`) para escenarios de error, en lugar de mockear el cliente HTTP. Para `createResource`, cubrí el mapeo de `buildCreateResourceUpstreamRequest` verificando el request enviado con el mecanismo de intercepción HTTP del proyecto que permita inspeccionarlo (ver `../../rules/upstream-contracts.md`, sección `Tests`). En la primera ejecución, el interceptor captura la respuesta y crea el fixture; commitealo para que CI pueda ejecutar el test sin red.
+Usá fixtures del interceptor HTTP del proyecto (por ejemplo, `nock.back`) para escenarios de error, en lugar de mockear el cliente HTTP. Para `createResource`, cubrí el mapeo de `buildCreateResourceUpstreamRequest` verificando el request enviado con el mecanismo de intercepción HTTP del proyecto que permita inspeccionarlo (ver `../../rules/upstream-contracts.md`, sección `Tests`). El modo por defecto (y siempre en CI) es `lockdown`: el test solo reproduce fixtures existentes y cualquier request sin fixture falla sin llegar a la red. Grabar un fixture es una acción explícita: corré el test con `NOCK_BACK_RECORD=true`, fuera de CI y contra un entorno o cuenta con datos de prueba, nunca contra datos reales de usuarios. `afterRecord` descarta `rawHeaders` y `reqheaders` (cookies, `authorization`, `set-cookie`, correlation ids) y redacta identificadores y PII del body y la respuesta antes de persistir; ajustá `SENSITIVE_FIELD_NAMES` al contrato del upstream. Revisá el JSON generado antes de commitearlo y commitealo solo si no contiene secretos, tokens, cookies ni datos personales, para que CI ejecute el test sin red.
 
 ---
 

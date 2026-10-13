@@ -45,7 +45,7 @@ Tests for service functions that call external APIs through the project's HTTP c
 
 ### How it works
 
-The fixture tool intercepts Node's `http.request`/`https.request` at the transport level. On the first run it lets the request reach the real API and saves the response as a JSON fixture. Subsequent runs replay the fixture — no network needed, no mocking required.
+The fixture tool intercepts Node's `http.request`/`https.request` at the transport level. By default (and always in CI) it runs in `lockdown` mode: it only replays committed JSON fixtures and any request without a fixture fails without reaching the network — no network needed, no mocking required. Recording a fixture is an explicit opt-in action against test data, never a side effect of a first local run.
 
 This means service tests exercise the real service code (URL building, response parsing, error handling) against realistic API responses.
 
@@ -59,11 +59,37 @@ import path from 'node:path';
 import nock from 'nock';
 import { getUser } from '../user';
 
+const RECORD_FIXTURES_ENV_VAR = 'NOCK_BACK_RECORD';
+const REDACTED_VALUE = '[REDACTED]';
+const SENSITIVE_FIELD_NAMES = ['email', 'phone', 'document', 'token'];
+
+const isRecordingFixtures = process.env[RECORD_FIXTURES_ENV_VAR] === 'true' && !process.env.CI;
+
 nock.back.fixtures = path.join(__dirname, 'fixtures');
-nock.back.setMode(process.env.CI ? 'lockdown' : 'record');
+nock.back.setMode(isRecordingFixtures ? 'record' : 'lockdown');
+
+const redactSensitiveFields = (value) => {
+  if (Array.isArray(value)) return value.map(redactSensitiveFields);
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([fieldName, fieldValue]) => [
+      fieldName,
+      SENSITIVE_FIELD_NAMES.includes(fieldName) ? REDACTED_VALUE : redactSensitiveFields(fieldValue),
+    ]),
+  );
+};
+
+const sanitizeRecordedDefinitions = (definitions) =>
+  definitions.map(({ rawHeaders, reqheaders, ...definition }) => ({
+    ...definition,
+    body: redactSensitiveFields(definition.body),
+    response: redactSensitiveFields(definition.response),
+  }));
 
 test('returns user data', async () => {
-  const { nockDone } = await nock.back('get-user.json');
+  const { nockDone } = await nock.back('get-user.json', {
+    afterRecord: sanitizeRecordedDefinitions,
+  });
 
   const user = await getUser('1');
   nockDone();
@@ -73,7 +99,7 @@ test('returns user data', async () => {
 });
 ```
 
-Fixture files are auto-created in the fixtures directory on the first run. Commit them to the repo so CI runs without network access.
+To record or refresh a fixture, run the test explicitly with `NOCK_BACK_RECORD=true`, outside CI and against an environment or account that only holds test data — never real user data. `afterRecord` drops `rawHeaders` and `reqheaders` (cookies, `authorization`, `set-cookie`, correlation ids) and redacts identifiers and PII from the request body and response before the fixture is persisted; adjust `SENSITIVE_FIELD_NAMES` to the upstream contract. Review the generated JSON before committing it, and commit it only when it contains no secrets, tokens, cookies or personal data, so CI runs without network access.
 
 ### When service mocks are acceptable
 
