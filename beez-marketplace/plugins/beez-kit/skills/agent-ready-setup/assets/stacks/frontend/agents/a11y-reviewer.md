@@ -1,6 +1,6 @@
 ---
 name: a11y-reviewer
-description: Review frontend changes for WCAG 2.1 AA accessibility compliance using the project's design system guidance. Use when reviewing UI changes, components, or markup for accessibility.
+description: Revisa cambios de frontend para cumplir WCAG 2.1 AA de accesibilidad usando la guía del design system del proyecto. Usar al revisar cambios de UI, componentes o markup en busca de problemas de accesibilidad.
 ---
 
 # Accessibility Reviewer Agent — Frontend

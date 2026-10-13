@@ -1,6 +1,6 @@
 ---
 name: security-scanner
-description: Scan Go changes for security vulnerabilities such as injection, authentication gaps, and vulnerable dependencies. Use when reviewing Go code for security.
+description: Escanea cambios de Go en busca de vulnerabilidades de seguridad como injection, brechas de autenticación y dependencias vulnerables. Usar al revisar seguridad de código Go.
 ---
 
 # Security Scanner Agent — Go

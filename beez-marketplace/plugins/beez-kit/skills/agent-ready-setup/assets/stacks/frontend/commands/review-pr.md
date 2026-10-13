@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Run a full review of the current PR by orchestrating the specialized review agents and consolidating their results. Use when asked to review a pull request.
+description: Ejecuta una review completa del PR actual orquestando los agentes de review especializados y consolidando sus resultados. Usar cuando se pida revisar un pull request.
 ---
 
 # Review PR — Frontend

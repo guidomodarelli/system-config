@@ -1,6 +1,6 @@
 ---
 name: perf-analyzer
-description: Analyze Go changes for performance issues such as goroutine leaks, excessive allocations, and inefficient I/O. Use when reviewing Go code for performance.
+description: Analiza cambios de Go en busca de problemas de performance como goroutine leaks, allocations excesivas e I/O ineficiente. Usar al revisar performance de código Go.
 ---
 
 # Performance Analyzer Agent — Go

@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Run a full review of the current Go PR by orchestrating the specialized review agents. Use when asked to review a pull request in a Go project.
+description: Ejecuta una review completa del PR actual de Go orquestando los agentes de review especializados. Usar cuando se pida revisar un pull request en un proyecto Go.
 ---
 
 # Review PR — Go

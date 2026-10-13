@@ -1,6 +1,6 @@
 ---
 name: perf-analyzer
-description: Analyze Node.js changes for performance issues such as event-loop blocking, memory leaks, and inefficient I/O. Use when reviewing Node.js code for performance.
+description: Analiza cambios de Node.js en busca de problemas de performance como bloqueo del event loop, memory leaks e I/O ineficiente. Usar al revisar performance de código Node.js.
 ---
 
 # Performance Analyzer Agent — Node

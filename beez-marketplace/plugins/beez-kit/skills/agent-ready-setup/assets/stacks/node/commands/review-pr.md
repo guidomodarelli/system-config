@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Run a full review of the current Node.js PR by orchestrating the specialized review agents. Use when asked to review a pull request in a Node.js project.
+description: Ejecuta una review completa del PR actual de Node.js orquestando los agentes de review especializados. Usar cuando se pida revisar un pull request en un proyecto Node.js.
 ---
 
 # Review PR — Node

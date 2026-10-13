@@ -1,6 +1,6 @@
 ---
 name: security-scanner
-description: Scan Java changes for security vulnerabilities such as injection, authentication gaps, and vulnerable dependencies. Use when reviewing Java code for security.
+description: Escanea cambios de Java en busca de vulnerabilidades de seguridad como injection, brechas de autenticación y dependencias vulnerables. Usar al revisar seguridad de código Java.
 ---
 
 # Security Scanner Agent — Java

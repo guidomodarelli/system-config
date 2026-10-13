@@ -1,6 +1,6 @@
 ---
 name: lint-reviewer
-description: Review changes for linting and type-safety issues using only the rules configured in this project. Use when reviewing code quality, lint errors, or TypeScript typing.
+description: Revisa cambios en busca de problemas de linting y type safety usando solo las reglas configuradas en este proyecto. Usar al revisar calidad de código, errores de lint o tipado TypeScript.
 ---
 
 # Lint Reviewer Agent — Frontend

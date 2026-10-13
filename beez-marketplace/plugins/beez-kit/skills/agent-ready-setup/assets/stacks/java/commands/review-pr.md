@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: Run a full review of the current Java PR by orchestrating the specialized review agents. Use when asked to review a pull request in a Java project.
+description: Ejecuta una review completa del PR actual de Java orquestando los agentes de review especializados. Usar cuando se pida revisar un pull request en un proyecto Java.
 ---
 
 # Review PR — Java

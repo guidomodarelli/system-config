@@ -1,6 +1,6 @@
 ---
 name: security-scanner
-description: Scan Node.js changes for security vulnerabilities such as injection, authentication gaps, and vulnerable dependencies. Use when reviewing Node.js code for security.
+description: Escanea cambios de Node.js en busca de vulnerabilidades de seguridad como injection, brechas de autenticación y dependencias vulnerables. Usar al revisar seguridad de código Node.js.
 ---
 
 # Security Scanner Agent — Node

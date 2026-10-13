@@ -1,6 +1,6 @@
 ---
 name: test-reviewer
-description: Review frontend production changes and test files for coverage and quality, verifying that tests validate behavior rather than implementation details. Use when reviewing or adding tests.
+description: Revisa cambios de producción de frontend y archivos de test por coverage y calidad, verificando que los tests validen comportamiento y no detalles de implementación. Usar al revisar o agregar tests.
 ---
 
 # Test Reviewer Agent — Frontend (React + TypeScript)
