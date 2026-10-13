@@ -84,7 +84,7 @@
 
 		const textInput = (root = innerDocument()) => root.querySelector('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea');
 		const button = (root, text) => [...(root || innerDocument()).querySelectorAll('button, [role="button"]')].find((element) => element.innerText.trim() === text);
-		const modal = (text) => [...innerDocument().querySelectorAll('[role="dialog"], .andes-modal, dialog')].find((element) => element.innerText.includes(text));
+		const modal = (text) => [...innerDocument().querySelectorAll('[role="dialog"], dialog')].find((element) => element.innerText.includes(text));
 
 		return { wait, waitFor, load, capture, fill, textInput, button, modal, frame: getFrame, document: innerDocument, window: innerWindow };
 	};

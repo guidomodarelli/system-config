@@ -12,7 +12,7 @@
  *                   #heritage-translations), plus an optional JSON {"<es>": "<pt>"} of library texts
  *                   verified at their source. Each language is checked as its own document, and the
  *                   table's app texts must hold the catalogs' msgstr.
- *   --forbidden     real values seen while capturing (names, LDAP, user ids). Zero hits allowed.
+ *   --forbidden     real values seen while capturing (names, usernames, user ids). Zero hits allowed.
  *   --allow-host    extra hosts allowed in the file besides fonts, the app CDN and the share URL.
  *   --design        DESIGN.md to compare the navigation script with (default ~/system-config/configs/.agents/DESIGN.md).
  *
@@ -26,12 +26,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const DEFAULT_ALLOWED_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'http2.mlstatic.com', 'www.w3.org'];
+const DEFAULT_ALLOWED_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'www.w3.org'];
 const DEFAULT_DESIGN_PATH = path.join(os.homedir(), 'system-config/configs/.agents/DESIGN.md');
 const NAVIGATION_SCRIPT_MARKER = '// Navegación e interacciones Heritage';
 const DOCUMENT_LINKS_SCRIPT_MARKER = '// Navegación entre documentos Heritage';
 const LANGUAGE_SCRIPT_MARKER = '// Idioma: el documento se escribe en español';
-const ENVIRONMENT_MARKERS = [':8443', 'melioffice', 'melisystems', 'localhost', '127.0.0.1', 'dev.adminml.com'];
+const ENVIRONMENT_MARKERS = [':8443', 'localhost', '127.0.0.1'];
 const SECRET_PATTERNS = [/type=\\?"hidden\\?"/i, /_csrf/i, /csrf-token/i, /session-id/i, /authorization:/i];
 const CHANGE_MARKERS = [/data-change=/, /class="[^"]*change-badge/, /Novedades:/];
 const HEADER_NOISE = [/<span>Estado:/, /Capturas: [0-9-]+ · App v/];
@@ -358,7 +358,7 @@ const checkDocument = (html, options, label, source) => {
 
 	// Links to other published documents (menu ↔ manuals, DESIGN.md "Navegación entre documentos").
 	const documentLinks = [...visible.matchAll(/<a\b[^>]*data-document-link[^>]*>/g)].map((match) => match[0]);
-	if (documentLinks.length && !compareScript(DOCUMENT_LINKS_SCRIPT_MARKER, 'document links')) errors.push('document links: data-document-link without the "Navegación entre documentos" script (links would not leave the Grid iframe)');
+	if (documentLinks.length && !compareScript(DOCUMENT_LINKS_SCRIPT_MARKER, 'document links')) errors.push('document links: data-document-link without the "Navegación entre documentos" script (links would not leave the viewer iframe)');
 	for (const link of [...visible.matchAll(/<a class="menu-back"[^>]*>/g)].map((match) => match[0])) {
 		if (!/href="https:\/\/[^"]+"/.test(link)) errors.push('menu-back: "Ir al menú" needs the public URL of the menu');
 		if (!link.includes('data-document-link')) errors.push('menu-back: "Ir al menú" needs data-document-link');

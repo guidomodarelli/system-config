@@ -7,10 +7,10 @@ description: >
   the Heritage Spec design system in ~/system-config/configs/.agents/DESIGN.md. Documents UI
   visibility rules driven by permissions, roles and user context. Mockups are real-app captures
   (any design system) at the device the flow is used on, with temporary mocks for every screen
-  variant and sanitized data; manuals can be published to Grid. Use when the user asks to document
+  variant and sanitized data; manuals can be published to a document viewer. Use when the user asks to document
   the changes on a branch, create or update a user manual, or explain a flow to non-technical users.
 metadata:
-  author: gmodarelli_meli
+  author: "Guido Modarelli"
   version: "2.3.0"
 ---
 
@@ -165,7 +165,7 @@ From the code, extract:
 
 **Find how the reader enters the flow.** Search the code, never guess:
 
-- Grep the flow's route across the repo (`'/labour-share'`, `buildPath('…')`, `href=`, `navigate(`,
+- Grep the flow's route across the repo (`'/reports'`, `buildPath('…')`, `href=`, `navigate(`,
   `router.push`) to find home/hub pages, cards, menus, tabs or buttons that link to it, and follow
   redirects (index pages that send to a sub-route).
 - Look for menu or navigation configuration in the repo (sidebar items, nav JSON, `setPageSettings`
@@ -206,7 +206,7 @@ ends with the floating **Inicio** button, the **section map** and the **section 
 **Audience, always, confirmed by the user.** Before writing, deduce the roles that use or take part
 in the flow:
 
-- from the repo's own documentation: `README`, `docs/`, specs and SDD files (`meli/PROJECT.md`,
+- from the repo's own documentation: `README`, `docs/`, specs and SDD files (`PROJECT.md`,
   functional specs, actor tables), any `.md`, and JSDoc / Javadoc / TSDoc of the pages and services;
 - from the code: permission and role checks (Step 2), position and role values, and who acts on each
   screen (who operates the tool, who only shows a QR or approves).
@@ -256,7 +256,7 @@ the same in any manual and `check-manual.mjs` can check the order:
     gates, from the matrix of Step 2) and what happens without it. A table of elements only for what a
     permission gates (an entry card, a screen, a button, an option); behavior that depends on data or
     state belongs to its screen's section. Permission identifiers only, never the front end's internal
-    names (`canEditContingencyOp`). The rest of the manual names a permission in plain words and links
+    names (`canEditReports`). The rest of the manual names a permission in plain words and links
     here. When the flow checks no permission, one sentence says so.
   - **Prerrequisitos**: the other conditions, with who must meet each and what happens when it is not
     met. Leave out anything that does not change what the reader sees or can do.
@@ -287,7 +287,7 @@ the same in any manual and `check-manual.mjs` can check the order:
   who takes part), so advice for different roles does not split into two near-identical sections.
 - **¿A quién escalar?** — when to escalate and through which channel. The channel never comes from
   the code: **ask the user** for it; without an answer, leave the section out.
-- **Glosario** — technical terms and business-specific language (`facility`, `site`, `Groot ID`, a
+- **Glosario** — technical terms and business-specific language (`facility`, `site`, `account ID`, a
   role or process name) defined in plain words. **Which terms go in is the user's decision**
   ("Glossary terms — ask" in Step 4); with no confirmed terms there is no glossary: no section, no
   TOC entry and no `a.term` links.
@@ -307,7 +307,7 @@ Adjust sections when there is little to say — skip sections that have nothing 
 Write the file to `user-guides/<feature-slug>.html` under the project root (e.g.
 `user-guides/user-detail-sidebar.html`). Ask the user if the slug is unclear. Ensure
 `user-guides/.gitignore` exists and contains exactly `*`; create or overwrite it otherwise. When the
-manual only lives in its destination (for example a Grid document being updated), work in `/tmp`.
+manual only lives in its destination (for example a viewer document being updated), work in `/tmp`.
 
 ### HTML skeleton (copy from DESIGN.md boilerplate exactly)
 
@@ -355,7 +355,7 @@ Copy the markup from the "Snippets de componentes" block in DESIGN.md; class nam
 
 Never mark sections as new or updated: no `data-change`, no "Nuevo" / "Actualizado" badges, no
 "Novedades: N secciones" in the `doc-meta`. An updated manual reads as the complete, current
-document; its history lives in the destination (Grid versions).
+document; its history lives in the destination (the viewer's versions).
 
 ### Navigation (always)
 
@@ -374,19 +374,19 @@ DESIGN.md ("Índice (TOC)", "Mapa de secciones", "Píldora de sección", "Copiar
   start with the document title, which leads back to the start. The header needs `id="top"` and a
   `.doc-title`, as in the boilerplate.
 - **The URL follows the reader:** jumps and "Copiar enlace" write `#<slug>` (the start clears it), also in
-  Grid's address bar, so a reload lands on the same section.
+  the viewer's address bar, so a reload lands on the same section.
 - **Keyboard shortcuts** come with the script and are listed at the foot of the map preview:
   `⌥`/`Alt` + `↑` `↓` previous / next section, `⌥`/`Alt` + `I` table of contents, `Escape` closes
   previews. Nothing to add per manual; verify them.
-- **Share URL** when the manual is published inside an iframe viewer (Grid): add
-  `<meta name="heritage:share-url" content="<public document URL>">`. In Grid it is the `/view` URL;
-  `…/view#<slug>` opens the manual at that section.
+- **Share URL** when the manual is published inside an iframe viewer: add
+  `<meta name="heritage:share-url" content="<public document URL>">`. With the viewer's public URL,
+  `<url>#<slug>` opens the manual at that section.
 
 Verify on a **fresh load** and in the destination viewer: TOC links land with the section 16 px
 below the top (16 px below the language switch when it covers the text column) about 2 s later; the button brings `scrollY` to `0`; at ≥ 1024 px a map tick magnifies
 its neighbours and its preview shows number, title and first paragraph; at 375 px the pill opens the
 sheet and its links land; `Alt`+`↓` moves to the next section; opening a copied section link
-(`…/view#add-collaborators`) in a new tab, and reloading it, lands on that section in the viewer. Scroll with `behavior: 'instant'`
+(`<url>#add-collaborators`) in a new tab, and reloading it, lands on that section in the viewer. Scroll with `behavior: 'instant'`
 before screenshots. A browser tab in the background does not run `requestAnimationFrame` nor
 dispatch scroll events: if "current section" checks fail in automation, check
 `document.visibilityState` before blaming the script.
@@ -449,7 +449,7 @@ with the one-line definition you would write. Then:
 - When there is no room on the left (the target starts at the capture's edge) the runtime puts the pin
   on the right, or just inside a full-width button. When the target is glued to text on its left (a
   "+2" right after a value), add `data-side="right"`. Switches and checkboxes: anchor to the control
-  (`.andes-switch` with its text), not to its label, or the pin covers the toggle.
+  (the switch element with its text), not to its label, or the pin covers the toggle.
 - **Pins live with their steps, one per number per section.** A section never shows two pins with
   the same number, and never pins a capture for steps written in another section. When a step
   happens on a screen already shown elsewhere (the main screen in its own section, the steps in
@@ -537,7 +537,7 @@ python3 scripts/source-trace.py record <manual.html> --repo <repo> --ref origin/
 It writes the `heritage:source-repo|ref|commit|files|commit-url` metas into the `<head>` and, at the
 end of the document, a `doc-footer` "Para el equipo técnico · Código: <base> @ <commit>" linked to the
 commit on GitHub (only maintainers need it, so it stays out of the header; new tab; inside
-Grid it opens because `github.com/melisource/` is on its allowlist). Prefer directories over single files where the
+an iframe viewer it opens only when the viewer allows links to the repository's GitHub organization). Prefer directories over single files where the
 flow lives in one, so files added later are covered.
 
 The `doc-meta` carries only what tells the reader something: `Fecha`, audience, device and
@@ -555,14 +555,14 @@ node scripts/check-manual.mjs <manual.html> \
 It fails on: TOC links or titles that do not match the sections, missing navigation pieces, glossary
 links without `<dt>`, pins on captures without `data-target`, a section with two pins of the same
 number or with steps/references whose pin is not in that section, hosts in `mockup-url`, any change
-marker, missing source metas, unexpected hosts or environment markers (`:8443`, `melioffice`, …),
+marker, missing source metas, unexpected hosts or environment markers (`:8443`, `localhost`, …),
 secrets (hidden inputs, CSRF, session ids), real values, and any text quoted between «…» that does
 not exist in the app's translations (obsolete or misquoted strings). It warns when a mockup has no
 `figcap`, the share URL is missing, or the embedded navigation script differs from the DESIGN.md
 boilerplate (the manual carries an outdated copy: replace it with the current one).
 
 Then serve the manual, inject `scripts/check-rendered.js` and run `await __umCheckRendered()` at
-1280 px and at 390 px (in Grid: `__umCheckRendered(iframe.contentWindow)`). It must return
+1280 px and at 390 px (in an iframe viewer: `__umCheckRendered(iframe.contentWindow)`). It must return
 `ok: true`: every capture rendered, none cut, every anchored pin next to its element, inside the
 capture and within 24 px of what the reader sees in it (a pin on a wide cell fails: anchor it to the
 icon, text or button inside). Also look at each pin: it must read as pointing at its element.
@@ -592,7 +592,7 @@ not a manual:
   with **every card visible** (a user with all the permissions, or mocks that grant them) at the
   device the user chose, with the greeting's name replaced by a synthetic one.
 - One `a.menu-link` per card, anchored with `data-target` + `data-target-text` (the card's text):
-  - with a manual: `href` to the manual's public URL (Grid `/view`), plus `#<slug>` when the card opens
+  - with a manual: `href` to the manual's public URL, plus `#<slug>` when the card opens
     one part of a manual (a card covered by another tool's manual);
   - without a manual: `aria-disabled="true"` and no `href` (the script turns its icon gray and translucent; the texts stay as in the app).
   Ask the user which manuals exist and where they live when it is not clear.
@@ -605,17 +605,17 @@ not a manual:
   `<body>`, `data-document-link`, `href` = the menu's public URL; the arrow `←` in an `aria-hidden`
   span, never `‹` or `<`) and the "Navegación entre documentos" script; with Portuguese, its text in
   the `document` table (`Ir al menú` → `Ir ao menu`). When the menu is a
-  new Grid document the user uploads, ask for its URL before republishing the manuals.
+  new viewer document the user uploads, ask for its URL before republishing the manuals.
 - `check-manual.mjs` checks a menu in its own mode (capture present, every link anchored, `href` xor
   `aria-disabled`, `aria-label`); `__umCheckRendered` and the cover check (every `menu-link` box equals
-  its card's box) must pass at 1280 px and 390 px in every language. Inside Grid, verify that a card
+  its card's box) must pass at 1280 px and 390 px in every language. Inside the viewer, verify that a card
   opens its manual in the whole page with the language kept, and that "Ir al menú" comes back.
 
 ---
 
-## Step 6 — Publish (when the destination is Grid)
+## Step 6 — Publish (when the destination is a document viewer)
 
-Usar integración o skill de Grid disponible para publicar documento solicitado y verificar resultado
+Usar integración o skill del visor disponible para publicar documento solicitado y verificar resultado
 en visor. Volver a ejecutar `check-manual.mjs` sobre archivo exacto antes de publicar. Si integración
 no está disponible, entregar HTML validado para carga manual.
 
@@ -630,7 +630,7 @@ no está disponible, entregar HTML validado para carga manual.
 | `scripts/capture-bridge.py` | Terminal | Serves files with CORS for one origin and stores POSTed JSON exports (127.0.0.1 only) |
 | `scripts/embed-app-frames.mjs` | Terminal | Embeds captures into the manual (lazy shadow-root frames, fit, fixed-layer containment, responsive layout, anchored pins) |
 | `scripts/check-manual.mjs` | Terminal | Static checks of the final HTML (structure, navigation, pins, hosts, secrets, real values, quoted texts vs translations, change markers, source metas, outdated navigation script) |
-| `scripts/check-rendered.js` | Manual page / Grid tab | `__umCheckRendered(view)`: captures rendered, fit, anchored pin distance |
+| `scripts/check-rendered.js` | Manual page / viewer tab | `__umCheckRendered(view)`: captures rendered, fit, anchored pin distance |
 | `scripts/source-trace.py` | Terminal | `record` writes the source metas and "Código:" line; `diff` lists what changed in the documented paths since then |
 
 Write one-off scripts (migrations, fixture generators) in the moment for the manual at hand; do not
@@ -684,9 +684,9 @@ add them to `scripts/`.
       "Captura de pantalla:"; the header shows "Capturas: YYYY-MM-DD".
 - [ ] The fit check in `references/real-app-mockups.md` returns `[]` and every frame was compared
       against the live screen.
-- [ ] `grep` over the final manual finds no real value seen during capture (names, LDAP, user and
-      Groot IDs), no token/CSRF, and no environment host (`https?://` in mockup bars or prose,
-      `:8443`, `melioffice`, `melisystems`).
+- [ ] `grep` over the final manual finds no real value seen during capture (names, usernames, user and
+      account IDs), no token/CSRF, and no environment host (`https?://` in mockup bars or prose,
+      `:8443`, `localhost`, `127.0.0.1`).
 - [ ] Every `compare` uses captures with the same width and framing; every `a.term` resolves.
 - [ ] Sections in the standard order of Step 3 with their slugs (`check-manual.mjs` checks it);
       **Permisos y prerrequisitos** is the only list of permissions and keeps only conditions that

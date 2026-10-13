@@ -3,7 +3,7 @@
  * the destination iframe). Complements check-manual.mjs with what only exists once frames render.
  *
  *   await __umCheckRendered()            // in the manual's window
- *   await __umCheckRendered(iframe.contentWindow)   // from the Grid view, on its iframe
+ *   await __umCheckRendered(iframe.contentWindow)   // from an embedding viewer, on its iframe
  *
  * Returns { frames, unrendered, fit, pins, order, ok }:
  *   unrendered  captures that did not render (no shadow root or no height)

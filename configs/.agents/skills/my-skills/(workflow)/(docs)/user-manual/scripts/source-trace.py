@@ -6,16 +6,16 @@ record — writes the source metas into the manual's <head> and the "Código:" l
     python3 source-trace.py record <manual.html> --repo <path-to-repo> --ref origin/develop \
         --files app/pages/flow app/components/Thing/index.tsx i18n/es-AR/messages.po
 
-    <meta name="heritage:source-repo" content="melisource/fury_example">
+    <meta name="heritage:source-repo" content="example-org/example-app">
     <meta name="heritage:source-ref" content="origin/develop">
     <meta name="heritage:source-commit" content="7f4a77365a…">
     <meta name="heritage:source-files" content="app/pages/flow app/components/Thing/index.tsx …">
-    <meta name="heritage:source-commit-url" content="https://github.com/melisource/fury_example/commit/7f4a77365a…">
+    <meta name="heritage:source-commit-url" content="https://github.com/example-org/example-app/commit/7f4a77365a…">
 
   and writes <footer class="doc-footer">Para el equipo técnico · Código: <ref> @ <commit></footer> at the
   end of the document, linked to that commit (new tab). Only maintainers need it, so it stays out of the
-  doc-meta (an old "Código:" span there is removed). Inside Grid the link opens because
-  github.com/melisource/ is on its allowlist.
+  doc-meta (an old "Código:" span there is removed). Inside an iframe viewer the link opens only
+  when the viewer allows links to the repository's GitHub organization.
 
   --files takes the files and directories read to write the manual (pages, components, server hooks,
   API routes, validations, constants, translations). Directories cover files added to them later.

@@ -12,8 +12,8 @@
  * Captures persist in sessionStorage, so navigating between pages of the same origin keeps them.
  * Re-paste the snippet after every navigation (window globals are lost, stored data is not).
  *
- * Design-system agnostic: it copies whatever stylesheets the page uses (Andes, Material,
- * Tailwind, custom SCSS...). Cross-origin sheets that block cssRules are reported, not copied.
+ * Design-system agnostic: it copies whatever stylesheets the page uses (Material,
+ * Tailwind, a company design system, custom SCSS...). Cross-origin sheets that block cssRules are reported, not copied.
  */
 (() => {
 	const RULES_KEY = '__umRules';

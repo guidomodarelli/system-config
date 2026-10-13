@@ -1058,7 +1058,7 @@ tenga que scrollear todo de nuevo. Usarlo junto con el índice.
 - Fijo abajo a la derecha (24px; 16px en mobile), fondo `surface-dark`, texto `surface-card`, mono 12/500, radio circular y la sombra mínima documentada.
 - Está oculto (`hidden`) hasta los primeros 480px de scroll; aparece con fade en `motion.duration-base`. Al ocultarse desaparece sin transición, para no quedar clickeable mientras se desvanece.
 - Scroll suave hasta `0`, no hasta la posición del header, porque el header tiene margen superior.
-- Funciona dentro de visores embebidos que scrollean un iframe (por ejemplo Grid): usa `window` del propio documento.
+- Funciona dentro de visores embebidos que scrollean un iframe: usa `window` del propio documento.
 - No se imprime.
 
 ### Mapa de secciones
@@ -1116,7 +1116,7 @@ queda a mano mientras se lee. Usarlo junto con el índice y el botón "Inicio".
 
 Píldora fija abajo a la izquierda con la sección actual (`03 · Quién ve qué`); al tocarla abre el
 índice en una hoja inferior. Se ve en todos los anchos: en desktop acompaña al mapa (dice dónde
-estás sin pasar el mouse) y por debajo de `1024px`, incluido el iframe angosto de Grid, es el único
+estás sin pasar el mouse) y por debajo de `1024px`, incluido el iframe angosto de un visor embebido, es el único
 atajo de navegación.
 
 ```
@@ -1150,7 +1150,7 @@ el link directo a la sección.
 
 - Lo agrega el script; no se escribe a mano. Visible al pasar por la sección o al enfocarlo, y
   siempre en pantallas táctiles (`hover: none`).
-- Copia `<URL base>#<id del section-title>`. En visores embebidos (Grid) la URL del iframe no es
+- Copia `<URL base>#<id del section-title>`. En visores embebidos la URL del iframe no es
   la que ve el lector: declarar la pública con `<meta name="heritage:share-url" content="…">`.
 - **El id es un slug fijo de la sección**, no su número ni su título: corto, en kebab-case, en
   inglés (el mismo para todos los idiomas) y que diga de qué trata (`permissions`,
@@ -1160,9 +1160,9 @@ el link directo a la sección.
 - Confirma con "Enlace copiado" en el botón y en una región `role="status"`. Si el visor bloquea
   el portapapeles, dice "No se pudo copiar" y deja un `console.warn` con el `id` de la sección.
 - Al copiar, la URL de la barra también pasa a `#<id>` (sin agregar una entrada al historial); en
-  Grid llega a su barra por su script de sincronización de URL.
+  un visor embebido llega a su barra si el visor sincroniza la URL del iframe.
 - **Abrir el enlace lleva a la sección**, también al recargar: el script lee el hash propio o, en un
-  visor embebido del mismo origen (Grid no pasa el hash al iframe), el de la página que lo envuelve,
+  visor embebido del mismo origen (que puede no pasar el hash al iframe), el de la página que lo envuelve,
   y salta como desde el índice, renderizando antes las capturas de arriba. Un hash nuevo pegado en
   la barra del visor también mueve el documento.
 
@@ -1190,7 +1190,7 @@ número de la sección y su "Copiar enlace" quedan a la vista.
   guarda el español de cada uno para poder volver, ajusta `lang` y el título, y avisa con el evento
   `heritage:language-change`. Nunca toca `code`, `style`, `script` ni el selector. Al cargar, traduce
   solo si la URL lo pide: **siempre abre en español**, la elección no se guarda (ni `localStorage` ni
-  cookies) y vive solo en `?lang=pt` (la URL del documento o, dentro de un visor como Grid, la del
+  cookies) y vive solo en `?lang=pt` (la URL del documento o, dentro de un visor embebido, la del
   visor), así que dura mientras se lee y viaja en un enlace compartido.
 - **Al elegir**, el cambio es **en la misma página, sin red ni recarga**: el script de navegación llama
   a `HeritageLanguage.set`, reescribe sus propios textos, las capturas se traducen y vuelven a ubicar
@@ -1211,7 +1211,7 @@ número de la sección y su "Copiar enlace" quedan a la vista.
 
 En los documentos que se abren desde un **menú de manuales**: un link **fijo arriba a la izquierda**,
 espejo del selector de idioma (mismo fondo, borde, radio y alto) y visible en todo
-el recorrido: la flecha `←` (en un `span` con `aria-hidden`, como la `↑` del botón "Inicio") y "Ir al menú". Lleva a la URL pública del menú (en Grid, su `/view`). Mientras cae sobre la columna del
+el recorrido: la flecha `←` (en un `span` con `aria-hidden`, como la `↑` del botón "Inicio") y "Ir al menú". Lleva a la URL pública del menú (en un visor, su URL para compartir). Mientras cae sobre la columna del
 texto (hasta 1199px), el `doc-header` suma `28px` arriba y los saltos dejan la sección `16px` debajo de
 él, como con el selector. No se imprime. Es el primer hijo del `<body>`; el texto va en la tabla de
 traducciones ("Ir ao menu").
@@ -1252,14 +1252,14 @@ nunca una grilla dibujada a mano. El lector reconoce la pantalla que ya usa y to
 El menú y los manuales se enlazan con `a[data-document-link]` y el script "Navegación entre
 documentos" del boilerplate:
 
-- **Abre en la página entera**, también dentro de Grid: el sandbox de su iframe no permite navegar la
+- **Abre en la página entera**, también dentro de un visor embebido: el sandbox de su iframe puede no permitir navegar la
   página de arriba (ni con `target="_top"`), así que el script crea el link en el documento del visor,
   que es del mismo origen, y lo activa. Fuera de un visor funciona el `target="_top"` del link.
 - **Lleva el idioma:** en portugués agrega `?lang=pt` a la URL de destino. El script de idioma lee
-  `?lang` de su propia URL y, dentro de un visor, de la del visor (Grid no pasa la query al iframe).
+  `?lang` de su propia URL y, dentro de un visor, de la del visor (que puede no pasar la query al iframe).
 - **Transición:** el documento se desvanece en `motion.duration-base` antes de irse y el destino aparece
   en lo mismo cuando llega desde otro documento del mismo visor (no al recargar). No es una view
-  transition entre documentos: las páginas de Grid no la habilitan y el destino es suyo. Con "reducir
+  transition entre documentos: las páginas de un visor pueden no habilitarla y el destino es suyo. Con "reducir
   movimiento", cambia al instante.
 - `Cmd`/`Ctrl` + click abre en una pestaña nueva, con el idioma ya en el link.
 
@@ -1268,17 +1268,17 @@ documentos" del boilerplate:
 Los documentos **no marcan secciones nuevas ni actualizadas**: nada de badges "Nuevo" /
 "Actualizado", puntos de color en el mapa ni "Novedades: N secciones" en el `doc-meta`. Cada
 versión se lee como el documento completo y vigente; el historial de cambios queda en la
-herramienta donde se publica (por ejemplo, las versiones de Grid).
+herramienta donde se publica (por ejemplo, el historial de versiones del visor).
 
 ### Glosario
 
 Términos del dominio con su definición a mano, sin salir del párrafo.
 
 ```html
-<p>Los usuarios con <a class="term" href="#g-ldap-externo">LDAP externo</a> no ven …</p>
+<p>Los usuarios con <a class="term" href="#g-cuenta-externa">cuenta externa</a> no ven …</p>
 …
 <dl class="glossary">
-  <dt id="g-ldap-externo">LDAP externo</dt>
+  <dt id="g-cuenta-externa">Cuenta externa</dt>
   <dd>Cuenta de una persona que no es empleada; empieza con <code>ext_</code>.</dd>
 </dl>
 ```
@@ -1503,7 +1503,7 @@ viejos siguen funcionando: los nombres de clase no cambiaron.
 - **Puntos sobre capturas:** una referencia dentro del texto de un paso lleva a su propio punto; antes el clic seguía hasta el paso y resaltaba también el punto de ese paso.
 
 - **Componentes:** menú de manuales (`menu-stage` + `menu-link` sobre la captura real del menú de la app) y "Ir al menú" (`menu-back`, fijo arriba a la izquierda).
-- **Navegación entre documentos:** script propio (`a[data-document-link]`) que abre en la página entera dentro de Grid, lleva `?lang` y funde salida y llegada.
+- **Navegación entre documentos:** script propio (`a[data-document-link]`) que abre en la página entera dentro de un visor embebido, lleva `?lang` y funde salida y llegada.
 - **Idioma:** también se lee `?lang` de la URL del visor.
 - **Saltos:** `landingOffset` deja la sección debajo de cualquier control fijo que tape la columna (selector o "Ir al menú").
 
@@ -2069,8 +2069,8 @@ dt.is-text-revealed{width:fit-content;}
     return null;
   }
 
-  // La URL sigue a la sección: el inicio la deja sin hash. En un visor del mismo origen (Grid) también se
-  // actualiza su barra, porque su script de sincronización recibe el hash pero no lo escribe.
+  // La URL sigue a la sección: el inicio la deja sin hash. En un visor del mismo origen también se
+  // actualiza su barra, porque un script de sincronización puede recibir el hash sin escribirlo.
   function setHash(id) {
     var hash = id === 'top' ? '' : '#' + id;
     history.replaceState(null, '', location.pathname + location.search + hash);
@@ -2826,7 +2826,7 @@ dt.is-text-revealed{width:fit-content;}
   });
 
   // —— Enlace directo al cargar: "Copiar enlace" da …#permissions, pero al abrirlo o recargarlo el salto nativo
-  // ocurre antes de que se rendericen las capturas de arriba, y en visores embebidos (Grid) el hash queda
+  // ocurre antes de que se rendericen las capturas de arriba, y en visores embebidos el hash queda
   // en la página que envuelve al iframe. Se lee de los dos lados y se salta como desde el índice.
   function parentHash() {
     try { return window.parent !== window ? window.parent.location.hash : ''; } catch (crossOriginError) { return ''; }
@@ -2973,7 +2973,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
       return (table && table.captureTemplates && table.captureTemplates[name]) || null;
     }
   };
-  // Dentro de un visor con iframe (Grid) cuenta también la URL del visor: carga el iframe sin su ?lang.
+  // Dentro de un visor con iframe cuenta también la URL del visor: carga el iframe sin su ?lang.
   function requestedLanguage() {
     var own = new URLSearchParams(location.search).get('lang');
     if (own) return own;
@@ -2987,7 +2987,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
 <!-- …y después el script de navegación -->
 
 <!-- Ir al menú: primer hijo del <body> (antes del selector de idioma), en documentos que se abren
-     desde un menú de manuales. href = URL pública del menú (en Grid, su /view). -->
+     desde un menú de manuales. href = URL pública del menú (en un visor, su URL para compartir). -->
 <a class="menu-back" href="[URL pública del menú]" target="_top" data-document-link><span aria-hidden="true">←</span> Ir al menú</a>
 
 <!-- Menú de manuales: la captura real del menú de la app (app-frame) y un link por tarjeta, anclado con
@@ -3008,7 +3008,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
      cada documento con "Ir al menú". Es independiente del script de navegación del documento. -->
 <script>
 // Navegación entre documentos Heritage: links a otros documentos publicados (menú de manuales ↔ manuales)
-// que abren en la página entera también dentro de un visor con iframe (Grid), llevan el idioma que se lee,
+// que abren en la página entera también dentro de un visor con iframe, llevan el idioma que se lee,
 // funden la salida y la llegada y, en un menú, ubican cada link sobre su tarjeta de la captura.
 (function () {
   var root = document.documentElement;
@@ -3026,7 +3026,7 @@ otras skills (por ejemplo `user-manual`) dependen de ellos.
     else url.searchParams.delete('lang');
     return url.href;
   }
-  // El sandbox de Grid no deja que el iframe navegue la página de arriba (ni con target="_top"); un link
+  // El sandbox de un visor puede no dejar que el iframe navegue la página de arriba (ni con target="_top"); un link
   // creado en el documento del visor, que es del mismo origen, sí la navega.
   function go(href) {
     var viewer = viewerDocument();
