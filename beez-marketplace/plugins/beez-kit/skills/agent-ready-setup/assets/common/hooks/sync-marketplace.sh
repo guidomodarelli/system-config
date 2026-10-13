@@ -183,7 +183,7 @@ is_marketplace_upgrade_unsupported() {
 }
 
 report_local_marketplace_upgrade_skip() {
-  echo "[marketplace-sync] $MARKETPLACE_NAME is a local Codex marketplace; upgrade skipped and its configured source is used."
+  echo "[marketplace-sync] $MARKETPLACE_NAME es un marketplace Codex local; se omite el upgrade y se usa su source configurado."
 }
 
 # Each provider refreshes its own marketplace snapshot through its CLI.
@@ -203,17 +203,17 @@ record_marketplace_upgrade() {
 }
 
 if [[ "$marketplace_already_upgraded" -eq 1 ]]; then
-  echo "[marketplace-sync] Marketplace upgrade already completed by caller."
+  echo "[marketplace-sync] El caller ya completó el upgrade del marketplace."
 elif is_marketplace_upgrade_unsupported; then
   report_local_marketplace_upgrade_skip
 elif is_marketplace_upgrade_recent; then
-  printf '[marketplace-sync] Marketplace upgraded less than %s minutes ago; upgrade skipped. Set AGENT_READY_SETUP_FORCE_UPGRADE=1 to force it.\n' \
+  printf '[marketplace-sync] El marketplace se actualizó hace menos de %s minutos; se omite el upgrade. Definí AGENT_READY_SETUP_FORCE_UPGRADE=1 para forzarlo.\n' \
     "$MARKETPLACE_UPGRADE_INTERVAL_MINUTES"
 else
-  echo "[marketplace-sync] Upgrading $MARKETPLACE_NAME for $provider..."
+  echo "[marketplace-sync] Haciendo upgrade de $MARKETPLACE_NAME para $provider..."
   run_marketplace_upgrade
   record_marketplace_upgrade
-  echo "[marketplace-sync] Marketplace upgrade completed."
+  echo "[marketplace-sync] Upgrade del marketplace completado."
 fi
 
 sorted_skill_candidates() {
@@ -423,30 +423,30 @@ refresh_missing_asset_sync_helper() {
     return 0
   fi
 
-  echo "[marketplace-sync] Shared synchronization helper is missing; refreshing $MARKETPLACE_NAME for $provider..."
+  echo "[marketplace-sync] Falta el helper compartido de sincronización; refrescando $MARKETPLACE_NAME para $provider..."
   if is_marketplace_upgrade_unsupported; then
     report_local_marketplace_upgrade_skip
   else
     if ! command -v "$provider" >/dev/null 2>&1; then
-      printf 'ERROR: %s CLI is required to download %s\n' "$provider" "$ASSET_SYNC_HELPER_PATH" >&2
+      printf 'ERROR: se requiere la CLI de %s para descargar %s\n' "$provider" "$ASSET_SYNC_HELPER_PATH" >&2
       return 1
     fi
     if ! run_marketplace_upgrade; then
-      printf 'ERROR: marketplace refresh failed while downloading %s\n' "$ASSET_SYNC_HELPER_PATH" >&2
+      printf 'ERROR: falló el refresh del marketplace al descargar %s\n' "$ASSET_SYNC_HELPER_PATH" >&2
       return 1
     fi
     record_marketplace_upgrade
   fi
 
   if ! refreshed_skill_dir="$(resolve_skill_dir 1)"; then
-    printf 'ERROR: refreshed %s source is unavailable; %s could not be downloaded\n' \
+    printf 'ERROR: el source refrescado de %s no está disponible; no se pudo descargar %s\n' \
       "$SKILL_NAME" "$ASSET_SYNC_HELPER_PATH" >&2
     return 1
   fi
   skill_dir="$refreshed_skill_dir"
 
   if [[ ! -f "$skill_dir/$ASSET_SYNC_HELPER_PATH" ]]; then
-    printf 'ERROR: marketplace refresh completed but %s is still missing from %s\n' \
+    printf 'ERROR: el refresh del marketplace se completó pero %s sigue faltando en %s\n' \
       "$ASSET_SYNC_HELPER_PATH" "$skill_dir" >&2
     return 1
   fi
@@ -489,7 +489,7 @@ if ! refresh_missing_asset_sync_helper; then
   if [[ -n "${AGENT_READY_SETUP_SKILL_DIR:-}" ]]; then
     exit 1
   fi
-  printf 'WARNING: %s is unavailable after marketplace refresh; local projection skipped.\n' \
+  printf 'WARNING: %s no está disponible después del refresh del marketplace; se omite la proyección local.\n' \
     "$ASSET_SYNC_HELPER_PATH" >&2
   exit 0
 fi

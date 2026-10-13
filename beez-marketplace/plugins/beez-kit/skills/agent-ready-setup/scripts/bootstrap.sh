@@ -445,7 +445,7 @@ upgrade_marketplace() {
   local -a upgrade_command
 
   if [[ "$PROVIDER" == "codex" ]] && is_codex_local_marketplace; then
-    echo "[marketplace-bootstrap] $MARKETPLACE_NAME is a local Codex marketplace; upgrade skipped and its configured source is used."
+    echo "[marketplace-bootstrap] $MARKETPLACE_NAME es un marketplace Codex local; se omite el upgrade y se usa su source configurado."
     return 0
   fi
 
@@ -456,17 +456,17 @@ upgrade_marketplace() {
   fi
 
   if ! command -v "$PROVIDER" >/dev/null 2>&1; then
-    printf 'ERROR: %s CLI is required to upgrade %s before bootstrap.\n' "$PROVIDER" "$MARKETPLACE_NAME" >&2
+    printf 'ERROR: se requiere la CLI de %s para hacer upgrade de %s antes del bootstrap.\n' "$PROVIDER" "$MARKETPLACE_NAME" >&2
     return 1
   fi
 
-  echo "[marketplace-bootstrap] Upgrading $MARKETPLACE_NAME for $PROVIDER..."
+  echo "[marketplace-bootstrap] Haciendo upgrade de $MARKETPLACE_NAME para $PROVIDER..."
   if ! "${upgrade_command[@]}"; then
-    printf 'ERROR: marketplace upgrade failed for %s/%s; no project asset was changed.\n' \
+    printf 'ERROR: falló el upgrade del marketplace para %s/%s; no se modificó ningún asset del proyecto.\n' \
       "$MARKETPLACE_NAME" "$PROVIDER" >&2
     return 1
   fi
-  echo "[marketplace-bootstrap] Marketplace upgrade completed."
+  echo "[marketplace-bootstrap] Upgrade del marketplace completado."
 }
 
 if [[ "$MARKETPLACE_ALREADY_UPGRADED" -eq 0 ]]; then
@@ -474,11 +474,11 @@ if [[ "$MARKETPLACE_ALREADY_UPGRADED" -eq 0 ]]; then
     exit 1
   fi
 else
-  echo "[marketplace-bootstrap] Marketplace upgrade already completed by caller."
+  echo "[marketplace-bootstrap] El caller ya completó el upgrade del marketplace."
 fi
 
 if ! SKILL_DIR="$(resolve_skill_dir)"; then
-  echo "ERROR: could not resolve updated $SKILL_NAME source after marketplace upgrade" >&2
+  echo "ERROR: no se pudo resolver el source actualizado de $SKILL_NAME después del upgrade del marketplace" >&2
   exit 1
 fi
 describe_skill_source "$SKILL_DIR"

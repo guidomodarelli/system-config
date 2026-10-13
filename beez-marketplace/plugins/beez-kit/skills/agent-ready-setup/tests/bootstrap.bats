@@ -1444,7 +1444,7 @@ EOF
   [ -f .agents/hooks/sync-marketplace.sh ]
   [ -f .claude/settings.json ]
   [ -f .codex/hooks.json ]
-  [[ "$output" == *"[marketplace-bootstrap] Marketplace upgrade completed."* ]]
+  [[ "$output" == *"[marketplace-bootstrap] Upgrade del marketplace completado."* ]]
 }
 
 @test "bootstrap upgrades marketplace for Codex when provider is explicit" {
@@ -1488,7 +1488,7 @@ EOF
   run_marketplace_sync "$source_dir/assets/common/hooks/sync-marketplace.sh" "$source_dir"
   [ "$status" -eq 0 ]
   [ "$(wc -l < "$upgrade_log" | tr -d ' ')" -eq 1 ]
-  [[ "$output" == *"Marketplace upgraded less than 60 minutes ago; upgrade skipped."* ]]
+  [[ "$output" == *"El marketplace se actualizó hace menos de 60 minutos; se omite el upgrade."* ]]
 
   AGENT_READY_SETUP_FORCE_UPGRADE=1 run_marketplace_sync "$source_dir/assets/common/hooks/sync-marketplace.sh" "$source_dir"
   [ "$status" -eq 0 ]
@@ -1528,7 +1528,7 @@ EOF
   [ ! -e .claude ]
   [ ! -e .agents ]
   [ ! -e .codex ]
-  [[ "$output" == *"marketplace upgrade failed"* ]]
+  [[ "$output" == *"falló el upgrade del marketplace"* ]]
   [ -z "$(find .agents -type f -print -quit 2>/dev/null)" ]
 }
 
@@ -1994,7 +1994,7 @@ FAKE
 
   [ "$status" -eq 0 ]
   [ ! -e "$invocation_log" ]
-  [[ "$output" == *"[marketplace-bootstrap] beez-marketplace is a local Codex marketplace; upgrade skipped"* ]]
+  [[ "$output" == *"[marketplace-bootstrap] beez-marketplace es un marketplace Codex local; se omite el upgrade"* ]]
   grep -Fxq '# local snapshot template' .agents/rules/security.md
 }
 
@@ -2009,7 +2009,7 @@ FAKE
 
   [ "$status" -eq 0 ]
   grep -Fxq 'codex plugin marketplace upgrade beez-marketplace' "$invocation_log"
-  [[ "$output" == *"[marketplace-bootstrap] Marketplace upgrade completed."* ]]
+  [[ "$output" == *"[marketplace-bootstrap] Upgrade del marketplace completado."* ]]
 }
 
 @test "sync hook skips Codex upgrade for a local marketplace with a literal source" {
@@ -2028,7 +2028,7 @@ FAKE
 
   [ "$status" -eq 0 ]
   [ ! -e "$invocation_log" ]
-  [[ "$output" == *"[marketplace-sync] beez-marketplace is a local Codex marketplace; upgrade skipped"* ]]
+  [[ "$output" == *"[marketplace-sync] beez-marketplace es un marketplace Codex local; se omite el upgrade"* ]]
   grep -Fxq '# local snapshot template' .agents/rules/security.md
 }
 
@@ -2046,7 +2046,7 @@ FAKE
 
   [ "$status" -eq 0 ]
   grep -Fxq 'codex plugin marketplace upgrade beez-marketplace' "$invocation_log"
-  [[ "$output" == *"[marketplace-sync] Marketplace upgrade completed."* ]]
+  [[ "$output" == *"[marketplace-sync] Upgrade del marketplace completado."* ]]
 }
 
 @test "sync hook keeps newer plugin cache over older marketplace snapshot" {
@@ -2172,7 +2172,7 @@ EOF
   [ -f "$source_dir/scripts/asset-sync-common.sh" ]
   cmp -s .agents/hooks/sync-marketplace.sh \
     "$source_dir/assets/common/hooks/sync-marketplace.sh"
-  [[ "$output" == *"Shared synchronization helper is missing; refreshing"* ]]
+  [[ "$output" == *"Falta el helper compartido de sincronización; refrescando"* ]]
 }
 
 @test "sync hook preserves local hook when helper remains unavailable after refresh" {
@@ -2202,7 +2202,7 @@ EOF
   [ "$status" -eq 0 ]
   [ "$(wc -l < "$upgrade_log")" -eq 2 ]
   grep -Fxq '# local hook' .agents/hooks/sync-marketplace.sh
-  [[ "$output" == *"is unavailable after marketplace refresh; local projection skipped."* ]]
+  [[ "$output" == *"no está disponible después del refresh del marketplace; se omite la proyección local."* ]]
 }
 
 @test "sync hook preserves custom Claude array entries with equal length" {
