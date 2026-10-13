@@ -79,9 +79,20 @@ const redactSensitiveFields = (value) => {
   );
 };
 
+const redactSensitiveQueryParams = (recordedPath) => {
+  const queryStartIndex = recordedPath.indexOf('?');
+  if (queryStartIndex === -1) return recordedPath;
+  const queryParams = new URLSearchParams(recordedPath.slice(queryStartIndex + 1));
+  [...new Set(queryParams.keys())]
+    .filter((paramName) => SENSITIVE_FIELD_NAMES.includes(paramName))
+    .forEach((paramName) => queryParams.set(paramName, REDACTED_VALUE));
+  return `${recordedPath.slice(0, queryStartIndex)}?${queryParams.toString()}`;
+};
+
 const sanitizeRecordedDefinitions = (definitions) =>
   definitions.map(({ rawHeaders, reqheaders, ...definition }) => ({
     ...definition,
+    path: redactSensitiveQueryParams(definition.path),
     body: redactSensitiveFields(definition.body),
     response: redactSensitiveFields(definition.response),
   }));
@@ -99,7 +110,7 @@ test('returns user data', async () => {
 });
 ```
 
-To record or refresh a fixture, run the test explicitly with `NOCK_BACK_RECORD=true`, outside CI and against an environment or account that only holds test data — never real user data. `afterRecord` drops `rawHeaders` and `reqheaders` (cookies, `authorization`, `set-cookie`, correlation ids) and redacts identifiers and PII from the request body and response before the fixture is persisted; adjust `SENSITIVE_FIELD_NAMES` to the upstream contract. Review the generated JSON before committing it, and commit it only when it contains no secrets, tokens, cookies or personal data, so CI runs without network access.
+To record or refresh a fixture, run the test explicitly with `NOCK_BACK_RECORD=true`, outside CI and against an environment or account that only holds test data — never real user data. `afterRecord` drops `rawHeaders` and `reqheaders` (cookies, `authorization`, `set-cookie`, correlation ids) and redacts identifiers and PII from the request body, the response and the query params of `path` (Nock records the route there, query string included) before the fixture is persisted; adjust `SENSITIVE_FIELD_NAMES` to the upstream contract. Path segments (for example `/users/{id}`) are not redacted: when they carry identifiers, record only against test data. Review the generated JSON before committing it, and commit it only when it contains no secrets, tokens, cookies or personal data, so CI runs without network access.
 
 ### When service mocks are acceptable
 
