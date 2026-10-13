@@ -28,6 +28,34 @@ The project's SSR framework exposes two ways to handle server-side logic:
 
 ---
 
+## Preflight — Detect or install the validation library and Express
+
+The schemas of both options import the project's input validation library, the validation middleware factory of Option B depends on it too, and the REST router imports `express`; those packages must be declared before the files are created, otherwise `tsc --noEmit` fails with a missing module. They run in production code, so they count as available only when they are declared in `dependencies`: a deploy that runs `npm ci --omit=dev` (or the equivalent of the project's package manager) does not install `devDependencies`.
+
+```bash
+# Print the first validation library and express declared in dependencies (or "<library> dev-only" when it is only in devDependencies), or NONE for each
+node -e "const p = require('./package.json'); const runtimeDeps = p.dependencies ?? {}; const devDeps = p.devDependencies ?? {}; const findRuntime = (known) => { const runtimeLibrary = known.find((library) => runtimeDeps[library]); if (runtimeLibrary) return runtimeLibrary; const devOnlyLibrary = known.find((library) => devDeps[library]); return devOnlyLibrary ? devOnlyLibrary + ' dev-only' : 'NONE'; }; console.log('validation-library=' + findRuntime(['zod', 'yup', 'joi', 'valibot'])); console.log('express=' + findRuntime(['express']));"
+```
+
+Resolve each line independently:
+
+- `validation-library`: if it prints `zod`, use the examples of this skill and the factory of `../../rules/api-validation-middleware.md` as they are. If it prints `yup`, `joi` or `valibot`, keep that library: write the schemas with its API and, when Option B needs the factory, adapt only its parse call and issue mapping (for example, `schema.validate(value, { abortEarly: false })` with `error.details` in `joi`, `schema.validateSync(value, { abortEarly: false })` inside `try` with `ValidationError.inner` in `yup`, or `v.safeParse(schema, value)` with `issues` in `valibot`) while preserving the `400` error contract of that rule (issue `path` and `code` only, never input values). If the library cannot express a requirement or that contract, warn the user with the gap and stop instead of adding a second validation library. Only when it prints `NONE`, install `zod`.
+- `express`: Option A does not import it; ignore this line when you only create a server hook. For Option B, if it prints `NONE` but the project's SSR framework re-exports the router (look for existing `Router` imports under `api/`), import it from there; otherwise install `express`. In TypeScript projects, also install `@types/express` as a dev dependency when it is not declared.
+- `<library> dev-only` (either line): the project already chose that library but declares it only in `devDependencies`. Use it as if it were printed alone, and move it to `dependencies` with the "Move to runtime" command of the table below before creating any file. Run the detector again and continue only when it prints the library without `dev-only`.
+
+Install only the missing packages with the package manager that owns the project's lockfile:
+
+| Lockfile | Runtime install | Dev install | Move to runtime (`dev-only`) |
+|---|---|---|---|
+| `pnpm-lock.yaml` | `pnpm add zod express` | `pnpm add -D @types/express` | `pnpm add --save-prod <library>` |
+| `yarn.lock` | `yarn add zod express` | `yarn add -D @types/express` | `yarn remove <library> && yarn add <library>` |
+| `bun.lockb` or `bun.lock` | `bun add zod express` | `bun add -d @types/express` | `bun remove <library> && bun add <library>` |
+| `package-lock.json` or no lockfile | `npm install zod express` | `npm install -D @types/express` | `npm install --save-prod <library>` |
+
+Drop from each command the packages that are already declared or that you are replacing with an existing library or framework export. If more than one lockfile exists, ask the user which package manager the project uses before installing. If an install fails, report the command and its error and stop: do not create schemas, the validation factory or the router without their dependencies.
+
+---
+
 ## Option A — Server Hook (`getServerSideProps`)
 
 Consult the SSR framework documentation for the current server hooks API before implementing.
@@ -50,7 +78,7 @@ export const beforeGetServerSideProps = [authorizeByPermission(VIEW_PERMISSION),
 
 ### Validate inputs
 
-Use the project's input validation library (for example, zod) — `safeParse()` returns the parsed value or the validation errors without throwing.
+Use the validation library resolved in the Preflight. With zod, `safeParse()` returns the parsed value or the validation errors without throwing; with another library, use its non-throwing equivalent.
 
 ```ts
 import { z } from 'zod';
@@ -103,7 +131,7 @@ Rules:
 
 ## Option B — REST Endpoint (`/api` folder)
 
-The server mounts the `apiRouter` at `/api`. Use the project's validation middleware factory as route middleware so validation and the `400` error response live in one place. Search for an existing factory first and reuse it with its error contract; if none exists, create `utils/validation/index.(js|ts)` with the `createValidationMiddleware` implementation from `../../rules/api-validation-middleware.md` before writing any module that imports it.
+The server mounts the `apiRouter` at `/api`. Use the project's validation middleware factory as route middleware so validation and the `400` error response live in one place. Search for an existing factory first and reuse it with its error contract; if none exists, run the Preflight and then create `utils/validation/index.(js|ts)` with the `createValidationMiddleware` implementation from `../../rules/api-validation-middleware.md` (adapted to the resolved library) before writing any module that imports it.
 
 Keep REST route schemas and middleware in `api/middlewares/validation/<resource>.(js|ts)`, then import their named exports from `api/middlewares/validation/index.js` or `index.ts`. See `../../rules/api-validation-middleware.md`.
 

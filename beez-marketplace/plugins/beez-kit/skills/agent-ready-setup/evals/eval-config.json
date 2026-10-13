@@ -486,6 +486,38 @@
       ]
     },
     {
+      "id": "frontend-api-endpoint-installs-or-detects-validation-library",
+      "description": "Detecta la librería de validación y express ya declaradas en dependencies o instala zod con el package manager del lockfile antes de crear schemas, el factory y el router.",
+      "input": "Voy a ejecutar `/api-endpoint` de agent-ready-setup para crear un endpoint REST en un proyecto frontend con `pnpm-lock.yaml` cuyo `package.json` declara `express` en `dependencies` pero no declara ninguna librería de validación. Explicá qué debe hacer la skill antes de escribir el schema, `utils/validation` y el router, qué comando corre, qué cambia si `package.json` ya declara `joi` y qué hace si `zod` está solo en `devDependencies`. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
+      "assertions": [
+        {
+          "type": "contains",
+          "value": "package.json",
+          "description": "Revisa las dependencias declaradas en package.json"
+        },
+        {
+          "type": "contains",
+          "value": "pnpm add zod",
+          "description": "Instala zod con el package manager del lockfile"
+        },
+        {
+          "type": "contains",
+          "value": "joi",
+          "description": "Reutiliza la librería de validación ya declarada en lugar de instalar zod"
+        },
+        {
+          "type": "contains_any",
+          "values": ["dev-only", "--save-prod", "dependencies"],
+          "description": "Mueve a runtime la librería declarada solo en devDependencies"
+        },
+        {
+          "type": "contains_any",
+          "values": ["tsc --noEmit", "módulo inexistente", "missing module", "no compila"],
+          "description": "Explica que sin la dependencia falla la verificación de tipos"
+        }
+      ]
+    },
+    {
       "id": "frontend-logger-example-defines-error-mapper-dependency",
       "description": "Hace explícita la dependencia del ejemplo de logger respecto del mapper tipado de errores.",
       "input": "Revisá el ejemplo de uso de `logger/SKILL.md` de agent-ready-setup: el handler llama a `mapKnownErrorToHttpResponse`. Explicá qué debe mostrar el ejemplo para que compile al copiarse, qué módulo debe existir y qué regla debe conservar el mapper. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
