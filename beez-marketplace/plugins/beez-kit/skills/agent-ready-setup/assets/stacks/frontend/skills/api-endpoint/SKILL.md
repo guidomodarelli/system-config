@@ -168,6 +168,31 @@ export default router;
 
 The handler maps the validated body explicitly instead of forwarding `req.body`, so client-only fields never reach the service or the upstream request.
 
+When a route consumes a client-controlled header, validate it in the same middleware with a `headers` schema. Node lowercases header names, so declare lowercase keys and keep the object non-strict (never `.strict()`), because the request carries other headers. The factory leaves `req.headers` intact and exposes only the parsed keys in `req.validatedHeaders`; read the value from there:
+
+```ts
+// api/middlewares/validation/product.ts
+import { z } from 'zod';
+import { createValidationMiddleware } from '../../../utils/validation';
+
+export const syncProductValidationMiddleware = createValidationMiddleware({
+  params: z.object({ id: z.string().uuid() }),
+  headers: z.object({
+    'x-client-version': z.string().regex(/^\d+\.\d+\.\d+$/),
+  }),
+});
+
+// api/product/index.ts
+router.post('/product/:id/sync', syncProductValidationMiddleware, async (req, res) => {
+  const clientVersion = req.validatedHeaders['x-client-version'];
+  // ...
+});
+```
+
+An invalid or missing header returns the same `400` contract with `path: 'headers.x-client-version'`, without echoing the submitted value.
+
+In TypeScript, declare `validatedHeaders` once through Express `Request` module augmentation (for example, `validatedHeaders?: Record<string, unknown>`) so `tsc --noEmit` accepts the handler.
+
 ### 2. Mount in `api/index.ts`
 
 ```ts
@@ -182,7 +207,7 @@ export default apiRouter;
 ```
 
 Rules:
-- Define the validation middleware in `api/middlewares/validation/<resource>.(js|ts)` and mount its named export as the first route middleware — never access `req.body/params/query` without prior validation.
+- Define the validation middleware in `api/middlewares/validation/<resource>.(js|ts)` and mount its named export as the first route middleware — never access `req.body/params/query` or a client-controlled header without prior validation; read validated headers from `req.validatedHeaders`, never from `req.headers` or `req.get()`.
 - Never import `createValidationMiddleware` (or any validation helper) from a path that does not exist: reuse the project's factory or create it first.
 - For path/query params (always strings), coerce non-string types in the schema (for example, `z.coerce.number()`); for booleans, parse the allowed string values explicitly instead of relying on truthiness.
 - Never inline business logic — delegate to a service.

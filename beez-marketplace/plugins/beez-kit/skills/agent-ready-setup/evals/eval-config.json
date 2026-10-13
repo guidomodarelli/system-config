@@ -83,6 +83,28 @@
       ]
     },
     {
+      "id": "frontend-api-validation-middleware-headers",
+      "description": "Explica cómo validar headers propios del cliente sin reemplazar req.headers.",
+      "input": "Una ruta REST del BFF lee el header propio X-Client-Version. ¿Cómo se valida con la factory de validación y desde dónde lo lee el handler? No ejecutes Bash ni escribas archivos; responde desde las reglas bundled de frontend.",
+      "assertions": [
+        {
+          "type": "contains",
+          "value": "x-client-version",
+          "description": "Declara la clave del header en minúsculas"
+        },
+        {
+          "type": "contains",
+          "value": "req.validatedHeaders",
+          "description": "Lee el header validado desde la propiedad dedicada"
+        },
+        {
+          "type": "contains",
+          "value": "headers.x-client-version",
+          "description": "Indica el path del issue con el prefijo headers"
+        }
+      ]
+    },
+    {
       "id": "frontend-review-uses-remote-default-branch",
       "description": "Explica fallback portable cuando no hay PR seleccionable.",
       "input": "Explicá qué hace el comando review-pr si gh pr diff no puede seleccionar un PR y el repositorio usa master o trunk en vez de main. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
