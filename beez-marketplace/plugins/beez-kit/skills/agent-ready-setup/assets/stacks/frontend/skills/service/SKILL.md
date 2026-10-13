@@ -24,9 +24,37 @@ Group by domain (`user`, `shipping`, `payment`) — not by technical type (`api`
 
 ---
 
-## Step 2 — Set up the HTTP client
+## Step 2 — Detect or install the service dependencies
 
-Always use the project's HTTP client (for example, one `axios` instance per service) for external HTTP calls. Never call `fetch` or `http.request` directly.
+The service imports an HTTP client and a config module, and its test imports an HTTP mocking library, so those packages must be declared before the files are created; otherwise `tsc --noEmit` fails with a missing module.
+
+```bash
+# Print the first HTTP client, config module and HTTP mocking library declared in package.json, or NONE for each
+node -e "const p = require('./package.json'); const deps = { ...p.dependencies, ...p.devDependencies }; const findDeclared = (known) => known.find((library) => deps[library]) ?? 'NONE'; console.log('http-client=' + findDeclared(['axios', 'ky', 'got', 'undici', 'node-fetch'])); console.log('config-module=' + findDeclared(['config', 'convict', 'dotenv'])); console.log('http-mock=' + findDeclared(['nock', 'msw']));"
+```
+
+Resolve each line independently:
+
+- `http-client`: if it prints a library, use it in Steps 3 and 4 and adapt the import and the instance creation to that library (for example, `ky.create({ prefixUrl, timeout })` or `got.extend({ prefixUrl, timeout })`). If it prints `NONE` but the project already wraps native `fetch` in its own client module (look under `src/`, `utils/` and `services/` for a shared function that calls `fetch`), import that wrapper instead. Only when neither exists, install `axios`.
+- `config-module`: if it prints `config` or `convict`, read the base URL through that module. If it prints `dotenv`, or `NONE` but the project has its own config module (for example, `src/config/index.ts`), import that module instead of `config`. Only when neither exists, install `config` and `@types/config`, and add the `services.<domain>.baseUrl` key to the existing files under `config/` (create `config/default.js` only if the directory has no environment files).
+- `http-mock`: if it prints `msw`, write the Step 5 scenarios with the project's `msw` server and handlers instead of `nock.back`, keeping the same lockdown and sanitization guarantees. If it prints `NONE`, install `nock` as a dev dependency.
+
+`axios` and `nock` ship their own type definitions; `config` needs `@types/config`. Install only the missing packages with the package manager that owns the project's lockfile, keeping `nock` and `@types/config` as dev dependencies:
+
+| Lockfile | Runtime install | Dev install |
+|---|---|---|
+| `pnpm-lock.yaml` | `pnpm add axios config` | `pnpm add -D nock @types/config` |
+| `yarn.lock` | `yarn add axios config` | `yarn add -D nock @types/config` |
+| `bun.lockb` or `bun.lock` | `bun add axios config` | `bun add -d nock @types/config` |
+| `package-lock.json` or no lockfile | `npm install axios config` | `npm install -D nock @types/config` |
+
+Drop from each command the packages that are already declared or that you are replacing with an existing library. If more than one lockfile exists, ask the user which package manager the project uses before installing. If an install fails, report the command and its error and stop: do not create the service or its test without their dependencies.
+
+---
+
+## Step 3 — Set up the HTTP client
+
+Always use the project's HTTP client (for example, one `axios` instance per service) for external HTTP calls. Never call `fetch` or `http.request` directly; a native `fetch` call is only allowed inside the project's own client wrapper detected in Step 2.
 
 ```ts
 import axios from 'axios';
@@ -45,10 +73,10 @@ Rules:
 
 ---
 
-## Step 3 — Implement the service functions
+## Step 4 — Implement the service functions
 
 ```ts
-// Continue in the same index.ts file and reuse the client declared in Step 2.
+// Continue in the same index.ts file and reuse the client declared in Step 3.
 
 export async function getResource(id: string): Promise<Resource> {
   // id must be validated by the caller before reaching here
@@ -86,7 +114,7 @@ Rules:
 
 ---
 
-## Step 4 — Write the test
+## Step 5 — Write the test
 
 ```ts
 import path from 'node:path';
@@ -150,7 +178,7 @@ Usá fixtures del interceptor HTTP del proyecto (por ejemplo, `nock.back`) para 
 
 ---
 
-## Step 5 — Verify
+## Step 6 — Verify
 
 ```bash
 tsc --noEmit

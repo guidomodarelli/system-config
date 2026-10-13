@@ -528,6 +528,43 @@
       ]
     },
     {
+      "id": "frontend-service-installs-or-detects-dependencies",
+      "description": "Detecta cliente HTTP, módulo de config y librería de mocks HTTP ya declarados o los instala con el package manager del lockfile antes de crear el service y su test.",
+      "input": "Voy a ejecutar `/service` de agent-ready-setup en un proyecto SSR con `yarn.lock` cuyo `package.json` no declara cliente HTTP, módulo de configuración ni librería de mocks HTTP. Explicá qué debe hacer la skill antes de crear el service y su test, qué comandos corre y qué cambia si `package.json` ya declara `ky` y `msw`. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
+      "assertions": [
+        {
+          "type": "contains",
+          "value": "package.json",
+          "description": "Revisa las dependencias declaradas en package.json"
+        },
+        {
+          "type": "contains",
+          "value": "yarn add axios config",
+          "description": "Instala axios y config con el package manager del lockfile"
+        },
+        {
+          "type": "contains",
+          "value": "yarn add -D nock @types/config",
+          "description": "Instala nock y los tipos de config como dev dependencies"
+        },
+        {
+          "type": "contains",
+          "value": "ky",
+          "description": "Reutiliza el cliente HTTP ya declarado en lugar de instalar axios"
+        },
+        {
+          "type": "contains",
+          "value": "msw",
+          "description": "Reutiliza la librería de mocks HTTP ya declarada en lugar de instalar nock"
+        },
+        {
+          "type": "contains_any",
+          "values": ["tsc --noEmit", "módulo inexistente", "missing module", "no compila"],
+          "description": "Explica que sin las dependencias falla la verificación de tipos"
+        }
+      ]
+    },
+    {
       "id": "frontend-middleend-known-errors-use-4xx",
       "description": "Traduce causas conocidas de middleend a 4xx sin fallback 5xx genérico.",
       "input": "Estoy implementando un endpoint REST middleend para crear y consultar productos. El servicio puede devolver errores de validación de dominio, recurso inexistente o conflicto de estado, y el request ya pasó la validación de forma. Explicá cómo debe manejar esos errores agent-ready-setup, qué statuses públicos elegir, qué registrar y qué respuesta evitar. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
