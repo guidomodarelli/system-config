@@ -1,0 +1,4 @@
+interface:
+  display_name: "Debugging runtime de Node.js"
+  short_description: "Inspecciona requests reales antes de decidir campos y fallbacks"
+  default_prompt: "Usa $node-runtime-debugging para verificar valores reales en Node antes de decidir fuentes o agregar fallbacks."
