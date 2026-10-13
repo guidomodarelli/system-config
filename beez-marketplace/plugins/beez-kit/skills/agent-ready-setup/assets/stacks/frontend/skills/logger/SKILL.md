@@ -63,7 +63,19 @@ If more than one lockfile exists, ask the user which package manager the project
 mkdir -p utils
 ```
 
-Create the file with this content when the library is `pino`:
+Every variant keeps the same exported helpers (`logError`, `logWarning`), the same `Tags` type and the `name` from `package.json`. Libraries disagree on argument order, so adapt the import, the instance **and the calls inside both helpers** to the library detected in Step 3; never keep the Pino call shape with another library:
+
+| Library | Instance | Call inside the helpers | Where `tags` go |
+|---|---|---|---|
+| `pino` | `pino({ name })` | `logger.error(tags ?? {}, message)` | First argument (merging object), message second |
+| `winston` | `createLogger({ defaultMeta: { service: name }, transports: [new transports.Console()] })` | `logger.error(message, tags ?? {})` | Second argument (metadata), message first |
+| `bunyan` | `bunyan.createLogger({ name })` | `logger.error(tags ?? {}, message)` | First argument (fields object), message second |
+| `log4js` | `getLogger(name)` + `logger.level = 'warn'` | `logger.error(message, tags ?? {})` | Extra argument after the message |
+| `loglevel` | `log.getLogger(name)` | `logger.error(message, tags ?? {})` | Extra argument after the message, forwarded to `console.error` |
+
+`logWarning` uses the same shape with the `warn` method. Create the file with the block that matches the detected library.
+
+`pino`:
 
 ```ts
 import pino from 'pino';
@@ -82,7 +94,95 @@ export const logWarning = (message: string, tags?: Tags): void => {
 };
 ```
 
-When Step 3 detected another library, keep the same exported helpers (`logError`, `logWarning`) and the `name` from `package.json`, and replace only the import and the instance with that library's API (for example, `winston.createLogger({ defaultMeta: { service: name } })` or `bunyan.createLogger({ name })`), passing `tags` as the log metadata.
+`winston` (a logger without transports writes no entry and only warns about it, so declare at least the console transport):
+
+```ts
+import { createLogger, format, transports } from 'winston';
+import { name } from '../package.json';
+
+type Tags = Record<string, string | number | boolean | undefined | null>;
+
+const logger = createLogger({
+  format: format.json(),
+  defaultMeta: { service: name },
+  transports: [new transports.Console()],
+});
+
+export const logError = (message: string, tags?: Tags): void => {
+  logger.error(message, tags ?? {});
+};
+
+export const logWarning = (message: string, tags?: Tags): void => {
+  logger.warn(message, tags ?? {});
+};
+```
+
+`bunyan` (it does not ship TypeScript types: declare `@types/bunyan` as a dev dependency with the "Dev types" command below before running `tsc --noEmit`):
+
+```ts
+import bunyan from 'bunyan';
+import { name } from '../package.json';
+
+type Tags = Record<string, string | number | boolean | undefined | null>;
+
+const logger = bunyan.createLogger({ name });
+
+export const logError = (message: string, tags?: Tags): void => {
+  logger.error(tags ?? {}, message);
+};
+
+export const logWarning = (message: string, tags?: Tags): void => {
+  logger.warn(tags ?? {}, message);
+};
+```
+
+`log4js` (the default category level is `OFF`, so set a level or nothing is written):
+
+```ts
+import { getLogger } from 'log4js';
+import { name } from '../package.json';
+
+type Tags = Record<string, string | number | boolean | undefined | null>;
+
+const logger = getLogger(name);
+logger.level = 'warn';
+
+export const logError = (message: string, tags?: Tags): void => {
+  logger.error(message, tags ?? {});
+};
+
+export const logWarning = (message: string, tags?: Tags): void => {
+  logger.warn(message, tags ?? {});
+};
+```
+
+`loglevel` (its default level is `warn`, so both helpers are written without extra setup):
+
+```ts
+import log from 'loglevel';
+import { name } from '../package.json';
+
+type Tags = Record<string, string | number | boolean | undefined | null>;
+
+const logger = log.getLogger(name);
+
+export const logError = (message: string, tags?: Tags): void => {
+  logger.error(message, tags ?? {});
+};
+
+export const logWarning = (message: string, tags?: Tags): void => {
+  logger.warn(message, tags ?? {});
+};
+```
+
+Dev types for `bunyan`, with the package manager that owns the lockfile (skip it when `@types/bunyan` is already declared):
+
+| Lockfile | Dev types |
+|---|---|
+| `pnpm-lock.yaml` | `pnpm add -D @types/bunyan` |
+| `yarn.lock` | `yarn add -D @types/bunyan` |
+| `bun.lockb` or `bun.lock` | `bun add -d @types/bunyan` |
+| `package-lock.json` or no lockfile | `npm install -D @types/bunyan` |
 
 ---
 

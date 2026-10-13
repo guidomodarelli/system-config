@@ -652,6 +652,12 @@ EOF
     grep -Fxq "name: $skill_name" <(sed -n '2p' "$skill_path")
     cmp -s "$skill_path" "$skill_dir/assets/stacks/frontend/skills/$skill_name/SKILL.md"
   done
+  for skill_name in logger service; do
+    eval_config=".agents/skills/$skill_name/evals/eval-config.json"
+    [ -f "$eval_config" ]
+    cmp -s "$eval_config" "$skill_dir/assets/stacks/frontend/skills/$skill_name/evals/eval-config.json"
+  done
+  [ ! -e .agents/skills/evals/SKILL.md ]
   [ -f .agents/skills/karpathy-guidelines/EXAMPLES.md ]
   [ ! -e .agents/skills/SKILL/SKILL.md ]
   [ ! -e .agents/skills/EXAMPLES/SKILL.md ]
