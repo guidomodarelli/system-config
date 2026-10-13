@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+!plugins/**/logs/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Build outputs
+dist/
+build/
+*.tgz
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Claude Code local
+.claude/**
+!.claude/settings.json
+!.codex/config.toml
+
+.rp/
+
+# Skill creator eval workspaces (generated during skill development, not for distribution)
+skills/*-workspace/
+
+# evals results
+.eval-results/
+
+# Python
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+**/.in_use/
+
+# groot-queue: per-user audit log of auto/manual derive & discard actions (one file per year)
+audit-log-*.jsonl
+
+# BEGIN AOC
+.agents/metadata/**
+.agents/skills/**
+# END AOC
