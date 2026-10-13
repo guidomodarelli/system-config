@@ -126,6 +126,7 @@ import { getResource } from '../index';
 const RECORD_FIXTURES_ENV_VAR = 'NOCK_BACK_RECORD';
 const REDACTED_VALUE = '[REDACTED]';
 const SENSITIVE_FIELD_NAMES = ['email', 'phone', 'document', 'token'];
+const URL_ENCODED_PAYLOAD_PATTERN = /^[^=&\s]+=[^&\s]*(?:&[^=&\s]+=[^&\s]*)*$/;
 
 const isRecordingFixtures = process.env[RECORD_FIXTURES_ENV_VAR] === 'true' && !process.env.CI;
 
@@ -143,23 +144,52 @@ const redactSensitiveFields = <Value,>(value: Value): Value => {
   ) as Value;
 };
 
+const redactSensitiveSearchParams = (encodedParams: string): string => {
+  const searchParams = new URLSearchParams(encodedParams);
+  [...new Set(searchParams.keys())]
+    .filter((paramName) => SENSITIVE_FIELD_NAMES.includes(paramName))
+    .forEach((paramName) => searchParams.set(paramName, REDACTED_VALUE));
+  return searchParams.toString();
+};
+
 const redactSensitiveQueryParams = (recordedPath: string): string => {
   const queryStartIndex = recordedPath.indexOf('?');
   if (queryStartIndex === -1) return recordedPath;
-  const queryParams = new URLSearchParams(recordedPath.slice(queryStartIndex + 1));
-  [...new Set(queryParams.keys())]
-    .filter((paramName) => SENSITIVE_FIELD_NAMES.includes(paramName))
-    .forEach((paramName) => queryParams.set(paramName, REDACTED_VALUE));
-  return `${recordedPath.slice(0, queryStartIndex)}?${queryParams.toString()}`;
+  const redactedQuery = redactSensitiveSearchParams(recordedPath.slice(queryStartIndex + 1));
+  return `${recordedPath.slice(0, queryStartIndex)}?${redactedQuery}`;
+};
+
+const parseJsonContainer = (recordedText: string): object | undefined => {
+  try {
+    const parsedValue: unknown = JSON.parse(recordedText);
+    return typeof parsedValue === 'object' && parsedValue !== null ? parsedValue : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+// Nock keeps as a string every body it cannot parse as JSON (form-urlencoded, plain text, XML...).
+const sanitizeRecordedPayload = (recordedPayload: unknown, payloadLabel: string): unknown => {
+  if (typeof recordedPayload !== 'string' || recordedPayload === '') return redactSensitiveFields(recordedPayload);
+  const parsedJson = parseJsonContainer(recordedPayload);
+  if (parsedJson !== undefined) return JSON.stringify(redactSensitiveFields(parsedJson));
+  if (URL_ENCODED_PAYLOAD_PATTERN.test(recordedPayload)) return redactSensitiveSearchParams(recordedPayload);
+  throw new Error(
+    `sanitizeRecordedDefinitions: refusing to persist the ${payloadLabel} because it is a text payload that is neither JSON nor form-urlencoded and cannot be sanitized; write this fixture by hand from test data or add a sanitizer for its content type.`,
+  );
 };
 
 const sanitizeRecordedDefinitions = (definitions: nock.Definition[]): nock.Definition[] =>
-  definitions.map(({ rawHeaders, reqheaders, ...definition }) => ({
-    ...definition,
-    path: redactSensitiveQueryParams(definition.path),
-    body: redactSensitiveFields(definition.body),
-    response: redactSensitiveFields(definition.response),
-  }));
+  definitions.map(({ rawHeaders, reqheaders, ...definition }) => {
+    const redactedPath = redactSensitiveQueryParams(definition.path);
+    const definitionLabel = `${definition.method ?? 'GET'} ${definition.scope}${redactedPath}`;
+    return {
+      ...definition,
+      path: redactedPath,
+      body: sanitizeRecordedPayload(definition.body, `request body of ${definitionLabel}`),
+      response: sanitizeRecordedPayload(definition.response, `response of ${definitionLabel}`),
+    } as nock.Definition;
+  });
 
 describe('getResource', () => {
   it('returns the resource when the API responds successfully', async () => {
@@ -176,7 +206,7 @@ describe('getResource', () => {
 });
 ```
 
-Usá fixtures del interceptor HTTP del proyecto (por ejemplo, `nock.back`) para escenarios de error, en lugar de mockear el cliente HTTP. Para `createResource`, cubrí el mapeo de `buildCreateResourceUpstreamRequest` verificando el request enviado con el mecanismo de intercepción HTTP del proyecto que permita inspeccionarlo (ver `../../rules/upstream-contracts.md`, sección `Tests`). El modo por defecto (y siempre en CI) es `lockdown`: el test solo reproduce fixtures existentes y cualquier request sin fixture falla sin llegar a la red. Grabar un fixture es una acción explícita: corré el test con `NOCK_BACK_RECORD=true`, fuera de CI y contra un entorno o cuenta con datos de prueba, nunca contra datos reales de usuarios. `afterRecord` descarta `rawHeaders` y `reqheaders` (cookies, `authorization`, `set-cookie`, correlation ids) y redacta identificadores y PII del body, de la respuesta y de los query params de `path` (Nock graba ahí la ruta con su query string) antes de persistir; ajustá `SENSITIVE_FIELD_NAMES` al contrato del upstream. Los segmentos de ruta (por ejemplo, `/users/{id}`) no se redactan: si llevan identificadores, grabá solo contra datos de prueba. Revisá el JSON generado antes de commitearlo y commitealo solo si no contiene secretos, tokens, cookies ni datos personales, para que CI ejecute el test sin red.
+Usá fixtures del interceptor HTTP del proyecto (por ejemplo, `nock.back`) para escenarios de error, en lugar de mockear el cliente HTTP. Para `createResource`, cubrí el mapeo de `buildCreateResourceUpstreamRequest` verificando el request enviado con el mecanismo de intercepción HTTP del proyecto que permita inspeccionarlo (ver `../../rules/upstream-contracts.md`, sección `Tests`). El modo por defecto (y siempre en CI) es `lockdown`: el test solo reproduce fixtures existentes y cualquier request sin fixture falla sin llegar a la red. Grabar un fixture es una acción explícita: corré el test con `NOCK_BACK_RECORD=true`, fuera de CI y contra un entorno o cuenta con datos de prueba, nunca contra datos reales de usuarios. `afterRecord` descarta `rawHeaders` y `reqheaders` (cookies, `authorization`, `set-cookie`, correlation ids) y redacta identificadores y PII del body, de la respuesta y de los query params de `path` (Nock graba ahí la ruta con su query string) antes de persistir. Nock guarda como string todo body o respuesta que no puede parsear como JSON: `sanitizeRecordedPayload` redacta esos strings cuando son JSON o `application/x-www-form-urlencoded` y, ante cualquier otro texto no vacío (texto plano, XML, payload binario), lanza un error que aborta la grabación indicando método, origin y path redactado; en ese caso armá el fixture a mano con datos de prueba o agregá un sanitizer para ese content type. Ajustá `SENSITIVE_FIELD_NAMES` al contrato del upstream. Los segmentos de ruta (por ejemplo, `/users/{id}`) no se redactan: si llevan identificadores, grabá solo contra datos de prueba. Revisá el JSON generado antes de commitearlo y commitealo solo si no contiene secretos, tokens, cookies ni datos personales, para que CI ejecute el test sin red.
 
 ### HTTP client `undici`
 
@@ -222,9 +252,12 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  mockAgent.assertNoPendingInterceptors();
-  await mockAgent.close();
-  setGlobalDispatcher(originalDispatcher);
+  try {
+    mockAgent.assertNoPendingInterceptors();
+  } finally {
+    setGlobalDispatcher(originalDispatcher);
+    await mockAgent.close();
+  }
 });
 
 describe('getResource', () => {
@@ -239,7 +272,7 @@ describe('getResource', () => {
 });
 ```
 
-Cualquier request sin interceptor falla con `MockNotMatchedError` sin llegar a la red, y `assertNoPendingInterceptors()` falla si el service no consumió todas las interacciones del fixture. Para verificar el body enviado por `createResource`, pasá una función como `body` de `intercept` que compare el JSON recibido con el resultado esperado de `buildCreateResourceUpstreamRequest`.
+Cualquier request sin interceptor falla con `MockNotMatchedError` sin llegar a la red, y `assertNoPendingInterceptors()` falla si el service no consumió todas las interacciones del fixture; el `finally` restaura el dispatcher global y cierra el `MockAgent` aunque esa aserción falle, para no contaminar los tests siguientes, y el error de la aserción se sigue propagando. Para verificar el body enviado por `createResource`, pasá una función como `body` de `intercept` que compare el JSON recibido con el resultado esperado de `buildCreateResourceUpstreamRequest`.
 
 ---
 

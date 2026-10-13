@@ -62,6 +62,7 @@ import { getUser } from '../user';
 const RECORD_FIXTURES_ENV_VAR = 'NOCK_BACK_RECORD';
 const REDACTED_VALUE = '[REDACTED]';
 const SENSITIVE_FIELD_NAMES = ['email', 'phone', 'document', 'token'];
+const URL_ENCODED_PAYLOAD_PATTERN = /^[^=&\s]+=[^&\s]*(?:&[^=&\s]+=[^&\s]*)*$/;
 
 const isRecordingFixtures = process.env[RECORD_FIXTURES_ENV_VAR] === 'true' && !process.env.CI;
 
@@ -79,23 +80,52 @@ const redactSensitiveFields = (value) => {
   );
 };
 
+const redactSensitiveSearchParams = (encodedParams) => {
+  const searchParams = new URLSearchParams(encodedParams);
+  [...new Set(searchParams.keys())]
+    .filter((paramName) => SENSITIVE_FIELD_NAMES.includes(paramName))
+    .forEach((paramName) => searchParams.set(paramName, REDACTED_VALUE));
+  return searchParams.toString();
+};
+
 const redactSensitiveQueryParams = (recordedPath) => {
   const queryStartIndex = recordedPath.indexOf('?');
   if (queryStartIndex === -1) return recordedPath;
-  const queryParams = new URLSearchParams(recordedPath.slice(queryStartIndex + 1));
-  [...new Set(queryParams.keys())]
-    .filter((paramName) => SENSITIVE_FIELD_NAMES.includes(paramName))
-    .forEach((paramName) => queryParams.set(paramName, REDACTED_VALUE));
-  return `${recordedPath.slice(0, queryStartIndex)}?${queryParams.toString()}`;
+  const redactedQuery = redactSensitiveSearchParams(recordedPath.slice(queryStartIndex + 1));
+  return `${recordedPath.slice(0, queryStartIndex)}?${redactedQuery}`;
+};
+
+const parseJsonContainer = (recordedText) => {
+  try {
+    const parsedValue = JSON.parse(recordedText);
+    return typeof parsedValue === 'object' && parsedValue !== null ? parsedValue : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+// Nock keeps as a string every body it cannot parse as JSON (form-urlencoded, plain text, XML...).
+const sanitizeRecordedPayload = (recordedPayload, payloadLabel) => {
+  if (typeof recordedPayload !== 'string' || recordedPayload === '') return redactSensitiveFields(recordedPayload);
+  const parsedJson = parseJsonContainer(recordedPayload);
+  if (parsedJson !== undefined) return JSON.stringify(redactSensitiveFields(parsedJson));
+  if (URL_ENCODED_PAYLOAD_PATTERN.test(recordedPayload)) return redactSensitiveSearchParams(recordedPayload);
+  throw new Error(
+    `sanitizeRecordedDefinitions: refusing to persist the ${payloadLabel} because it is a text payload that is neither JSON nor form-urlencoded and cannot be sanitized; write this fixture by hand from test data or add a sanitizer for its content type.`,
+  );
 };
 
 const sanitizeRecordedDefinitions = (definitions) =>
-  definitions.map(({ rawHeaders, reqheaders, ...definition }) => ({
-    ...definition,
-    path: redactSensitiveQueryParams(definition.path),
-    body: redactSensitiveFields(definition.body),
-    response: redactSensitiveFields(definition.response),
-  }));
+  definitions.map(({ rawHeaders, reqheaders, ...definition }) => {
+    const redactedPath = redactSensitiveQueryParams(definition.path);
+    const definitionLabel = `${definition.method ?? 'GET'} ${definition.scope}${redactedPath}`;
+    return {
+      ...definition,
+      path: redactedPath,
+      body: sanitizeRecordedPayload(definition.body, `request body of ${definitionLabel}`),
+      response: sanitizeRecordedPayload(definition.response, `response of ${definitionLabel}`),
+    };
+  });
 
 test('returns user data', async () => {
   const { nockDone } = await nock.back('get-user.json', {
@@ -110,7 +140,7 @@ test('returns user data', async () => {
 });
 ```
 
-To record or refresh a fixture, run the test explicitly with `NOCK_BACK_RECORD=true`, outside CI and against an environment or account that only holds test data — never real user data. `afterRecord` drops `rawHeaders` and `reqheaders` (cookies, `authorization`, `set-cookie`, correlation ids) and redacts identifiers and PII from the request body, the response and the query params of `path` (Nock records the route there, query string included) before the fixture is persisted; adjust `SENSITIVE_FIELD_NAMES` to the upstream contract. Path segments (for example `/users/{id}`) are not redacted: when they carry identifiers, record only against test data. Review the generated JSON before committing it, and commit it only when it contains no secrets, tokens, cookies or personal data, so CI runs without network access.
+To record or refresh a fixture, run the test explicitly with `NOCK_BACK_RECORD=true`, outside CI and against an environment or account that only holds test data — never real user data. `afterRecord` drops `rawHeaders` and `reqheaders` (cookies, `authorization`, `set-cookie`, correlation ids) and redacts identifiers and PII from the request body, the response and the query params of `path` (Nock records the route there, query string included) before the fixture is persisted. Nock keeps as a string every body or response it cannot parse as JSON: `sanitizeRecordedPayload` redacts those strings when they are JSON or `application/x-www-form-urlencoded`, and for any other non-empty text (plain text, XML, binary payloads) it throws an error that aborts the recording and names the method, origin and redacted path; in that case write the fixture by hand from test data or add a sanitizer for that content type. Adjust `SENSITIVE_FIELD_NAMES` to the upstream contract. Path segments (for example `/users/{id}`) are not redacted: when they carry identifiers, record only against test data. Review the generated JSON before committing it, and commit it only when it contains no secrets, tokens, cookies or personal data, so CI runs without network access.
 
 ### When service mocks are acceptable
 

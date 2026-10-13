@@ -648,7 +648,7 @@
     {
       "id": "frontend-service-undici-uses-mock-agent",
       "description": "Con undici como cliente HTTP usa MockAgent con disableNetConnect y fixtures propios en lugar de instalar nock.",
-      "input": "Voy a ejecutar `/service` de agent-ready-setup en un proyecto SSR con `pnpm-lock.yaml` cuyo `package.json` declara `undici` en `dependencies` y no declara librería de mocks HTTP. Explicá qué debe hacer la skill para el test del service, si instala `nock` y cómo garantiza que el test no llegue a la red. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
+      "input": "Voy a ejecutar `/service` de agent-ready-setup en un proyecto SSR con `pnpm-lock.yaml` cuyo `package.json` declara `undici` en `dependencies` y no declara librería de mocks HTTP. Explicá qué debe hacer la skill para el test del service, si instala `nock`, cómo garantiza que el test no llegue a la red y cómo restaura el dispatcher global si falla `assertNoPendingInterceptors()`. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
       "assertions": [
         {
           "type": "contains",
@@ -674,6 +674,33 @@
           "type": "contains",
           "value": "fixtures",
           "description": "Reproduce fixtures propios"
+        },
+        {
+          "type": "contains",
+          "value": "finally",
+          "description": "Restaura el dispatcher global y cierra el MockAgent en un finally aunque falle la aserción"
+        }
+      ]
+    },
+    {
+      "id": "frontend-service-nock-back-rejects-unsanitizable-text-bodies",
+      "description": "Al grabar con nock.back redacta los bodies string JSON o form-urlencoded y aborta la grabación ante texto que no puede sanitizar.",
+      "input": "Voy a ejecutar `/service` de agent-ready-setup en un proyecto SSR que usa `axios` y `nock`. El upstream recibe `application/x-www-form-urlencoded` con `email` y `token`, y uno de sus endpoints responde `text/plain`. Explicá qué hace `afterRecord` al grabar con `NOCK_BACK_RECORD=true` con cada uno de esos bodies. No ejecutes Bash ni escribas archivos; respondé desde la plantilla frontend bundled.",
+      "assertions": [
+        {
+          "type": "contains",
+          "value": "x-www-form-urlencoded",
+          "description": "Redacta las claves sensibles de los bodies form-urlencoded"
+        },
+        {
+          "type": "contains_any",
+          "values": ["[REDACTED]", "%5BREDACTED%5D", "REDACTED_VALUE"],
+          "description": "Reemplaza email y token por el valor redactado"
+        },
+        {
+          "type": "contains_any",
+          "values": ["lanza", "aborta", "throw", "Error"],
+          "description": "Aborta la grabación ante texto plano en lugar de persistirlo"
         }
       ]
     },
