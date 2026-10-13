@@ -23,6 +23,8 @@ source "$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)/instruc
 # shellcheck disable=SC2034
 readonly MARKETPLACE_NAME="beez-marketplace"
 readonly SKILL_NAME="agent-ready-setup"
+# Codex resolves its user home from CODEX_HOME; config, snapshot and cache follow it.
+readonly CODEX_HOME_DIRECTORY="${CODEX_HOME:-$HOME/.codex}"
 
 STACK=""
 REQUESTED_SKILL_DIR=""
@@ -164,7 +166,7 @@ semantic_version_key() {
 # and literal ('...') TOML strings because Codex may write either form.
 codex_marketplace_config_value() {
   local config_key="$1"
-  local codex_config="$HOME/.codex/config.toml"
+  local codex_config="$CODEX_HOME_DIRECTORY/config.toml"
 
   [[ -f "$codex_config" ]] || return 0
   awk -v section="[marketplaces.$MARKETPLACE_NAME]" -v config_key="$config_key" '
@@ -225,7 +227,7 @@ PY
   if is_codex_local_marketplace; then
     configured_location="$(codex_marketplace_config_value source)"
   fi
-  printf '%s\n' "${configured_location:-$HOME/.codex/.tmp/marketplaces/$MARKETPLACE_NAME}"
+  printf '%s\n' "${configured_location:-$CODEX_HOME_DIRECTORY/.tmp/marketplaces/$MARKETPLACE_NAME}"
 }
 
 marketplace_snapshot_skill_dir() {
@@ -278,17 +280,21 @@ resolve_skill_dir() {
     return 1
   fi
 
-  if [[ "$REQUESTED_SKILL_DIR" == "$HOME/.codex/plugins/cache/$MARKETPLACE_NAME"/* ]]; then
-    provider_root="$HOME/.codex"
+  if [[ "$REQUESTED_SKILL_DIR" == "$CODEX_HOME_DIRECTORY/plugins/cache/$MARKETPLACE_NAME"/* ]]; then
+    snapshot_provider="codex"
   elif [[ "$REQUESTED_SKILL_DIR" == "$HOME/.claude/plugins/cache/$MARKETPLACE_NAME"/* ]]; then
-    provider_root="$HOME/.claude"
+    snapshot_provider="claude"
   elif [[ "$PROVIDER" == "claude" ]]; then
+    snapshot_provider="claude"
+  else
+    snapshot_provider="codex"
+  fi
+  if [[ "$snapshot_provider" == "claude" ]]; then
     provider_root="$HOME/.claude"
   else
-    provider_root="$HOME/.codex"
+    provider_root="$CODEX_HOME_DIRECTORY"
   fi
   cache_root="$provider_root/plugins/cache/$MARKETPLACE_NAME/beez-kit"
-  snapshot_provider="${provider_root##*/.}"
 
   if [[ "$REQUESTED_SKILL_DIR" != "$cache_root"/* ]] && \
     is_valid_skill_dir "$REQUESTED_SKILL_DIR"; then

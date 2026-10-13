@@ -6,6 +6,8 @@ set -euo pipefail
 
 skill_dir=""
 provider_override="${AGENT_READY_SETUP_ACTIVE_PROVIDER:-}"
+# Codex resolves its user home from CODEX_HOME; skills installed there belong to Codex.
+readonly CODEX_HOME_DIRECTORY="${CODEX_HOME:-$HOME/.codex}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -42,7 +44,7 @@ if [[ -n "$provider_override" ]]; then
   esac
 fi
 
-if [[ "$skill_dir" == "$HOME/.codex" || "$skill_dir" == "$HOME/.codex/"* ]]; then
+if [[ "$skill_dir" == "$CODEX_HOME_DIRECTORY" || "$skill_dir" == "$CODEX_HOME_DIRECTORY/"* ]]; then
   printf '%s\n' "codex"
 elif [[ "$skill_dir" == "$HOME/.claude" || "$skill_dir" == "$HOME/.claude/"* ]]; then
   printf '%s\n' "claude"

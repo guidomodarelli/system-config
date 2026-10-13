@@ -14,6 +14,9 @@ setup() {
   # Asset-projection tests use the documented offline bootstrap option. Browser
   # installation and real MCP registration are exercised in their own suite.
   export AGENT_READY_SETUP_BROWSER_INSTALL=0
+  # Tests choose the Codex home explicitly; an inherited CODEX_HOME would
+  # redirect config, snapshot and cache lookups away from the fixture HOME.
+  unset CODEX_HOME
   # Fake provider CLIs keep the marketplace upgrade offline and never start a real provider.
   for provider_cli in claude codex; do
     cat > "$fake_bin/$provider_cli" <<'EOF'
@@ -2029,6 +2032,52 @@ FAKE
   [ "$status" -eq 0 ]
   [ ! -e "$invocation_log" ]
   [[ "$output" == *"[marketplace-sync] beez-marketplace es un marketplace Codex local; se omite el upgrade"* ]]
+  grep -Fxq '# local snapshot template' .agents/rules/security.md
+}
+
+# CODEX_HOME outside $HOME/.codex is the home Codex uses; a local marketplace
+# configured there must skip the Git-only upgrade.
+@test "sync hook honors CODEX_HOME for a local marketplace" {
+  invocation_log="$test_root/marketplace-invocation.log"
+  custom_codex_home="$test_root/custom-codex-home"
+  local_snapshot="$test_root/local-marketplace"
+  mkdir -p "$custom_codex_home"
+  cat > "$custom_codex_home/config.toml" <<CONFIG
+[marketplaces.beez-marketplace]
+source_type = "local"
+source = "$local_snapshot"
+CONFIG
+  create_marketplace_snapshot "$local_snapshot" "3.0.0" "# local snapshot template"
+  old_source="$(create_cache_source "$custom_codex_home" "1.0.0" "# stale cache template")"
+  write_recording_codex
+
+  MARKETPLACE_INVOCATION_LOG="$invocation_log" FAKE_CODEX_MARKETPLACE_TYPE=local     run env HOME="$test_root" CODEX_HOME="$custom_codex_home" PATH="$test_root/bin:$PATH"       bash "$old_source/assets/common/hooks/sync-marketplace.sh"         --provider codex         --stack node
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$invocation_log" ]
+  [[ "$output" == *"[marketplace-sync] beez-marketplace es un marketplace Codex local; se omite el upgrade"* ]]
+  grep -Fxq '# local snapshot template' .agents/rules/security.md
+}
+
+@test "bootstrap honors CODEX_HOME for a local marketplace" {
+  invocation_log="$test_root/marketplace-invocation.log"
+  custom_codex_home="$test_root/custom-codex-home"
+  local_snapshot="$test_root/local-marketplace"
+  mkdir -p "$custom_codex_home"
+  cat > "$custom_codex_home/config.toml" <<CONFIG
+[marketplaces.beez-marketplace]
+source_type = "local"
+source = "$local_snapshot"
+CONFIG
+  create_marketplace_snapshot "$local_snapshot" "3.0.0" "# local snapshot template"
+  old_source="$(create_cache_source "$custom_codex_home" "1.0.0" "# stale cache template")"
+  write_recording_codex
+
+  MARKETPLACE_INVOCATION_LOG="$invocation_log" FAKE_CODEX_MARKETPLACE_TYPE=local     run env -u AGENT_READY_SETUP_SKILL_DIR HOME="$test_root" CODEX_HOME="$custom_codex_home"       PATH="$test_root/bin:$PATH"       bash "$old_source/scripts/bootstrap.sh"         --stack node --skill-dir "$old_source"
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$invocation_log" ]
+  [[ "$output" == *"[marketplace-bootstrap] beez-marketplace es un marketplace Codex local; se omite el upgrade"* ]]
   grep -Fxq '# local snapshot template' .agents/rules/security.md
 }
 
