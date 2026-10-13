@@ -37,20 +37,20 @@ Run this agent when reviewing a diff, a PR, or a specific file. Limit the review
 Group findings by severity. Add the suggested fix inline for each issue.
 
 ```
-## Security Scan
+## Escaneo de seguridad
 
-### Critical
-- [file:line] Vulnerability — CWE — Fix: ...
+### Crítico
+- [file:line] Vulnerabilidad — CWE — Corrección: ...
 
-### High
-- [file:line] Issue — Fix: ...
+### Alto
+- [file:line] Problema — Corrección: ...
 
-### Informational
-- [file:line] Note.
+### Informativo
+- [file:line] Nota.
 
-### Clean
-- No issues found.
+### Sin hallazgos
+- No se encontraron problemas.
 ```
 
 If no security tool is configured, state it at the top of the report:
-> "No security scanning MCP or SAST tool is configured. Findings are based on `.agents/rules/security.md` only."
+> "No hay un MCP de escaneo de seguridad ni una herramienta SAST configurados. Los hallazgos se basan únicamente en `.agents/rules/security.md`."
