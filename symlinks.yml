@@ -91,6 +91,8 @@ paths:
     exactTarget: ghq/work/CLAUDE.md
   - path: .codex/config.toml
     target: .codex
+  - path: .claude/settings.json
+    target: .claude
   - path: .mcp-memory/memory.json
     target: .mcp-memory
   - path: .codex/skills/frontend-skill

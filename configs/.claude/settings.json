@@ -1,0 +1,84 @@
+{
+  "autoUpdatesChannel": "latest",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "permissions": {
+    "allow": [
+      "Bash(gh pr:*)",
+      "Bash(gh api:*)",
+      "Bash(gh run:*)",
+      "Bash(gh issue:*)",
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git clone:*)",
+      "Bash(git commit:*)",
+      "Bash(git rebase:*)",
+      "Bash(git merge:*)",
+      "Bash(git worktree:*)",
+      "Bash(codex review:*)",
+      "PowerShell(gh pr:*)",
+      "PowerShell(gh api:*)",
+      "PowerShell(gh run:*)",
+      "PowerShell(gh issue:*)",
+      "PowerShell(git push:*)",
+      "PowerShell(git fetch:*)",
+      "PowerShell(git pull:*)",
+      "PowerShell(git clone:*)",
+      "PowerShell(git commit:*)",
+      "PowerShell(git rebase:*)",
+      "PowerShell(git merge:*)",
+      "PowerShell(git worktree:*)",
+      "PowerShell(codex review:*)"
+    ],
+    "deny": [
+      "Bash(gh repo delete:*)",
+      "Bash(gh api -X DELETE:*)",
+      "PowerShell(gh repo delete:*)",
+      "PowerShell(gh api -X DELETE:*)"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Pushing commits to any branch of the user's own GitHub repos (guidomodarelli/*), including main and including git push --force-with-lease after a rebase in a stacked-PR or ephemeral-clone flow",
+      "Creating, editing, commenting on, reviewing, marking ready and squash-merging pull requests in guidomodarelli/* repos, and deleting the merged head branch",
+      "GitHub API writes on guidomodarelli/* pull requests and issues: reactions, replies, resolving review threads, minimizing comments, closing issues, re-running workflows (gh api, gh api graphql)",
+      "Cloning guidomodarelli/* repos into temp or scratch directories, creating and removing git worktrees, and deleting those ephemeral clones/worktrees with rm -rf or Remove-Item -Recurse once their work is pushed or reported",
+      "Running the project's own install, lint, typecheck, test and build scripts (pnpm/npm/node) inside the user's repos and their ephemeral clones",
+      "Creating, listing and deleting session cron jobs and wakeups (CronCreate, CronDelete, ScheduleWakeup) for review/auto-fix loops the user started",
+      "Editing Claude Code settings files (~/.claude/settings.json, .claude/settings*.json) when the user explicitly asks for a configuration change in the conversation"
+    ],
+    "soft_deny": [
+      "$defaults"
+    ],
+    "environment": [
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Cloud provider(s)**: Vercel and Cloudflare (deploy scripts in package.json) — scoped to this repo's deploy pipeline",
+      "**Repository visibility**: guidomodarelli/TuTribu is PUBLIC (confirmed via gh) — any push here is publishing; only this repo's own work belongs here",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: Environment variables via `.env.local` (gitignored), CI secrets referenced by name only",
+      "**Default / protected branches**: main (default)",
+      "**CI/CD deploy targets**: Vercel (cron) and Cloudflare Workers/Pages (wrangler.jsonc, triggers.crons) for this repo's deploy:cloudflare/upload:cloudflare scripts",
+      "**Network posture**: None configured",
+      "**Host containment**: None configured — assume Claude Code runs on an ordinary developer machine with open internet",
+      "**Source control**: This repo (guidomodarelli/TuTribu) and its origin remote (github.com) only",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: uiarc.dev (contacted 4× in recent transcripts; usage-corroborated)",
+      "**Internal package registry**: npm.pkg.github.com (GitHub Packages registry, contacted 3× in recent transcripts alongside registry.npmjs.org)",
+      "**Sensitive data locations & audiences**: `.env`, `.env.local` (gitignored local secrets); share only with the project maintainer",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development",
+      "**Trusted repo**: guidomodarelli/TuTribu (public) at C:\\Users\\guido\\ghq\\projects\\TuTribu and its origin remote — only this repo's own work should be pushed here; content ported from elsewhere is not its own work",
+      "**Org-specific CLIs**: None configured"
+    ]
+  },
+  "agentPushNotifEnabled": true,
+  "inputNeededNotifEnabled": true
+}
