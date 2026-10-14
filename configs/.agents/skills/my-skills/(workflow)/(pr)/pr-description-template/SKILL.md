@@ -1,6 +1,6 @@
 ---
 name: pr-description-template
-description: "Provides the standard PR title and concise description template (change type, manual validation, optional API changes, reviewer notes) plus a traceability-only mode that preserves existing PR content. Use whenever creating, filling, or intentionally restructuring a pull request body — explicitly or implicitly — including /feature-branch-pr, 'crear PR', 'abrir pull request', 'subir cambios y crear PR', or gh pr create."
+description: "Provides the standard PR title and concise description template (change type, manual validation, optional API changes, reviewer notes) plus a traceability-only mode that preserves existing PR content. MANDATORY: load it before running any `gh pr create` or `gh pr edit --body`/`--body-file`, in any repository, including PRs the agent opens on its own initiative as one step of a larger task (publishing or releasing a library, shipping a fix to another repo, a review or auto-fix loop) where nobody said 'PR'. Never write a PR body by hand. Also use for /feature-branch-pr, 'crear PR', 'abrir pull request', 'subir cambios y crear PR', or any request to fill or restructure a pull request body."
 allowed-tools: Bash(gh:*) Bash(git:*) Bash(bash:*)
 ---
 
@@ -34,6 +34,9 @@ Triggers (explicit or implicit):
 - the user runs `/feature-branch-pr` (the [feature-branch-pr](../feature-branch-pr/SKILL.md) skill must use this template for the PR body)
 - the user asks to "crear PR", "abrir pull request", "subir cambios y crear PR", "branch + commit + push + PR"
 - any flow that ends in `gh pr create` / editing a PR body and needs a title + description
+- the agent decides by itself to open a PR as an intermediate step of another task: publishing or releasing a package ("publicá X"), landing a change in a sibling repository, a release flow that requires changes to go through `main` via PR, or an automated fix loop. The user never says "PR" in these cases, and they are the ones most often missed.
+
+Hard gate: before typing `gh pr create` or `gh pr edit ... --body`/`--body-file`, this skill must already be loaded in the current turn. If it is not, stop, load it, and compose the body from the template. A hand-written body ("Qué cambia", "Validación", free-form sections) is a defect even when its content is accurate; if one was already published, re-apply the template to that PR with `gh pr edit` right away.
 
 ## Modes
 

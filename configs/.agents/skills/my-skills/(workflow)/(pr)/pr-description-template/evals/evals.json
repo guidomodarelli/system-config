@@ -30,6 +30,11 @@
       "id": 6,
       "prompt": "Componé un body nuevo de PR en full composition para un diff que cambia `api/services/orders.ts` eligiendo reintentos solo para errores temporales en lugar de reintentar todo.",
       "expected_output": "La decisión de reintentar solo errores temporales aparece dentro de **Notas para el Revisor** junto con dónde enfocar la revisión; no existe una sección separada **Decisiones técnicas relevantes** y **Pruebas Manuales** lista pasos reproducibles."
+    },
+    {
+      "id": 7,
+      "prompt": "El usuario pidió 'publicá la librería y actualizala en la app'. Para publicar, el repo de la librería exige que los cambios entren a `main` por PR, así que hay que abrir uno con `gh pr create` desde `feature/dialog-close-button`. El diff toca `src/components/dialog.tsx`, `src/motion/motion-slot.tsx`, `src/constants/motion.ts`, `stories/dialog.stories.tsx` y `tests/browser/motion.spec.ts`.",
+      "expected_output": "Carga esta skill antes de `gh pr create` aunque el usuario nunca dijo 'PR'; el body sigue el template completo: empieza con `<div align=\"right\"><sup>📄 Archivos de código modificados: 3</sup></div>` (cuenta solo los tres archivos de `src/`), sigue con `## 📝 Descripción`, marca solo ✨ New Feature en Tipo de Cambio e incluye Pruebas Manuales reproducibles; no usa secciones libres escritas a mano."
     }
   ]
 }
