@@ -1,6 +1,6 @@
 ---
 name: api-endpoint
-description: Create an SSR API endpoint — either a server hook (getServerSideProps) or a REST endpoint in the /api folder using express.Router(). Use when adding a new endpoint, server hook, or API route.
+description: "Crea un endpoint de API SSR: un server hook (getServerSideProps) o un endpoint REST en la carpeta /api con express.Router(). Usar al agregar un nuevo endpoint, server hook o API route."
 metadata:
   tags: "context-optimized-v1.20.1"
 ---

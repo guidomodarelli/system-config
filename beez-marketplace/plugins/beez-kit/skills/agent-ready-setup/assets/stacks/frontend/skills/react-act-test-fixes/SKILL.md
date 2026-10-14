@@ -1,6 +1,6 @@
 ---
 name: react-act-test-fixes
-description: "Resuelve / resolve / fix act() warnings en tests React: not wrapped in act, timers y promesas."
+description: "Resuelve warnings de act() en tests React (fix act warnings): not wrapped in act, timers y promesas."
 license: MIT
 metadata:
   version: "1.0.0"

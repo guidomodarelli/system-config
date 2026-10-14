@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: Operate live web pages with the agent-ready browser CLI or MCP; navigate, inspect and reproduce flows.
+description: Opera páginas web en vivo con el browser CLI o MCP de agent-ready; navega, inspecciona y reproduce flows.
 license: MIT
 metadata:
   version: "1.0.0"

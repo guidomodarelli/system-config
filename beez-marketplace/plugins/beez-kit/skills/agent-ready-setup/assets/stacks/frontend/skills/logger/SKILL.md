@@ -1,6 +1,6 @@
 ---
 name: logger
-description: Create a shared logger utility in /utils that wraps the logger library already declared in package.json (installing pino with the project's package manager when none is declared), names it after the project from package.json and exposes logError and logWarning helpers. Use when setting up logging for SSR API handlers or standardizing logger usage across API handlers.
+description: Crea un logger utility compartido en /utils que envuelve la librería de logging ya declarada en package.json (instalando pino con el package manager del proyecto si no hay ninguna), lo nombra según el proyecto de package.json y expone los helpers logError y logWarning. Usar al configurar logging para API handlers SSR o al estandarizar el uso del logger entre API handlers.
 metadata:
   tags: "context-optimized-v1.20.1"
 ---

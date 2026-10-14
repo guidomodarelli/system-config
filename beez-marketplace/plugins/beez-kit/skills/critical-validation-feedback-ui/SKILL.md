@@ -1,6 +1,6 @@
 ---
 name: critical-validation-feedback-ui
-description: Ensure critical UI interactions have pre-action validation and clear, visible feedback (errors or helper text), including stale-error cleanup and error-reporting feedback integration. Use when adding or updating forms, searches, navigations, edits, modals, selectors, or async actions to avoid silent failures, misleading previous errors, or incorrect support-reporting feedback.
+description: Asegura que las interacciones críticas de UI tengan validación previa a la acción y feedback claro y visible (errores o helper text), incluida la limpieza de stale errors y la integración con feedback de error reporting. Usar al agregar o actualizar forms, búsquedas, navegaciones, ediciones, modals, selectors o acciones async para evitar silent failures, errores previos engañosos o feedback de reporte a soporte incorrecto.
 metadata:
   tags: "context-optimized-v1.20.1"
 ---

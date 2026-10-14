@@ -1,6 +1,6 @@
 ---
 name: test-conventions
-description: Enforces test naming, structure, coverage expectations, mock placement, reporting blocks (Commentary/Validation/Error), error-reporting feedback contracts, stale-error cleanup, and mandatory test execution before completing any change. Use whenever creating, updating, or reviewing automated tests, including Jest/RTL tests for retries, loading, empty states, partial responses, error-reporting context, or async modal flows.
+description: Aplica convenciones de naming y estructura de tests, expectativas de coverage, ubicación de mocks, bloques de reporte (Commentary/Validation/Error), contratos de feedback de error reporting, limpieza de stale errors y ejecución obligatoria de tests antes de completar cualquier cambio. Usar siempre al crear, actualizar o revisar tests automatizados, incluidos tests Jest/RTL de retries, loading, empty states, respuestas parciales, contexto de error reporting o flows async de modals.
 metadata:
   tags: "context-optimized-v1.20.1"
 ---

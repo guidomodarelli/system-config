@@ -1,6 +1,6 @@
 ---
 name: component-creation
-description: Create a React component following team conventions with the project's design system and SSR framework. Use when asked to create a component, widget, or UI element.
+description: Crea un componente React siguiendo las convenciones del equipo con el design system y el framework SSR del proyecto. Usar cuando se pida crear un componente, widget o elemento de UI.
 metadata:
   tags: "context-optimized-v1.20.1"
 ---

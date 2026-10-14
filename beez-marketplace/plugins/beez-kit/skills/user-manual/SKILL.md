@@ -1,14 +1,14 @@
 ---
 name: user-manual
 description: >
-  Generates or updates a self-contained .html user manual (never .htm) for a feature or flow, or a
-  menu of manuals (a replica of the app's menu linking each card to its manual),
-  written as a user story for non-technical readers, from a branch diff or the current code. Uses
-  the Heritage Spec design system in the skill's DESIGN.md. Documents UI
-  visibility rules driven by permissions, roles and user context. Mockups are real-app captures
-  (any design system) at the device the flow is used on, with temporary mocks for every screen
-  variant and sanitized data; manuals can be published to an embedded document viewer. Use when the user asks to document
-  the changes on a branch, create or update a user manual, or explain a flow to non-technical users.
+  Genera o actualiza un manual de usuario .html autocontenido (nunca .htm) para una feature o flow, o un
+  menú de manuales (una réplica del menú de la app que enlaza cada card con su manual),
+  escrito como user story para lectores no técnicos, a partir del diff de una branch o del código actual. Usa
+  el design system Heritage Spec del DESIGN.md de la skill. Documenta las reglas de visibilidad
+  de UI según permisos, roles y contexto del usuario. Los mockups son capturas reales de la app
+  (con cualquier design system) en el dispositivo donde se usa el flow, con mocks temporales para cada
+  variante de pantalla y datos sanitizados; los manuales se pueden publicar en un document viewer embebido. Usar cuando se pida documentar
+  los cambios de una branch, crear o actualizar un manual de usuario o explicar un flow a usuarios no técnicos.
 metadata:
   tags: "context-optimized-v1.20.1"
   author: "Guido Modarelli"
