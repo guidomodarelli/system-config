@@ -66,13 +66,13 @@ git show origin/develop:app/translations/pt-BR/messages.json
   plural entry is `[msgid_plural, msgstr[0], msgstr[1]]`: the singular translation is index 1, never
   index 0 (`"Pendiente": ["Pendientes", "Pendente", "Pendentes"]`).
 - **Library and platform texts** are not in the app catalog: take them from their own source, never
-  from your translation. For example the `@kraken/static` error page ("Ir à página principal", in its
-  bundle under `node_modules/@kraken/static/dist/`) or relative dates, which come from
+  from your translation. For example the error page of a UI or framework package ("Ir à página principal", in its
+  bundle under `node_modules/<package>/dist/`) or relative dates, which come from
   `Intl.RelativeTimeFormat` (`new Intl.RelativeTimeFormat('pt-BR', { style: 'long' }).format(-1,
   'minute')` → "há 1 minuto"). Put each verified pair in a small JSON file
   (`{"Ir a la página principal": "Ir à página principal"}`) and pass it to `check-manual.mjs` as one
   more `--translations-pt`. Pass that library file **first**: when a library text has the same msgid as
-  an app string (Andes pagination «Siguiente» → «Seguinte», app catalog «Siguiente» → «Próximo»), the
+  an app string (a design system's pagination «Siguiente» → «Seguinte», app catalog «Siguiente» → «Próximo»), the
   first file wins.
 
 ## What stays in Spanish (or English)

@@ -4,7 +4,7 @@
 Serves a directory (capture-snippet.js, frame-driver.js, the manual to publish) with CORS for ONE
 allowed origin and accepts POSTed JSON exports, so captures never depend on browser downloads.
 
-    python3 capture-bridge.py --origin https://dev.adminml.com:8443 --directory <skill>/scripts \
+    python3 capture-bridge.py --origin https://app.local.test:8443 --directory <skill>/scripts \
         --exports /tmp/um-exports --port 8767
 
 Security: binds to 127.0.0.1 only, answers CORS only for --origin, rejects POSTs from any other

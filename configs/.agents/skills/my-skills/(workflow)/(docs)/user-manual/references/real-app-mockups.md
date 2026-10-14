@@ -2,7 +2,7 @@
 
 Hand-drawn mockups drift from the product: fonts, spacing, component shapes, and colors end up
 approximated. When the app being documented can be opened in a browser, capture the real screens
-instead. The result is design-system agnostic: it works with Andes, Material, Tailwind, Bootstrap,
+instead. The result is design-system agnostic: it works with Material, Tailwind, Bootstrap, a company design system
 or custom CSS, because it copies whatever markup and stylesheets the page actually uses.
 
 ## What the technique does
@@ -86,8 +86,7 @@ example adding IDs to a local queue) is allowed; the final confirmation is not.
 running **locally with HTTP mocks**. There, confirming is safe because the request never leaves the
 machine:
 
-1. Start the app in its local development mode with the project's mock layer (for Nordic apps,
-   the `nordic-local-mocks` skill). Use the fixtures the project already has for those scenarios
+1. Start the app in its local development mode with the project's mock layer. Use the fixtures the project already has for those scenarios
    and pick inputs that hit them (for example the operator IDs and access that the scenario
    fixture keys on).
 2. Before confirming, check which requests the flow makes and that each one has a fixture. With
@@ -212,7 +211,7 @@ both, capture the screens whose mobile layout differs:
 ### 4. Sanitize: mandatory, no exceptions
 
 - Build `pairs` from the **real values visible in the fragment**: names, surnames, initials in
-  avatars, user and entity IDs, usernames/LDAP, emails, phones, addresses, leaders, internal
+  avatars, user and entity IDs, usernames, emails, phones, addresses, leaders, internal
   facility or tenant names, and free text typed by real users. Replace them with obvious example
   values used consistently across all captures (the same example person everywhere).
 - `pairs` also cover `aria-label`, `title`, `alt`, `value`, `placeholder`, `href`, `id`, `for` and
@@ -225,8 +224,8 @@ both, capture the screens whose mobile layout differs:
   empty, so the snippet inlines every **loaded** one as a data URI. `__umCap` lists the ones that were
   not loaded yet (`unloadedImages`, lazy images below the fold): scroll them into view and capture
   again. `check-manual.mjs` fails on any root-relative image left in the payload.
-- Before exporting, run `__umCheck([...all real values seen])` with the signed-in user's name, LDAP,
-  user id and Groot ID among them. It must return `[]`. If not, recapture with more pairs, or
+- Before exporting, run `__umCheck([...all real values seen])` with the signed-in user's name, username,
+  user id and account ID among them. It must return `[]`. If not, recapture with more pairs, or
   post-process the stored HTML.
 - After embedding, `grep` the final manual for the same values. Zero hits is the requirement.
 
@@ -277,7 +276,7 @@ both, capture the screens whose mobile layout differs:
   is not enough, for example releasing a modal's inner scroll area or pinning a popover root:
 
   ```css
-  [data-capture-root] .andes-modal__scroll,[data-capture-root] .andes-modal__content{max-height:none!important;overflow:visible!important;}
+  [data-capture-root] .ds-modal__scroll,[data-capture-root] .ds-modal__content{max-height:none!important;overflow:visible!important;}
   ```
 
 - The script writes `<span data-app-frames-meta>Capturas: YYYY-MM-DD</span>` into the
@@ -340,9 +339,9 @@ from a position where it opens inside its container, or trim the fragment with `
 ### 6b. The cascade order must match the app
 
 Which rule wins between two selectors of the **same specificity** depends only on their order.
-Real case: Andes ships `.andes-button__content *{display:block}` and the app ships
+Real case: the design system ships `.ds-button__content *{display:block}` and the app ships
 `.change-rep-modal__icon-label{display:inline-flex}`. The app CSS loads later, so in the product
-the icon sits centered next to its text. In the manual the Andes rule won, the label became a
+the icon sits centered next to its text. In the manual the design system rule won, the label became a
 block, and the ★/↺ icons sat above the baseline.
 
 - `capture.rules` lists each capture's rules in the order the page walked its stylesheets, which
@@ -376,7 +375,7 @@ compare every frame against the live screen. Scroll with `behavior: 'instant'` b
 screenshot, because `html{scroll-behavior:smooth}` makes `scrollIntoView` animate and the
 screenshot lands mid-scroll. Fix anything that differs: a floating layer still
 off-flow, a shell adding height, or a missing font. Also confirm that the frames render in the
-final destination (for example the Grid viewer). Delete the downloaded JSON when done, or tell
+final destination (for example the document viewer where it is published). Delete the downloaded JSON when done, or tell
 the user where it is.
 
 ## Fallback
@@ -394,19 +393,19 @@ the mockups are approximations.
   `check-manual.mjs` reports them. Fetch each file from the local dev server and replace the `src`
   with a data URI in the export, or recapture after the images load.
 - **Pins on a page with tabs:** a capture of the whole page also holds the hidden tab panels, so a
-  selector such as `.andes-button__content` + text can match a hidden copy first. Scope the
+  selector such as `.ds-button__content` + text can match a hidden copy first. Scope the
   `data-target` to the visible panel's own class.
 
 - **A row of a grid list captured alone loses its layout** (name and buttons piled up in the middle):
   the grid template lives in inline styles of the list container, and ancestors are copied as empty
   shells. Capture the whole list and remove the other rows in `transform`. For the same reason, scope
-  pin selectors to the captured part (`.sub-list .andes-checkbox__checkbox`), not to a class that an
+  pin selectors to the captured part (`.sub-list .ds-checkbox__checkbox`), not to a class that an
   ancestor shell also has (`.card-row`).
 - **A tooltip or coachmark that sticks out of its modal** (`fit` reports a negative gap): capture the
-  modal's overlay (`.andes-modal__overlay`) with `floating: true`, so the layer fits as in the app.
-- **`nordic dev` waits on a "Nordic Doctor" upgrade prompt** in a throwaway worktree: start it with
-  `yes n | npm run start-dev` so it answers no and keeps going.
-- **Dev server does not start:** use the Node version in `.nvmrc` (Nordic rejects unsupported
+  modal's overlay (`.ds-modal__overlay`) with `floating: true`, so the layer fits as in the app.
+- **The dev server waits on an interactive upgrade prompt** in a throwaway worktree: pipe the
+  answer (for example `yes n | npm run start-dev`) so it answers no and keeps going.
+- **Dev server does not start:** use the Node version in `.nvmrc` (some frameworks reject unsupported
   majors), run `npm ci` in a worktree instead of reusing another branch's `node_modules`, and build
   the artifacts the dev server expects (for example the remote-modules manifest produced by the
   project's `postbuild` webpack config).

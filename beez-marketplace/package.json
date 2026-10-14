@@ -1,0 +1,15 @@
+{
+  "name": "beez-marketplace",
+  "private": true,
+  "description": "Multi-provider marketplace of skills and plugins for AI agents.",
+  "scripts": {
+    "create-version": "node scripts/create-version.js",
+    "test": "npm run test:shell && npm run test:browser",
+    "setup:browser-tests": "python3 -m venv node_modules/.browser-tests-venv && node_modules/.browser-tests-venv/bin/python -m pip install -r plugins/beez-kit/skills/agent-ready-setup/scripts/requirements-browser.txt",
+    "test:browser": "node_modules/.browser-tests-venv/bin/python plugins/beez-kit/skills/agent-ready-setup/tests/browser-tools.spec.py",
+    "test:shell": "bats tests/create-version.bats plugins/beez-kit/skills/agent-ready-setup/tests/bootstrap.bats plugins/beez-kit/skills/agent-ready-setup/tests/merge-instructions.bats skill-eval-runner/tests/run-evals-env-contract.bats skill-eval-runner/tests/run-evals-assertions.bats"
+  },
+  "devDependencies": {
+    "bats": "1.13.0"
+  }
+}
