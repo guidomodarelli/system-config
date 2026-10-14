@@ -94,7 +94,7 @@ BASH
   [[ "$output" == *$'-m\ngpt-6.1-sol\n-c\nmodel_reasoning_effort=medium'* ]]
 }
 
-@test "cx --commit usa gpt-6-luna con esfuerzo max por defecto" {
+@test "cx --commit usa gpt-6-luna con esfuerzo high y fast por defecto" {
   run zsh -c '
     compdef() { :; }
     clear() { :; }
@@ -104,7 +104,7 @@ BASH
   '
 
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'-m\ngpt-6-luna\n-c\nmodel_reasoning_effort=max'* ]]
+  [[ "$output" == *$'-m\ngpt-6-luna\n-c\nmodel_reasoning_effort=high\n-c\nservice_tier="priority"'* ]]
 }
 
 @test "cxd usa gpt-6.1-sol con esfuerzo medium por defecto" {
@@ -118,4 +118,32 @@ BASH
 
   [ "$status" -eq 0 ]
   [[ "$output" == *$'-m\ngpt-6.1-sol\n-c\nmodel_reasoning_effort=medium'* ]]
+}
+
+@test "cx -c usa high y fast e invoca la skill de commit" {
+  run zsh -c '
+    compdef() { :; }
+    clear() { :; }
+    codex() { printf "%s\n" "$@"; }
+    source "${TEST_REPO_ROOT}/configs/zsh/.zsh/functions/codex.zsh"
+    cx -c
+  '
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'-m\ngpt-6-luna\n-c\nmodel_reasoning_effort=high\n-c\nservice_tier="priority"'* ]]
+  [[ "$output" == *$'--yolo\n--search\n--\n$generate-commit-messages' ]]
+}
+
+@test "cxd -c conserva overrides de modelo y razonamiento con fast" {
+  run zsh -c '
+    compdef() { :; }
+    clear() { :; }
+    codex() { printf "%s\n" "$@"; }
+    source "${TEST_REPO_ROOT}/configs/zsh/.zsh/functions/codex.zsh"
+    cxd -c -m gpt-6.1-sol -re medium
+  '
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'-m\ngpt-6.1-sol\n-c\nmodel_reasoning_effort=medium\n-c\nservice_tier="priority"'* ]]
+  [[ "$output" == *$'--yolo\n--search\n--\n$generate-commit-messages' ]]
 }

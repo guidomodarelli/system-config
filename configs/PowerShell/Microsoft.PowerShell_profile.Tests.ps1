@@ -1,4 +1,4 @@
-Describe 'Microsoft.PowerShell_profile cache de scripts por ejecutable' {
+﻿Describe 'Microsoft.PowerShell_profile cache de scripts por ejecutable' {
   BeforeAll {
     Set-StrictMode -Version Latest
 
@@ -647,6 +647,8 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
 
   Context 'modelo predeterminado del wrapper Codex' {
     BeforeEach {
+      # Clear-Host requiere una consola interactiva; el runner puede usar salida redirigida.
+      Mock Clear-Host { }
       Mock Resolve-CxCodexExecutable { 'codex' }
       Mock codex { }
     }
@@ -673,14 +675,34 @@ Describe 'Microsoft.PowerShell_profile ghq repository scan' {
       }
     }
 
-    It 'usa gpt-6-luna y max en modo commit' {
-      cx --commit
+    It 'usa gpt-6-luna, high y fast con <commitFlag>' -TestCases @(
+      @{ commitFlag = '-c' }
+      @{ commitFlag = '--commit' }
+    ) {
+      param($commitFlag)
+      cx $commitFlag
 
       Should -Invoke codex -Times 1 -Exactly -ParameterFilter {
         $args[0] -eq '-m' -and
         $args[1] -eq 'gpt-6-luna' -and
         $args[2] -eq '-c' -and
-        $args[3] -eq 'model_reasoning_effort=max'
+        $args[3] -eq 'model_reasoning_effort=high' -and
+        $args[4] -eq '-c' -and
+        $args[5] -eq 'service_tier="priority"' -and
+        $args -contains '--yolo' -and
+        $args[-1] -eq '$generate-commit-messages'
+      }
+    }
+
+    It 'conserva overrides de modelo y razonamiento en cxd -c con fast' {
+      cxd -c -m gpt-6.1-sol -re medium
+
+      Should -Invoke codex -Times 1 -Exactly -ParameterFilter {
+        $args[1] -eq 'gpt-6.1-sol' -and
+        $args[3] -eq 'model_reasoning_effort=medium' -and
+        $args[5] -eq 'service_tier="priority"' -and
+        $args -contains '--yolo' -and
+        $args[-1] -eq '$generate-commit-messages'
       }
     }
   }

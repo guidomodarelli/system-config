@@ -355,7 +355,7 @@ $script:REPO_ROOT = (Resolve-Path (Join-Path $script:ProfileScriptDirectory '..\
 $script:CxCommitSkillPrompt = '$generate-commit-messages'
 # Defaults for `cx --commit`; explicit -m/-re flags still take precedence.
 $script:CxCommitModel = 'gpt-6-luna'
-$script:CxCommitReasoning = 'max'
+$script:CxCommitReasoning = 'high'
 # Official installer used by `cx upgrade`: installs Codex or upgrades an existing install.
 $script:CxCodexInstallerUri = 'https://chatgpt.com/codex/install.ps1'
 
@@ -603,6 +603,9 @@ function cx {
     }
 
     $cmd = @((Resolve-CxCodexExecutable),'-m', $model,'-c',"model_reasoning_effort=$reasoning")
+    if ($commitMode) {
+        $cmd += @('-c', 'service_tier="priority"')
+    }
     if ($mcpConfigArgs.Count -gt 0) {
         $cmd += $mcpConfigArgs
     }
@@ -686,8 +689,8 @@ if ($codexCommandInfo) {
         $wrapperFlags = @(
             @{ Text = '-m'; List = '-m'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Modelo a usar' }
             @{ Text = '-re'; List = '-re'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Esfuerzo de razonamiento del modelo' }
-            @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (gpt-6-luna / max)' }
-            @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (gpt-6-luna / max)' }
+            @{ Text = '-c'; List = '-c'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (gpt-6-luna / high / fast)' }
+            @{ Text = '--commit'; List = '--commit'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Invoca la skill generate-commit-messages (gpt-6-luna / high / fast)' }
             @{ Text = '--mcps'; List = '--mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Compatibilidad: los servidores MCP ya están activos por defecto' }
             @{ Text = '--no-mcps'; List = '--no-mcps'; Type = [System.Management.Automation.CompletionResultType]::ParameterName; Tip = 'Desactiva los servidores MCP para esta ejecución' }
             @{ Text = 'upgrade'; List = 'upgrade'; Type = [System.Management.Automation.CompletionResultType]::ParameterValue; Tip = 'Actualiza Codex desde el wrapper' }

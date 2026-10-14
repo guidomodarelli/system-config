@@ -9,7 +9,7 @@ REPO_ROOT="${_cx_wrapper_dir:h:h:h:h}"
 _CX_COMMIT_SKILL_PROMPT='$generate-commit-messages'
 # Defaults for `cx --commit`; explicit -m/-re flags still take precedence.
 _CX_COMMIT_MODEL="gpt-6-luna"
-_CX_COMMIT_REASONING="max"
+_CX_COMMIT_REASONING="high"
 
 _cx_plugin_id_for_mcp_server() {
   local server_name="$1"
@@ -307,6 +307,9 @@ cx() {
   fi
 
   local cmd=(codex -m "$model" -c model_reasoning_effort="$reasoning")
+  if [[ -n "$commit" ]]; then
+    cmd+=(-c 'service_tier="priority"')
+  fi
   if (( ${#mcp_config_args[@]} > 0 )); then
     cmd+=("${mcp_config_args[@]}")
   fi
