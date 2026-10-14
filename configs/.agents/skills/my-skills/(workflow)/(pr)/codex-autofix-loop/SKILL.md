@@ -1,6 +1,6 @@
 ---
 name: codex-autofix-loop
-description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea comentarios de Codex (chatgpt-codex-connector[bot]) en un PR: clone efímero → fix → push → closeout del hilo, con dedup por PR y guard de auto-cancelación. Use when the user asks to relaunch/start the Codex auto-fix loop for a PR, set up Codex comment auto-fixing, or mentions docs/codex-autofix-loop.md, processed-PR.json, or the codex-autofix workflow."
+description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea comentarios de Codex (chatgpt-codex-connector[bot]) en un PR: clone efímero → fix → push → closeout del hilo, con dedup por PR y guard de auto-cancelación. Es también la fuente de verdad de la plantilla de cierre: cargarla SIEMPRE antes de responder, reaccionar o resolver cualquier comentario, hilo inline o review de Codex, en cualquier flujo (este loop, el Action, el Auto-fix de la app de escritorio con `<ci-monitor-event>`, o un fix manual), aunque el usuario no mencione la skill. Use when the user asks to relaunch/start the Codex auto-fix loop for a PR, set up Codex comment auto-fixing, mentions docs/codex-autofix-loop.md, processed-PR.json, or the codex-autofix workflow, or whenever you are about to reply to / close out a chatgpt-codex-connector[bot] comment."
 ---
 
 # Codex auto-fix loop (local, vía Claude Code)
@@ -24,6 +24,38 @@ Cubre **tres fuentes** de comentarios de Codex:
 1. **Inline** (`pulls/{pr}/comments`): atados a un `path` + `line`; closeout = 👍 + reply en el hilo + resolver el hilo.
 2. **Generales** (`issues/{pr}/comments`): comentarios sueltos del PR; closeout = 👍 + reply.
 3. **Review-body de primer nivel** (`pulls/{pr}/reviews`, anchor `#pullrequestreview-…`): el resumen que Codex postea al enviar una review. Se procesa **solo cuando el body trae una sugerencia accionable real** (no un mero resumen). Closeout = 👍 + **quote reply** (citando el body). Cuando el review-body **y todos sus comments inline** quedan resueltos, se **minimiza la review con estado `RESOLVED`** (queda oculta/colapsada). `PullRequestReview` implementa `Reactable` y `Minimizable`, así que reacción y minimize van por GraphQL sobre su `node_id`.
+
+## Regla obligatoria: toda respuesta a Codex usa la plantilla de cierre
+
+Esta regla aplica a **cualquier** respuesta a un comentario de `chatgpt-codex-connector[bot]`,
+no solo a las de este loop: el Action, el Auto-fix de la app de escritorio (eventos
+`<ci-monitor-event>` que piden responder y resolver hilos), un fix manual pedido en la
+conversación u otra skill que cierre hilos de Codex. Nunca escribas una respuesta libre
+("Corregido en …", "Fixed in …") a un comentario de Codex.
+
+Antes de publicar, completá este checklist por comentario:
+
+1. **Variante correcta** de «Plantilla de comentario de cierre» (abajo): `✅ Resuelto` si
+   hubo fix pusheado (también cuando la sugerencia era válida solo en parte: decilo en
+   «Qué cambió»), `ℹ️ Sin cambios` si evaluaste y no hacía falta, `⚠️ No pude aplicar`
+   si falló el flujo. Review-body → quote reply.
+2. **Link al commit** con sha corto de 7 chars y URL al sha completo, verificado en el
+   head remoto del PR (`git ls-remote` o `gh pr view --json headRefOid`) antes de publicar.
+3. **`Qué cambió`** en UNA línea, en español, describiendo el efecto observable.
+4. **Pie `<sub>🤖 …</sub>`** de la variante. Fuera del Action no hay run: omití
+   ` · [run]({{run_url}})`. Si el host exige una línea extra (por ejemplo, el Auto-fix de
+   la app pide `_🤖 Addressed by [Claude Code](https://claude.com/claude-code)_`), agregala
+   como **última línea, después del pie**, sin reemplazar ninguna parte de la plantilla.
+5. **Reacción** del paso (4a): 👍 en éxito, 👎 solo en «Sin cambios», ninguna en falla.
+6. **Resolver** el hilo inline (paso 4c) solo en éxito o «Sin cambios».
+7. **Verificar** después de publicar: releé el body publicado
+   (`gh api repos/{{OWNER}}/{{REPO}}/pulls/comments/<reply_id> --jq .body`) y confirmá que
+   empieza con el encabezado de la variante (`✅ **Resuelto** en [`…) y contiene el pie;
+   si no, editalo con `gh api -X PATCH …/pulls/comments/<reply_id> -f body=…` en lugar de
+   publicar otro reply.
+
+Si ya publicaste una respuesta libre, corregila editándola (PATCH) con la plantilla y
+agregá la reacción que falte; no publiques un segundo reply.
 
 > **Por qué delegar en `fix-in-ephemeral-clone`:** esa skill es la dueña del
 > contrato de aislamiento (clone efímero, copia de `.env*`, deps por plataforma,
