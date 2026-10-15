@@ -173,7 +173,7 @@ Reglas del pedido a Codex:
 
 > **Variables globales del loop** (única fuente de verdad — cambiá SOLO estos
 > números y se propagan a todo el documento):
-> - `{{INTERVAL_MIN}}` = `5` — minutos entre corridas.
+> - `{{INTERVAL_MIN}}` = `3` — minutos entre corridas del cron de respaldo (el disparador principal es el Monitor del PR).
 > - Costo estimado de UN subagente (clone efímero + install + tests), usado para
 >   calcular cuántos caben en paralelo según recursos libres:
 >   - `{{CPU_PER_AGENT}}` = `1` — cores lógicos libres por subagente.
@@ -193,13 +193,19 @@ Reglas del pedido a Codex:
 >   `codex` (en `auto` es siempre 1 antes de caer a local).
 > - `{{CODEX_MAX_PARALLEL}}` = `2` — pedidos `@codex fix` simultáneos (no consumen
 >   recursos locales, pero sí pushes concurrentes a la rama).
+> - `{{MONITOR_POLL_SEC}}` = `30` — segundos entre consultas del `Monitor` que vigila
+>   el PR mientras está abierto (30 s o más por rate limit).
 >
 > Derivados (no los edites a mano; salen de `{{INTERVAL_MIN}}`):
-> - `{{INTERVAL}}` = `{{INTERVAL_MIN}}m` (= `5m`) — intervalo de `/loop`.
-> - `{{CRON}}` = `*/{{INTERVAL_MIN}} * * * *` (= `*/5 * * * *`) — cron equivalente
+> - `{{INTERVAL}}` = `{{INTERVAL_MIN}}m` (= `3m`) — intervalo de `/loop`.
+> - `{{CRON}}` = `*/{{INTERVAL_MIN}} * * * *` (= `*/3 * * * *`) — cron equivalente
 >   para identificar el job en `CronList`.
 
-El intervalo es session-only: si cerrás Claude, hay que relanzarlo. El loop se
+El disparador principal es un `Monitor` del PR (paso 0 del prompt): consulta GitHub cada
+`{{MONITOR_POLL_SEC}}` s y corre una vuelta apenas hay un head nuevo, un comentario o review
+de Codex o un cambio en los checks. El cron de `{{INTERVAL}}` queda como respaldo para los
+timeouts y para rearmar el monitor si murió. Monitor y cron son session-only: si cerrás
+Claude, hay que relanzarlo. El loop se
 **auto-cancela** en dos casos: (a) cuando el PR deja de estar `OPEN`
 (mergeado/cerrado/borrado), o (b) cuando Codex responde con una **review limpia**
 ("Codex Review: Didn't find any major issues") para el head actual y no quedan
@@ -213,9 +219,39 @@ Loop de auto-fix de comentarios de Codex en el PR #{{PR}} de {{OWNER}}/{{REPO}} 
 GUARD DE AUTO-CANCELACIÓN (hacelo SIEMPRE primero). Obtené el estado del PR:
   estado=$(gh pr view {{PR}} --repo {{OWNER}}/{{REPO}} --json state -q .state 2>/dev/null)
 - "OPEN" -> seguí. - "MERGED"/"CLOSED" -> auto-cancelá. - vacío/falla (404 PR o repo borrado) -> confirmá una vez con `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}} --jq .state 2>&1`; si vuelve a fallar o "closed", auto-cancelá; si "open", seguí (error transitorio).
-Auto-cancelar = CronList, identificá el job de ESTE loop (cron `{{CRON}}`, auto-fix de Codex en PR #{{PR}}), borralo con CronDelete por id, PushNotification de una línea avisando el motivo, y terminá sin procesar.
+Auto-cancelar = CronList, identificá el job de ESTE loop (cron `{{CRON}}`, auto-fix de Codex en PR #{{PR}}), borralo con CronDelete por id, detené con TaskStop el Monitor `Monitor codex-autofix PR #{{PR}}` si está vivo, PushNotification de una línea avisando el motivo, y terminá sin procesar.
 
 Si OPEN, procesá:
+(0) MONITOR DEL PR (disparador principal; el cron `{{CRON}}` es solo respaldo para timeouts y por si el monitor muere). Mientras el PR esté `OPEN` tiene que haber UN `Monitor` vivo con `description` = `Monitor codex-autofix PR #{{PR}}` (así lo reconocés entre tus tareas en background y no armás dos). Si no existe, armalo con `timeout_ms: 1800000` (el máximo) y este `command`:
+   ```bash
+   pr={{PR}}; repo={{OWNER}}/{{REPO}}; bot='chatgpt-codex-connector[bot]'
+   count_bot_reviews() { gh api "repos/$repo/pulls/$pr/reviews" --paginate --jq "[.[] | select(.user.login==\"$bot\")] | length" 2>/dev/null | awk '{total+=$1} END{print total+0}'; }
+   checks_signature() { gh pr checks "$pr" --repo "$repo" --json bucket -q 'group_by(.bucket) | map("\(.[0].bucket)=\(length)") | join(",")' 2>/dev/null || true; }
+   head=$(gh pr view "$pr" --repo "$repo" --json headRefOid -q .headRefOid 2>/dev/null)
+   reviews=$(count_bot_reviews); checks=$(checks_signature)
+   since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+   while true; do
+     sleep {{MONITOR_POLL_SEC}}
+     now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+     snapshot=$(gh pr view "$pr" --repo "$repo" --json state,headRefOid -q '.state + " " + .headRefOid' 2>/dev/null) || continue
+     state=${snapshot%% *}; current=${snapshot#* }
+     if [ "$state" != "OPEN" ]; then echo "PR #$pr $state"; exit 0; fi
+     if [ -n "$current" ] && [ "$current" != "$head" ]; then echo "PR #$pr head nuevo ${current:0:7}"; head=$current; fi
+     for endpoint in "issues/$pr/comments" "pulls/$pr/comments"; do
+       gh api "repos/$repo/$endpoint?since=$since" --jq ".[] | select(.user.login==\"$bot\") | \"PR #$pr comentario de Codex \(.id)\"" 2>/dev/null || true
+     done
+     current_reviews=$(count_bot_reviews)
+     if [ "$current_reviews" -gt "$reviews" ]; then echo "PR #$pr review nueva de Codex"; fi
+     reviews=$current_reviews
+     current_checks=$(checks_signature)
+     if [ -n "$current_checks" ] && [ "$current_checks" != "$checks" ]; then echo "PR #$pr checks $current_checks"; checks=$current_checks; fi
+     since=$now
+   done
+   ```
+   Cada línea que emite (head nuevo, comentario o review de Codex, cambio en los checks o PR que dejó de estar `OPEN`) es un evento: corré **una iteración inmediata** de este mismo prompt, sin esperar al cron. Si ya hay una iteración en curso, no lances otra: esa vuelta, o la siguiente, reconcilia el evento. El monitor no evalúa timeouts: los de ack (`{{CODEX_ACK_TIMEOUT_MIN}}`), commit (`{{CODEX_FIX_TTL_MIN}}`) e `inFlight` huérfano (`{{INFLIGHT_TTL_MIN}}`), los reintentos de merge y el re-disparo de `@codex review` los resuelve el cron.
+   - Al vencer (aviso de expiración), rearmalo con el mismo `command` si el PR sigue `OPEN`. Si al empezar una vuelta del cron no está vivo (se perdió el aviso o falló el rearme), rearmalo en ese momento.
+   - Cuando el PR deja de estar `OPEN` el script termina solo; si el loop se auto-cancela por otro motivo, detenelo con `TaskStop` (ver «Auto-cancelar»).
+
 (1) Leé `processedCommentIds` desde `.codex-autofix/processed-{{PR}}.json`. Los ids de comentarios (inline/generales) se guardan como número crudo; los ids de review-body se guardan namespaceados como `"review:<id>"` (evita colisión entre espacios de id distintos). `processedCommentIds` representa comentarios cerrados: fixes aplicados y los cerrados como «Sin cambios» (incluidos los bordes rebuscados del paso 3-pre). Leé también `inFlight` (mapa `id -> {label, startedAt}` con el mismo formato de id; si falta, tratalo como `{}`): son los comentarios que YA tienen un subagente trabajando, lanzado en esta vuelta o en una anterior. Las entradas delegadas a Codex llevan además `via: "codex"`, `triggerId` (id del comentario `@codex fix`), `triggerKind` (`inline` o `general`), `baseSha` (head del PR al pedir) y `groupIds` (todos los ids del grupo). Leé también `codexAttempts` y `delegationReplyIds` (si faltan, `{}` y `[]`). Modo de fix de esta corrida: `{{FIX_MODE}}`.
 
 (1-bis) NO RELANCES COMENTARIOS CON UN SUBAGENTE TRABAJANDO. Una vuelta puede empezar mientras siguen corriendo subagentes de vueltas anteriores. Antes de armar grupos, reconciliá `inFlight`:
@@ -328,7 +364,7 @@ Si OPEN, procesá:
 
 (6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 ítem nuevo (inline, general o review-body, por subagente local o por commit de Codex verificado; contador >= 1) y ya no quedan pendientes (ni ids en `inFlight`), posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam). Si los únicos cierres de la vuelta fueron «Sin cambios», aplicá el «Corte por convergencia» de la «Regla de alcance»: sin `@codex review`, mergeá el PR sin preguntar (pasando antes el GATE DE CI del paso 5-bis) y auto-cancelá el loop.
 
-(7) SIEMPRE que postees `@codex review`, asegurá que el loop siga vivo SIN que el usuario lo pida: si el cron del loop (`{{CRON}}`, este PR) fue cancelado o pausado, relanzalo (mismo prompt parametrizado) y corré una iteración. `@codex review` dispara comentarios nuevos; el loop debe quedar escuchando para auto-procesarlos. Nunca dejes el loop cancelado justo después de disparar una review.
+(7) SIEMPRE que postees `@codex review`, asegurá que el loop siga vivo SIN que el usuario lo pida: si el cron del loop (`{{CRON}}`, este PR) fue cancelado o pausado, relanzalo (mismo prompt parametrizado) y corré una iteración; si el `Monitor` del PR (paso 0) no está vivo, rearmalo. `@codex review` dispara comentarios nuevos; el loop debe quedar escuchando para auto-procesarlos. Nunca dejes el loop cancelado justo después de disparar una review.
 ```
 
 ## Plantilla de comentario de cierre
@@ -458,6 +494,7 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   Codex solo pushea si tiene permiso de escritura en la rama; sin él contesta sin
   commit y, en `auto`, el grupo cae a subagente local. Las respuestas del bot al pedido
   se registran en `delegationReplyIds` para no tratarlas como hallazgos nuevos.
+  El `Monitor` del PR (paso 0) detecta el push de Codex y dispara la vuelta que cierra.
 - **Cancelar a mano**: `CronList` para ver el job y `CronDelete <id>`.
 - **Persistencia real**: para correr sin sesión abierta, mergeá el workflow de CI
   a la rama default y usá el Action.
