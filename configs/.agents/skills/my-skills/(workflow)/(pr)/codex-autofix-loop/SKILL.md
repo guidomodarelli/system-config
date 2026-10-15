@@ -87,7 +87,7 @@ a cerrarlo igual, con el mismo motivo, sin spawnear subagente.
 Codex se cerraron como «Sin cambios» (rebuscados o repetidos) y no hubo ningún commit
 nuevo, el head no cambió y Codex no va a publicar una review limpia. En ese caso NO
 postees otro `@codex review` y **mergeá sin preguntar**, igual que en la terminación por
-review limpia (paso 5-bis): `gh pr merge {{PR}} --repo {{OWNER}}/{{REPO}} --squash
+review limpia (paso 5-bis), siempre después de su gate de CI (checks en verde): `gh pr merge {{PR}} --repo {{OWNER}}/{{REPO}} --squash
 --delete-branch`. Si el merge tiene éxito, auto-cancelá el loop y mandá una
 PushNotification de una línea («PR #N mergeado: solo quedaban hallazgos de borde
 cerrados como Sin cambios»). Si el merge falla (checks pendientes, conflicto, branch
@@ -246,11 +246,15 @@ Si OPEN, procesá:
    REVIEWED=$(printf '%s' "$CLEAN" | jq -r '.body' | grep -oiE 'Reviewed commit:\*\* `[0-9a-f]{7,}`' | grep -oiE '[0-9a-f]{7,}' | head -1)
    HEAD=$(gh pr view {{PR}} --repo {{OWNER}}/{{REPO}} --json headRefOid -q .headRefOid)
    Solo continuá si REVIEWED no está vacío y es prefijo de HEAD (la review limpia corresponde al head actual; si no coincide, hay commits posteriores sin re-revisar -> NO mergees, seguí al paso 6 para disparar/esperar la nueva review).
-   Si coincide: MERGEÁ el PR (estrategia squash, borrando la rama; ajustá si tu repo usa otra): `gh pr merge {{PR}} --repo {{OWNER}}/{{REPO}} --squash --delete-branch`.
+   **GATE DE CI (obligatorio antes de CUALQUIER merge, también en el corte por convergencia).** Una review limpia de Codex no prueba que la CI pase, y un repo sin branch protection deja mergear con checks en rojo. Leé los checks del head: `gh pr checks {{PR}} --repo {{OWNER}}/{{REPO}}` (exit 0 = todos verdes; exit 8 = pendientes; otro = alguno falló).
+   - Pendientes -> NO mergees; dejá el loop vivo y reintentá en la próxima vuelta.
+   - Alguno falló -> NO mergees. Tratá el fallo como un hallazgo realista más: leé el log (`gh run view <run_id> --repo {{OWNER}}/{{REPO}} --log-failed`), lanzá un subagente con `fix-in-ephemeral-clone` y el diff mínimo (registrado en `inFlight` con id `"ci:<run_id>"`), y cuando pushee, posteá `@codex review` como en el paso 6. Mandá una PushNotification de una línea con el check que falló (una sola vez por run).
+   - Sin checks configurados -> seguí, pero mencionalo en la PushNotification del merge.
+   Solo con todos los checks verdes: MERGEÁ el PR (estrategia squash, borrando la rama; ajustá si tu repo usa otra): `gh pr merge {{PR}} --repo {{OWNER}}/{{REPO}} --squash --delete-branch`.
    - Si el merge tiene ÉXITO -> auto-cancelá el loop (mismo procedimiento del guard: CronList, identificá el job de ESTE loop por cron `{{CRON}}` y PR #{{PR}}, CronDelete por id, PushNotification de una línea avisando "PR #{{PR}} mergeado tras review limpia de Codex") y terminá. NO postees `@codex review`.
    - Si el merge FALLA (checks pendientes, no-mergeable, conflicto, branch protection): NO cortes el loop. PushNotification de una línea con el motivo (una sola vez) y dejá el loop vivo para reintentar en la próxima vuelta. No es trabajo del loop resolver conflictos de merge.
 
-(6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 ítem nuevo (inline, general o review-body; contador >= 1) y ya no quedan pendientes (ni ids en `inFlight`), posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam). Si los únicos cierres de la vuelta fueron «Sin cambios», aplicá el «Corte por convergencia» de la «Regla de alcance»: sin `@codex review`, mergeá el PR sin preguntar y auto-cancelá el loop.
+(6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 ítem nuevo (inline, general o review-body; contador >= 1) y ya no quedan pendientes (ni ids en `inFlight`), posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam). Si los únicos cierres de la vuelta fueron «Sin cambios», aplicá el «Corte por convergencia» de la «Regla de alcance»: sin `@codex review`, mergeá el PR sin preguntar (pasando antes el GATE DE CI del paso 5-bis) y auto-cancelá el loop.
 
 (7) SIEMPRE que postees `@codex review`, asegurá que el loop siga vivo SIN que el usuario lo pida: si el cron del loop (`{{CRON}}`, este PR) fue cancelado o pausado, relanzalo (mismo prompt parametrizado) y corré una iteración. `@codex review` dispara comentarios nuevos; el loop debe quedar escuchando para auto-procesarlos. Nunca dejes el loop cancelado justo después de disparar una review.
 ```
@@ -355,9 +359,12 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   comment inline (REST) o `comment.pullRequestReview.databaseId` (GraphQL).
 - **Terminación por review limpia**: cuando Codex postea "Codex Review: Didn't
   find any major issues" para el **head actual** (se valida con el sha de
-  `**Reviewed commit:**` contra `headRefOid`) y no quedan pendientes, el loop
-  mergea el PR y se auto-cancela. El check de sha evita mergear con commits
-  posteriores aún sin re-revisar. Estrategia de merge por defecto: `--squash
+  `**Reviewed commit:**` contra `headRefOid`), no quedan pendientes y todos los
+  checks de CI del head están en verde, el loop mergea el PR y se auto-cancela.
+  El check de sha evita mergear con commits posteriores aún sin re-revisar, y el
+  gate de CI evita mergear en rojo cuando el repo no tiene branch protection (una
+  review limpia de Codex no prueba que la CI pase); un check fallido se trata
+  como un hallazgo más y se fixea. Estrategia de merge por defecto: `--squash
   --delete-branch` (alineado con el historial del repo, `feat: … (#NN)`); cambiá
   el flag si tu repo usa merge-commit o rebase. Si el merge falla (checks
   pendientes, conflicto, branch protection), el loop NO se corta y reintenta.
