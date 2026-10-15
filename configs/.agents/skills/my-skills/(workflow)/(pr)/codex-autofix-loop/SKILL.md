@@ -212,8 +212,10 @@ timeouts y para rearmar el monitor si murió. Monitor y cron son session-only: s
 Claude, hay que relanzarlo. El loop se
 **auto-cancela** en dos casos: (a) cuando el PR deja de estar `OPEN`
 (mergeado/cerrado/borrado), o (b) cuando Codex responde con una **review limpia**
-("Codex Review: Didn't find any major issues") para el head actual y no quedan
-ítems pendientes — ahí el loop **mergea el PR** y se corta solo.
+para el head actual y no quedan ítems pendientes — ahí el loop **mergea el PR** y se
+corta solo. La review limpia se reconoce por el estado JSON del resumen de Codex
+(`<!-- codex-review-state:v1 {...} -->` sin hallazgos) o, en el formato viejo, por el
+texto "Codex Review: Didn't find any major issues" (ver paso 5-bis).
 
 ## Prompt (plantilla parametrizable)
 
@@ -265,7 +267,7 @@ Si OPEN, procesá:
    - Entradas con `via: "codex"` (no hay subagente local que mirar; se reconcilian contra GitHub):
      - **Ack**: `gh api repos/{{OWNER}}/{{REPO}}/pulls/comments/<triggerId>/reactions` (inline) o `issues/comments/<triggerId>/reactions` (general) con `select(.content=="eyes" and .user.login=="chatgpt-codex-connector[bot]")`. Sin 👀 pasados `{{CODEX_ACK_TIMEOUT_MIN}}` min desde `startedAt` → pedido no tomado: FALLA de delegación.
      - **Commit de Codex**: `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/commits --paginate --jq '[.[] | {sha, date: .commit.committer.date, files_url: .url}]'` y tomá los commits posteriores a `baseSha` con fecha posterior a `startedAt` que NO sean shas reportados por subagentes locales. Para un grupo inline, verificá con `gh api repos/{{OWNER}}/{{REPO}}/commits/<sha> --jq '[.files[].filename]'` que el commit toca el `path` del grupo. Si hay uno que cumple → ÉXITO con ese sha: closeout del paso (4) para todos los `groupIds` (en el resumen, describí el efecto a partir del diff del commit).
-     - **Respuestas de Codex**: los comentarios del bot posteriores al pedido en ese hilo (inline con `in_reply_to_id` = primer comentario del grupo) o en el PR (general que no sea una review con `Codex Review:`) son respuestas a la delegación: agregá sus ids a `delegationReplyIds`. Si Codex respondió y pasaron 5 min sin commit que cumpla (típico cuando no tiene permiso para pushear o solo contestó), es FALLA de delegación.
+     - **Respuestas de Codex**: los comentarios del bot posteriores al pedido en ese hilo (inline con `in_reply_to_id` = primer comentario del grupo) o en el PR (general que no sea el resumen de review `<!-- codex-pull-request-review-summary -->` ni una review con `Codex Review:`) son respuestas a la delegación: agregá sus ids a `delegationReplyIds`. Si Codex respondió y pasaron 5 min sin commit que cumpla (típico cuando no tiene permiso para pushear o solo contestó), es FALLA de delegación.
      - Sin commit pasados `{{CODEX_FIX_TTL_MIN}}` min desde `startedAt` → FALLA de delegación.
      - **FALLA de delegación**: sacá la entrada de `inFlight` y sumá 1 a `codexAttempts[<id>]` de cada id del grupo. En `auto`, el grupo queda elegible y en la próxima armada de grupos va a subagente local. En `codex`, si `codexAttempts < {{CODEX_FIX_MAX_ATTEMPTS}}` se vuelve a pedir; si no, aplicá el paso (5) (reply `⚠️ No pude aplicar` en el hilo, sin reacción, sin marcar) y no lo pidas más en este loop. No borres el comentario `@codex fix`.
 
@@ -274,6 +276,7 @@ Si OPEN, procesá:
    - generales: `gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate`.
    - review-bodies: `gh api repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/reviews --paginate --jq '[.[] | select(.user.login=="chatgpt-codex-connector[bot]") | {id, node_id, body, state}]'`.
    - Descartá como hallazgos: los inline del bot con `in_reply_to_id` no nulo (los hallazgos de Codex siempre abren el hilo; un reply suyo es respuesta a un `@codex fix`), y cualquier id que esté en `delegationReplyIds`. No los marques en `processedCommentIds`.
+   - Descartá también el **resumen de review** de Codex: el comentario general cuyo body contiene `<!-- codex-pull-request-review-summary -->`. Es un único comentario que Codex edita en cada review (tabla de estado y marcador `codex-review-state:v1`), no un hallazgo: no reacciones, no respondas y no lo marques. Solo lo lee el paso (5-bis).
 
 (2-bis) RE-DISPARO de un `@codex review` que el bot no leyó. Codex reacciona con 👀 (eyes) sobre el comentario apenas lo recibe; si el ÚLTIMO comentario general del PR es un `@codex review` y NO tiene esa reacción 👀 del bot, el trigger se cayó (Codex nunca lo tomó) → reposteá uno nuevo para que arranque la review.
    - Último comentario general (vienen ascendentes por fecha, `last` = el más nuevo): `LAST=$(gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate --jq 'last // empty')`. Si está vacío, salteá este paso.
@@ -352,12 +355,17 @@ Si OPEN, procesá:
 (5) Si FALLA (no se pudo aplicar el fix por una falla del loop/agente o de la delegación a Codex que ya no tiene reintento según `{{FIX_MODE}}`, no porque la sugerencia sea inválida; una falla de delegación en `auto` NO llega acá, cae a subagente local): NO marques el id, NO resuelvas, y NO cuentes ese comentario como fixeado. SÍ sacá sus ids de `inFlight` (el subagente ya terminó), para que la próxima vuelta pueda reintentarlo. NO reacciones 👎 (content=-1): el 👎 es la señal de "sugerencia incorrecta/no útil" que Codex interpreta sobre su comentario, y acá el problema es el loop, no la sugerencia. No agregues reacción final; opcionalmente, dejá un reply con el motivo/link al error. Reservá el 👎 solo para cuando evaluaste la sugerencia y concluiste que no requería cambios.
    - **Clones huérfanos**: en fallo, `fix-in-ephemeral-clone` conserva el clone para inspección y reporta su path. Recolectá esos paths de los subagentes que fallaron y, al cerrar la vuelta, listalos en UNA línea de PushNotification (p. ej. "PR #{{PR}}: 2 fixes fallaron, clones en <paths>"). Si no los vas a inspeccionar, podés limpiarlos vos (`rm -rf <path>`) DESPUÉS de loguear el path, nunca antes. Con varios fallos en paralelo el tempdir se llena: no dejes los paths sin reportar.
 
-(5-bis) TERMINACIÓN POR REVIEW LIMPIA (mergear + cortar). Chequealo cuando NO quedó ningún ítem accionable de Codex sin resolver esta vuelta (ni nuevos sin procesar, ni ids en `inFlight`, ni fallas pendientes del paso 5). Buscá el ÚLTIMO comentario general de Codex que sea una review limpia y de qué commit es:
-   CLEAN=$(gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate --jq '[.[] | select(.user.login=="chatgpt-codex-connector[bot]") | select(.body | test("Codex Review:.*([Dd]idn.t find any|[Nn]o (major )?issues|[Ff]ound no issues)"))] | last // empty')
-   Si CLEAN está vacío -> no aplica, seguí al paso (6). Si no:
-   REVIEWED=$(printf '%s' "$CLEAN" | jq -r '.body' | grep -oiE 'Reviewed commit:\*\* `[0-9a-f]{7,}`' | grep -oiE '[0-9a-f]{7,}' | head -1)
+(5-bis) TERMINACIÓN POR REVIEW LIMPIA (mergear + cortar). Chequealo cuando NO quedó ningún ítem accionable de Codex sin resolver esta vuelta (ni nuevos sin procesar, ni ids en `inFlight`, ni fallas pendientes del paso 5). Obtené el commit de la ÚLTIMA review limpia de Codex (REVIEWED) con estos dos formatos, en orden:
+   - **Formato actual (resumen con estado JSON).** Codex mantiene un único comentario general con `<!-- codex-pull-request-review-summary -->` y un marcador `<!-- codex-review-state:v1 {...} -->`. Ese JSON trae `code_review` y `security_review`, cada uno con `commit_sha`, `status`, `has_any_findings` y `has_unresolved_findings`. Cuando la security review no corrió, sus campos vienen en `null`. Es limpia solo si `code_review.status == "completed"`, los dos flags de `code_review` son `false`, y `security_review` no corrió o también terminó `completed` sin hallazgos. La regex usa `[{]`/`[}]` en vez de llaves escapadas para que el comando sobreviva al quoting de cualquier shell:
+     HAS_STATE=$(gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate --jq '[.[] | select(.user.login=="chatgpt-codex-connector[bot]") | select(.body | contains("codex-review-state:v1"))] | length' | awk '{s+=$1} END {print s+0}')
+     REVIEWED=$(gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate --jq '[.[] | select(.user.login=="chatgpt-codex-connector[bot]") | .body | capture("codex-review-state:v1 (?<state>[{].*[}]) -->")? | .state | fromjson?] | last // empty | select(.code_review.status=="completed" and .code_review.has_any_findings==false and .code_review.has_unresolved_findings==false and (.security_review.status==null or (.security_review.status=="completed" and .security_review.has_any_findings==false and .security_review.has_unresolved_findings==false))) | .code_review.commit_sha' | tail -1)
+     Si hay estado pero no está limpio (por ejemplo, `has_any_findings: true` con hallazgos ya cerrados), esto NO es review limpia. Esa terminación es el «Corte por convergencia». Lo mismo si la review sigue `running`: con `HAS_STATE >= 1` y REVIEWED vacío no hay review limpia, NO corras el fallback y seguí al paso (6).
+   - **Formato viejo (fallback)**, solo si `HAS_STATE` es `0` (ningún comentario del bot con el marcador `codex-review-state:v1`): el último comentario general del bot con el texto de review limpia, y su `**Reviewed commit:**`:
+     CLEAN=$(gh api repos/{{OWNER}}/{{REPO}}/issues/{{PR}}/comments --paginate --jq '[.[] | select(.user.login=="chatgpt-codex-connector[bot]") | select(.body | test("Codex Review:.*([Dd]idn.t find any|[Nn]o (major )?issues|[Ff]ound no issues)"))] | last // empty')
+     REVIEWED=$(printf '%s' "$CLEAN" | jq -r '.body' | grep -oiE 'Reviewed commit:\*\* `[0-9a-f]{7,}`' | grep -oiE '[0-9a-f]{7,}' | head -1)
+   Si REVIEWED sigue vacío con los dos formatos -> no hay review limpia reconocible: NO mergees, seguí al paso (6). No infieras la review limpia a mano desde la tabla del resumen ni desde la reacción 👍 del bot. Si no:
    HEAD=$(gh pr view {{PR}} --repo {{OWNER}}/{{REPO}} --json headRefOid -q .headRefOid)
-   Solo continuá si REVIEWED no está vacío y es prefijo de HEAD (la review limpia corresponde al head actual; si no coincide, hay commits posteriores sin re-revisar -> NO mergees, seguí al paso 6 para disparar/esperar la nueva review).
+   Solo continuá si REVIEWED es prefijo de HEAD (la review limpia corresponde al head actual; si no coincide, hay commits posteriores sin re-revisar -> NO mergees, seguí al paso 6 para disparar/esperar la nueva review).
    **GATE DE CI (obligatorio antes de CUALQUIER merge, también en el corte por convergencia).** Una review limpia de Codex no prueba que la CI pase, y un repo sin branch protection deja mergear con checks en rojo. Leé los checks del head: `gh pr checks {{PR}} --repo {{OWNER}}/{{REPO}}` (exit 0 = todos verdes; exit 8 = pendientes; otro = alguno falló).
    - Pendientes -> NO mergees; dejá el loop vivo y reintentá en la próxima vuelta.
    - Alguno falló -> NO mergees. Tratá el fallo como un hallazgo realista más: en `codex`/`auto`, delegalo primero con un comentario general `@codex fix las fallas de CI del run <run_url> con el diff mínimo` (registrado en `inFlight` con id `"ci:<run_id>"` y `via: "codex"`, mismo reconcile del paso 1-bis); en `local`, o si esa delegación falla en `auto`, leé el log (`gh run view <run_id> --repo {{OWNER}}/{{REPO}} --log-failed`), lanzá un subagente con `fix-in-ephemeral-clone` y el diff mínimo (registrado en `inFlight` con id `"ci:<run_id>"`), y cuando pushee, posteá `@codex review` como en el paso 6. Mandá una PushNotification de una línea con el check que falló (una sola vez por run).
@@ -469,9 +477,11 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   `Minimizable`, así que `addReaction` y `minimizeComment` operan sobre su
   `node_id`. El vínculo review↔inline lo da `pull_request_review_id` en cada
   comment inline (REST) o `comment.pullRequestReview.databaseId` (GraphQL).
-- **Terminación por review limpia**: cuando Codex postea "Codex Review: Didn't
-  find any major issues" para el **head actual** (se valida con el sha de
-  `**Reviewed commit:**` contra `headRefOid`), no quedan pendientes y todos los
+- **Terminación por review limpia**: cuando el resumen de Codex
+  (`codex-review-state:v1`) marca la code review `completed` sin hallazgos para
+  el **head actual** (se valida `code_review.commit_sha` contra `headRefOid`; en el
+  formato viejo, el texto "Codex Review: Didn't find any major issues" y su
+  `**Reviewed commit:**`), no quedan pendientes y todos los
   checks de CI del head están en verde, el loop mergea el PR y se auto-cancela.
   El check de sha evita mergear con commits posteriores aún sin re-revisar, y el
   gate de CI evita mergear en rojo cuando el repo no tiene branch protection (una
