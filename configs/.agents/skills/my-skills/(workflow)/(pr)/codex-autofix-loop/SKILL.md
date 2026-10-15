@@ -105,11 +105,14 @@ sola vez.
 `{{FIX_MODE}}` decide quién aplica el fix de cada grupo (el triage, la agrupación y el
 closeout son los mismos en todos los modos):
 
-- **`local`**: solo subagentes locales con `fix-in-ephemeral-clone` (flujo histórico).
+- **`local`** (default): solo subagentes locales con `fix-in-ephemeral-clone`. Es el
+  default porque el entorno cloud de Codex no tiene credenciales para pushear a la rama:
+  sus `@codex fix` preparan un commit que nunca llega al PR (ver `ae2d994` en el PR #111
+  de TuTribu) y solo suman una vuelta de espera.
 - **`codex`**: solo delegación a Codex con `@codex fix`. Si Codex no pushea, el
   comentario queda como falla (paso 5) y se reintenta hasta `{{CODEX_FIX_MAX_ATTEMPTS}}`
   veces; después queda pendiente y se avisa.
-- **`auto`** (default): primero `@codex fix`; si Codex no toma el pedido, responde sin
+- **`auto`**: primero `@codex fix`; si Codex no toma el pedido, responde sin
   pushear (por ejemplo, sin permiso de escritura) o vence `{{CODEX_FIX_TTL_MIN}}`, el
   grupo cae a un subagente local en la vuelta siguiente.
 
@@ -184,7 +187,8 @@ Reglas del pedido a Codex:
 >   - `{{DISK_RESERVE_GB}}` = `5`.
 > - `{{INFLIGHT_TTL_MIN}}` = `60` — minutos tras los cuales una entrada de
 >   `inFlight` sin subagente vivo se considera huérfana y se libera.
-> - `{{FIX_MODE}}` = `auto` — `local`, `codex` o `auto` (ver «Modo de fix»).
+> - `{{FIX_MODE}}` = `local` — `local`, `codex` o `auto` (ver «Modo de fix»). Usá
+>   `codex` o `auto` solo si Codex tiene permiso de escritura en la rama del PR.
 > - `{{CODEX_FIX_TTL_MIN}}` = `30` — minutos que se espera el commit de un pedido
 >   `@codex fix` antes de darlo por fallido.
 > - `{{CODEX_ACK_TIMEOUT_MIN}}` = `10` — minutos que se espera la reacción 👀 de Codex
