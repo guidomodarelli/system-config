@@ -45,6 +45,11 @@
       "id": 9,
       "prompt": "Componé el body en full composition para un diff que cambia `src/components/Button.tsx` (color del hover), pero el repo no documenta cómo levantar la app y no hay servidor corriendo.",
       "expected_output": "No inventa un comando para levantar la app ni bloquea el PR: elimina la sección `## 📸 Capturas` y agrega en `## 👀 Notas para el Revisor` una línea `Sin captura: <motivo>` con el motivo concreto."
+    },
+    {
+      "id": 10,
+      "prompt": "Componé y creá el PR para un cambio de padding en `components/composer/styles.module.scss`. La pantalla del composer exige login y no hay sesión abierta ni credenciales de prueba, pero podrías renderizar el SCSS compilado en una página HTML suelta con Playwright.",
+      "expected_output": "No captura un arnés ni una página HTML suelta: como la pantalla no es alcanzable en la app real, elimina `## 📸 Capturas` y agrega en `## 👀 Notas para el Revisor` una línea `Sin captura: <motivo>` (pantalla con login sin sesión de prueba disponible)."
     }
   ]
 }

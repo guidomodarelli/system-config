@@ -83,13 +83,17 @@ Place exactly one line, `<div align="right"><sup>📄 Archivos de código modifi
 Apply only during `full composition`. When the diff changes what a user sees (components, markup, styles, visible copy, layout, theming, icons or animations) and you know how to launch the app, add a screenshot of the change to the body. Skip this section for changes with no visible effect (backend, tests, tooling, docs, agent instructions).
 
 1. **Find out how to launch the app** before capturing, from the first source that applies: a dev server that is already running for this checkout; a project skill that launches the app (for example `run`); the launch and local-verification instructions in `AGENTS.md`, `CLAUDE.md` or `README.md`; `.claude/launch.json`; the `dev`/`start` scripts in `package.json`. Follow the project's own rules (required URL, proxy, port, environment). If none of them tells you how, or the app does not start, skip the capture.
-2. **Reach the changed screen** in a browser (the built-in browser tools or Playwright). If the screen needs a sign-in, use only a session that is already open or test credentials the project provides for local development; never type real credentials. If the screen cannot be reached, a focused harness that renders the changed component with the project's real styles is acceptable; say so in the image caption.
-3. **Capture what a reviewer needs to judge the change**: crop to the affected area, not the full page; capture before and after when the difference is subtle (before from the base branch or a build without the change); capture each theme or viewport the change targets (for example dark and light, mobile and desktop). Two to four images is usually enough.
-4. **Protect data**: the image is published with the repository. Show only test or sample data; never personal data, emails, tokens, internal URLs or anything secret. Re-check each image before uploading.
-5. **Upload** with `bash <skill-dir>/scripts/upload-pr-image.sh <owner/repo> <head-branch> <image>...`. It stores the files in the repository's orphan `pr-assets` branch through the GitHub API, under a folder named after the head branch, without touching the local checkout, and prints one Markdown image line per file. Use the head branch name, so the links exist before the PR does. Name each file by what it shows (`before-dark.png`, `after-dark.png`).
-6. **Place the images** in the **Capturas** section of the template, with a short caption line per image or pair. Delete the section when no image applies.
+2. **Always capture the real app.** Reach the changed screen on the running app in the user's own browser (Claude in Chrome, the `mcp__claude-in-chrome__*` tools), which has their sessions, fonts and extensions as they really use the app. Do not use the built-in browser pane or a headless Playwright browser for published captures. If Claude in Chrome is not connected, ask the user to connect it instead of switching browsers. Never capture a harness, a static HTML page, a mock page or a component rendered outside the app: it misses global styles, fonts, icons and the real components, and misleads the reviewer. If the screen needs a sign-in, use only a session that is already open or test credentials the project provides for local development; never type real credentials. If the screen cannot be reached in the real app, skip the capture.
+3. **Capture what a reviewer needs to judge the change**: always a before and an after (before from the base branch, or from the running app with the change temporarily undone, then restored), so the reviewer sees the difference at a glance. Crop both to the affected area, not the full page, and give each pair the same viewport, crop box and scroll position, so the only thing that differs is the change. Leave enough surrounding context to judge it (for example the neighbouring border the spacing is measured against). Capture each theme or viewport the change targets (for example dark and light, mobile and desktop) as its own pair.
+4. **Check every image before uploading**, by viewing it:
+   - It looks like the app the user sees: fonts, icons, colors and component styles loaded. Wait for `document.fonts.ready` and for the page to settle (no loaders, skeletons or entrance animations mid-flight) before capturing.
+   - It shows the change the PR describes, and the before/after pair differs only in that change, visibly: if the two look the same at a glance, crop tighter or capture a state where the change shows.
+   - It shows only test or sample data: never personal data, emails, tokens, internal URLs or anything secret. The image is published with the repository.
+   If an image fails any check, capture it again or skip it.
+5. **Upload** with `bash <skill-dir>/scripts/upload-pr-image.sh <owner/repo> <head-branch> <image>...`. It stores the files in the repository's orphan `pr-assets` branch through the GitHub API, under a folder named after the head branch, without touching the local checkout, and prints the URL of each file, one per line. Use the head branch name, so the links exist before the PR does. Name each file by what it shows (`before-dark.png`, `after-dark.png`).
+6. **Place the images** in the **Capturas** table of the template: one row per pair, the first cell names what the row shows (theme, viewport or state), and the **Antes** and **Después** columns hold the images side by side with the same `width`, so the reviewer compares them directly. Put each URL the script prints in `<img src="<url>" alt="<antes|después> <row>" width="<same width>">`; keep the width at most 400 so two fit side by side. Add one sentence above the table saying what to look at. Delete the section when no image applies.
 
-When the change affects the UI but no image could be captured, delete **Capturas** and add one line to **Notas para el Revisor** with the concrete reason (`Sin captura: <motivo>`). Do not block the PR on a screenshot.
+When the change affects the UI but no image could be captured from the real app, delete **Capturas** and add one line to **Notas para el Revisor** with the concrete reason (`Sin captura: <motivo>`). Do not block the PR on a screenshot.
 
 ## Full-composition rules
 
@@ -150,10 +154,11 @@ Single line, descriptive, English-friendly subject. Example: `Add user status si
 
 ## 📸 Capturas *(si aplica)*
 
-*Antes / después:* `<qué muestra>`
+*Qué mirar:* `<la diferencia que el revisor tiene que ver>`
 
-![before-dark](https://github.com/<owner>/<repo>/blob/pr-assets/<head-branch>/before-dark.png?raw=true)
-![after-dark](https://github.com/<owner>/<repo>/blob/pr-assets/<head-branch>/after-dark.png?raw=true)
+| | Antes | Después |
+| --- | --- | --- |
+| `<tema / viewport>` | <img src="https://github.com/<owner>/<repo>/blob/pr-assets/<head-branch>/before-dark.png?raw=true" alt="Antes <tema / viewport>" width="380"> | <img src="https://github.com/<owner>/<repo>/blob/pr-assets/<head-branch>/after-dark.png?raw=true" alt="Después <tema / viewport>" width="380"> |
 
 ## 🔄 Cambios en la API *(si aplica)*
 
