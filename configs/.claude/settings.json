@@ -80,5 +80,6 @@
     ]
   },
   "agentPushNotifEnabled": true,
-  "inputNeededNotifEnabled": true
+  "inputNeededNotifEnabled": true,
+  "outputStyle": "Proactive"
 }
