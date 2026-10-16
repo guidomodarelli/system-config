@@ -44,6 +44,13 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - Antes de analizar o modificar cualquier código, leer y aplicar `~/.agents/rules/payload-validation-boundaries.md`.
 - Esa rule es fuente única para distinguir payload backend/upstream de input y DTO público middleend; no duplicar ni contradecir su contrato en skills, repositorios o instrucciones derivadas.
 
+## Commits
+
+- Commitear solo los archivos que el agente modificó en la sesión actual, aunque el pedido diga "los cambios del árbol de trabajo" o "todo".
+- Los cambios que ya estaban sin commitear al iniciar la sesión pertenecen al usuario: no stagearlos, no commitearlos ni revertirlos. Tomar como referencia el `git status` del inicio de la sesión.
+- Stagear por path (`git add <path>`); no usar `git add -A`, `git add .` ni `git commit -a`. Si un archivo mezcla cambios propios y ajenos, stagear solo los hunks propios o preguntar.
+- Al cerrar, mencionar qué archivos ajenos quedaron sin commitear.
+
 ## Reglas de testing (obligatorias)
 - Antes de dar un cambio por terminado, ejecutar los tests relevantes y asegurar que pasen.
 - Si se agrega, modifica o elimina funcionalidad, se deben agregar o actualizar los tests correspondientes.
