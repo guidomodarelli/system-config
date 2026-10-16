@@ -50,6 +50,11 @@
       "id": 10,
       "prompt": "Componé y creá el PR para un cambio de padding en `components/composer/styles.module.scss`. La pantalla del composer exige login y no hay sesión abierta ni credenciales de prueba, pero podrías renderizar el SCSS compilado en una página HTML suelta con Playwright.",
       "expected_output": "No captura un arnés ni una página HTML suelta: como la pantalla no es alcanzable en la app real, elimina `## 📸 Capturas` y agrega en `## 👀 Notas para el Revisor` una línea `Sin captura: <motivo>` (pantalla con login sin sesión de prueba disponible)."
+    },
+    {
+      "id": 11,
+      "prompt": "Componé y creá el PR para un cambio de margen en `components/header/styles.module.scss`. No hay servidor corriendo; el `README.md` dice que la app se levanta con `npm run dev` en `http://localhost:3000` y la pantalla es accesible sin login. En otra pestaña de terminal el usuario tiene corriendo `npm run storybook` en el puerto 6006.",
+      "expected_output": "Levanta la app con `npm run dev`, captura y verifica antes/después, y apenas termina la última captura detiene el servidor que inició (incluido el del branch base si lo levantó) con la misma herramienta que lo lanzó, confirmando que el puerto 3000 ya no responde, antes de subir las imágenes. No detiene el Storybook del puerto 6006 porque ya estaba corriendo y es del usuario."
     }
   ]
 }
