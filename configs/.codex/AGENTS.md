@@ -31,11 +31,13 @@ Antes de cerrar una respuesta o cambio, confirmar que:
 - No eliminar, vaciar ni alterar las señales de entorno de Codex para eludir la protección de `ccg`, ni reproducir su configuración para sortear esta prohibición.
 - Los tests automatizados pueden simular esas señales únicamente en procesos aislados con un CLI `claude` falso, sin iniciar Claude real.
 
-## Memoria persistente (MCP `memory`) — Mandatorio
+## Memoria persistente (Engram) — Mandatorio
 
-- Al inicio de cada sesión o tarea, consultar la integración MCP `memory` para recuperar contexto relevante del usuario y del proyecto.
+- Engram (MCP `engram`, CLI `engram`) es el único sistema de memoria persistente. No usar el MCP `memory`, la auto-memoria de archivos de Claude Code (`~/.claude/projects/*/memory`), las memories de Codex ni ningún otro mecanismo.
+- Al inicio de cada sesión o tarea, consultar Engram (`mem_context` y, si hace falta, `mem_search`) para recuperar contexto relevante del usuario y del proyecto.
 - Tratar lo recuperado como contexto de fondo: si una memoria nombra un archivo, símbolo o flag, verificar que siga existiendo antes de recomendarlo.
-- Cuando se descubra un hecho duradero, guardarlo mediante la integración de memoria siguiendo el alcance y la persistencia definidos por el repositorio actual.
+- Cuando se descubra un hecho duradero, guardarlo con `mem_save` en el proyecto actual (scope `project`); las preferencias del usuario válidas para todos los proyectos van con scope `global`. Reusar el mismo `topic_key` para actualizar un tema en vez de duplicarlo.
+- Si Engram no está disponible, informarlo explícitamente al usuario; no caer en silencio a otro mecanismo de memoria.
 
 ## Rules canónicas adicionales
 

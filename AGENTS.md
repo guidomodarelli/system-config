@@ -38,7 +38,8 @@
 
 ## Memoria Persistente Del Repositorio
 
-- Los hechos duraderos específicos de este repositorio deben guardarse en `configs/.mcp-memory/memory.json` y commitearse en `system-config`.
+- Los hechos duraderos específicos de este repositorio deben guardarse en Engram, en el proyecto `system-config`.
+- `configs/.mcp-memory/memory.json` es un archivo histórico del MCP `memory`, ya migrado a Engram el 2026-10-16: no leerlo ni escribirlo como memoria activa.
 
 ## Compatibilidad De PowerShell (Mandatorio)
 

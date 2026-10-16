@@ -1,9 +1,8 @@
 {
-  "autoUpdatesChannel": "latest",
-  "skipDangerousModePermissionPrompt": true,
-  "theme": "dark",
+  "autoMemoryEnabled": false,
   "permissions": {
     "allow": [
+      "mcp__engram",
       "Bash(gh pr:*)",
       "Bash(gh api:*)",
       "Bash(gh run:*)",
@@ -38,6 +37,20 @@
       "PowerShell(gh api -X DELETE:*)"
     ]
   },
+  "extraKnownMarketplaces": {
+    "engram": {
+      "source": {
+        "source": "github",
+        "repo": "Gentleman-Programming/engram"
+      }
+    }
+  },
+  "outputStyle": "Proactive",
+  "autoUpdatesChannel": "latest",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
   "autoMode": {
     "allow": [
       "$defaults",
@@ -79,7 +92,7 @@
       "**Org-specific CLIs**: None configured"
     ]
   },
-  "agentPushNotifEnabled": true,
-  "inputNeededNotifEnabled": true,
-  "outputStyle": "Proactive"
+  "enabledPlugins": {
+    "engram@engram": true
+  }
 }

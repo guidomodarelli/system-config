@@ -1,3 +1,4 @@
+# engram-windows-hook-command-v1: "C:\Users\guido\bin\engram.exe"
 # :schema https://developers.openai.com/codex/config-schema.json
 
 model = "gpt-6.1-sol"
@@ -75,7 +76,7 @@ default_mode_request_user_input = false
 goals = true
 hooks = true
 js_repl = false
-memories = true
+memories = false
 mentions_v2 = true
 multi_agent = false
 prevent_idle_sleep = true
@@ -127,6 +128,9 @@ enabled = true
 [plugins."visualize@openai-bundled"]
 enabled = true
 
+[plugins."engram@engram"]
+enabled = true
+
 [tui]
 notification_method = "osc9"
 notifications = [
@@ -155,3 +159,12 @@ sandbox = "unelevated"
 
 [notice.model_migrations]
 "gpt-5.5" = "gpt-5.6-sol"
+
+[marketplaces.engram]
+source_type = "git"
+source = "https://github.com/Gentleman-Programming/engram.git"
+ref = "main"
+
+[mcp_servers.engram]
+command = 'C:\Users\guido\bin\engram.exe'
+args = ["mcp", "--tools=agent"]
