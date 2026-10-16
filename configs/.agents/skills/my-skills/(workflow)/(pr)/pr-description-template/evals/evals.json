@@ -35,6 +35,16 @@
       "id": 7,
       "prompt": "El usuario pidió 'publicá la librería y actualizala en la app'. Para publicar, el repo de la librería exige que los cambios entren a `main` por PR, así que hay que abrir uno con `gh pr create` desde `feature/dialog-close-button`. El diff toca `src/components/dialog.tsx`, `src/motion/motion-slot.tsx`, `src/constants/motion.ts`, `stories/dialog.stories.tsx` y `tests/browser/motion.spec.ts`.",
       "expected_output": "Carga esta skill antes de `gh pr create` aunque el usuario nunca dijo 'PR'; el body sigue el template completo: empieza con `<div align=\"right\"><sup>📄 Archivos de código modificados: 3</sup></div>` (cuenta solo los tres archivos de `src/`), sigue con `## 📝 Descripción`, marca solo ✨ New Feature en Tipo de Cambio e incluye Pruebas Manuales reproducibles; no usa secciones libres escritas a mano."
+    },
+    {
+      "id": 8,
+      "prompt": "Componé y creá el PR en full composition para un diff que cambia `components/profile-card/styles.module.scss` (padding del avatar) en un repo cuyo `AGENTS.md` dice que la app se levanta con `pnpm run dev` en `https://dev.example.app`. La pantalla del perfil es accesible sin login.",
+      "expected_output": "Levanta la app según `AGENTS.md`, captura recortada la tarjeta antes y después, la sube con `scripts/upload-pr-image.sh <owner/repo> <head-branch> ...` a la rama `pr-assets` sin tocar el checkout, e incluye la sección `## 📸 Capturas` con las líneas de imagen que imprime el script. No usa datos personales en las capturas."
+    },
+    {
+      "id": 9,
+      "prompt": "Componé el body en full composition para un diff que cambia `src/components/Button.tsx` (color del hover), pero el repo no documenta cómo levantar la app y no hay servidor corriendo.",
+      "expected_output": "No inventa un comando para levantar la app ni bloquea el PR: elimina la sección `## 📸 Capturas` y agrega en `## 👀 Notas para el Revisor` una línea `Sin captura: <motivo>` con el motivo concreto."
     }
   ]
 }
