@@ -4,7 +4,7 @@ Leer esta referencia antes de ejecutar provider manualmente o modificar helper.
 
 ## Prompt obligatorio
 
-Incluir target exacto, modo read-only, prohibición de editar/commit/push, prohibición de invocar otro reviewer y pedido de findings directos con archivo, línea, escenario, severidad y confianza.
+Incluir target exacto (o delta desde `--since`), modo read-only, prohibición de editar/commit/push, prohibición de invocar otro reviewer, lectura de `REVIEW.md`/`CLAUDE.md`/`AGENTS.md`, chequeo de intención del PR y de causa raíz, y pedido de findings con archivo, línea, escenario, severidad, confianza, etiqueta (`Important`, `Nit`, `Pre-existing`) y clase de bug. El resultado empieza con el conteo por etiqueta. Si hay registro de findings (`--known-findings`), agregarlo para que no se repitan.
 
 ## Claude + Copilot API + Luna con esfuerzo max
 

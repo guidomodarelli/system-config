@@ -1,6 +1,6 @@
 ---
 name: codex-autofix-loop
-description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea comentarios de Codex (chatgpt-codex-connector[bot]) en un PR: clone efímero → fix → push → closeout del hilo, o delegación a Codex con `@codex fix` en el propio hilo (modo `codex`/`auto` con fallback local), con dedup por PR y guard de auto-cancelación. Es también la fuente de verdad de la plantilla de cierre: cargarla SIEMPRE antes de responder, reaccionar o resolver cualquier comentario, hilo inline o review de Codex, en cualquier flujo (este loop, el Action, el Auto-fix de la app de escritorio con `<ci-monitor-event>`, o un fix manual), aunque el usuario no mencione la skill. Use when the user asks to relaunch/start the Codex auto-fix loop for a PR, set up Codex comment auto-fixing, mentions docs/codex-autofix-loop.md, processed-PR.json, or the codex-autofix workflow, or whenever you are about to reply to / close out a chatgpt-codex-connector[bot] comment."
+description: "Relanzar y operar el loop local (vía Claude Code) que auto-fixea comentarios de Codex (chatgpt-codex-connector[bot]) en un PR: clone efímero → fix → push → closeout del hilo, o delegación a Codex con `@codex fix` en el propio hilo (modo `codex`/`auto` con fallback local), con dedup por PR, tope de rondas, gate de riesgo antes del auto-merge y guard de auto-cancelación. Para responder un solo comentario de Codex fuera del loop alcanza con `codex-comment-closeout`. Use when the user asks to relaunch/start the Codex auto-fix loop for a PR, set up Codex comment auto-fixing, mentions docs/codex-autofix-loop.md, processed-PR.json, or the codex-autofix workflow."
 ---
 
 # Codex auto-fix loop (local, vía Claude Code)
@@ -31,45 +31,23 @@ Cubre **tres fuentes** de comentarios de Codex:
 2. **Generales** (`issues/{pr}/comments`): comentarios sueltos del PR; closeout = 👍 + reply.
 3. **Review-body de primer nivel** (`pulls/{pr}/reviews`, anchor `#pullrequestreview-…`): el resumen que Codex postea al enviar una review. Se procesa **solo cuando el body trae una sugerencia accionable real** (no un mero resumen). Closeout = 👍 + **quote reply** (citando el body). Cuando el review-body **y todos sus comments inline** quedan resueltos, se **minimiza la review con estado `RESOLVED`** (queda oculta/colapsada). `PullRequestReview` implementa `Reactable` y `Minimizable`, así que reacción y minimize van por GraphQL sobre su `node_id`.
 
-## Regla obligatoria: toda respuesta a Codex usa la plantilla de cierre
+## Cierre de cada comentario
 
-Esta regla aplica a **cualquier** respuesta a un comentario de `chatgpt-codex-connector[bot]`,
-no solo a las de este loop: el Action, el Auto-fix de la app de escritorio (eventos
-`<ci-monitor-event>` que piden responder y resolver hilos), un fix manual pedido en la
-conversación u otra skill que cierre hilos de Codex. Nunca escribas una respuesta libre
-("Corregido en …", "Fixed in …") a un comentario de Codex.
+Toda respuesta, reacción o resolución de un comentario de Codex sigue la skill
+[`codex-comment-closeout`](../codex-comment-closeout/SKILL.md): plantilla, checklist,
+reacción y verificación del body publicado. Leela antes del primer closeout de la corrida.
+Este loop solo decide **cuándo** cerrar y con qué variante.
 
-Antes de publicar, completá este checklist por comentario:
+## Regla de alcance y convergencia
 
-1. **Variante correcta** de «Plantilla de comentario de cierre» (abajo): `✅ Resuelto` si
-   hubo fix pusheado (también cuando la sugerencia era válida solo en parte: decilo en
-   «Qué cambió»), `ℹ️ Sin cambios` si evaluaste y no hacía falta o si es un caso de
-   borde rebuscado (ver «Regla de alcance»; decilo en «Motivo»), `⚠️ No pude aplicar`
-   si falló el flujo. Review-body → quote reply.
-2. **Link al commit** con sha corto de 7 chars y URL al sha completo, verificado en el
-   head remoto del PR (`git ls-remote` o `gh pr view --json headRefOid`) antes de publicar.
-3. **`Qué cambió`** en UNA línea, en español, describiendo el efecto observable.
-4. **Pie `<sub>🤖 …</sub>`** de la variante. Fuera del Action no hay run: omití
-   ` · [run]({{run_url}})`. Si el host exige una línea extra (por ejemplo, el Auto-fix de
-   la app pide `_🤖 Addressed by [Claude Code](https://claude.com/claude-code)_`), agregala
-   como **última línea, después del pie**, sin reemplazar ninguna parte de la plantilla.
-5. **Reacción** del paso (4a): 👍 en éxito, 👎 solo en «Sin cambios», ninguna en falla.
-6. **Resolver** el hilo inline (paso 4c) solo en éxito o «Sin cambios».
-7. **Verificar** después de publicar: releé el body publicado
-   (`gh api repos/{{OWNER}}/{{REPO}}/pulls/comments/<reply_id> --jq .body`) y confirmá que
-   empieza con el encabezado de la variante (`✅ **Resuelto** en [`…) y contiene el pie;
-   si no, editalo con `gh api -X PATCH …/pulls/comments/<reply_id> -f body=…` en lugar de
-   publicar otro reply.
-
-Si ya publicaste una respuesta libre, corregila editándola (PATCH) con la plantilla y
-agregá la reacción que falte; no publiques un segundo reply.
-
-## Regla de alcance: casos de borde rebuscados
-
-El loop tiene que **converger y terminar**. Cada fix de un caso muy rebuscado agrega
-complejidad y dispara más comentarios de borde en la siguiente `@codex review`, y el
-loop no termina nunca. Por eso el LOOP PRINCIPAL clasifica cada comentario antes de
-agrupar o spawnear (paso 3-pre del prompt):
+El loop tiene que **converger y terminar**. Aplicá la
+[política de convergencia](../../../(code-quality)/references/review-convergence.md)
+compartida con `review-fix-loop`: tope de rondas, registro de findings, fix por clase de
+bug y qué bloquea. Si el link relativo no resuelve porque la skill está instalada
+por symlink, resolvé antes el path real del directorio de la skill. Cada fix de un caso muy rebuscado agrega complejidad y dispara más
+comentarios de borde en la siguiente `@codex review`, y el loop no termina nunca. Por eso
+el LOOP PRINCIPAL clasifica cada comentario antes de agrupar o spawnear (paso 3-pre del
+prompt):
 
 - **Realista** (puede pasar en el uso normal, o es un bug, un riesgo de seguridad o una
   pérdida de datos plausible): se fixea.
@@ -80,6 +58,20 @@ agrupar o spawnear (paso 3-pre del prompt):
   para cubrir algo hipotético): NO se fixea. Se cierra con «ℹ️ Sin cambios» y un
   `**Motivo:**` de una línea que explica por qué no aplica, se resuelve el hilo y se
   marca como procesado.
+- **Preexistente** (las líneas señaladas ya existían en el merge base del PR: comprobalo
+  con `git blame <merge-base> -- <path>` o `git show <merge-base>:<path>`): NO se fixea,
+  salvo que sea seguridad o pérdida de datos, o una línea que el PR ya modifica y el fix
+  sea trivial. Se cierra con «ℹ️ Sin cambios» y el motivo «defecto preexistente: …»,
+  se resuelve el hilo y se registra como `pre-existing`. No abre otra ronda.
+- **Nit** (badge `P3` de Codex o sugerencia sin impacto funcional): se fixea solo si en la
+  misma vuelta hay otro fix realista y el nit es barato y local. Si la vuelta solo tiene
+  nits, se cierran con «ℹ️ Sin cambios» y el motivo «nit no bloqueante», así no abren una
+  ronda nueva. Codex en GitHub suele reportar solo `P0`/`P1`, así que esto es raro.
+
+**Clase de bug.** Al fixear un hallazgo realista, el subagente corrige todas las
+apariciones del mismo patrón **dentro del diff del PR** (no solo la línea señalada), sin
+tocar código fuera del PR ni sumar casos de borde vecinos. Así Codex no vuelve a marcar el
+mismo patrón, una línea por ronda.
 
 Ante la duda entre «borde razonable» y «rebuscado», mirá el costo: si el fix es chico,
 local y testeable, hacelo; si exige rediseño, dependencias nuevas o tocar varios
@@ -90,15 +82,39 @@ Si Codex repite en una review posterior un hallazgo ya cerrado como «Sin cambio
 a cerrarlo igual, con el mismo motivo, sin spawnear subagente.
 
 **Corte por convergencia:** si en una vuelta todos los hallazgos de la última review de
-Codex se cerraron como «Sin cambios» (rebuscados o repetidos) y no hubo ningún commit
-nuevo, el head no cambió y Codex no va a publicar una review limpia. En ese caso NO
-postees otro `@codex review` y **mergeá sin preguntar**, igual que en la terminación por
-review limpia (paso 5-bis), siempre después de su gate de CI (checks en verde): `gh pr merge {{PR}} --repo {{OWNER}}/{{REPO}} --squash
---delete-branch`. Si el merge tiene éxito, auto-cancelá el loop y mandá una
-PushNotification de una línea («PR #N mergeado: solo quedaban hallazgos de borde
-cerrados como Sin cambios»). Si el merge falla (checks pendientes, conflicto, branch
-protection), dejá el loop vivo para reintentar en la próxima vuelta y avisá el motivo una
-sola vez.
+Codex se cerraron como «Sin cambios» (rebuscados, preexistentes, nits o repetidos) y no
+hubo ningún commit nuevo, el head no cambió y Codex no va a publicar una review limpia. En
+ese caso NO postees otro `@codex review` y mergeá, igual que en la terminación por review
+limpia (paso 5-bis), siempre después del GATE DE CI y del GATE DE RIESGO. Acá los cierres
+«Sin cambios» los decidió el propio agente, así que el gate de riesgo es especialmente
+importante: si el PR no es de riesgo bajo, no mergees. Mergeá con
+`gh pr merge {{PR}} --repo {{OWNER}}/{{REPO}} --squash --delete-branch`. Si el merge tiene
+éxito, auto-cancelá el loop y mandá una PushNotification de una línea («PR #N mergeado:
+solo quedaban hallazgos cerrados como Sin cambios»). Si el merge falla (checks pendientes,
+conflicto, branch protection), dejá el loop vivo para reintentar en la próxima vuelta y
+avisá el motivo una sola vez.
+
+**Tope de rondas:** una ronda es cada `@codex review` que postea el loop; la review
+inicial del PR es la ronda 0. Si ya se postearon `{{MAX_REVIEW_ROUNDS}}` y la última
+review sigue dejando hallazgos realistas, NO postees otra ni mergees: auto-cancelá el
+loop y mandá una PushNotification de una línea («PR #N no convergió en
+{{MAX_REVIEW_ROUNDS}} rondas: conviene reconsiderar el enfoque», con los hallazgos
+abiertos). Esos hallazgos quedan sin cerrar para que los vea una persona.
+
+**Gate de riesgo antes de cualquier auto-merge:** una aprobación o review de un agente
+nunca reemplaza a una persona en un cambio de riesgo. Antes de mergear (review limpia o
+corte por convergencia), mirá el diff del PR:
+
+```bash
+gh pr diff {{PR}} --repo {{OWNER}}/{{REPO}} --name-only
+gh pr view {{PR}} --repo {{OWNER}}/{{REPO}} --json additions,deletions -q '.additions + .deletions'
+```
+
+Si algún archivo matchea `{{HUMAN_REQUIRED_PATHS}}` o las líneas cambiadas superan
+`{{AUTO_MERGE_MAX_CHANGED_LINES}}`, NO mergees: auto-cancelá el loop y mandá una
+PushNotification de una línea («PR #N listo para revisión humana: toca <path> / <n>
+líneas»). El loop deja el PR con la review limpia y la CI en verde para que una persona
+apruebe y mergee.
 
 ## Modo de fix: subagente local o `@codex fix`
 
@@ -160,12 +176,16 @@ Reglas del pedido a Codex:
 2. Inicializá el estado de dedup del PR (vacío procesa todo el backlog; con ids
    ya cargados procesa solo los nuevos):
    ```
-   .codex-autofix/processed-{{PR}}.json  ->  {"pr":{{PR}},"processedCommentIds":[],"inFlight":{},"codexAttempts":{},"delegationReplyIds":[]}
+   .codex-autofix/processed-{{PR}}.json  ->  {"pr":{{PR}},"processedCommentIds":[],"inFlight":{},"codexAttempts":{},"delegationReplyIds":[],"reviewRounds":0,"lastReviewedSha":null,"outcomes":{}}
    ```
    (`inFlight` registra los comentarios que tienen un subagente o un pedido
    `@codex fix` trabajando; `codexAttempts` cuenta los pedidos a Codex por comment id;
    `delegationReplyIds` guarda los ids de los pedidos `@codex fix` y de las respuestas
-   de Codex a esos pedidos. Si falta alguna clave, el loop la trata como vacía.)
+   de Codex a esos pedidos; `reviewRounds` cuenta los `@codex review` que posteó el loop;
+   `lastReviewedSha` es el head al postear el último; `outcomes` es el registro de
+   findings de la política de convergencia: `id -> {result, severity, round, path, sha?, reason?}`,
+   con `result` en `fixed`, `rejected`, `pre-existing`, `nit-skipped`, `edge-case` o
+   `failed`. Si falta alguna clave, el loop la trata como vacía o `0`.)
    (`.codex-autofix/` está gitignored: es estado de runtime, no se commitea.)
 3. Lanzá el loop pegando el prompt con el intervalo `{{INTERVAL}}`:
    ```
@@ -199,6 +219,14 @@ Reglas del pedido a Codex:
 >   recursos locales, pero sí pushes concurrentes a la rama).
 > - `{{MONITOR_POLL_SEC}}` = `30` — segundos entre consultas del `Monitor` que vigila
 >   el PR mientras está abierto (30 s o más por rate limit).
+> - `{{MAX_REVIEW_ROUNDS}}` = `3` — `@codex review` que el loop puede postear antes de
+>   cortar por falta de convergencia (ver «Tope de rondas»).
+> - `{{AUTO_MERGE_MAX_CHANGED_LINES}}` = `500` — por encima de esta suma de líneas
+>   agregadas y borradas el loop no mergea solo (ver «Gate de riesgo»).
+> - `{{HUMAN_REQUIRED_PATHS}}` = `.github/workflows/**`, `**/auth/**`, `**/billing/**`,
+>   `**/release/**`, `**/install*`, `**/setup*`, `**/migrations/**`, `**/.env*`,
+>   `**/.agents/**`, `**/.claude/**`, `**/.codex/**`, `**/AGENTS.md`, `**/CLAUDE.md` —
+>   globs que siempre requieren una persona antes del merge. Ajustalos por repo.
 >
 > Derivados (no los edites a mano; salen de `{{INTERVAL_MIN}}`):
 > - `{{INTERVAL}}` = `{{INTERVAL_MIN}}m` (= `3m`) — intervalo de `/loop`.
@@ -210,10 +238,12 @@ El disparador principal es un `Monitor` del PR (paso 0 del prompt): consulta Git
 de Codex o un cambio en los checks. El cron de `{{INTERVAL}}` queda como respaldo para los
 timeouts y para rearmar el monitor si murió. Monitor y cron son session-only: si cerrás
 Claude, hay que relanzarlo. El loop se
-**auto-cancela** en dos casos: (a) cuando el PR deja de estar `OPEN`
-(mergeado/cerrado/borrado), o (b) cuando Codex responde con una **review limpia**
-para el head actual y no quedan ítems pendientes — ahí el loop **mergea el PR** y se
-corta solo. La review limpia se reconoce por el estado JSON del resumen de Codex
+**auto-cancela** en cuatro casos: (a) cuando el PR deja de estar `OPEN`
+(mergeado/cerrado/borrado); (b) cuando Codex responde con una **review limpia**
+para el head actual, no quedan ítems pendientes y pasan los gates de CI y de riesgo:
+ahí el loop **mergea el PR** y se corta solo; (c) cuando el gate de riesgo exige una
+persona: deja el PR listo para revisión humana; (d) cuando se agota el tope de rondas sin
+converger. La review limpia se reconoce por el estado JSON del resumen de Codex
 (`<!-- codex-review-state:v1 {...} -->` sin hallazgos) o, en el formato viejo, por el
 texto "Codex Review: Didn't find any major issues" (ver paso 5-bis).
 
@@ -258,7 +288,7 @@ Si OPEN, procesá:
    - Al vencer (aviso de expiración), rearmalo con el mismo `command` si el PR sigue `OPEN`. Si al empezar una vuelta del cron no está vivo (se perdió el aviso o falló el rearme), rearmalo en ese momento.
    - Cuando el PR deja de estar `OPEN` el script termina solo; si el loop se auto-cancela por otro motivo, detenelo con `TaskStop` (ver «Auto-cancelar»).
 
-(1) Leé `processedCommentIds` desde `.codex-autofix/processed-{{PR}}.json`. Los ids de comentarios (inline/generales) se guardan como número crudo; los ids de review-body se guardan namespaceados como `"review:<id>"` (evita colisión entre espacios de id distintos). `processedCommentIds` representa comentarios cerrados: fixes aplicados y los cerrados como «Sin cambios» (incluidos los bordes rebuscados del paso 3-pre). Leé también `inFlight` (mapa `id -> {label, startedAt}` con el mismo formato de id; si falta, tratalo como `{}`): son los comentarios que YA tienen un subagente trabajando, lanzado en esta vuelta o en una anterior. Las entradas delegadas a Codex llevan además `via: "codex"`, `triggerId` (id del comentario `@codex fix`), `triggerKind` (`inline` o `general`), `baseSha` (head del PR al pedir) y `groupIds` (todos los ids del grupo). Leé también `codexAttempts` y `delegationReplyIds` (si faltan, `{}` y `[]`). Modo de fix de esta corrida: `{{FIX_MODE}}`.
+(1) Leé `processedCommentIds` desde `.codex-autofix/processed-{{PR}}.json`. Los ids de comentarios (inline/generales) se guardan como número crudo; los ids de review-body se guardan namespaceados como `"review:<id>"` (evita colisión entre espacios de id distintos). `processedCommentIds` representa comentarios cerrados: fixes aplicados y los cerrados como «Sin cambios» (incluidos los bordes rebuscados del paso 3-pre). Leé también `inFlight` (mapa `id -> {label, startedAt}` con el mismo formato de id; si falta, tratalo como `{}`): son los comentarios que YA tienen un subagente trabajando, lanzado en esta vuelta o en una anterior. Las entradas delegadas a Codex llevan además `via: "codex"`, `triggerId` (id del comentario `@codex fix`), `triggerKind` (`inline` o `general`), `baseSha` (head del PR al pedir) y `groupIds` (todos los ids del grupo). Leé también `codexAttempts`, `delegationReplyIds`, `reviewRounds`, `lastReviewedSha` y `outcomes` (si faltan, `{}`, `[]`, `0`, `null` y `{}`). Modo de fix de esta corrida: `{{FIX_MODE}}`.
 
 (1-bis) NO RELANCES COMENTARIOS CON UN SUBAGENTE TRABAJANDO. Una vuelta puede empezar mientras siguen corriendo subagentes de vueltas anteriores. Antes de armar grupos, reconciliá `inFlight`:
    - Si el subagente de una entrada sigue vivo (lo ves corriendo en tus tareas/agentes en background con ese label), el id queda BLOQUEADO: no lo agrupes, no lo spawnees de nuevo, no reacciones ni respondas. Esperá su resultado; el closeout lo hace el paso (4) cuando vuelva.
@@ -289,7 +319,7 @@ Si OPEN, procesá:
 
 (3) FAN-OUT EN PARALELO (por GRUPO de archivo, con concurrencia según recursos libres).
 
-(3-pre) TRIAGE DE ALCANCE (lo decide el LOOP PRINCIPAL, antes de agrupar). Clasificá cada ítem elegible según la «Regla de alcance» del skill: realista, borde razonable o borde rebuscado. Los **rebuscados** NO van a ningún grupo: cerralos directamente con la variante «ℹ️ Sin cambios» de la plantilla, con `**Motivo:**` de una línea (👎, reply, resolver el hilo inline y marcar el id en processedCommentIds). Si un hallazgo repite uno ya cerrado como «Sin cambios», cerralo igual con el mismo motivo. En el prompt de cada subagente pedí el **diff mínimo** que resuelva el comentario, sin ampliar el alcance a casos de borde vecinos; si el subagente concluye que el fix exige un rediseño, que devuelva «rebuscado» con el motivo en lugar de implementarlo, y cerralo como «Sin cambios».
+(3-pre) TRIAGE DE ALCANCE (lo decide el LOOP PRINCIPAL, antes de agrupar). Clasificá cada ítem elegible según la «Regla de alcance y convergencia» del skill: realista, borde razonable, borde rebuscado, preexistente o nit. Leé el badge de severidad de Codex (`P0`–`P3`) del body. Los **rebuscados**, **preexistentes** y **nits no fixeables** NO van a ningún grupo: cerralos directamente con la variante «ℹ️ Sin cambios» de `codex-comment-closeout`, con `**Motivo:**` de una línea (👎, reply, resolver el hilo inline, marcar el id en processedCommentIds y registrar en `outcomes` con `edge-case`, `pre-existing` o `nit-skipped`). Si un hallazgo repite uno ya registrado en `outcomes` (mismo `path`, misma clase de bug) y esas líneas no cambiaron desde entonces, cerralo igual con el mismo motivo, sin spawnear subagente. En el prompt de cada subagente pedí el **diff mínimo** que resuelva el comentario y **todas las apariciones de su clase de bug dentro del diff del PR**, sin ampliar el alcance a código fuera del PR ni a casos de borde vecinos; si el subagente concluye que el fix exige un rediseño, que devuelva «rebuscado» con el motivo en lugar de implementarlo, y cerralo como «Sin cambios».
 
 (3a) ARMÁ LOS GRUPOS DE TRABAJO. Tomá los ítems accionables y elegibles (los que NO están en `processedCommentIds` NI en `inFlight`; para review-bodies, además, pasá el filtro de accionabilidad de (3b)) y agrupalos así, porque dos fixes sobre el MISMO archivo/zona en clones paralelos se pisan o explotan en el rebase:
    - Los **inline** se agrupan por `path`; si dos inline del mismo `path` tienen `line` solapadas o cercanas, van en el MISMO grupo igual.
@@ -335,14 +365,14 @@ Si OPEN, procesá:
       - INLINE: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/comments/<id>/reactions -f content=+1`.
       - GENERAL: `gh api -X POST repos/{{OWNER}}/{{REPO}}/issues/comments/<id>/reactions -f content=+1`.
       - REVIEW-BODY (no hay endpoint REST de reactions para reviews; va por GraphQL sobre el `node_id` de la review): `gh api graphql -f query='mutation($id:ID!){addReaction(input:{subjectId:$id,content:THUMBS_UP}){reaction{content}}}' -F id="<review_node_id>"`.
-   b. Reply con el **template de cierre** (ver «Plantilla de comentario de cierre» abajo). Definí `<resumen>` = UNA línea de qué cambió y su efecto, y usá el sha corto de 7 chars como texto del link:
+   b. Reply con la **plantilla de cierre** de `codex-comment-closeout` (los comandos de abajo la aplican; si cambia la plantilla, manda esa skill). Definí `<resumen>` = UNA línea de qué cambió y su efecto, y usá el sha corto de 7 chars como texto del link:
       - INLINE: `gh api -X POST repos/{{OWNER}}/{{REPO}}/pulls/{{PR}}/comments/<id>/replies -f body="$(printf '✅ **Resuelto** en [`%s`](%s).\n\n**Qué cambió:** %s\n\n<sub>🤖 Fix automático en respuesta a este comentario de Codex.</sub>' "<sha_corto>" "<COMMIT_URL>" "<resumen>")"`
       - GENERAL: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "$(printf '✅ **Resuelto** en [`%s`](%s) (en respuesta a tu comentario).\n\n**Qué cambió:** %s\n\n<sub>🤖 Fix automático de Codex.</sub>' "<sha_corto>" "<COMMIT_URL>" "<resumen>")"`
       - REVIEW-BODY → **quote reply** (comentario general que CITA el body original). Construí la cita prefijando cada línea del body con `> ` (recortá a la parte saliente si el body es largo); guardala en QUOTED: `QUOTED=$(printf '%s\n' "<body_review>" | sed 's/^/> /')`. Después: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "$(printf '%s\n\n✅ **Resuelto** en [`%s`](%s) (en respuesta a esta review).\n\n**Qué cambió:** %s\n\n<sub>🤖 Fix automático en respuesta a esta review de Codex.</sub>' "$QUOTED" "<sha_corto>" "<COMMIT_URL>" "<resumen>")"`
    c. SOLO INLINE — resolver el hilo vía GraphQL:
       THREAD_ID=$(gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{id comments(first:100){nodes{databaseId}}}}}}}' -F owner={{OWNER}} -F repo={{REPO}} -F pr={{PR}} --jq "[.data.repository.pullRequest.reviewThreads.nodes[] | select(any(.comments.nodes[]; .databaseId == <id>)) | .id] | first // empty")
       si THREAD_ID no vacío: gh api graphql -f query='mutation($threadId:ID!){resolveReviewThread(input:{threadId:$threadId}){thread{isResolved}}}' -F threadId="$THREAD_ID"
-   d. Agregá el id a processedCommentIds en .codex-autofix/processed-{{PR}}.json: número crudo para inline/generales; `"review:<id>"` para review-bodies. En la misma escritura, sacá el id de `inFlight`. **Invariante de idempotencia**: por cada comentario hacé el reply de cierre Y la escritura del id como una sola unidad apenas vuelve su subagente (no batchees al final). Si el loop se cae entre el push y esta escritura, la próxima vuelta re-fixearía el comentario (reply duplicado): cerrar+marcar de inmediato achica esa ventana al mínimo.
+   d. Agregá el id a processedCommentIds en .codex-autofix/processed-{{PR}}.json: número crudo para inline/generales; `"review:<id>"` para review-bodies. En la misma escritura, sacá el id de `inFlight` y registrá en `outcomes` `{result: "fixed", severity, round: reviewRounds, path, sha}`. **Invariante de idempotencia**: por cada comentario hacé el reply de cierre Y la escritura del id como una sola unidad apenas vuelve su subagente (no batchees al final). Si el loop se cae entre el push y esta escritura, la próxima vuelta re-fixearía el comentario (reply duplicado): cerrar+marcar de inmediato achica esa ventana al mínimo.
 
 (4-bis) MINIMIZE de la review cuando esté COMPLETAMENTE resuelta (estado RESOLVED → queda oculta/colapsada). Para CADA review de Codex que tenga al menos 1 comment inline asociado y que NO esté ya minimizada, chequeá si está fully-resolved:
    - el review-body está cubierto: era no accionable (nada que fixear) O su id `"review:<id>"` ya está en processedCommentIds, **y**
@@ -353,7 +383,7 @@ Si OPEN, procesá:
      `gh api graphql -f query='mutation($id:ID!){minimizeComment(input:{subjectId:$id,classifier:RESOLVED}){minimizedComment{isMinimized minimizedReason}}}' -F id="<review_node_id>"`
    NO minimices reviews donde el loop no resolvió nada (sin inline resueltos por el loop y body no accionable): dejalas como están.
 
-(5) Si FALLA (no se pudo aplicar el fix por una falla del loop/agente o de la delegación a Codex que ya no tiene reintento según `{{FIX_MODE}}`, no porque la sugerencia sea inválida; una falla de delegación en `auto` NO llega acá, cae a subagente local): NO marques el id, NO resuelvas, y NO cuentes ese comentario como fixeado. SÍ sacá sus ids de `inFlight` (el subagente ya terminó), para que la próxima vuelta pueda reintentarlo. NO reacciones 👎 (content=-1): el 👎 es la señal de "sugerencia incorrecta/no útil" que Codex interpreta sobre su comentario, y acá el problema es el loop, no la sugerencia. No agregues reacción final; opcionalmente, dejá un reply con el motivo/link al error. Reservá el 👎 solo para cuando evaluaste la sugerencia y concluiste que no requería cambios.
+(5) Si FALLA (no se pudo aplicar el fix por una falla del loop/agente o de la delegación a Codex que ya no tiene reintento según `{{FIX_MODE}}`, no porque la sugerencia sea inválida; una falla de delegación en `auto` NO llega acá, cae a subagente local): NO marques el id, NO resuelvas, y NO cuentes ese comentario como fixeado. SÍ sacá sus ids de `inFlight` (el subagente ya terminó), para que la próxima vuelta pueda reintentarlo, y registrá en `outcomes` `{result: "failed", reason}` (se sobrescribe si un reintento posterior tiene éxito). NO reacciones 👎 (content=-1): el 👎 es la señal de "sugerencia incorrecta/no útil" que Codex interpreta sobre su comentario, y acá el problema es el loop, no la sugerencia. No agregues reacción final; opcionalmente, dejá un reply con el motivo/link al error. Reservá el 👎 solo para cuando evaluaste la sugerencia y concluiste que no requería cambios.
    - **Clones huérfanos**: en fallo, `fix-in-ephemeral-clone` conserva el clone para inspección y reporta su path. Recolectá esos paths de los subagentes que fallaron y, al cerrar la vuelta, listalos en UNA línea de PushNotification (p. ej. "PR #{{PR}}: 2 fixes fallaron, clones en <paths>"). Si no los vas a inspeccionar, podés limpiarlos vos (`rm -rf <path>`) DESPUÉS de loguear el path, nunca antes. Con varios fallos en paralelo el tempdir se llena: no dejes los paths sin reportar.
 
 (5-bis) TERMINACIÓN POR REVIEW LIMPIA (mergear + cortar). Chequealo cuando NO quedó ningún ítem accionable de Codex sin resolver esta vuelta (ni nuevos sin procesar, ni ids en `inFlight`, ni fallas pendientes del paso 5). Obtené el commit de la ÚLTIMA review limpia de Codex (REVIEWED) con estos dos formatos, en orden:
@@ -372,68 +402,27 @@ Si OPEN, procesá:
    - Pendientes -> NO mergees; dejá el loop vivo y reintentá en la próxima vuelta.
    - Alguno falló -> NO mergees. Tratá el fallo como un hallazgo realista más: en `codex`/`auto`, delegalo primero con un comentario general `@codex fix las fallas de CI del run <run_url> con el diff mínimo` (registrado en `inFlight` con id `"ci:<run_id>"` y `via: "codex"`, mismo reconcile del paso 1-bis); en `local`, o si esa delegación falla en `auto`, leé el log (`gh run view <run_id> --repo {{OWNER}}/{{REPO}} --log-failed`), lanzá un subagente con `fix-in-ephemeral-clone` y el diff mínimo (registrado en `inFlight` con id `"ci:<run_id>"`), y cuando pushee, posteá `@codex review` como en el paso 6. Mandá una PushNotification de una línea con el check que falló (una sola vez por run).
    - Sin checks configurados -> seguí, pero mencionalo en la PushNotification del merge.
-   Solo con todos los checks verdes: MERGEÁ el PR (estrategia squash, borrando la rama; ajustá si tu repo usa otra): `gh pr merge {{PR}} --repo {{OWNER}}/{{REPO}} --squash --delete-branch`.
+   **GATE DE RIESGO (obligatorio después del gate de CI, también en el corte por convergencia).** Aplicá el «Gate de riesgo antes de cualquier auto-merge» del skill: si el diff toca `{{HUMAN_REQUIRED_PATHS}}` o supera `{{AUTO_MERGE_MAX_CHANGED_LINES}}` líneas cambiadas, NO mergees; auto-cancelá el loop con la PushNotification «listo para revisión humana» y terminá.
+   Solo con todos los checks verdes y el gate de riesgo superado: MERGEÁ el PR (estrategia squash, borrando la rama; ajustá si tu repo usa otra): `gh pr merge {{PR}} --repo {{OWNER}}/{{REPO}} --squash --delete-branch`.
    - Si el merge tiene ÉXITO -> auto-cancelá el loop (mismo procedimiento del guard: CronList, identificá el job de ESTE loop por cron `{{CRON}}` y PR #{{PR}}, CronDelete por id, PushNotification de una línea avisando "PR #{{PR}} mergeado tras review limpia de Codex") y terminá. NO postees `@codex review`.
    - Si el merge FALLA (checks pendientes, no-mergeable, conflicto, branch protection): NO cortes el loop. PushNotification de una línea con el motivo (una sola vez) y dejá el loop vivo para reintentar en la próxima vuelta. No es trabajo del loop resolver conflictos de merge.
 
-(6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 ítem nuevo (inline, general o review-body, por subagente local o por commit de Codex verificado; contador >= 1) y ya no quedan pendientes (ni ids en `inFlight`), posteá UN único comentario general `@codex review` para disparar una nueva revisión de Codex: `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review"`. Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam). Si los únicos cierres de la vuelta fueron «Sin cambios», aplicá el «Corte por convergencia» de la «Regla de alcance»: sin `@codex review`, mergeá el PR sin preguntar (pasando antes el GATE DE CI del paso 5-bis) y auto-cancelá el loop.
+(6) AL FINAL: si en esta vuelta fixeaste con éxito al menos 1 ítem nuevo (inline, general o review-body, por subagente local o por commit de Codex verificado; contador >= 1) y ya no quedan pendientes (ni ids en `inFlight`):
+   - **Tope de rondas**: si `reviewRounds >= {{MAX_REVIEW_ROUNDS}}`, NO postees otra review ni mergees. Aplicá el «Tope de rondas» del skill (auto-cancelar con PushNotification «no convergió») y terminá.
+   - Si no, posteá UN único comentario general para disparar una nueva revisión de Codex. En la primera review que pide el loop (`lastReviewedSha` vacío) usá `@codex review`. Desde la segunda, enfocala en el delta con la sintaxis `@codex review for …` (los commits nuevos se revisan en contexto del PR completo): `gh pr comment {{PR}} --repo {{OWNER}}/{{REPO}} --body "@codex review for los cambios posteriores a <lastReviewedSha corto>; no repitas hallazgos ya cerrados en este PR"`.
+   - En la misma unidad, sumá 1 a `reviewRounds`, guardá el head actual en `lastReviewedSha` y persistí el JSON.
+   Si NO fixeaste nada nuevo esta vuelta (contador == 0), NO postees nada (evitá spam). Si los únicos cierres de la vuelta fueron «Sin cambios», aplicá el «Corte por convergencia» de la «Regla de alcance y convergencia»: sin `@codex review`, mergeá el PR (pasando antes el GATE DE CI y el GATE DE RIESGO del paso 5-bis) y auto-cancelá el loop.
+
+(6-bis) RESUMEN DE LA VUELTA: en la PushNotification de cierre del loop (merge, tope, revisión humana o PR cerrado) incluí una línea con las rondas usadas (`reviewRounds`/`{{MAX_REVIEW_ROUNDS}}`) y el conteo de `outcomes` por resultado (por ejemplo «3 fixed, 2 edge-case, 1 pre-existing»). Esa línea mide el ruido de Codex y alimenta las evals del reviewer.
 
 (7) SIEMPRE que postees `@codex review`, asegurá que el loop siga vivo SIN que el usuario lo pida: si el cron del loop (`{{CRON}}`, este PR) fue cancelado o pausado, relanzalo (mismo prompt parametrizado) y corré una iteración; si el `Monitor` del PR (paso 0) no está vivo, rearmalo. `@codex review` dispara comentarios nuevos; el loop debe quedar escuchando para auto-procesarlos. Nunca dejes el loop cancelado justo después de disparar una review.
 ```
 
 ## Plantilla de comentario de cierre
 
-Tanto el loop local como el Action (`.github/workflows/codex-autofix.yml`)
-cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars),
-`{{commit_url}}`, `{{resumen}}` (una línea), `{{run_url}}` (solo el Action).
-
-- **Éxito (fix aplicado) → 👍**
-  ```text
-  ✅ **Resuelto** en [`{{sha_corto}}`]({{commit_url}}).
-
-  **Qué cambió:** {{resumen}}
-
-  <sub>🤖 Fix automático en respuesta a este comentario de Codex · [run]({{run_url}})</sub>
-  ```
-  (Si no hay resumen disponible, omitir la línea «Qué cambió».)
-
-- **Éxito sobre un review-body → 👍 + quote reply** (cita el body original; luego se minimiza la review como `RESOLVED` cuando ella y sus inline estén resueltos)
-  ```text
-  > {{body_review_citado}}
-
-  ✅ **Resuelto** en [`{{sha_corto}}`]({{commit_url}}) (en respuesta a esta review).
-
-  **Qué cambió:** {{resumen}}
-
-  <sub>🤖 Fix automático en respuesta a esta review de Codex · [run]({{run_url}})</sub>
-  ```
-
-- **Sin cambios (el agente evaluó y no hacía falta tocar código, o es un borde rebuscado) → 👎**
-  ```text
-  ℹ️ **Sin cambios.** Revisé la sugerencia pero no requería cambios de código.
-
-  **Motivo:** {{motivo}}
-
-  <sub>🤖 Auto-fix de Codex · [run]({{run_url}})</sub>
-  ```
-  (`{{motivo}}` es UNA línea en español. Es obligatorio cuando el cierre es por borde
-  rebuscado, por ejemplo: «caso de borde poco realista: requiere una ruta de checkout con
-  `%VAR%` y un shim `.cmd`». Si no hay motivo disponible, como en el Action, omití la línea.)
-
-- **Falla del flujo (no se pudo aplicar; problema del Action/loop, no de la sugerencia) → sin reacción final**
-  ```text
-  ⚠️ **No pude aplicar el fix** (falla del Action, no de la sugerencia).
-
-  <sub>🤖 Auto-fix de Codex · [run]({{run_url}})</sub>
-  ```
-
-> Regla de paridad: cualquier cambio a esta plantilla debe reflejarse en ambos
-> lados (este skill y el step «Cerrar comentario» del workflow). La línea
-> `**Motivo:**` de «Sin cambios» es opcional, así que el Action sigue siendo compatible
-> aunque no la emita; agregarla allí queda como follow-up. El soporte de
-> **review-bodies** (👍 vía GraphQL + quote reply + minimize `RESOLVED`) por ahora
-> vive solo en este loop local; portarlo al Action `.github/workflows/codex-autofix.yml`
-> queda como follow-up pendiente.
+Vive en [`codex-comment-closeout`](../codex-comment-closeout/SKILL.md), junto con su
+regla de paridad con el step «Cerrar comentario» del Action
+`.github/workflows/codex-autofix.yml`.
 
 ## Notas
 
@@ -484,11 +473,14 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   el **head actual** (se valida `code_review.commit_sha` contra `headRefOid`; en el
   formato viejo, el texto "Codex Review: Didn't find any major issues" y su
   `**Reviewed commit:**`), no quedan pendientes y todos los
-  checks de CI del head están en verde, el loop mergea el PR y se auto-cancela.
+  checks de CI del head están en verde, el loop mergea el PR y se auto-cancela,
+  salvo que el gate de riesgo exija una persona.
   El check de sha evita mergear con commits posteriores aún sin re-revisar, y el
   gate de CI evita mergear en rojo cuando el repo no tiene branch protection (una
   review limpia de Codex no prueba que la CI pase); un check fallido se trata
-  como un hallazgo más y se fixea. Estrategia de merge por defecto: `--squash
+  como un hallazgo más y se fixea. El gate de riesgo existe porque la aprobación de un
+  agente nunca cuenta como humana: workflows, auth, release, setup, configuración de
+  agentes o un diff grande quedan para una persona. Estrategia de merge por defecto: `--squash
   --delete-branch` (alineado con el historial del repo, `feat: … (#NN)`); cambiá
   el flag si tu repo usa merge-commit o rebase. Si el merge falla (checks
   pendientes, conflicto, branch protection), el loop NO se corta y reintenta.
@@ -499,10 +491,13 @@ cierran el hilo con el **mismo** formato. Placeholders: `{{sha_corto}}` (7 chars
   el propio intervalo del loop lo rate-limitea y no spamea; si el comentario ya
   tiene 👀, no hace nada.
 - **Convergencia**: el triage del paso 3-pre (realista / borde razonable / borde
-  rebuscado) evita que cada review agregue fixes de casos cada vez más improbables. Los
-  rebuscados se cierran como «Sin cambios» con motivo, y si una review solo deja ese tipo
-  de hallazgos, el loop deja de pedir reviews, mergea el PR sin preguntar y se
-  auto-cancela.
+  rebuscado / preexistente / nit) evita que cada review agregue fixes de casos cada vez
+  más improbables o de código viejo. Los no fixeables se cierran como «Sin cambios» con
+  motivo; si una review solo deja ese tipo de hallazgos, el loop deja de pedir reviews,
+  mergea el PR si pasa los gates de CI y de riesgo, y se auto-cancela. Desde la segunda
+  ronda la review se enfoca en el delta (`@codex review for …`), los fixes cubren la clase
+  de bug dentro del PR y, tras `{{MAX_REVIEW_ROUNDS}}` rondas sin converger, el loop corta
+  y avisa en vez de seguir. La política completa es compartida con `review-fix-loop`.
 - **Delegación a Codex (`@codex fix`)**: en `codex`/`auto` el loop pide el fix en el
   propio hilo del hallazgo (o en el PR si no hay hilo) y no lo cierra hasta verificar un
   commit nuevo en el head que toque el archivo del grupo. El pedido no reemplaza el

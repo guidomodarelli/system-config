@@ -9,28 +9,9 @@ description: Review production-impacting performance issues in HEAD, uncommitted
 
 Review changed code for performance defects that can affect production latency, throughput, cost, memory, rendering responsiveness, or service reliability. Prioritize issues with a plausible real workload impact over speculative micro-optimizations.
 
-## Review Scope
+## Shared Contract
 
-If the user has not already chosen the scope, ask in Spanish before reviewing:
-
-> Seleccioná un preset de review
-> 1. Review contra develop (PR Style)
-> 2. Review contra main/master (PR Style)
-> 3. Review cambios no commiteados
-> 4. Review con instrucciones personalizadas
-
-Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
-
-Fetch remote refs (with pruning) before resolving branches or reading diffs, because a stale base produces a diff that does not match what the PR will actually merge. If the fetch fails, stop and report the error rather than reviewing against stale refs.
-
-Use these scopes:
-
-- **Uncommitted only**: inspect staged, unstaged, and untracked files relative to `HEAD`.
-- **HEAD against develop including uncommitted changes**: inspect commits from the merge base with `develop` to `HEAD`, then include staged, unstaged, and untracked files.
-- **HEAD against main/master including uncommitted changes**: inspect commits from the merge base with `main` or `master` to `HEAD`, then include staged, unstaged, and untracked files.
-- **Custom review instructions**: ask the user for the exact scope and review focus, then apply the closest matching scope above.
-
-For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`. Remote tracking branches come first because they reflect the shared base more reliably. Review from the merge base with the selected base to `HEAD`, and when the scope includes uncommitted changes, say so explicitly in the report.
+Read [contrato compartido de review](../../references/review-contract.md) before reviewing. It defines scope presets and the non-interactive default, base selection, repository context (`REVIEW.md`, `CLAUDE.md`, `AGENTS.md`, PR intent, root cause), effort level by risk, adversarial verification, finding labels (`Important`, `Nit`, `Pre-existing`), bug class, and the summary format. This skill adds only its focus, severity guidance, and report fields. If the relative link does not resolve because the skill is installed as a symlink, resolve the skill directory's real path first (`realpath`/`Get-Item .Target`).
 
 ## Review Approach
 
@@ -79,27 +60,20 @@ Look for:
 - `P2`: Plausible performance regression for moderate or large inputs, batch sizes, or list rendering.
 - `P3`: Localized inefficiency with limited impact but a clear low-risk fix.
 
-## Reporting
+## Report Fields
 
-Return findings first, ordered by severity. Use Spanish for visible review output.
+Besides the shared fields, each finding includes:
 
-For each finding include:
-
-- Severity: `P0`, `P1`, `P2`, or `P3`.
-- A concise title.
-- File and line reference.
 - The workload shape that triggers the issue.
 - The concrete performance failure mode.
 - Why the changed code introduced or exposed the issue.
-- A brief remediation direction, such as batching, indexing by key, limiting input, moving work out of render, or avoiding repeated allocation.
+- A remediation direction such as batching, indexing by key, limiting input, moving work out of render, or avoiding repeated allocation.
 
-When the environment supports inline review comments, emit one `::code-comment{...}` directive per finding with a tight line range and Spanish body.
-
-If there are no findings, say that clearly and mention residual risk, such as missing profiling data, unknown production cardinality, or tests not run.
+When there are no findings, the residual risk also mentions missing profiling data or unknown production cardinality.
 
 ## Boundaries
 
 - Do not report style-only concerns or premature micro-optimizations.
 - Do not demand caching unless the cache key, lifetime, invalidation, and consistency tradeoff are clear.
-- Do not review unchanged code as a standalone cleanup target unless changed code newly makes it hot or reachable.
-- Do not assume benchmarks or tests pass. Run relevant cheap validations when available; otherwise state what was not validated.
+- Unchanged code becomes reportable as `Pre-existing` only when the changed code newly makes it hot or reachable.
+- Do not assume benchmarks pass; state what was not measured.

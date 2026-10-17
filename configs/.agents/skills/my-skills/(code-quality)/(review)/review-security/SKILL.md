@@ -9,28 +9,11 @@ description: Review security vulnerabilities in HEAD, uncommitted changes, chang
 
 Review changed code for vulnerabilities that can expose the system, users, data, credentials, infrastructure, or agent/tool execution. Prioritize exploitable issues over generic hardening advice, and report findings in Spanish with precise file and line references.
 
-## Review Scope
+## Shared Contract
 
-If the user has not already chosen the scope, ask in Spanish before reviewing:
+Read [contrato compartido de review](../../references/review-contract.md) before reviewing. It defines scope presets and the non-interactive default, base selection, repository context (`REVIEW.md`, `CLAUDE.md`, `AGENTS.md`, PR intent, root cause), effort level by risk, adversarial verification, finding labels (`Important`, `Nit`, `Pre-existing`), bug class, and the summary format. This skill adds only its focus, severity guidance, and report fields. If the relative link does not resolve because the skill is installed as a symlink, resolve the skill directory's real path first (`realpath`/`Get-Item .Target`).
 
-> Seleccioná un preset de review
-> 1. Review contra develop (PR Style)
-> 2. Review contra main/master (PR Style)
-> 3. Review cambios no commiteados
-> 4. Review con instrucciones personalizadas
-
-Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
-
-Fetch remote refs (with pruning) before resolving branches or reading diffs, because a stale base produces a diff that does not match what the PR will actually merge. If the fetch fails, stop and report the error rather than reviewing against stale refs.
-
-Use these scopes:
-
-- **Uncommitted only**: inspect staged, unstaged, and untracked files relative to `HEAD`.
-- **HEAD against develop including uncommitted changes**: inspect commits from the merge base with `develop` to `HEAD`, then include staged, unstaged, and untracked files.
-- **HEAD against main/master including uncommitted changes**: inspect commits from the merge base with `main` or `master` to `HEAD`, then include staged, unstaged, and untracked files.
-- **Custom review instructions**: ask the user for the exact scope and review focus, then apply the closest matching scope above.
-
-For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`. Remote tracking branches come first because they reflect the shared base more reliably. Review from the merge base with the selected base to `HEAD`, and when the scope includes uncommitted changes, say so explicitly in the report.
+Security changes usually touch sensitive paths, so most of them use the **Deep** effort level from the contract. A `Pre-existing` vulnerability with `P0` or `P1` severity is still blocking.
 
 ## Review Approach
 
@@ -73,7 +56,7 @@ Look for:
 - Missing separation between trusted instructions and untrusted retrieved content.
 - Tool invocation based on untrusted model output without validation, allowlisting, confirmation, or least privilege.
 - Instructions that encourage exposing secrets, hidden prompts, credentials, internal paths, private data, or tool outputs.
-- Unsafe autonomous behavior such as executing commands, modifying files, making network calls, or publishing data from untrusted prompt content.
+- Unsafe autonomous behavior such as executing commands, modifying files, making network calls, merging, or publishing data from untrusted prompt content, or without a human gate where the change is high risk.
 
 ### Crypto, Dependencies, And Platform Controls
 
@@ -91,29 +74,21 @@ Look for:
 - `P2`: Reflected XSS, missing authorization on narrower scope, sensitive logging, unsafe redirects, weak validation, or exploitable issue requiring specific privileges.
 - `P3`: Defense-in-depth gap or low-impact issue with a credible abuse path and clear fix.
 
-## Reporting
+## Report Fields
 
-Return findings first, ordered by severity. Use Spanish for all visible review output.
+Besides the shared fields, each finding includes:
 
-For each finding include:
-
-- Severity: `P0`, `P1`, `P2`, or `P3`.
-- A concise title.
-- File and line reference.
 - Attacker-controlled input or untrusted source.
 - Vulnerable sink or trust boundary.
 - Concrete impact.
 - Why the changed code introduced or exposed the issue.
-- A brief remediation direction, such as parameterized queries, output encoding, schema validation, authorization checks, allowlists, secret redaction, or isolating untrusted AI context.
+- A remediation direction such as parameterized queries, output encoding, schema validation, authorization checks, allowlists, secret redaction, or isolating untrusted AI context.
 
-When the environment supports inline review comments, emit one `::code-comment{...}` directive per finding with a tight line range and Spanish body.
-
-If there are no findings, say that clearly and mention residual risk, such as missing runtime context, unknown upstream validation, dependencies not scanned, or tests not run.
+When there are no findings, the residual risk also mentions unknown upstream validation or dependencies not scanned.
 
 ## Boundaries
 
 - Do not report generic security best practices without a plausible exploit path.
-- Do not request broad rewrites when a targeted control fixes the vulnerability.
 - Do not assume middleware, gateways, or platform controls exist unless the repository shows them or the user provided that context.
 - Do not reveal secret values in the response. Refer to secret names, locations, or patterns without copying credentials.
 - Do not provide step-by-step exploit instructions beyond what is needed to prove impact and guide remediation.

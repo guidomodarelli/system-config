@@ -7,43 +7,19 @@ description: Review maintainability risks in HEAD, uncommitted changes, or the c
 
 ## Goal
 
-Review only the changes introduced by the current branch against the best available base branch. Prioritize defects that can cause incorrect behavior, unsafe concurrent execution, or resource growth/leaks. Report findings first, in Spanish, with precise file and line references.
+Review only the changes introduced by the current target. Prioritize defects that can cause incorrect behavior, unsafe concurrent execution, or resource growth/leaks. Report findings first, in Spanish, with precise file and line references.
 
-## Review Scope
+## Shared Contract
 
-If the user has not already chosen the scope, ask in Spanish before reviewing:
-
-> Seleccioná un preset de review
-> 1. Review contra develop (PR Style)
-> 2. Review contra main/master (PR Style)
-> 3. Review cambios no commiteados
-> 4. Review con instrucciones personalizadas
-
-Ask the user to answer only with `1`, `2`, `3`, or `4`. Interpret `1` as **HEAD against develop including uncommitted changes**, `2` as **HEAD against main/master including uncommitted changes**, and `3` as **Uncommitted only**. If the user answers `4`, ask for custom review instructions before selecting files or reading diffs.
-
-Fetch remote refs (with pruning) before resolving branches or reading diffs, because a stale base produces a diff that does not match what the PR will actually merge. If the fetch fails, stop and report the error rather than reviewing against stale refs.
-
-Use these scopes:
-
-- **Uncommitted only**: inspect staged, unstaged, and untracked files relative to `HEAD`.
-- **HEAD against develop including uncommitted changes**: inspect commits from the merge base with `develop` to `HEAD`, then include staged, unstaged, and untracked files.
-- **HEAD against main/master including uncommitted changes**: inspect commits from the merge base with `main` or `master` to `HEAD`, then include staged, unstaged, and untracked files.
-- **Custom review instructions**: ask the user for the exact scope and review focus, then apply the closest matching scope above.
-
-## Base Selection
-
-For option `1`, prefer `origin/develop`, then local `develop`. For option `2`, prefer `origin/main`, then `origin/master`, then local `main`, then local `master`. Remote tracking branches come first because they reflect the shared base more reliably. Option `3` needs no base branch: review staged, unstaged, and untracked files relative to `HEAD`. For option `4`, get the custom instructions first, then pick the requested base or file scope.
-
-Review from the merge base with the selected base to `HEAD`. When the scope includes uncommitted changes, cover staged, unstaged, and untracked files too, and say explicitly in the report that the review includes them.
+Read [contrato compartido de review](../../references/review-contract.md) before reviewing. It defines scope presets and the non-interactive default, base selection, repository context (`REVIEW.md`, `CLAUDE.md`, `AGENTS.md`, PR intent, root cause), effort level by risk, adversarial verification, finding labels (`Important`, `Nit`, `Pre-existing`), bug class, and the summary format. This skill adds only its focus, severity guidance, and report fields. If the relative link does not resolve because the skill is installed as a symlink, resolve the skill directory's real path first (`realpath`/`Get-Item .Target`).
 
 ## Review Approach
 
-Resolve the base and merge base before reading code, since everything else depends on reviewing the right diff. Classifying changed files by runtime responsibility (UI, API route, service, persistence, background job, shared utility, test, config, or documentation) helps decide where concurrency, correctness, or leak risks are plausible.
+Classifying changed files by runtime responsibility (UI, API route, service, persistence, background job, shared utility, test, config, or documentation) helps decide where concurrency, correctness, or leak risks are plausible.
 
 - Start from the diff and open surrounding implementation when changed code depends on invariants outside it.
 - Follow control flow across module boundaries when changed functions call each other, because many defects live in the interaction rather than in either side.
 - Prefer concrete failures over style comments: a maintainability opinion belongs in the report only when it creates a plausible defect in one of the focus areas.
-- Check likely findings against code context before reporting. If a risk depends on an assumption, state it, or drop the finding when the assumption is weak.
 
 ## Focus Areas
 
@@ -77,26 +53,20 @@ Look for:
 - Unbounded growth in caches, queues, logs, telemetry buffers, retry state, polling, or accumulated DOM/application state.
 - Missing cleanup in tests that can leak timers, listeners, mocks, servers, or global state into later tests.
 
-## Reporting
+## Severity Guidance
 
-Return findings first, ordered by severity. Use Spanish for all review findings and visible explanation.
+- `P0`: Data loss or corruption, or a crash/deadlock on a critical path under normal use.
+- `P1`: Incorrect behavior or a leak on a common path that users or operators will hit.
+- `P2`: Incorrect behavior or resource growth limited to less common inputs, timing, or load.
+- `P3`: Localized defect with limited impact and a clear low-risk fix.
 
-For each finding include:
+## Report Fields
 
-- Severity: `P0`, `P1`, `P2`, or `P3`.
-- A concise title.
-- File and line reference.
+Besides the shared fields, each finding includes:
+
 - The concrete failure mode.
 - Why the changed code introduced or exposed the issue.
-- A brief remediation direction.
-
-When the environment supports inline review comments, emit one `::code-comment{...}` directive per finding with a tight line range and Spanish body. Keep the final summary short.
-
-If there are no findings, say that clearly and mention residual risk, such as tests not run or areas not inspectable from the diff.
 
 ## Boundaries
 
 - Do not report formatting, naming, architecture, or style issues unless they directly cause one of the focus-area defects.
-- Do not review unchanged code as a standalone cleanup target.
-- Do not ask for broad rewrites when a focused fix can remove the risk.
-- Do not assume tests pass. If relevant tests are known or cheap to run, run them; otherwise state what was not validated.

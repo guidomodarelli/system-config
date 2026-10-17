@@ -25,10 +25,13 @@ Use when:
 - Read dependency docs/source/types when a finding depends on external behavior.
 - Reject unrealistic edge cases, speculative risks, broad rewrites, and fixes that over-complicate the codebase.
 - Prefer small fixes at the right ownership boundary; no refactor unless it clearly improves the bug class.
-- Keep going until every launched review process exits and the completed review reports no accepted/actionable findings.
-- When a provider reports accepted/actionable findings, enter the mandatory loop: review -> verify findings -> fix accepted/actionable findings -> run relevant tests -> rerun the same provider -> repeat until 0 accepted/actionable findings.
+- Read [política de convergencia](../../../(code-quality)/references/review-convergence.md) before the first round. It defines the round cap, delta re-review, findings ledger, bug-class fixes, and what blocks. If the relative link does not resolve because the skill is installed as a symlink, resolve the skill directory's real path first (`realpath`/`Get-Item .Target`).
+- Keep going until every launched review process exits and the completed review leaves no open `Important` finding, or until the round cap stops the loop.
+- When a provider reports accepted `Important` findings, enter the mandatory loop: review -> verify findings -> fix accepted findings and every instance of their bug class inside the target -> run relevant tests -> record outcomes in the ledger -> rerun the same provider on the delta -> repeat.
+- **Round cap**: at most 3 rounds (`--max-rounds`). When the helper exits `3`, stop: report that the loop did not converge, list open findings, and recommend reconsidering the approach. Never present that state as clean.
+- `Nit` and `Pre-existing` findings never trigger another round by themselves. Fix cheap local nits in the same round; list the rest as follow-up in the final report.
 - Never stop after reporting findings with a passive closeout such as "No hice cambios; esto fue solo review." Fix accepted findings unless the user explicitly asks for review-only or forbids changes.
-- If every finding is rejected after verification, document the rejection reason. Rerun only when code or review target changed.
+- If every finding is rejected after verification, document the rejection reason in the ledger. Rerun only when code or review target changed.
 - If a review-triggered fix changes code, rerun focused tests and review the updated target.
 - Do not push just to review. Push only when the user requested push/ship/PR update.
 
@@ -39,11 +42,13 @@ flowchart TD
     subgraph ORCHESTRATOR["Orquestador: agente invocador"]
         START["Resolver target una vez"]
         CALL["Ejecutar helper con target y provider"]
-        VERIFY{"¿Hay findings aceptados<br/>tras verificarlos?"}
-        FIX["Corregir findings aceptados"]
-        TEST["Ejecutar tests relevantes"]
-        CLEAN["Cerrar con 0 findings accionables"]
+        VERIFY{"¿Quedan Important aceptados<br/>tras verificarlos?"}
+        FIX["Corregir findings aceptados<br/>y su clase de bug"]
+        TEST["Ejecutar tests relevantes<br/>y actualizar registro"]
+        CAP{"¿Ronda siguiente<br/>dentro del tope?"}
+        CLEAN["Cerrar con 0 Important abiertos"]
         BLOCKED["Reportar bloqueo exacto"]
+        STALLED["Reportar que no convergió:<br/>reconsiderar el enfoque"]
     end
 
     subgraph HELPER["Helper: scripts/review-fix-loop"]
@@ -77,7 +82,9 @@ flowchart TD
     OUTPUT --> VERIFY
     VERIFY -->|"Sí"| FIX
     FIX --> TEST
-    TEST -->|"Repetir con mismo provider"| CALL
+    TEST --> CAP
+    CAP -->|"Sí: mismo provider,<br/>solo el delta"| CALL
+    CAP -->|"No: exit 3"| STALLED
     VERIFY -->|"No"| CLEAN
     OUTPUT -->|"Review o tests bloqueados"| BLOCKED
 ```
@@ -163,6 +170,21 @@ base=$(gh pr view --json baseRefName --jq .baseRefName)
 
 Without an open PR, the helper uses `origin/main` for a non-main branch.
 
+Round 2 onward (delta re-review). Right before applying each round's fixes, snapshot the current state; the next round reviews only what changed after it:
+
+```bash
+# Antes de aplicar los fixes de la ronda. `git stash create` guarda el working tree
+# tracked como commit sin tocar el árbol; sin cambios devuelve vacío y se usa HEAD.
+round_start=$(git stash create); round_start=${round_start:-$(git rev-parse HEAD)}
+# ...aplicar fixes y correr tests...
+<skill-root>/scripts/review-fix-loop --since "$round_start" --round 2 \
+  --known-findings "$ledger_file"
+```
+
+The snapshot does not include untracked files, so a fix that creates a new file still shows as an untracked file in the delta review. `codex review --base` compares commits only: with Codex, commit the round's fixes before the delta review, or fall back to the full target and drop findings already in the ledger.
+
+The ledger file is plain text with one line per triaged finding (`archivo:línea · clase · etiqueta · resultado · motivo`). Keep it in the session scratchpad, not in the repository. Codex does not accept extra instructions together with `--base`, so with Codex the orchestrator drops repeated findings by comparing against the ledger.
+
 Committed single change with direct Codex:
 
 ```bash
@@ -183,10 +205,11 @@ When exact target already has relevant passing test evidence from current task a
 
 ## Context Efficiency
 
-Provider output is usually noisy. Use isolated read-only filter only when runtime supports native subagents. Otherwise evaluate provider output directly. Ask filter to return only:
+Provider output is usually noisy. Use isolated read-only filter only when runtime supports native subagents. Otherwise evaluate provider output directly. The filter acts as the adversarial verifier: it tries to refute each finding by reading the code. Ask filter to return only:
 
-- actionable findings it accepts
+- actionable findings it accepts, with label (`Important`, `Nit`, `Pre-existing`) and bug class
 - findings it rejects, with one-line reason
+- findings already in the ledger, so they are not reopened
 - exact files/tests to rerun
 
 The filter must not invoke this skill or another provider. Run inline only for tiny changes or when subagents are unavailable.
@@ -218,6 +241,9 @@ The helper:
 - supports binary overrides with `--claude-bin` and `--codex-bin`
 - supports `--output`, `--parallel-tests`, and `--dry-run`
 - supports `--timeout-seconds` (default 600; `0` disables timeout; enabled timeout requires `python3`)
+- supports `--since REF` for delta re-review, `--round N` / `--max-rounds N` (default 3, or `REVIEW_FIX_LOOP_MAX_ROUNDS`) and `--known-findings FILE`
+- exits `3` without running a provider when the round exceeds the cap
+- asks the provider to read `REVIEW.md`/`CLAUDE.md`/`AGENTS.md`, check PR intent and root cause, label findings, report bug class, and start with the finding count
 - prints the provider that completed and every fallback cause
 - treats unclassified provider failures as terminal instead of silently falling back
 
@@ -225,14 +251,16 @@ A successful provider process means the review completed, not automatically that
 
 ## Final Report
 
-Include:
+Start with the finding count per label, as the shared review contract requires. Include:
 
+- rounds used out of the cap, and whether the loop converged or stopped at the cap
 - provider that completed the final review
 - failed provider attempts and exact fallback reasons
 - provider diagnostics that materially affected coverage, or `none`
 - review command/surface and target used
 - tests/proof run
 - findings accepted/rejected, briefly why
+- open `Nit` and `Pre-existing` findings left as follow-up
 - final clean result after all launched processes exited, or exact blocker
 
 Do not run another provider solely to improve final wording, obtain a second opinion, or get a nicer clean line.

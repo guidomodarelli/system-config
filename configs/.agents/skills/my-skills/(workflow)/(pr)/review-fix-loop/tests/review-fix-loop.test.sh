@@ -5,9 +5,11 @@ HELPER=${HELPER:-"$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/revie
 failures=0
 tests_run=0
 
+# Cada test corre en un subshell: `exit` corta el test en el primer assert fallido.
+# Con `return`, un assert intermedio fallido quedaba oculto si el último pasaba.
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
-  return 1
+  exit 1
 }
 
 assert_contains() {
@@ -80,9 +82,13 @@ case "$provider_name" in
     ;;
 esac
 EOF
-  chmod 700 "$FAKE_BIN/provider"
-  ln -s provider "$FAKE_BIN/claude"
-  ln -s provider "$FAKE_BIN/codex"
+  # Copias en vez de symlinks: Git Bash en Windows sin modo developer no crea
+  # symlinks reales y `ln -s` deja una copia sin bit de ejecución.
+  local provider_name
+  for provider_name in provider claude codex; do
+    [[ "$provider_name" == provider ]] || cp "$FAKE_BIN/provider" "$FAKE_BIN/$provider_name"
+    chmod 700 "$FAKE_BIN/$provider_name"
+  done
 
   export TEST_ROOT REPOSITORY FAKE_BIN CALL_LOG STDOUT_FILE STDERR_FILE
   export FAKE_CLAUDE_STATUS=0 FAKE_CODEX_STATUS=0
@@ -313,6 +319,101 @@ test_invalid_timeout_returns_usage_error() {
   assert_contains "$STDERR_FILE" 'invalid --timeout-seconds: invalid'
 }
 
+test_round_above_cap_stops_without_provider() {
+  setup_fixture
+  trap teardown_fixture EXIT
+
+  set +e
+  run_helper --round 4 --max-rounds 3
+  status=$?
+  set -e
+  [[ "$status" -eq 3 ]] || fail "expected exit 3, got $status"
+  [[ ! -s "$CALL_LOG" ]] || fail 'round cap invoked a provider'
+  assert_contains "$STDERR_FILE" 'round cap reached: round 4 exceeds max 3'
+}
+
+test_round_within_cap_runs_review() {
+  setup_fixture
+  trap teardown_fixture EXIT
+
+  run_helper -p claude --round 3
+  assert_calls 'claude'
+  assert_contains "$STDOUT_FILE" 'round: 3/3'
+}
+
+test_invalid_round_returns_usage_error() {
+  setup_fixture
+  trap teardown_fixture EXIT
+
+  set +e
+  run_helper --round 0
+  status=$?
+  set -e
+  [[ "$status" -eq 2 ]] || fail "expected exit 2, got $status"
+  assert_contains "$STDERR_FILE" 'invalid --round: 0'
+}
+
+test_since_reviews_only_later_changes() {
+  setup_fixture
+  trap teardown_fixture EXIT
+  local since_sha
+  since_sha=$(git -C "$REPOSITORY" rev-parse HEAD)
+
+  run_helper -p claude --since "$since_sha"
+  assert_contains "$STDOUT_FILE" 'code-review target: delta'
+  assert_contains "$CALL_LOG.args" "only the changes made after ${since_sha}"
+
+  : > "$CALL_LOG.args"
+  run_helper -p codex --since "$since_sha"
+  assert_contains "$CALL_LOG.args" "review --base ${since_sha}"
+}
+
+test_invalid_since_returns_usage_error() {
+  setup_fixture
+  trap teardown_fixture EXIT
+
+  set +e
+  run_helper --since does-not-exist
+  status=$?
+  set -e
+  [[ "$status" -eq 2 ]] || fail "expected exit 2, got $status"
+  [[ ! -s "$CALL_LOG" ]] || fail 'invalid --since invoked a provider'
+  assert_contains "$STDERR_FILE" 'invalid --since: does-not-exist is not a commit'
+}
+
+test_known_findings_reach_review_prompt() {
+  setup_fixture
+  trap teardown_fixture EXIT
+  local known_findings="$TEST_ROOT/known-findings.md"
+  printf -- '- file.txt:1 rejected: intentional trailing line\n' > "$known_findings"
+
+  run_helper -p claude --known-findings "$known_findings"
+  assert_contains "$CALL_LOG.args" 'Do not report them again'
+  assert_contains "$CALL_LOG.args" 'file.txt:1 rejected: intentional trailing line'
+}
+
+test_missing_known_findings_returns_usage_error() {
+  setup_fixture
+  trap teardown_fixture EXIT
+
+  set +e
+  run_helper --known-findings "$TEST_ROOT/missing.md"
+  status=$?
+  set -e
+  [[ "$status" -eq 2 ]] || fail "expected exit 2, got $status"
+  assert_contains "$STDERR_FILE" 'unreadable --known-findings file'
+}
+
+test_review_prompt_requests_labels_and_count() {
+  setup_fixture
+  trap teardown_fixture EXIT
+
+  run_helper -p claude
+  assert_contains "$CALL_LOG.args" 'Important (must be fixed before merge), Nit (optional, never blocking), Pre-existing'
+  assert_contains "$CALL_LOG.args" 'Start the result with the finding count per label'
+  assert_contains "$CALL_LOG.args" 'read REVIEW.md, CLAUDE.md, and AGENTS.md'
+}
+
 run_test() {
   local name=$1
   local test_function=$2
@@ -341,6 +442,14 @@ run_test 'dry-run does not invoke providers' test_dry_run_does_not_invoke_provid
 run_test 'output captures provider result' test_output_captures_provider_result
 run_test 'invalid provider returns usage error' test_invalid_provider_returns_usage_error
 run_test 'invalid timeout returns usage error' test_invalid_timeout_returns_usage_error
+run_test 'round above cap stops without provider' test_round_above_cap_stops_without_provider
+run_test 'round within cap runs review' test_round_within_cap_runs_review
+run_test 'invalid round returns usage error' test_invalid_round_returns_usage_error
+run_test 'since reviews only later changes' test_since_reviews_only_later_changes
+run_test 'invalid since returns usage error' test_invalid_since_returns_usage_error
+run_test 'known findings reach review prompt' test_known_findings_reach_review_prompt
+run_test 'missing known findings returns usage error' test_missing_known_findings_returns_usage_error
+run_test 'review prompt requests labels and count' test_review_prompt_requests_labels_and_count
 
 if [[ "$failures" -ne 0 ]]; then
   printf '%d/%d tests failed\n' "$failures" "$tests_run" >&2

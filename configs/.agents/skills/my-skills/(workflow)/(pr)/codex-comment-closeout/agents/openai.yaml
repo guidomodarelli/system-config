@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cierre de comentarios de Codex"
+  short_description: "Plantilla obligatoria para responder a Codex"
+  default_prompt: "Usa $codex-comment-closeout para responder, reaccionar y resolver este comentario de Codex con la plantilla de cierre."
