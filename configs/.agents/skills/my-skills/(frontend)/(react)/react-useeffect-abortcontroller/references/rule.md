@@ -7,7 +7,7 @@ Use **AbortController** to cancel in-flight requests and combine it with an effe
 ### Requirements
 
 - Create `const controller = new AbortController()` inside the `useEffect`.
-- Pass `signal: controller.signal` to the HTTP client (Fetch/Axios/Nordic RestClient).
+- Pass `signal: controller.signal` to the HTTP client (Fetch, Axios, or the project's REST client).
 - Return a cleanup function that **always** calls `controller.abort()`.
 - Ignore cancellation errors explicitly (for example, `error.code === 'ERR_CANCELED'` or `error.name === 'CanceledError'`).
 - Keep error messages **specific** (include what operation failed and key identifiers such as `roleId`).

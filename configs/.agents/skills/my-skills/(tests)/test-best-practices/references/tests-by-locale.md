@@ -1,15 +1,16 @@
-# Tests by site with `describe.each`
+# Tests by locale or market with `describe.each`
 
 ## Objective
 
-Avoid duplication in tests that depend on per-site translations (`MLA`, `MLB`, `MLM`, etc.).
+Avoid duplication in tests whose texts or behavior change by locale, market, or tenant
+(for example `es-AR`, `pt-BR`, `es-MX`).
 
 ## Steps
 
-- Extract the values that change between sites (`siteId`, expected texts).
+- Extract the values that change between variants (locale or market, expected texts).
 - Define an array of cases and use `describe.each` to iterate over them.
-- Create `pxConfig` in `beforeEach` for each case.
-- Pass `pxConfig` to `render` or `renderHook`.
+- Build the render options in `beforeEach` for each case.
+- Pass the options to `render` or `renderHook`.
 
 ## Example
 
@@ -18,12 +19,7 @@ Avoid duplication in tests that depend on per-site translations (`MLA`, `MLB`, `
 ```ts
 describe('example', () => {
   test('some test', () => {
-    render(<MyComponent />, {
-      pxConfig: {
-        ...global.getPxCcapEnvironment(commons.Channel.NATIVE),
-        siteId: commons.Site.MLB,
-      },
-    });
+    render(<MyComponent />, { locale: 'pt-BR' });
 
     expect(screen.getByText('literal value')).toBeInTheDocument();
   });
@@ -35,21 +31,18 @@ describe('example', () => {
 ```ts
 describe.each([
   {
-    siteId: commons.Site.MLB,
+    locale: 'pt-BR',
     literalValue: 'literal value',
   },
-])('example for $siteId', ({ siteId, literalValue }) => {
-  let pxConfig;
+])('example for $locale', ({ locale, literalValue }) => {
+  let renderOptions;
 
   beforeEach(() => {
-    pxConfig = {
-      ...global.getPxCcapEnvironment(commons.Channel.NATIVE),
-      siteId,
-    };
+    renderOptions = { locale };
   });
 
   test('some test', () => {
-    render(<MyComponent />, { pxConfig });
+    render(<MyComponent />, renderOptions);
 
     expect(screen.getByText(literalValue)).toBeInTheDocument();
   });
@@ -60,4 +53,4 @@ describe.each([
 
 - Use the extracted values without concatenation or transformations.
 - Keep shared literals inside the test.
-- Apply `pxConfig` in `renderHook` as well when applicable.
+- Apply the same options in `renderHook` when applicable.

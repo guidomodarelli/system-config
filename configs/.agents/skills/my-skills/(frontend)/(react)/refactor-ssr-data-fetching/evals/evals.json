@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "En una página React/Nordic SSR hay que mostrar permisos, configuración y resumen del usuario en el HTML inicial. Un desarrollador propone cargarlos con useEffect; otro propone que getServerSideProps haga HTTP contra http://localhost/api/page-data. Diseñá el flujo correcto, manejo de errores y tests.",
+      "prompt": "En una página React SSR hay que mostrar permisos, configuración y resumen del usuario en el HTML inicial. Un desarrollador propone cargarlos con useEffect; otro propone que getServerSideProps haga HTTP contra http://localhost/api/page-data. Diseñá el flujo correcto, manejo de errores y tests.",
       "expected_output": "Clasifica datos como SSR iniciales, valida y autoriza en hook/loader, llama service server-only directamente sin loopback, serializa DTO mínimo y propone cobertura de boundary y datos sensibles.",
       "files": [],
       "expectations": [
@@ -60,13 +60,13 @@
     {
       "id": 5,
       "prompt": "Aplicación Vite es completamente CSR, sin SSR, server routes ni BFF. Consume API pública de demostración y pedido solo consiste en mejorar loading, error y evitar requests duplicados. Indicá guía correspondiente sin inventar infraestructura.",
-      "expected_output": "Reconoce scope negativo, delega a react-data-fetching-best-practices y no inventa SSR, BFF ni mecánicas Nordic/Kraken.",
+      "expected_output": "Reconoce scope negativo, delega a react-data-fetching-best-practices y no inventa SSR, BFF ni mecánicas propias de un framework específico.",
       "files": [],
       "expectations": [
         "Reconoce que decisión SSR/BFF está fuera de scope",
         "Delega loading, error y deduplicación a react-data-fetching-best-practices",
         "No inventa BFF ni SSR",
-        "No aplica mecánicas Nordic/Kraken",
+        "No aplica mecánicas propias de un framework específico",
         "Mantiene respuesta enfocada en CSR"
       ]
     }

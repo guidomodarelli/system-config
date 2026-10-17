@@ -9,7 +9,7 @@
 
 ### Components
 
-- **Platform components** (`nordic/*`, Andes, internal UI kits and SDKs): never mock them. Render them
+- **Platform components** (design-system components, internal UI kits and SDKs): never mock them. Render them
   for real and assert observable output.
 
 ```ts
@@ -32,8 +32,8 @@ jest.mock('@/components/ProductCarousel', () => ({
 - **Implementation mock**:
 
 ```ts
-jest.mock('@/utils/webkit/executeNative', () => ({
-  executeNative: jest.fn().mockResolvedValue(...),
+jest.mock('@/utils/native-bridge/sendNativeEvent', () => ({
+  sendNativeEvent: jest.fn().mockResolvedValue(...),
 }));
 ```
 

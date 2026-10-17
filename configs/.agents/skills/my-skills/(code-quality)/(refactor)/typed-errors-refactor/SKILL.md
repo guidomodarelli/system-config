@@ -9,7 +9,7 @@ description: Analiza, diseña y ejecuta refactors de errores tipados en reposito
 
 Convertir errores implícitos en contratos explícitos cuando aporten valor en un boundary, sin transformar cada `throw` en una jerarquía innecesaria. La prioridad es preservar comportamiento observable legítimo —códigos, status, retry, fallback, cancelación, copy y side effects— mientras se evita filtrar detalles internos.
 
-Aplicar la skill de forma genérica. Detectar el lenguaje, runtime, arquitectura, validador, logger, transporte y test runner existentes; no imponer Nordic, React, Node, AJV, `schemaValidationMiddleware`, `Result`, clases ni una librería concreta.
+Aplicar la skill de forma genérica. Detectar el lenguaje, runtime, arquitectura, validador, logger, transporte y test runner existentes; no imponer un framework (por ejemplo React o Node), AJV, `schemaValidationMiddleware`, `Result`, clases ni una librería concreta.
 
 ## Quick start
 

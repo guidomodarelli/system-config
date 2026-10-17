@@ -148,17 +148,14 @@ Probar cada frontera afectada:
 6. **UI:** comportamiento visible para loading/error/data sin testear implementación textual.
 7. **Runtime:** snapshot, requests XHR/fetch y consola; no inspeccionar headers completos.
 
-Si datos SSR hidratan React, aplicar `prevent-ssr-hydration-mismatches`. En Nordic, usar `nordic-dev-verify` para evidencia runtime cuando esté disponible.
+Si datos SSR hidratan React, aplicar `prevent-ssr-hydration-mismatches`. Para evidencia runtime, usar la herramienta de verificación del proyecto o automatización de browser cuando esté disponible.
 
 ## Scope boundaries
 
 - `react-data-fetching-best-practices`: entry point, deduplicación, mapping a props y feedback loading/error.
 - `prevent-ssr-hydration-mismatches`: igualdad entre HTML SSR y primer render cliente.
 - `react-useeffect-abortcontroller`: cancelación y races en efectos async.
-- `refactor-nordic-api-service-restclient`: mecánica Nordic/Kraken service → API route → browser hook.
-- `fix-unvalidated-input-access`: API concreta de schema validation Nordic.
-- `use-nordic-logger`: API y formato de logging estructurado.
-- `nordic-dev-verify`: validación runtime de app Nordic.
+- Skills o convenciones propias del framework del proyecto: mecánica concreta de service → API route → browser hook, API de schema validation, formato de logging estructurado y validación runtime.
 - `review-security`: auditoría AppSec exhaustiva.
 
 Esta skill decide **dónde** ocurre acceso upstream y **qué datos** pueden cruzar boundary server/browser.
@@ -175,4 +172,4 @@ Esta skill decide **dónde** ocurre acceso upstream y **qué datos** pueden cruz
 - Errores y logs no exponen detalles sensibles.
 - Acceso browser→upstream, si existe, satisface y documenta todas condiciones.
 - Tests cubren SSR, BFF, service/client, browser service y runtime.
-- Skill vecina correcta cubre hydration, abort, fetching genérico y APIs Nordic específicas.
+- Skill vecina correcta cubre hydration, abort, fetching genérico y APIs específicas del framework.

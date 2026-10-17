@@ -1,6 +1,6 @@
 ---
 name: prevent-ssr-hydration-mismatches
-description: Prevents and diagnoses React SSR hydration mismatches in server-rendered Nordic routes and components by keeping server HTML and first client render deterministic. Use whenever implementing, changing, reviewing, or debugging Nordic SSR or hydration, preloaded or query-derived initial UI, server-rendered code that touches browser-only APIs, feature flags, dates, randomness, locale, timezone, media queries, storage, invalid HTML nesting, client-only libraries, hydration warnings, or content changing during initial load—even when user does not mention hydration. Do not use for purely CSR components that never hydrate server HTML.
+description: Prevents and diagnoses React SSR hydration mismatches in server-rendered routes and components (Next.js, Remix, custom Express/Node SSR, or any framework that hydrates server HTML) by keeping server HTML and first client render deterministic. Use whenever implementing, changing, reviewing, or debugging SSR or hydration, preloaded or query-derived initial UI, server-rendered code that touches browser-only APIs, feature flags, dates, randomness, locale, timezone, media queries, storage, invalid HTML nesting, client-only libraries, hydration warnings, or content changing during initial load—even when user does not mention hydration. Do not use for purely CSR components that never hydrate server HTML.
 ---
 
 # React SSR Hydration Consistency
@@ -25,7 +25,7 @@ Hydration compares server HTML with first client render. A later effect may inte
 Before editing, locate:
 
 - server route/controller/page that builds render props;
-- Nordic `Page state`, serializer, or equivalent preloaded-state channel;
+- the framework's preloaded-state channel (page props, loader data, serialized store, or a custom serializer);
 - client entrypoint calling `hydrate` or `hydrateRoot`;
 - constructors, lazy initializers, render functions, and HOCs that derive initial state;
 - direct reads from `window`, `document`, `navigator`, storage, `matchMedia`, current time, randomness, locale, or timezone.
@@ -63,7 +63,7 @@ Prefer single shared initial source. Keep post-hydration behavior unchanged unle
 
 ### 5. Prove consistency
 
-Add behavior-level regression test, run relevant tests and real Nordic build, then verify affected URL in browser with console and network evidence.
+Add behavior-level regression test, run relevant tests and the project's real build, then verify affected URL in browser with console and network evidence.
 
 ## Deterministic initial-state contract
 
@@ -90,7 +90,7 @@ const preloadedState = {
   initialParams,
 };
 
-return <Page state={preloadedState}>{/* same initial tree */}</Page>;
+return <Page preloadedState={preloadedState}>{/* same initial tree */}</Page>;
 ```
 
 Treat serialized empty object as authoritative. Falling back to `location.search` when server sent `{}` reintroduces dual source.
@@ -106,7 +106,7 @@ return hasSerializedState ? initialParams : getQueryParams();
 
 ### Validate and allowlist request-derived state
 
-Validate query/body/params before controller reads them, using `@meli/input-validation` and project route conventions. Copy explicit supported keys into new object; do not spread arbitrary `req.query` into state or service options.
+Validate query/body/params before controller reads them, using the project's schema validation library and route conventions. Copy explicit supported keys into new object; do not spread arbitrary `req.query` into state or service options.
 
 ```js
 const INITIAL_PARAM_KEYS = ['page', 'search', 'sort'];
@@ -128,14 +128,14 @@ Preserve URL-facing representation in snapshot. Derive separate copy for service
 
 ### Serialize only browser-safe data
 
-Never put these in `Page state`, inline JSON, globals, URL, or hydration props:
+Never put these in preloaded state, inline JSON, globals, URL, or hydration props:
 
 - cookies, session IDs, CSRF values, access/refresh tokens;
 - authorization headers or request headers;
 - secrets, credentials, internal configuration;
 - unnecessary PII or full authenticated-user payloads.
 
-Send minimum public fields required to render. Rely on Nordic serializer rather than hand-built script/JSON injection. React escaping does not make sensitive data safe to expose.
+Send minimum public fields required to render. Rely on the framework's serializer rather than hand-built script/JSON injection. React escaping does not make sensitive data safe to expose.
 
 ## Browser-only APIs
 
@@ -167,7 +167,7 @@ return browserPreference === null
   : <PreferenceAwareView value={browserPreference} />;
 ```
 
-If server already knows device/context, serialize it and use same value on client instead of waiting for effect. Prefer existing Nordic/Groot media-query HOC that receives server device context.
+If server already knows device/context, serialize it and use same value on client instead of waiting for effect. Prefer the project's existing media-query helper that receives server device context.
 
 ## Time, randomness, IDs, locale, and timezone
 
@@ -271,22 +271,22 @@ Use test-only trusted `renderToString` output when constructing hydration contai
 1. Run focused regression tests.
 2. Run related existing component/controller tests.
 3. Run lint for modified files.
-4. Run real Nordic development and production builds.
+4. Run the project's real development and production builds.
 5. Start app at project development URL.
 6. Hard reload affected deep link with exact query/context.
 7. Inspect browser console for hydration warnings.
 8. Capture snapshot and XHR/fetch statuses without exposing headers/cookies.
 9. Report `PASS`, `FAIL`, or `BLOCKED`; never present auth/environment block as success.
 
-Use `nordic-dev-verify` for browser runtime evidence.
+Use the project's runtime-verification tooling or browser automation for browser runtime evidence.
 
 ## Scope boundaries
 
 - General fetch architecture: use `react-data-fetching-best-practices`.
 - Async effect cancellation: use `react-useeffect-abortcontroller`.
 - Render performance: use `react-render-performance-patterns`.
-- User-facing translations: use `react-i18n-ui-text`.
-- Route input schemas: use `fix-unvalidated-input-access` alongside this skill.
+- User-facing translations: follow the project's i18n conventions.
+- Route input schemas: apply the project's input-validation conventions alongside this skill.
 
 This skill owns consistency between SSR HTML and first client render.
 
@@ -303,5 +303,5 @@ This skill owns consistency between SSR HTML and first client render.
 - Client-only libraries have stable minimal boundary.
 - `suppressHydrationWarning` absent or narrowly justified.
 - `renderToString` + `hydrateRoot` regression passes with zero recoverable errors.
-- Nordic build passes.
+- Project build passes.
 - Browser hard reload checked and result reported with evidence.
