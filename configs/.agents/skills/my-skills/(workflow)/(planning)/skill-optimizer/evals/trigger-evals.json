@@ -1,6 +1,6 @@
 [
   {"query":"Tengo una skill existente en `/Users/me/.claude/skills/review/SKILL.md` que tarda por repetir lecturas y contexto. Compará snapshot anterior contra candidato, medí tokens/tool calls y preservá todos sus guards.","should_trigger":true},
-  {"query":"En `configs/.agents/skills/my-skills/(workflow)/(pr)/inline-thread-autofix/SKILL.md` quiero reducir pasos redundantes sin perder closeout, OID checks ni backups. Hacé auditoría y benchmark old-vs-new.","should_trigger":true},
+  {"query":"En `plugins/ai-assets-kit/skills/inline-thread-autofix/SKILL.md` quiero reducir pasos redundantes sin perder closeout, OID checks ni backups. Hacé auditoría y benchmark old-vs-new.","should_trigger":true},
   {"query":"Necesito optimizar una Agent Skill ya publicada para mejorar precision/recall de activación. Usá queries positivas y near-miss con holdout, no cambies solo description sin medir.","should_trigger":true},
   {"query":"Mi skill de despliegue tiene 600 líneas y muchas fases seriales; encontrá fan-out seguro, fast paths y referencias repetidas, y demostrí paridad funcional antes de editar.","should_trigger":true},
   {"query":"Compará `/tmp/skill-v1` y `/tmp/skill-v2` como baseline/candidato. Reportá p50/p95, tokens reales, tool calls, regresiones de seguridad y qué versión conviene conservar.","should_trigger":true},
