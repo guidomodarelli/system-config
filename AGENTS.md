@@ -32,9 +32,9 @@
 
 ## Regla Para Especificaciones
 
-- Al escribir, actualizar o revisar specs, consultar y aplicar la guía visual de `configs/.agents/DESIGN.md`.
+- Al escribir, actualizar o revisar specs, consultar y aplicar la guía visual del `DESIGN.md` de la skill `user-manual` del plugin `ai-assets-kit`: la copia instalada del plugin o, en su repo fuente, `~/ghq/projects/ai-assets-marketplace/plugins/ai-assets-kit/skills/user-manual/DESIGN.md`.
 - Si una spec no puede seguir esa guía por una restricción técnica o de formato, dejar explícita la razón en la respuesta final.
-- Si se modifica la paleta de `configs/.agents/DESIGN.md` (front matter o `:root` del boilerplate), ejecutar `bash scripts/design/check-design-tokens.sh` y sus tests `scripts/design/test_check_design_tokens.bats`.
+- La paleta de ese `DESIGN.md` se modifica solo en el repo `ai-assets-marketplace`, siguiendo el `AGENTS.md` de la skill `user-manual`; este repositorio no guarda una copia.
 
 ## Memoria Persistente Del Repositorio
 
