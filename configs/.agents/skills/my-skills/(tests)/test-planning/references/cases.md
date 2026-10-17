@@ -5,10 +5,10 @@ cases, and data mocks ready to use.
 
 ### Requirements
 
-- **Identify inputs**: props, state, dependencies, callbacks, permissions, and i18n when applicable.
+- **Identify inputs**: props or arguments, state, dependencies, callbacks, permissions, and i18n when applicable.
 - **Base cases**: cover the main flow (render, key props, user events, state changes, async when
   applicable), scaling the number of cases to the behavior's risk and complexity.
-- **Edge cases**: list boundary scenarios relevant to the component or hook, for example:
+- **Edge cases**: list boundary scenarios relevant to the unit under test, for example:
   - empty list, list with one item, very large list
   - `null` or `undefined` props when they can be missing
   - invalid or incomplete props (missing optional fields)

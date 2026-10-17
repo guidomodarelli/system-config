@@ -1,7 +1,7 @@
 ## Rule: Create a coverage plan and identify gaps
 
 When asked to improve coverage, create tests, or audit quality, deliver a coverage plan and state
-which routes, components, and props are not covered.
+which routes, modules, components, and states are not covered.
 
 ### Requirements
 

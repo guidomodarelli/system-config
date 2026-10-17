@@ -6,7 +6,7 @@ description: >
   Use when the user asks to "create an issue", "write the issue", "armar la issue",
   "crear la issue", "documentar lo que voy a hacer", or similar, before any implementation.
 metadata:
-  author: gmodarelli_meli
+  author: Guido Modarelli
   version: "1.0"
 ---
 
